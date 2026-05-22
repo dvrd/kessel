@@ -932,13 +932,13 @@ test262/test/language/expressions/async-function/named-await-as-identifier-refer
 test262/test/language/expressions/async-function/named-await-as-identifier-reference.js:29:13: 'await' expression requires an operand
 test262/test/language/expressions/async-function/named-await-as-label-identifier-escaped.js:29:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-function/named-await-as-label-identifier.js:29:3: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/async-function/named-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/async-function/named-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/async-function/named-dflt-params-rest.js:40:24: Expected ), got =
 test262/test/language/expressions/async-function/named-object-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-function/named-rest-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-function/named-rest-params-trailing-comma-early-error.js:33:23: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/async-function/nameless-array-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-function/nameless-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/async-function/nameless-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/async-function/nameless-dflt-params-rest.js:40:22: Expected ), got =
 test262/test/language/expressions/async-function/nameless-object-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-function/nameless-rest-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
@@ -950,7 +950,7 @@ test262/test/language/expressions/async-generator/await-as-identifier-reference-
 test262/test/language/expressions/async-generator/await-as-identifier-reference.js:30:13: 'await' expression requires an operand
 test262/test/language/expressions/async-generator/await-as-label-identifier-escaped.js:30:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-generator/await-as-label-identifier.js:30:3: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/async-generator/dflt-params-duplicates.js:39:4: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/async-generator/dflt-params-duplicates.js:39:4: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/async-generator/dflt-params-rest.js:43:25: Expected ), got =
 test262/test/language/expressions/async-generator/dstr/ary-ptrn-rest-init-ary.js:33:31: Rest element must be last in array pattern
 test262/test/language/expressions/async-generator/dstr/ary-ptrn-rest-init-id.js:33:27: Rest element must be last in array pattern
@@ -1005,7 +1005,7 @@ test262/test/language/expressions/async-generator/named-await-as-identifier-refe
 test262/test/language/expressions/async-generator/named-await-as-identifier-reference.js:30:13: 'await' expression requires an operand
 test262/test/language/expressions/async-generator/named-await-as-label-identifier-escaped.js:30:3: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/async-generator/named-await-as-label-identifier.js:30:3: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/async-generator/named-dflt-params-duplicates.js:39:4: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/async-generator/named-dflt-params-duplicates.js:39:4: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/async-generator/named-dflt-params-rest.js:43:27: Expected ), got =
 test262/test/language/expressions/async-generator/named-object-destructuring-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/named-rest-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1040,7 +1040,7 @@ test262/test/language/expressions/class/async-gen-method-static/await-as-identif
 test262/test/language/expressions/class/async-gen-method-static/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-gen-method-static/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method-static/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/class/async-gen-method-static/dflt-params-duplicates.js:63:23: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/async-gen-method-static/dflt-params-duplicates.js:63:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-gen-method-static/dflt-params-rest.js:67:29: Expected ), got =
 test262/test/language/expressions/class/async-gen-method-static/object-destructuring-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method-static/rest-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1060,7 +1060,7 @@ test262/test/language/expressions/class/async-gen-method/await-as-identifier-ref
 test262/test/language/expressions/class/async-gen-method/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-gen-method/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/class/async-gen-method/dflt-params-duplicates.js:63:16: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/async-gen-method/dflt-params-duplicates.js:63:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-gen-method/dflt-params-rest.js:67:22: Expected ), got =
 test262/test/language/expressions/class/async-gen-method/object-destructuring-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method/rest-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1080,7 +1080,7 @@ test262/test/language/expressions/class/async-method-static/await-as-identifier-
 test262/test/language/expressions/class/async-method-static/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-method-static/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-method-static/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/class/async-method-static/dflt-params-duplicates.js:61:22: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/async-method-static/dflt-params-duplicates.js:61:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-method-static/dflt-params-rest.js:65:28: Expected ), got =
 test262/test/language/expressions/class/async-method-static/object-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method-static/rest-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1092,7 +1092,7 @@ test262/test/language/expressions/class/async-method/await-as-identifier-referen
 test262/test/language/expressions/class/async-method/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/expressions/class/async-method/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/class/async-method/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/class/async-method/dflt-params-duplicates.js:61:22: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/async-method/dflt-params-duplicates.js:61:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/async-method/dflt-params-rest.js:65:28: Expected ), got =
 test262/test/language/expressions/class/async-method/object-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method/rest-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1600,7 +1600,7 @@ test262/test/language/expressions/class/elements/typeof-init-err-contains-argume
 test262/test/language/expressions/class/elements/typeof-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/class/gen-method-param-dflt-yield.js:26:15: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/expressions/class/gen-method-static/array-destructuring-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/gen-method-static/dflt-params-duplicates.js:84:17: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/gen-method-static/dflt-params-duplicates.js:84:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/gen-method-static/dflt-params-rest.js:88:23: Expected ), got =
 test262/test/language/expressions/class/gen-method-static/object-destructuring-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method-static/rest-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1614,7 +1614,7 @@ test262/test/language/expressions/class/gen-method-static/yield-as-label-identif
 test262/test/language/expressions/class/gen-method-static/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method-static/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method/array-destructuring-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/gen-method/dflt-params-duplicates.js:84:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/gen-method/dflt-params-duplicates.js:84:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/gen-method/dflt-params-rest.js:88:16: Expected ), got =
 test262/test/language/expressions/class/gen-method/object-destructuring-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method/rest-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1630,13 +1630,13 @@ test262/test/language/expressions/class/gen-method/yield-identifier-strict.js:32
 test262/test/language/expressions/class/getter-param-dflt.js:23:16: Getter must not have any formal parameters
 test262/test/language/expressions/class/method-param-dflt-yield.js:21:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/method-static/array-destructuring-param-strict-body.js:151:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/method-static/dflt-params-duplicates.js:80:16: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/method-static/dflt-params-duplicates.js:80:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/method-static/dflt-params-rest.js:84:22: Expected ), got =
 test262/test/language/expressions/class/method-static/object-destructuring-param-strict-body.js:151:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method-static/rest-param-strict-body.js:151:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method-static/rest-params-trailing-comma-early-error.js:76:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/class/method/array-destructuring-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/method/dflt-params-duplicates.js:80:9: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/class/method/dflt-params-duplicates.js:80:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/method/dflt-params-rest.js:84:15: Expected ), got =
 test262/test/language/expressions/class/method/object-destructuring-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method/rest-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2046,7 +2046,7 @@ test262/test/language/expressions/function/rest-param-strict-body.js:130:4: Ille
 test262/test/language/expressions/function/rest-params-trailing-comma-early-error.js:55:17: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/expressions/function/use-strict-with-non-simple-param.js:19:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/array-destructuring-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/generators/dflt-params-duplicates.js:60:4: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/generators/dflt-params-duplicates.js:60:4: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/generators/dflt-params-rest.js:64:19: Expected ), got =
 test262/test/language/expressions/generators/dstr/ary-ptrn-rest-init-ary.js:53:25: Rest element must be last in array pattern
 test262/test/language/expressions/generators/dstr/ary-ptrn-rest-init-id.js:53:21: Rest element must be last in array pattern
@@ -2188,7 +2188,7 @@ test262/test/language/expressions/object/method-definition/async-gen-await-as-id
 test262/test/language/expressions/object/method-definition/async-gen-await-as-label-identifier-escaped.js:29:5: Keyword 'await' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-await-as-label-identifier.js:29:5: 'await' cannot be used as a label identifier in an async function
 test262/test/language/expressions/object/method-definition/async-gen-meth-array-destructuring-param-strict-body.js:115:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-params-duplicates.js:44:16: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-params-duplicates.js:44:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-params-rest.js:48:22: Expected ), got =
 test262/test/language/expressions/object/method-definition/async-gen-meth-escaped-async.js:25:15: Expected }, got *
 test262/test/language/expressions/object/method-definition/async-gen-meth-object-destructuring-param-strict-body.js:115:16: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2203,20 +2203,20 @@ test262/test/language/expressions/object/method-definition/async-gen-yield-as-la
 test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-spread-strict.js:35:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-strict.js:27:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/async-meth-array-destructuring-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/async-meth-dflt-params-duplicates.js:37:16: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/object/method-definition/async-meth-dflt-params-duplicates.js:37:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/async-meth-dflt-params-rest.js:41:22: Expected ), got =
 test262/test/language/expressions/object/method-definition/async-meth-escaped-async.js:25:16: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/async-meth-object-destructuring-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/async-meth-rest-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/async-meth-rest-params-trailing-comma-early-error.js:34:21: A rest parameter or binding pattern may not have a trailing comma.
-test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js:27:12: Duplicate parameter name 'a' in strict mode
+test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js:27:3: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-NSPL-with-USD.js:16:6: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js:17:14: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-async-lineterminator.js:21:3: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals-default.js:16:18: Top-level 'await' is only valid in module code
 test262/test/language/expressions/object/method-definition/early-errors-object-method-await-in-formals.js:16:14: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/early-errors-object-method-body-contains-super-call.js:16:23: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js:26:6: Duplicate parameter name 'a' in strict mode
+test262/test/language/expressions/object/method-definition/early-errors-object-method-duplicate-parameters.js:26:3: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-eval-in-formal-parameters.js:17:13: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-body-duplicate.js:17:18: Generator/async shorthand property not allowed
 test262/test/language/expressions/object/method-definition/early-errors-object-method-formals-contains-super-call.js:15:24: 'super' call is only allowed in the constructor of a derived class
@@ -2229,7 +2229,7 @@ test262/test/language/expressions/object/method-definition/escaped-set-s.js:24:1
 test262/test/language/expressions/object/method-definition/escaped-set-t.js:24:12: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/escaped-set.js:24:22: Expected }, got identifier
 test262/test/language/expressions/object/method-definition/gen-meth-array-destructuring-param-strict-body.js:137:10: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-duplicates.js:66:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-duplicates.js:66:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-rest.js:70:16: Expected ), got =
 test262/test/language/expressions/object/method-definition/gen-meth-object-destructuring-param-strict-body.js:137:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/gen-meth-rest-param-strict-body.js:137:10: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2250,7 +2250,7 @@ test262/test/language/expressions/object/method-definition/generator-super-call-
 test262/test/language/expressions/object/method-definition/generator-super-call-param.js:20:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/object/method-definition/generator-use-strict-with-non-simple-param.js:21:5: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/meth-array-destructuring-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/meth-dflt-params-duplicates.js:62:9: Duplicate parameter name 'x' in strict mode
+test262/test/language/expressions/object/method-definition/meth-dflt-params-duplicates.js:62:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/object/method-definition/meth-dflt-params-rest.js:66:15: Expected ), got =
 test262/test/language/expressions/object/method-definition/meth-object-destructuring-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/meth-rest-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3080,7 +3080,7 @@ test262/test/language/statements/async-function/await-as-identifier-reference-es
 test262/test/language/statements/async-function/await-as-identifier-reference.js:29:13: 'await' expression requires an operand
 test262/test/language/statements/async-function/await-as-label-identifier-escaped.js:29:3: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/async-function/await-as-label-identifier.js:29:3: 'await' cannot be used as a label identifier in an async function
-test262/test/language/statements/async-function/dflt-params-duplicates.js:36:1: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/async-function/dflt-params-duplicates.js:36:1: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/statements/async-function/dflt-params-rest.js:40:23: Expected ), got =
 test262/test/language/statements/async-function/early-errors-declaration-NSPL-with-USD.js:16:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/async-function/early-errors-declaration-arguments-in-formal-parameters.js:16:21: 'arguments' cannot be used as a binding name in strict mode
@@ -3107,7 +3107,7 @@ test262/test/language/statements/async-generator/await-as-identifier-reference-e
 test262/test/language/statements/async-generator/await-as-identifier-reference.js:30:13: 'await' expression requires an operand
 test262/test/language/statements/async-generator/await-as-label-identifier-escaped.js:30:3: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/async-generator/await-as-label-identifier.js:30:3: 'await' cannot be used as a label identifier in an async function
-test262/test/language/statements/async-generator/dflt-params-duplicates.js:39:1: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/async-generator/dflt-params-duplicates.js:39:1: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/statements/async-generator/dflt-params-rest.js:43:24: Expected ), got =
 test262/test/language/statements/async-generator/dstr/ary-ptrn-rest-init-ary.js:32:29: Rest element must be last in array pattern
 test262/test/language/statements/async-generator/dstr/ary-ptrn-rest-init-id.js:32:25: Rest element must be last in array pattern
@@ -3192,7 +3192,7 @@ test262/test/language/statements/class/async-gen-method-static/await-as-identifi
 test262/test/language/statements/class/async-gen-method-static/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-gen-method-static/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method-static/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/statements/class/async-gen-method-static/dflt-params-duplicates.js:63:23: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/async-gen-method-static/dflt-params-duplicates.js:63:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-gen-method-static/dflt-params-rest.js:67:29: Expected ), got =
 test262/test/language/statements/class/async-gen-method-static/object-destructuring-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method-static/rest-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3212,7 +3212,7 @@ test262/test/language/statements/class/async-gen-method/await-as-identifier-refe
 test262/test/language/statements/class/async-gen-method/await-as-identifier-reference.js:35:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-gen-method/await-as-label-identifier-escaped.js:35:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method/await-as-label-identifier.js:35:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/statements/class/async-gen-method/dflt-params-duplicates.js:62:16: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/async-gen-method/dflt-params-duplicates.js:62:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-gen-method/dflt-params-rest.js:66:22: Expected ), got =
 test262/test/language/statements/class/async-gen-method/object-destructuring-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method/rest-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3233,7 +3233,7 @@ test262/test/language/statements/class/async-method-static/await-as-identifier-r
 test262/test/language/statements/class/async-method-static/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-method-static/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-method-static/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/statements/class/async-method-static/dflt-params-duplicates.js:60:22: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/async-method-static/dflt-params-duplicates.js:60:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-method-static/dflt-params-rest.js:64:28: Expected ), got =
 test262/test/language/statements/class/async-method-static/object-destructuring-param-strict-body.js:131:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method-static/rest-param-strict-body.js:131:22: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3245,7 +3245,7 @@ test262/test/language/statements/class/async-method/await-as-identifier-referenc
 test262/test/language/statements/class/async-method/await-as-identifier-reference.js:36:15: 'await' expression requires an operand
 test262/test/language/statements/class/async-method/await-as-label-identifier-escaped.js:36:5: Keyword 'await' must not contain escaped characters
 test262/test/language/statements/class/async-method/await-as-label-identifier.js:36:5: 'await' cannot be used as a label identifier in an async function
-test262/test/language/statements/class/async-method/dflt-params-duplicates.js:61:15: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/async-method/dflt-params-duplicates.js:61:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/async-method/dflt-params-rest.js:65:21: Expected ), got =
 test262/test/language/statements/class/async-method/object-destructuring-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method/rest-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3258,13 +3258,13 @@ test262/test/language/statements/class/class-name-ident-static-escaped.js:27:7: 
 test262/test/language/statements/class/class-name-ident-static.js:27:7: 'static' is a reserved identifier and cannot be a class name
 test262/test/language/statements/class/class-name-ident-yield-escaped.js:27:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/class-name-ident-yield.js:25:7: 'yield' is a reserved identifier and cannot be a class name
-test262/test/language/statements/class/definition/early-errors-class-async-method-duplicate-parameters.js:28:12: Duplicate parameter name 'a' in strict mode
+test262/test/language/statements/class/definition/early-errors-class-async-method-duplicate-parameters.js:28:3: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-NSPL-with-USD.js:16:12: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/definition/early-errors-class-method-arguments-in-formal-parameters.js:15:14: 'arguments' cannot be used as a binding name in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals-default.js:15:18: Top-level 'await' is only valid in module code
 test262/test/language/statements/class/definition/early-errors-class-method-await-in-formals.js:15:14: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/definition/early-errors-class-method-body-contains-super-call.js:15:23: 'super' call is only allowed in the constructor of a derived class
-test262/test/language/statements/class/definition/early-errors-class-method-duplicate-parameters.js:27:6: Duplicate parameter name 'a' in strict mode
+test262/test/language/statements/class/definition/early-errors-class-method-duplicate-parameters.js:27:3: Duplicate parameter name 'a' in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-eval-in-formal-parameters.js:15:13: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/class/definition/early-errors-class-method-formals-body-duplicate.js:17:18: Expected (, got identifier
 test262/test/language/statements/class/definition/early-errors-class-method-formals-contains-super-call.js:15:24: 'super' call is only allowed in the constructor of a derived class
@@ -3777,7 +3777,7 @@ test262/test/language/statements/class/elements/typeof-init-err-contains-argumen
 test262/test/language/statements/class/elements/typeof-init-err-contains-super.js:26:19: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/statements/class/gen-method-param-dflt-yield.js:26:15: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/statements/class/gen-method-static/array-destructuring-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/gen-method-static/dflt-params-duplicates.js:82:17: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/gen-method-static/dflt-params-duplicates.js:82:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/gen-method-static/dflt-params-rest.js:86:23: Expected ), got =
 test262/test/language/statements/class/gen-method-static/object-destructuring-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method-static/rest-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3791,7 +3791,7 @@ test262/test/language/statements/class/gen-method-static/yield-as-label-identifi
 test262/test/language/statements/class/gen-method-static/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method-static/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method/array-destructuring-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/gen-method/dflt-params-duplicates.js:82:10: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/gen-method/dflt-params-duplicates.js:82:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/gen-method/dflt-params-rest.js:86:16: Expected ), got =
 test262/test/language/statements/class/gen-method/object-destructuring-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method/rest-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3807,13 +3807,13 @@ test262/test/language/statements/class/gen-method/yield-identifier-strict.js:32:
 test262/test/language/statements/class/getter-param-dflt.js:23:15: Getter must not have any formal parameters
 test262/test/language/statements/class/method-param-yield.js:21:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/method-static/array-destructuring-param-strict-body.js:150:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/method-static/dflt-params-duplicates.js:79:16: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/method-static/dflt-params-duplicates.js:79:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/method-static/dflt-params-rest.js:83:22: Expected ), got =
 test262/test/language/statements/class/method-static/object-destructuring-param-strict-body.js:150:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method-static/rest-param-strict-body.js:150:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method-static/rest-params-trailing-comma-early-error.js:75:21: A rest parameter or binding pattern may not have a trailing comma.
 test262/test/language/statements/class/method/array-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/method/dflt-params-duplicates.js:79:9: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/class/method/dflt-params-duplicates.js:79:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/method/dflt-params-rest.js:83:15: Expected ), got =
 test262/test/language/statements/class/method/object-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
@@ -4254,7 +4254,7 @@ test262/test/language/statements/function/rest-params-trailing-comma-early-error
 test262/test/language/statements/function/static-init-await-binding-invalid.js:24:14: 'await' cannot be used as a function name in module / async context
 test262/test/language/statements/function/use-strict-with-non-simple-param.js:19:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/generators/array-destructuring-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/generators/dflt-params-duplicates.js:60:1: Duplicate parameter name 'x' in strict mode
+test262/test/language/statements/generators/dflt-params-duplicates.js:60:1: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/statements/generators/dflt-params-rest.js:64:18: Expected ), got =
 test262/test/language/statements/generators/dstr/ary-ptrn-rest-init-ary.js:52:23: Rest element must be last in array pattern
 test262/test/language/statements/generators/dstr/ary-ptrn-rest-init-id.js:52:19: Rest element must be last in array pattern

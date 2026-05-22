@@ -488,6 +488,12 @@ Parser :: struct {
 	// session-21 shipped behaviour and OXC) is preserved by the
 	// checker's scope_skip context flag.
 
+	// Reusable ScopeMap pair for inline scope checking at each
+	// scope-bearing parse exit (BlockStatement, SwitchStatement,
+	// FunctionBody, Program). Cleared between scopes.
+	scope_lex:  ScopeMap,
+	scope_vars: ScopeMap,
+
 	// `ast_only` switches off all scope tracking, duplicate-binding
 	// detection, exported-name dedup, strict-reserved-name string checks,
 	// and the post-parse `verify_scopes` walk. The parser still produces
@@ -657,9 +663,10 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	if p.source_len > 4096 {
 		scope_cap = p.source_len / 512
 	}
-	// scope_pending queue removed in slice 14; the checker walks the AST
-	// directly to find scope-bearing bodies.
-	_ = scope_cap
+	// Reusable ScopeMap pair for inline scope checking at each parse
+	// scope exit (block, switch, function body, program).
+	p.scope_lex  = scope_map_make(scope_cap, alloc)
+	p.scope_vars = scope_map_make(scope_cap, alloc)
 
 	// Bump pool: scale with source size.
 	//
@@ -1754,6 +1761,9 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// standard scope check skips in TS mode.
 	check_ts_scope_conflicts(p, program.body[:])
 
+	// §14.2.1 — program-level lex/var clash check.
+	parser_scope_check(p, program.body[:], false)
+
 	return program
 }
 
@@ -2240,6 +2250,7 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// var+function coexistence is legal, so use is_block_scope=false.
 	is_block := !p.scope_fn_scope_next_block
 	p.scope_fn_scope_next_block = false
+	parser_scope_check(p, block.body[:], is_block)
 	return block_stmt
 }
 
@@ -3573,7 +3584,17 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	// §14.12.2 — inline lex/var clash check across all SwitchCase
 	// consequents. They share a single block-scope (the switch's
 	// CaseBlock). Flatten the per-case lists once and run the check.
-	_ = relevant; _ = total  // scope checking deferred to semantic checker
+	if !p.ast_only && total > 0 && relevant {
+		flat := make([]^Statement, total, context.temp_allocator)
+		i := 0
+		for c in switch_.cases {
+			for s in c.consequent {
+				flat[i] = s
+				i += 1
+			}
+		}
+		parser_scope_check(p, flat, true)
+	}
 	return statement_from(p, switch_)
 }
 
@@ -4006,6 +4027,8 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.ctx.in_async = prev_in_async_param_outer
 
 	report_parameter_modifiers_disallowed(p, params[:])
+	// §15.1 / §15.2.1 — duplicate formal parameter names.
+	parser_check_dup_params(p, params[:], start.start, p.ctx.strict_mode, false)
 
 	if !expect_token(p, .RParen) {
 		// Error recovery: skip forward to the next `{` (start of the body)
@@ -4148,9 +4171,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// remain on the semantic checker side for now — they require
 	// recursing into destructuring patterns and the parser-side surface
 	// would duplicate ck_check_strict_binding_pattern wholesale.
-	// Duplicate-param checks deferred to the semantic checker
-	// (ck_check_duplicate_param_names) — OXC's parser does not
-	// enforce these, only oxc_semantic does.
+	// Retroactive dup-param check: if the body just declared "use strict",
+	// the earlier parser_check_dup_params (pre-body) was sloppy and may have
+	// permitted simple duplicate params. Re-check with strict=true now.
+	if body_strict {
+		parser_check_dup_params(p, params[:], start.start, true, false)
+	}
 
 	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — it is a SyntaxError if
 	// the function body has a `"use strict"` directive AND the parameter
@@ -4767,6 +4793,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	// path. Skip when the body has nothing scope-relevant (typical
 	// callback bodies like `() => { return jsx }`) or in --ast-only
 	// bench mode.
+	parser_scope_check(p, body.body[:], false)
 	return body
 }
 
@@ -6642,6 +6669,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	p.ctx.in_generator_params = prev_method_gen_params
 	p.ctx.in_async_params = prev_method_async_params
 	p.ctx.in_static_block = prev_static_block_mparams
+	// §15.5.1 / §15.6.1 — class methods are always strict.
+	parser_check_dup_params(p, params[:], start.start, true, false)
 
 	if !expect_token(p, .RParen) {
 		return nil
@@ -6785,8 +6814,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 		// Class methods always have UniqueFormalParameters — the
 		// MethodDefinition production (§15.4) names the constraint, so
-		// duplicates fire regardless of outer strict mode (which has been
-		// Duplicate-param check deferred to semantic checker.
+		// duplicates fire regardless of outer strict mode.
+		// (parser_check_dup_params called above after parse_function_params)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList. A class method that has both a
@@ -9979,6 +10008,77 @@ scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_
 	for stmt in body {
 		scope_process_statement(p, stmt, lex, vars, is_block_scope)
 	}
+}
+
+// parser_scope_check — convenience wrapper that uses the parser's
+// reusable ScopeMap pair. Called at each scope-bearing parse exit.
+@(private="file")
+parser_scope_check :: proc(p: ^Parser, body: []^Statement, is_block_scope: bool) {
+	if p.ast_only { return }
+	scope_map_clear(&p.scope_lex)
+	scope_map_clear(&p.scope_vars)
+	scope_check_body(p, body, is_block_scope, &p.scope_lex, &p.scope_vars)
+}
+
+// parser_check_dup_params — §15.1 / §15.2.1 / §15.5.1 / §15.6.1 /
+// §15.8.1 — duplicate formal parameter names.
+//
+// Strict mode: always reject duplicates.
+// Sloppy mode: reject only when the parameter list is non-simple
+// (has defaults, destructuring, or rest parameters).
+// Arrow functions: always strict (implicit strict params).
+@(private="file")
+parser_check_dup_params :: proc(p: ^Parser, params: []FunctionParameter, fn_loc: u32, is_strict, is_arrow: bool) {
+	if p.ast_only { return }
+	if len(params) < 2 && !has_destructured_param(params) { return }
+	effective_strict := is_strict || is_arrow
+	non_simple := is_non_simple_params(params)
+	if !effective_strict && !non_simple { return }
+	names := make([dynamic]string, 0, 8, context.temp_allocator)
+	for pr in params { scope_collect_pattern(pr.pattern, &names) }
+	n := len(names)
+	if n < 2 { return }
+	for i := 1; i < n; i += 1 {
+		for j := 0; j < i; j += 1 {
+			if names[i] == names[j] {
+				if effective_strict {
+					report_error_at(p, LexerLoc(fn_loc),
+						fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i]))
+				} else {
+					report_error_at(p, LexerLoc(fn_loc),
+						fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i]))
+				}
+				return
+			}
+		}
+	}
+}
+
+// is_non_simple_params — §15.1 a parameter list is non-simple if any
+// parameter has a default value, is destructured, or is a rest element.
+@(private="file")
+is_non_simple_params :: proc(params: []FunctionParameter) -> bool {
+	for pr in params {
+		if _, has := pr.default_val.(^Expression); has { return true }
+		#partial switch _ in pr.pattern {
+		case ^ObjectPattern, ^ArrayPattern, ^RestElement, ^AssignmentPattern:
+			return true
+		}
+	}
+	return false
+}
+
+// has_destructured_param — true if any param is destructured (for the
+// single-param case where we still need to check binding conflicts).
+@(private="file")
+has_destructured_param :: proc(params: []FunctionParameter) -> bool {
+	for pr in params {
+		#partial switch _ in pr.pattern {
+		case ^ObjectPattern, ^ArrayPattern:
+			return true
+		}
+	}
+	return false
 }
 
 // ============================================================================
@@ -14639,6 +14739,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.ctx.in_generator_params = prev_gp_obj_acc
 		p.ctx.in_async_params = prev_ap_obj_acc
 		p.ctx.in_static_block = prev_sb_obj_acc
+		// Accessors always use UniqueFormalParameters (§14.3.1).
+		parser_check_dup_params(p, params[:], start.start, true, false)
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -14653,9 +14755,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.ctx.in_derived_constructor = prev_in_derived_ctor
 
 		// Getters / setters always have UniqueFormalParameters
-		// (ECMA-262 §15.4.3 / §15.4.4). A setter with two params named
-		// the same is a SyntaxError regardless of outer strict mode.
-		// Duplicate-param check deferred to semantic checker.
+		// (ECMA-262 §15.4.3 / §15.4.4).
+		// (parser_check_dup_params called above after parse_function_params)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal accessors. Setters
@@ -14746,6 +14847,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.ctx.in_generator_params = prev_gp_obj_meth
 		p.ctx.in_async_params = prev_ap_obj_meth
 		p.ctx.in_static_block = prev_sb_obj_meth
+		// Method shorthand always uses UniqueFormalParameters (§14.3.1).
+		parser_check_dup_params(p, params[:], start.start, true, false)
 		if !expect_token(p, .RParen) {
 			return nil
 		}
@@ -14767,8 +14870,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.ctx.in_method = prev_in_method
 		p.ctx.in_derived_constructor = prev_in_derived_ctor
 
-		// Object-literal methods run under UniqueFormalParameters rules
-		// Duplicate-param check deferred to semantic checker.
+		// Object-literal methods run under UniqueFormalParameters rules.
+		// (parser_check_dup_params called above after parse_function_params)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal methods.
@@ -16577,7 +16680,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		}
 	}
 
-	// Duplicate-param check deferred to semantic checker.
+	parser_check_dup_params(p, params[:], start.start, p.ctx.strict_mode, true)
 
 	// §15.3.1 — ContainsUseStrict + !IsSimpleParameterList for arrow
 	// functions. Arrow concise (expression) bodies cannot contain a
@@ -17167,7 +17270,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	arrow.async = true
 	arrow.loc.end = prev_end_offset(p)
 
-	// Duplicate-param check deferred to semantic checker.
+	parser_check_dup_params(p, params[:], start.start, p.ctx.strict_mode, true)
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async bar => { let bar; }` is a SyntaxError.
@@ -17289,7 +17392,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	if rt, ok := async_return_type.?; ok { arrow.return_type = rt }
 	arrow.loc.end = prev_end_offset(p)
 
-	// Duplicate-param check deferred to semantic checker.
+	parser_check_dup_params(p, params[:], start.start, p.ctx.strict_mode, true)
 
 	// §15.9.1 - BoundNames(params) ∩ LexicallyDeclaredNames(body)
 	// must be empty. `async(bar) => { let bar; }` is the canonical
@@ -20458,7 +20561,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 			}
 		}
 	}
-	// Duplicate-param check deferred to semantic checker.
+	parser_check_dup_params(p, params[:], start_loc.start, p.ctx.strict_mode, true)
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
