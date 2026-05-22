@@ -6,7 +6,7 @@
  * what a real consumer (ESLint, bundler, LSP) would experience.
  *
  * Parsers tested:
- *   - kessel-parser  (CLI shim — spawns process per call)
+ *   - kessel  (CLI shim — spawns process per call)
  *   - oxc-parser     (native NAPI binding)
  *   - acorn          (pure JS)
  *   - @babel/parser  (pure JS)
@@ -24,7 +24,7 @@ const { spawnSync } = require('child_process');
 const oxc = require('oxc-parser');
 const acorn = require('acorn');
 const babel = require('@babel/parser');
-const kessel = require('../npm/kessel-parser');
+const kessel = require('../npm/kessel');
 
 const KESSEL_BIN = path.resolve(__dirname, '../bin/kessel');
 

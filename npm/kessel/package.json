@@ -1,0 +1,18 @@
+{
+  "name": "kessel",
+  "version": "0.1.0",
+  "description": "Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs via native shared library.",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./binary-reader": "./binary-reader.js",
+    "./visitor": "./visitor.js"
+  },
+  "dependencies": {
+    "koffi": "^3.0.1"
+  },
+  "engines": { "node": ">=18" },
+  "keywords": ["parser", "javascript", "typescript", "jsx", "tsx", "estree", "ast"],
+  "license": "MIT",
+  "private": true
+}
