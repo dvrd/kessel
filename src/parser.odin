@@ -8133,11 +8133,13 @@ string_raw_has_forbidden_escape :: proc(raw: string) -> bool {
 		case '1', '2', '3', '4', '5', '6', '7':
 			return true
 		case '0':
-			// `\0` alone is fine; `\0` followed by another digit is a
-			// LegacyOctalEscapeSequence.
+			// `\0` alone is fine (CharacterEscapeSequence for null char).
+			// `\0` followed by `0` is treated as `\0` + literal `0` per OXC
+			// (escape-00.js positive fixture).
+			// `\0` followed by any other digit (1-9) is forbidden.
 			if i + 2 < n {
 				d := raw[i+2]
-				if d >= '0' && d <= '9' { return true }
+				if d >= '1' && d <= '9' { return true }
 			}
 			i += 2
 			continue

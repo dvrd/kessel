@@ -1,27 +1,9 @@
 commit: 4079bcda
 
 semantic_babel Summary:
-AST Parsed     : 2226/2232 (99.73%)
-Positive Passed: 2226/2232 (99.73%)
+AST Parsed     : 2232/2232 (100.00%)
+Positive Passed: 2232/2232 (100.00%)
 Negative Passed: 1702/1702 (100.00%)
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js:1:37: 'await' expression is not allowed in formal parameters of an async function
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-concise-body-of-async-arrow-inside-parameters-of-function/input.js
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-concise-body-of-async-arrow-inside-parameters-of-function/input.js:1:29: 'await' expression is not allowed in formal parameters of an async function
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts:6:1: Duplicate exported name 'default'
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override/input.ts:7:20: A 'get' accessor must return a value.
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/class/private-method-overload/input.ts:4:3: Duplicate private name '#f' in class body
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/function/getter-setter/input.ts
-babel/packages/babel-parser/test/fixtures/typescript/function/getter-setter/input.ts:2:8: A 'get' accessor must return a value.
-
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js:2:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js:2:24: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/invalid-assignment-target-type/input.js:3:15: Invalid destructuring assignment target
