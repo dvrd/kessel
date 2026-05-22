@@ -18,6 +18,14 @@ tasks:
     sources:
       - src/*.odin
 
+  build:lib:
+    desc: Build kessel shared library (libkessel.dylib/.so)
+    cmds:
+      - mkdir -p bin
+      - odin build {{.SRC}} -build-mode:shared -out:bin/libkessel.dylib -o:speed -no-bounds-check
+    sources:
+      - src/*.odin
+
   build:debug:
     desc: Build kessel (debug, with bounds checks)
     cmds:

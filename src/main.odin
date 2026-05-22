@@ -90,6 +90,7 @@ out_printf :: proc(format: string, args: ..any) -> int {
 	return fmt.wprintf(stdout_stream, format, ..args, flush=false)
 }
 
+when ODIN_BUILD_MODE != .Dynamic {
 main :: proc() {
 	// Apple Silicon scheduler biases threads to P-cores or E-cores by
 	// QoS class. CLI tools default to QOS_CLASS_DEFAULT, which can land
@@ -308,6 +309,7 @@ main :: proc() {
 	}
 	flush_stdout_writer()
 }
+} // when ODIN_BUILD_MODE != .Dynamic
 
 print_usage :: proc() {
 	out_println("Kessel - Fast JavaScript Parser")

@@ -9,8 +9,19 @@
   "scripts": {
     "build": "node scripts/build.js"
   },
-  "engines": { "node": ">=18" },
-  "keywords": ["parser", "javascript", "typescript", "estree", "ast"],
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "parser",
+    "javascript",
+    "typescript",
+    "estree",
+    "ast"
+  ],
   "license": "MIT",
-  "private": true
+  "private": true,
+  "dependencies": {
+    "koffi": "^3.0.1"
+  }
 }
