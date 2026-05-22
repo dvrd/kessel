@@ -79,7 +79,7 @@ kessel_parse_binary :: proc "c" (
 	result := new(LibResult, context.allocator)
 	result.buf = be.buf
 	result.buf_ptr = raw_data(be.buf[:])
-	result.buf_len = len(be.buf)
+	result.buf_len = be.pos
 	lib_last_result = result
 
 	// Don't destroy be — the buf is now owned by result

@@ -520,11 +520,11 @@ parse_file_binary :: proc(file_path: string, cli: CliConfig) {
 	bin_emit_program(&be, job.program)
 	bin_emit_finalize(&be)
 
-	os.write(os.stdout, be.buf[:])
+	os.write(os.stdout, be.buf[:be.pos])
 
 	// Stats on stderr
 	fmt.eprintf("Binary AST: %d bytes (%d nodes, %d strings)\n",
-		len(be.buf), be.node_count, len(be.strings))
+		be.pos, be.node_count, len(be.strings))
 	fmt.eprintf("Parse errors: %d\n", len(job.parser.errors))
 }
 

@@ -156,6 +156,7 @@ BinValType :: enum u8 {
 
 BinaryEmitter :: struct {
 	buf:          [dynamic]u8,       // output buffer
+	pos:          int,               // write cursor
 	strings:      [dynamic]string,   // string table (ordered by first occurrence)
 	string_map:   map[string]u32,    // dedup: string → index in strings
 	source:       string,            // borrowed source text
@@ -163,14 +164,13 @@ BinaryEmitter :: struct {
 }
 
 binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc: mem.Allocator) {
-	be.buf = make([dynamic]u8, 0, len(source) * 2, alloc)      // estimate: binary < 2× source
+	cap := max(len(source), 64 * 1024)
+	be.buf = make([dynamic]u8, cap, alloc)
+	be.pos = 16  // skip header (filled at the end)
 	be.strings = make([dynamic]string, 0, 4096, alloc)
 	be.string_map = make(map[string]u32, 4096, alloc)
 	be.source = source
 	be.node_count = 0
-
-	// Reserve header space (filled at the end)
-	for _ in 0..<16 { append(&be.buf, 0) }
 }
 
 binary_emitter_destroy :: proc(be: ^BinaryEmitter, alloc: mem.Allocator) {
@@ -179,40 +179,57 @@ binary_emitter_destroy :: proc(be: ^BinaryEmitter, alloc: mem.Allocator) {
 	delete(be.string_map)
 }
 
+// Ensure buf has room for n more bytes. Grow by doubling if needed.
+@(private="file")
+be_ensure :: #force_inline proc(be: ^BinaryEmitter, n: int) {
+	if be.pos + n > len(be.buf) {
+		resize(&be.buf, max(len(be.buf) * 2, be.pos + n))
+	}
+}
+
 // ============================================================================
 // Low-level write helpers
 // ============================================================================
 
 @(private="file")
 bw_u8 :: #force_inline proc(be: ^BinaryEmitter, v: u8) {
-	append(&be.buf, v)
-}
-
-@(private="file")
-bw_u16 :: #force_inline proc(be: ^BinaryEmitter, v: u16) {
-	append(&be.buf, u8(v))
-	append(&be.buf, u8(v >> 8))
+	be_ensure(be, 1)
+	be.buf[be.pos] = v
+	be.pos += 1
 }
 
 @(private="file")
 bw_u32 :: #force_inline proc(be: ^BinaryEmitter, v: u32) {
-	append(&be.buf, u8(v))
-	append(&be.buf, u8(v >> 8))
-	append(&be.buf, u8(v >> 16))
-	append(&be.buf, u8(v >> 24))
+	be_ensure(be, 4)
+	p := be.pos
+	be.buf[p]   = u8(v)
+	be.buf[p+1] = u8(v >> 8)
+	be.buf[p+2] = u8(v >> 16)
+	be.buf[p+3] = u8(v >> 24)
+	be.pos = p + 4
 }
 
 @(private="file")
-bw_f64 :: proc(be: ^BinaryEmitter, v: f64) {
+bw_f64 :: #force_inline proc(be: ^BinaryEmitter, v: f64) {
+	be_ensure(be, 8)
 	bits := transmute(u64)v
-	for i := 0; i < 8; i += 1 {
-		append(&be.buf, u8(bits >> uint(i * 8)))
-	}
+	p := be.pos
+	be.buf[p]   = u8(bits)
+	be.buf[p+1] = u8(bits >> 8)
+	be.buf[p+2] = u8(bits >> 16)
+	be.buf[p+3] = u8(bits >> 24)
+	be.buf[p+4] = u8(bits >> 32)
+	be.buf[p+5] = u8(bits >> 40)
+	be.buf[p+6] = u8(bits >> 48)
+	be.buf[p+7] = u8(bits >> 56)
+	be.pos = p + 8
 }
 
 @(private="file")
 bw_bool :: #force_inline proc(be: ^BinaryEmitter, v: bool) {
-	append(&be.buf, 1 if v else 0)
+	be_ensure(be, 1)
+	be.buf[be.pos] = 1 if v else 0
+	be.pos += 1
 }
 
 // Intern a string and write its index as u32.
@@ -947,44 +964,37 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 // ============================================================================
 
 bin_emit_finalize :: proc(be: ^BinaryEmitter) {
-	string_table_off := u32(len(be.buf))
+	string_table_off := u32(be.pos)
 
-	// Write string table: for each string, write [offset_in_source: u32, length: u32]
-	// If the string is a source slice, offset is relative to source start.
-	// If not (cooked string), we append the bytes after the table and use
-	// a high-bit flag.
 	source_ptr := uintptr(raw_data(be.source))
 	source_end := source_ptr + uintptr(len(be.source))
 
-	// First pass: write [offset, length] entries
+	// First pass: write [offset, length] entries for each string
 	for s in be.strings {
 		ptr := uintptr(raw_data(s))
 		if ptr >= source_ptr && ptr < source_end {
-			// Source slice — offset relative to source
 			bw_u32(be, u32(ptr - source_ptr))
 			bw_u32(be, u32(len(s)))
 		} else {
-			// Cooked/arena string — mark with high bit, append bytes later
-			bw_u32(be, u32(len(be.buf)) | 0x80000000) // placeholder, patched below
+			// Placeholder for cooked string — patched in second pass
+			bw_u32(be, 0x80000000)
 			bw_u32(be, u32(len(s)))
 		}
 	}
 
-	// Second pass: append non-source string bytes
+	// Second pass: append cooked string bytes and patch offsets
 	for s, i in be.strings {
 		ptr := uintptr(raw_data(s))
 		if ptr < source_ptr || ptr >= source_end {
-			// Patch the offset to point into the cooked section
-			entry_off := string_table_off + u32(uint(i)) * 8
-			actual_off := u32(len(be.buf)) | 0x80000000
+			entry_off := int(string_table_off) + i * 8
+			actual_off := u32(be.pos) | 0x80000000
 			be.buf[entry_off + 0] = u8(actual_off)
 			be.buf[entry_off + 1] = u8(actual_off >> 8)
 			be.buf[entry_off + 2] = u8(actual_off >> 16)
 			be.buf[entry_off + 3] = u8(actual_off >> 24)
-			// Append bytes
-			for j := 0; j < len(s); j += 1 {
-				append(&be.buf, s[j])
-			}
+			be_ensure(be, len(s))
+			copy(be.buf[be.pos:], transmute([]u8)s)
+			be.pos += len(s)
 		}
 	}
 
