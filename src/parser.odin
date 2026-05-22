@@ -4686,11 +4686,15 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 				if es_ok && es != nil {
 					str_lit, is_str := es.expression.(^StringLiteral)
 					if is_str && str_lit != nil {
-						es.directive = str_lit.value
-						bump_append(&prologue_raws, str_lit)
 						// §11.1.1 — directive must be an exact string literal
-						// with no escape sequences. Check raw for backslash.
-						if str_lit.value == "use strict" && !strings.contains(str_lit.raw, "\\") {
+						// with no escape sequences. Only set es.directive (and
+						// strict mode) when the raw token contains no backslash.
+						has_escape := strings.contains(str_lit.raw, "\\")
+						if !has_escape {
+							es.directive = str_lit.value
+						}
+						bump_append(&prologue_raws, str_lit)
+						if str_lit.value == "use strict" && !has_escape {
 							body_use_strict = true
 							p.ctx.strict_mode = true
 						}

@@ -302,7 +302,7 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	ctx.source_type  = program.type
 	ctx.at_top_level = true
 	// §14.3 — `using` / `await using` at top of a Script.
-	ck_check_using_at_script_top(c, program)
+	ck_check_using_at_script_top(c, &ctx, program)
 	// §16.2.1 — duplicate-export check (TS / TSX only; JS mode is
 	// reported by the parser-side `report_error_at` because the rule
 	// is a parse-time structural error there).
@@ -6066,6 +6066,70 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 	}
 }
 
+// ck_collect_hoisted_vars — recursively collects `var`-declared names
+// from nested blocks/loops/if/switch bodies. `var` hoists through all
+// statement-level nesting (blocks, for, if, switch, with, try, labeled)
+// but NOT through function boundaries.
+@(private="file")
+ck_collect_hoisted_vars :: proc(body: []^Statement, names: ^map[string]bool) {
+	for stmt in body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v == nil { continue }
+			if v.kind == .Var {
+				for decl in v.declarations { collect_pattern_bound_names(decl.id, names) }
+			}
+		case ^BlockStatement:
+			if v != nil { ck_collect_hoisted_vars(v.body[:], names) }
+		case ^IfStatement:
+			if v == nil { continue }
+			if v.consequent != nil { ck_collect_hoisted_vars({v.consequent}, names) }
+			if alt, ok := v.alternate.?; ok && alt != nil { ck_collect_hoisted_vars({alt}, names) }
+		case ^ForStatement:
+			if v == nil { continue }
+			if d, ok := v.init_decl.?; ok && d != nil && d.kind == .Var {
+				for decl in d.declarations { collect_pattern_bound_names(decl.id, names) }
+			}
+			if v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		case ^ForInStatement:
+			if v == nil { continue }
+			if d, ok := v.left_decl.?; ok && d != nil && d.kind == .Var {
+				for decl in d.declarations { collect_pattern_bound_names(decl.id, names) }
+			}
+			if v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		case ^ForOfStatement:
+			if v == nil { continue }
+			if d, ok := v.left_decl.?; ok && d != nil && d.kind == .Var {
+				for decl in d.declarations { collect_pattern_bound_names(decl.id, names) }
+			}
+			if v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		case ^WhileStatement:
+			if v != nil && v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		case ^DoWhileStatement:
+			if v != nil && v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		case ^WithStatement:
+			if v != nil && v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		case ^SwitchStatement:
+			if v == nil { continue }
+			for sc in v.cases {
+				ck_collect_hoisted_vars(sc.consequent[:], names)
+			}
+		case ^TryStatement:
+			if v == nil { continue }
+			ck_collect_hoisted_vars(v.block.body[:], names)
+			if handler, ok := v.handler.?; ok {
+				ck_collect_hoisted_vars(handler.body.body[:], names)
+			}
+			if fin, ok := v.finalizer.?; ok {
+				ck_collect_hoisted_vars(fin.body[:], names)
+			}
+		case ^LabeledStatement:
+			if v != nil && v.body != nil { ck_collect_hoisted_vars({v.body}, names) }
+		}
+	}
+}
+
 // ck_collect_module_top_level_names — §16.2.2 helper. Collects every
 // VarDeclaredName / LexicallyDeclaredName at module top level (also
 // counts ImportSpecifier locals — those are bindings the module
@@ -6080,6 +6144,11 @@ ck_collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string
 		case ^VariableDeclaration:
 			if v == nil { continue }
 			for decl in v.declarations { collect_pattern_bound_names(decl.id, names) }
+		case ^BlockStatement:
+			// §14.2.1 — `var` declarations hoist out of blocks into the
+			// module scope. Recurse to collect them so `export { x }` after
+			// `{ var x; }` is valid.
+			if v != nil { ck_collect_hoisted_vars(v.body[:], names) }
 		case ^FunctionDeclaration:
 			if v == nil { continue }
 			if id, ok := v.id.(BindingIdentifier); ok { names[id.name] = true }
@@ -6233,9 +6302,12 @@ ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 // recurse into nested blocks: `using` inside a function body in a
 // Script is fine; only top-level Script position is rejected.
 @(private="file")
-ck_check_using_at_script_top :: proc(c: ^Checker, program: ^Program) {
+ck_check_using_at_script_top :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Program) {
 	if program == nil { return }
 	if program.type != .Script { return }
+	// CommonJS (.cjs / .cts) wraps the body in a function, so top-level
+	// `using` is fine — it's actually function-scope.
+	if ctx.is_commonjs { return }
 	for stmt in program.body {
 		if stmt == nil { continue }
 		decl, ok := stmt^.(^VariableDeclaration)

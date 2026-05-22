@@ -1,23 +1,14 @@
 commit: 4079bcda
 
 semantic_babel Summary:
-AST Parsed     : 2223/2232 (99.60%)
-Positive Passed: 2223/2232 (99.60%)
+AST Parsed     : 2226/2232 (99.73%)
+Positive Passed: 2226/2232 (99.73%)
 Negative Passed: 1702/1702 (100.00%)
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js
-babel/packages/babel-parser/test/fixtures/core/scope/undecl-export-var/input.js:4:10: Export 'encrypt' is not defined in the module
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js
-babel/packages/babel-parser/test/fixtures/core/sourcetype-commonjs/top-level-using/input.js:1:1: 'using' declaration is not allowed at the top level of a script
-
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-async-function-body-inside-parameters-of-function/input.js:1:37: 'await' expression is not allowed in formal parameters of an async function
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-concise-body-of-async-arrow-inside-parameters-of-function/input.js
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-concise-body-of-async-arrow-inside-parameters-of-function/input.js:1:29: 'await' expression is not allowed in formal parameters of an async function
-
-Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js
-babel/packages/babel-parser/test/fixtures/esprima/directive-prolog/migrated_0000/input.js:1:33: 'with' statements are not allowed in strict mode
 
 Expect to Parse: tasks/coverage/babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract/input.ts:6:1: Duplicate exported name 'default'
