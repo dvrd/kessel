@@ -43,6 +43,26 @@ tasks:
       - tests/coverage/src/*.odin
       - src/*.odin
 
+  release:
+    desc: "Release a new version — test, bump, changelog, build, publish."
+    cmds:
+      - scripts/release.sh {{.CLI_ARGS}}
+
+  release:patch:
+    desc: "Release a patch version (0.1.0 → 0.1.1)"
+    cmds:
+      - scripts/release.sh patch
+
+  release:minor:
+    desc: "Release a minor version (0.1.0 → 0.2.0)"
+    cmds:
+      - scripts/release.sh minor
+
+  release:major:
+    desc: "Release a major version (0.1.0 → 1.0.0)"
+    cmds:
+      - scripts/release.sh major
+
   test:
     desc: "Primary gate — coverage snap gate (50K+ fixtures) + unit fixtures."
     silent: false

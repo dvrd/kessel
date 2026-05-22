@@ -15,6 +15,13 @@ const ext = platform === 'darwin' ? 'dylib' : platform === 'win32' ? 'dll' : 'so
 const binDir = path.join(__dirname, '..', 'bin');
 const target = path.join(binDir, `libkessel-${platform}-${arch}.${ext}`);
 
+// Copy root CHANGELOG into the package
+const changelogSrc = path.resolve(__dirname, '../../../CHANGELOG.md');
+const changelogDst = path.join(__dirname, '..', 'CHANGELOG.md');
+if (fs.existsSync(changelogSrc)) {
+  fs.copyFileSync(changelogSrc, changelogDst);
+}
+
 // If the target already exists (CI placed it), we're done.
 if (fs.existsSync(target)) {
   console.log(`prepack: ${target} already exists`);

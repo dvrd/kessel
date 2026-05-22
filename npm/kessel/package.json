@@ -12,7 +12,8 @@
     "index.js",
     "binary-reader.js",
     "visitor.js",
-    "bin/"
+    "bin/",
+    "CHANGELOG.md"
   ],
   "scripts": {
     "prepack": "node scripts/prepack.js",
