@@ -250,19 +250,19 @@ init_checker :: proc(alloc: mem.Allocator) -> Checker {
 	}
 }
 
-// ck_run_scope_check — no-op stub. §14.2.1 / §14.3.1.1 lex/var clash
-// detection runs at parser end-of-program (run_scope_checks in
-// parser.odin) so parser-only snaps catch them. This proc stays as a
-// thin shim because the existing ck_walk_stmt call sites still pass
-// through it; removing the call sites is a follow-up cleanup.
-//
-// Pre-slice-16 the parser-side scope_check_body was invoked from here
-// against the checker's reusable lex/var maps. With the parser now
-// running its own walk in run_scope_checks, calling scope_check_body
-// again would double-fire every duplicate-binding diagnostic.
+// ck_run_scope_check — §14.2.1 / §14.3.1.1 lex/var duplicate-binding
+// detection. Calls the parser-side scope_check_body against the
+// checker's reusable lex/var ScopeMap pair. Invoked from the checker's
+// AST walk at each scope-bearing entry point (BlockStatement,
+// SwitchStatement case-list, FunctionBody, Program body, etc.).
 @(private="file")
 ck_run_scope_check :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement, is_block_scope: bool) {
-	_ = c; _ = ctx; _ = body; _ = is_block_scope
+	if ctx.scope_skip { return }
+	p := c.pending_parser
+	if p == nil || p.ast_only { return }
+	scope_map_clear(&c.scope_lex)
+	scope_map_clear(&c.scope_vars)
+	scope_check_body(p, body, is_block_scope, &c.scope_lex, &c.scope_vars)
 }
 
 // check_program is the entry point for the semantic checker.
