@@ -1,8 +1,8 @@
 /**
  * kessel — fast JavaScript/TypeScript/JSX/TSX parser.
  *
- * Native shared library binding. No process spawn, no IPC.
- * Returns ESTree-compatible ASTs.
+ * Native shared library binding via koffi FFI + binary AST decode.
+ * No process spawn, no JSON serialization. Returns ESTree-compatible ASTs.
  *
  * Usage:
  *   const { parseSync } = require('kessel');

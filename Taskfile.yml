@@ -19,10 +19,10 @@ tasks:
       - src/*.odin
 
   build:lib:
-    desc: Build kessel shared library (libkessel.dylib/.so)
+    desc: Build kessel shared library (libkessel.dylib/.so) for the npm package
     cmds:
       - mkdir -p bin
-      - odin build {{.SRC}} -build-mode:shared -out:bin/libkessel.dylib -o:speed -no-bounds-check
+      - odin build {{.SRC}} -build-mode:shared -out:bin/libkessel.dylib -o:speed -no-bounds-check -extra-linker-flags:"-undefined dynamic_lookup"
     sources:
       - src/*.odin
 
