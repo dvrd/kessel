@@ -126,7 +126,6 @@ function decode(buffer, source) {
   return { program, errors: [] };
 
   function readU8() { if (off >= dv.byteLength) return 0; return dv.getUint8(off++); }
-  function readU16() { if (off + 2 > dv.byteLength) return 0; const v = dv.getUint16(off, true); off += 2; return v; }
   function readU32() { if (off + 4 > dv.byteLength) return 0; const v = dv.getUint32(off, true); off += 4; return v; }
   function readF64() { if (off + 8 > dv.byteLength) return 0; const v = dv.getFloat64(off, true); off += 8; return v; }
   function readBool() { if (off >= dv.byteLength) return false; return dv.getUint8(off++) !== 0; }

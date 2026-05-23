@@ -2606,7 +2606,7 @@ ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
 // every Identifier binding into `decls` (name → first-seen source offset).
 // Recurses through ObjectPattern / ArrayPattern / AssignmentPattern /
 // RestElement so that destructured `let { a, b: [c] }` tracks a, b, c.
-// v2 addition (session 6 slice G): replaces the v1 bare-Identifier-only
+// v2 addition: replaces the v1 bare-Identifier-only
 // collection so `let {[a]: a}` and `let [x2 = x2]` are caught.
 @(private="file")
 ck_ubd_collect_bindings :: proc(pattern: Pattern, decls: ^map[string]u32) {
@@ -2748,7 +2748,7 @@ ck_ubd_walk_class_statics :: proc(c: ^Checker, body: ClassBody, decls: ^map[stri
 // the closure is defined) and at TS type positions (typeof X, T<X>, etc.
 // — they're erased at runtime and don't count as a use).
 //
-// v2 (session 6 slice G) additions:
+// v2 additions:
 //   * Destructuring patterns — Pass 1 now walks ObjectPattern /
 //     ArrayPattern / AssignmentPattern / RestElement to collect all
 //     Identifier bindings (was bare-Identifier only). Pass 2 walks
@@ -2807,7 +2807,7 @@ ck_check_ts_use_before_decl :: proc(c: ^Checker, body: []^Statement) {
 // BlockStatement bodies — they have their own scopes that get a separate
 // ck_check_ts_use_before_decl pass via ck_check_ts_body_decls.
 //
-// v2 (session 6 slice G): walks pattern value positions (computed keys,
+// v2: walks pattern value positions (computed keys,
 // default values), self-init initializers, and ClassDeclaration static
 // members + decorators.
 @(private="file")
@@ -3970,7 +3970,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			ck_walk_jsx_child(c, ctx, child)
 		}
 
-	// Strict-mode-only literal early errors (slice 5):
+	// Strict-mode-only literal early errors:
 	case ^NumericLiteral:
 		if e != nil { ck_check_legacy_octal_number(c, ctx, e) }
 	case ^StringLiteral:
@@ -4444,7 +4444,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	}
 
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
-	// overload-signature exception). Migrated from parser.odin in slice 4.
+	// overload-signature exception)..
 	ck_check_class_constructors(c, ctx, cls)
 	// §15.7.1 — private getter/setter static-mismatch.
 	ck_check_class_private_static_mismatch(c, cls)
