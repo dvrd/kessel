@@ -33,11 +33,8 @@ jobs:
       - name: Build shared library
         run: task build:lib
 
-      - name: Update golden files
-        run: tests/runners/run_tests.sh --update
-
       - name: Test (unit)
-        run: task test:unit
+        run: tests/runners/run_tests.sh --update
 
       - name: Test npm package
         run: |
