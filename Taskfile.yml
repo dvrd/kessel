@@ -37,7 +37,7 @@ tasks:
     desc: Build the OXC-style coverage harness binary (bin/kessel_coverage)
     cmds:
       - mkdir -p bin
-      - odin build tests/coverage/src -out:bin/kessel_coverage -o:speed -no-bounds-check
+      - odin build tests/coverage/src -out:bin/kessel_coverage -o:speed
       - rm -rf bin/kessel_coverage.dSYM
     sources:
       - tests/coverage/src/*.odin
