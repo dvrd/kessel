@@ -104,13 +104,21 @@ jobs:
       # Build shared library. We inline the `odin build` invocation instead
       # of calling `task build:lib` because the Taskfile hard-codes mac
       # linker flags. OS-conditional flags live here in the matrix.
+      #
+      # We `cd bin` first because on Windows Odin places per-package
+      # intermediate .obj files in the output directory but invokes
+      # link.exe with bare filenames; CWD must match the output dir or
+      # MSVC fails with LNK1181 (`cannot open input file 'system.obj'`).
+      # Running from `bin/` on every platform keeps the invocation
+      # uniform and harmless on macOS/Linux.
       - name: Build shared library
         shell: bash
         run: |
           mkdir -p bin
-          odin build src \
+          cd bin
+          odin build ../src \
             -build-mode:shared \
-            -out:bin/libkessel.${{ matrix.ext }} \
+            -out:libkessel.${{ matrix.ext }} \
             -o:speed \
             -no-bounds-check \
             ${{ matrix.ldflags }}
