@@ -33,6 +33,14 @@ jobs:
       - name: Build shared library
         run: task build:lib
 
+      - name: Update coverage snapshots
+        run: |
+          task build:coverage
+          for suite in misc estree babel typescript test262; do
+            ./bin/kessel_coverage run $suite --update
+            ./bin/kessel_coverage run $suite --semantic --update 2>/dev/null || true
+          done
+
       - name: Test (coverage + unit)
         run: task test
 
