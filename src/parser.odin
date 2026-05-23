@@ -4776,9 +4776,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// TS: optional type arguments on the super class - `extends Foo<T, U>`.
 		// parse_left_hand_side_expr stops at the `<` (it's not a JS infix op
-		// in this position), so we have to parse the args here. Closes 95+
-		// OXC corpus rejects in the "Expected {, got <" cluster
-		// OXC parses type arguments on class heritage in all modes
+		// in this position), so we have to parse the args here.
 		// (JS + TS), matching checkJs / allowJs usage patterns.
 		// In TS mode, `<<` (left-shift) is re-lexed as two `<` tokens
 		// to support `Foo<<T>() => void>`. In JS mode, only plain `<`
@@ -6206,10 +6204,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	} else if is_token(p, .LBracket) {
 		// TS index signature in class body: `[s: string]: number`. Detect by
 		// peeking `[ Identifier : ...`. The interface-body parser
-		// (parse_ts_object_member) handles this; class bodies got the same
-		// detection added here. Pre-fix: kessel saw `[` and tried to parse
-		// `s` as a computed-property-key expression, then choked on `:` looking
-		// for `]`. Closes 130+ OXC corpus rejects in the "Expected ], got :"
+		// (parse_ts_object_member) handles this; class bodies need the same
+		// detection. Without it, `[s: string]` is misparsed as a computed
+		// property key, choking on `:` while looking for `]`.
 		// cluster. Skipped at the AST level for
 		// now - the parser accepts the syntax, the corpus smoke gate passes,
 		// and a proper TSIndexSignature class-element node can come in W7+
@@ -6472,9 +6469,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// It's a method - parse parameters and body. TS allows generic methods
 	// `foo<T>(x: T): T { ... }` - parse the optional <T,U,...> here, before
-	// the `(`. Previously the parser jumped straight to expect_token(.LParen)
-	// and reported `Expected (, got <` on every generic class method.
-	// message. Mirrors the same dance
+	// the `(`. Without this, `Expected (, got <` fires on every generic
+	// class method. Same dance as
 	// parse_function_declaration does at line 3810. Stored on the
 	// FunctionExpression's type_parameters slot below.
 	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
@@ -7405,8 +7401,6 @@ count_real_params :: #force_inline proc(p: ^Parser, params: []FunctionParameter)
 // example: three.js's Texture.image setter). Only the TS spec adds the
 // extra restriction; OXC mirrors this gating, and we match here.
 // Slice 15 (2026-05-07) promoted these checks from the semantic checker
-// (formerly ck_check_accessor) to the parser, closing 14 of the 19
-// OXC-corpus oxc-only-rejects (every class-accessor case).
 // Diagnostic location convention matches OXC:
 //   * arity errors anchor at the property key (so the underline lands on
 //     `set foo` rather than `(`),
@@ -10226,9 +10220,8 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 // ^ImportNamespaceSpecifier to a ^ImportSpecifierSpec (union) via assignment,
 // so the union variant tag is written correctly. Directly casting the
 // pointer `(^ImportSpecifierSpec)(spec)` preserves the address but not the
-// tag - the emitter's `switch v in spec_ptr^` then falls through to no
-// matching case and emits `{}`. Same union-cast bug class as the Statement/
-// Declaration fix in print_declaration_ast.
+// tag — the emitter's `switch v in spec_ptr^` then falls through to no
+// matching case and emits `{}`. Same fix as print_declaration_ast.
 append_import_spec :: proc(specs: ^[dynamic]^ImportSpecifierSpec, spec: $T, allocator: mem.Allocator) {
 	u := new(ImportSpecifierSpec, allocator)
 	u^ = spec^
@@ -10340,9 +10333,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 
 	// TS `import X = ...` / `import type X = ...` (TSImportEqualsDeclaration).
 	// Detect by `Identifier` followed by `=`. The `import type X = ...` form is
-	// also legal (type-only import-equals). Closes 291 kessel-only-rejects in
-	// the OXC corpus - the largest single bug
-	// cluster, all reporting "Expected from, got =" pre-fix.
+	// also legal (type-only import-equals).
 	// Check for TS import-equals: `import X = ...`. Also handles
 	// `import await = ...` (await as binding name in non-module).
 	if allow_ts_mode(p) && (p.cur_type == .Identifier || p.cur_type == .Await ||
@@ -15693,8 +15684,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 			// has no argument because the next token is `}`) leaves prop.value
 			// nil. The type assertion `prop.value.(^AssignmentExpression)` auto-
 			// derefs and segfaults on nil. Skip the property; the upstream parse
-			// error already explains what went wrong. Closes 2 babel discard-
-			// binding SIGSEGVs.
+			// error already explains what went wrong.
 			if prop.value == nil { continue }
 			value_pat: Pattern
 			if ae, is_assign := prop.value.(^AssignmentExpression); is_assign && ae.operator == .Assign {
@@ -16278,8 +16268,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					// `[]?` as ConditionalExpression whose consequent is missing
 					// (next token is `,`, not an expression start), so parse_conditional_
 					// expr returns nil and the sequence captures a nil pointer for that
-					// slot. Without this guard, `expr_ptr^` segfaults. Closes 5 SIGSEGVs
-					// across babel/typescript optional-arrow / discard-binding fixtures
+					// slot. Without this guard, `expr_ptr^` segfaults.
 					if expr_ptr == nil { continue }
 					#partial switch arg in expr_ptr^ {
 					case ^Identifier:
@@ -18406,9 +18395,9 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 	}
 	// Accept any token that can stand in for a BindingIdentifier in
 	// parameter position - plain `.Identifier` plus every contextual
-	// keyword (`from`, `of`, `as`, `async`, `let`, `static`, ...). Pre-fix
-	// the check only allowed `.Identifier`, so a TS function type whose
-	// inner param happened to be named `from` (`(from: T) => U`) failed
+	// keyword (`from`, `of`, `as`, `async`, `let`, `static`, ...).
+	// Without this, a TS function type whose param is named `from`
+	// (`(from: T) => U`) would fail
 	// the cheap detect and fell through to parenthesized-type parsing,
 	// which then tripped on the `:`. Test:
 	// typescript/compiler/genericCallInferenceWithGenericLocalFunction.ts.
@@ -18632,9 +18621,7 @@ parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TS
 // Parse a TS template-literal type with substitutions starting at the
 // .TemplateHead token. Mirrors parse_template_literal's quasi-collecting
 // loop but parses each `${...}` slot as a TS type rather than an
-// expression. Closes ~10 OXC corpus rejects in the variable-binding
-// cluster (e.g. `noSubstitutionTemplateStringLiteralTypes.ts` neighbours)
-// and is required for any `\`prefix-${T}-suffix\`` literal type.
+// expression, which is required for `\`prefix-${T}-suffix\`` literal types.
 parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	head := snap_current(p)
 	node := new_node(p, TSTemplateLiteralType); node.loc = start
@@ -18709,9 +18696,8 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// TS constructor type literal: `new (x: T) => U`, optionally with
 		// type parameters `new <T>(x: T) => U`. Closes ~80 OXC corpus
 		// rejects in the "Expected '=', ',', or ';' after variable binding"
-		// cluster. Previously the .New token
-		// in type position fell through to the default `return nil` and the
-		// outer parser surfaced `new` as a JS NewExpression in expression
+		// Without this, `new` in type position falls through to default
+		// and the outer parser surfaces it as a JS NewExpression in expression
 		// position, breaking the variable binding. ESTree-TS shape:
 		//   { type: "TSConstructorType", abstract, typeParameters, params,
 		//     returnType }
@@ -18719,9 +18705,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .LAngle:
 		// TS generic function type: `<T>(x: T) => U`. The `<` in type
 		// position has only one possible meaning - the start of TSFunctionType
-		// with type parameters. Previously kessel didn't recognize this, so
-		// type annotations like `declare const f: <T>(x: T) => T` choked at
-		// the `<` and the parser fell back to default-binding logic that
+		// with type parameters. Without this, type annotations like
+		// `declare const f: <T>(x: T) => T` choke at `<` and the parser
+		// falls back to default-binding logic that
 		// reported "Expected '=', ',', or ';' after variable binding". In
 		// type-alias position (`type F = <T>(...) => T`) the same gap was
 		// hidden because the parser silently treated `<T>(...) => T` as a
@@ -18815,9 +18801,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .LBrace:
 		// TS object type literal `{ ... }`. Must thread through parse_ts_postfix
 		// so trailing `[]` (TSArrayType) and `[K]` (TSIndexedAccessType) attach
-		// correctly. Pre-fix: `var t: { x: string }[] = []` reported "Expected
-		// '=', ',', or ';' after variable binding" at the `[` because the
-		// type ended at the `}` and the parser tried to parse `[]` as the
+		// correctly. Without this, `var t: { x: string }[] = []` reports
+		// "Expected '=', ',', or ';'" at `[` because the type ends at `}`
+		// and the parser tries to parse `[]` as the
 		// initializer of a different declarator.
 		return parse_ts_postfix(p, parse_ts_type_object(p), start)
 	case .LBracket:
@@ -18826,9 +18812,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		//   variadic   `[A, ...B[]]`,  `[...A, B]`,  `[...Elements, "abc"]`
 		//   optional   `[T?, U]`  (TSOptionalType, postfix on the element)
 		//   named      `[a: string, b?: number]`  (TSNamedTupleMember)
-		//. Previously the inner loop called
-		// parse_ts_type directly which doesn't recognise the leading `...` or
-		// the `name:` / `name?:` named-element prefix.
+		// The inner loop must use a dedicated tuple-element parser rather
+		// than parse_ts_type directly, since plain parse_ts_type doesn't
+		// recognise the leading `...` or `name:` / `name?:` prefix.
 		eat(p) // consume `[`
 		// Re-allow conditional types inside brackets (tuple elements).
 		saved_disallow_ct := p.ts_disallow_conditional_types
@@ -18962,9 +18948,8 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// TS const assertion target: `expr as const`. `const` is a JS
 		// reserved keyword (lexed as .Const), not a real type, but TS-ESTree
 		// models the assertion's type as TSTypeReference whose typeName is
-		// Identifier("const"). Previously the parser fell through to
-		// parse_ts_type_reference's `cur := snap_current(p); id.name = cur.value`
-		// which expects an Identifier kind - .Const failed and the as-arm
+		// Identifier("const"). Must be handled explicitly because
+		// parse_ts_type_reference expects an Identifier token — .Const
 		// reported "Expected semicolon" / "Expected binding pattern". Closes
 		// 50+ OXC corpus rejects in the "Expected semicolon" cluster
 		cur_const := snap_current(p)
@@ -18978,9 +18963,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .Typeof:
 		// TS type-query: `typeof X` / `typeof X.Y.Z` / `typeof X<TArgs>`
 		// (the type-arguments form is TS 4.7+, used to instantiate generic
-		// type-of references). Previously, the branch called
-		// parse_left_hand_side_expr which read `<` as the start of a JS
-		// less-than comparison, breaking files like
+		// type-of references). Must use a dedicated typeof-qualifier
+		// parser rather than parse_left_hand_side_expr, which would read
+		// `<` as JS less-than, breaking files like
 		//   var v: typeof A<B>;
 		// (parserTypeQuery8.ts) and the babel
 		//   typescript/types/typeof-type-parameters/input.ts
@@ -19176,9 +19161,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		return parse_ts_template_literal_type(p, start)
 	case .String, .Number, .BigInt, .True, .False:
 		// TS literal-type postfix chain: `"abc"[]`, `1[]`, `42n[]`, `true[]`,
-		// `1[][]`, `1 | 1[]`, etc. Previously all four literal-type cases
-		// returned `r` directly without going through parse_ts_postfix, so
-		// `T = 1[]` reported "Expected '=', ',', or ';' after variable binding"
+		// `1[][]`, `1 | 1[]`, etc. Must route through parse_ts_postfix
+		// so trailing `[]` / `[K]` attaches. Without it, `T = 1[]`
+		// reports "Expected '=', ',', or ';' after variable binding"
 		// at the `[` (the parser ended the type at the literal and tried to
 		// parse `[]` as a different declarator's initializer). Mirrors the
 		// same parse_ts_postfix wrapping used by .LBrace / .LBracket / kw
@@ -20191,9 +20176,9 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	// so type-predicate forms `(x): x is T => ...`, `(x): asserts x => ...`,
 	// and `(x): asserts x is T => ...` parse as TSTypePredicate (closes
 	// ~25 OXC corpus rejects in the "Expected ), got :" cluster.
-	// Previously the parse_ts_type_annotation
-	// path called parse_ts_type which doesn't recognise the predicate's
-	// `is` / `asserts` keywords; the trial bailed at `is` and the outer
+	// The return-type parser must handle predicates directly because
+	// plain parse_ts_type doesn't recognise `is` / `asserts` keywords;
+	// without this, the trial bails at `is` and the outer
 	// parser tried to re-parse the whole `(x: T)` as a paren-expr,
 	// reporting "Expected ), got :" on the now-illegal type colon.
 	return_type: Maybe(^TSTypeAnnotation)
@@ -20670,8 +20655,8 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		sig := parse_ts_object_member(p); if sig != nil { bump_append(&members, sig) }
 		// terminator so the TSPropertySignature / TSMethodSignature span
 		// matches OXC's convention. Same widen pattern as the TSInterfaceBody
-		// loop further down. Pre-fix: every TSTypeLiteral member ended one
-		// byte short of OXC on `{ id: string; foo: number; }` and friends.
+		// loop further down. Without this, every TSTypeLiteral member ends
+		// one byte short of OXC on `{ id: string; foo: number; }`.
 		has_term := is_token(p, .Semi) || is_token(p, .Comma)
 		match_token(p, .Semi); match_token(p, .Comma)
 		if has_term && sig != nil {

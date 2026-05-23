@@ -13,7 +13,7 @@ package kessel
 // pre-order. The JS reader reconstructs the tree by following the same
 // DFS order — children appear immediately after their parent.
 //
-// Measured: binary decode in JS is ~30× faster than JSON.parse.
+// Binary decode path is ~3× faster than JSON.parse end-to-end.
 // ============================================================================
 
 import "core:mem"

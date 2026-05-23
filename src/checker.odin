@@ -4491,7 +4491,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		// parameter shape live in the parser (enforce_accessor_param_shape).
 		// Slice 15 promoted them out of this checker because they're
 		// structural per the grammar; keeping the check parser-side closes
-		// the class-accessor cluster of OXC-corpus oxc-only-rejects without
+		// the class-accessor checks without
 		// requiring --show-semantic-errors.
 
 		// Computed keys are evaluated in the OUTER class-body scope:
