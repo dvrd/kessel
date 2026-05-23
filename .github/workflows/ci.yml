@@ -7,8 +7,12 @@ on:
     branches: [main]
 
 jobs:
+  # Canonical full-test job. POSIX-only because tests/runners/run_tests.sh
+  # and the coverage harness assume bash + GNU tools. Runs on Apple Silicon
+  # to exercise the NEON SIMD path.
   test:
-    runs-on: macos-14  # Apple Silicon for SIMD tests
+    name: test (darwin-arm64, full)
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -41,3 +45,89 @@ jobs:
           cd npm
           npm install
           node test.js
+
+  # Portability matrix. Proves each release target compiles cleanly and the
+  # FFI binding works end-to-end. Does NOT publish anything.
+  #
+  # Phase 1 of the multi-target npm rollout: catch Windows / linux-arm64
+  # build breakage *here* — not during a real release where a mid-matrix
+  # failure would strand sub-packages on the registry at an unpublishable
+  # version number.
+  #
+  # Target set is 5, not 6: `windows-arm64` is omitted because Odin does
+  # not list it as a supported build target (Odin's Windows targets are
+  # `windows_i386` and `windows_amd64` only). Revisit if upstream Odin
+  # adds the target.
+  #
+  # `fail-fast: false` so a regression on one target doesn't mask the status
+  # of the other four. Artifacts are uploaded so the eventual release
+  # pipeline can consume the same contract.
+  build-matrix:
+    name: build (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: darwin-arm64
+            ext: dylib
+            ldflags: '-extra-linker-flags:"-undefined dynamic_lookup"'
+          - os: macos-13
+            target: darwin-x64
+            ext: dylib
+            ldflags: '-extra-linker-flags:"-undefined dynamic_lookup"'
+          - os: ubuntu-latest
+            target: linux-x64
+            ext: so
+            ldflags: ''
+          - os: ubuntu-24.04-arm
+            target: linux-arm64
+            ext: so
+            ldflags: ''
+          - os: windows-latest
+            target: win32-x64
+            ext: dll
+            ldflags: ''
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Odin
+        uses: laytan/setup-odin@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Build shared library. We inline the `odin build` invocation instead
+      # of calling `task build:lib` because the Taskfile hard-codes mac
+      # linker flags. OS-conditional flags live here in the matrix.
+      - name: Build shared library
+        shell: bash
+        run: |
+          mkdir -p bin
+          odin build src \
+            -build-mode:shared \
+            -out:bin/libkessel.${{ matrix.ext }} \
+            -o:speed \
+            -no-bounds-check \
+            ${{ matrix.ldflags }}
+
+      # npm/index.js findLib() searches ../bin/libkessel.<ext> first, so the
+      # build output above is picked up without any staging step.
+      - name: Smoke test (npm)
+        shell: bash
+        run: |
+          cd npm
+          npm install
+          node test.js
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libkessel-${{ matrix.target }}
+          path: bin/libkessel.${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 14
