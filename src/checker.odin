@@ -169,15 +169,8 @@ CheckerContext :: struct {
 	// scope_skip — set true while walking the immediate body of an
 	// uncovered expression context (ArrayExpression elements,
 	// ObjectExpression property values / computed keys, the right
-	// operand of binary / logical / coalescing / shift / equality /
-	// relational / additive / multiplicative / exponentiation
-	// operators). The pre-session-21 parser-driven scope walker did
-	// not recurse into these contexts, so any nested function /
-	// arrow / class body inside them was unreachable for scope-clash
-	// purposes; matches OXC's behaviour and keeps antd-style bundles
-	// (heavy with arrow values inside object/array literals) at
-	// parity. Read by `ck_run_scope_check` to skip the
-	// scope_check_body invocation when set.
+	// operators). Suppresses scope_check_body in uncovered expression
+	// contexts (matches OXC). Read by `ck_run_scope_check`.
 	scope_skip:            bool,
 	// private_name_stack — stack of declared private-name sets, one
 	// per enclosing class. Pushed by ck_walk_class on entry, popped on
@@ -1119,8 +1112,7 @@ ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDe
 // and `const [x, x] = [1, 2];` are SyntaxErrors. NOT enforced for
 // `var` declarations (Annex B.3.4.4 web-compat). The cross-declaration
 // duplicate-name check (a let in one block clashing with a let in the
-// same block from a different statement) lives in the scope-analysis
-// machinery and is migrated separately in slice 13.
+// same block from a different statement) lives in scope_check_body.
 @(private="file")
 ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 	if decl == nil { return }
@@ -3528,7 +3520,7 @@ ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^State
 
 ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDeclaration) {
 	if decl == nil { return }
-	// §14.3.1.1 — per-declaration duplicate-name check (slice 11).
+	// §14.3.1.1 — per-declaration duplicate-name check.
 	ck_check_var_decl_lexical_dups(c, decl)
 	// §13.1.1 — strict-mode BindingIdentifier check for declarator ids.
 	// Recurses through ObjectPattern / ArrayPattern / AssignmentPattern
@@ -3749,8 +3741,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// The right operand of a binary op is in an uncovered
 		// expression context: nested function / arrow / class bodies
 		// here are not visited by the parser-driven walker for
-		// duplicate-binding purposes (matches OXC + pre-session-21
-		// shipped behaviour). Mirror by setting scope_skip while
+		// duplicate-binding purposes (matches OXC). Set scope_skip while
 		// walking the right operand.
 		prev_skip := ctx.scope_skip
 		ctx.scope_skip = true
@@ -3805,9 +3796,8 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^ArrayExpression:
 		if e == nil { return }
 		// ArrayExpression interior is an uncovered context. Mirror the
-		// pre-session-21 parser behaviour by suppressing the
-		// scope-clash walk for any nested function / arrow / class
-		// body inside.
+		// Suppress scope-clash walk for nested function / arrow / class
+		// bodies inside (matches OXC).
 		prev_skip := ctx.scope_skip
 		ctx.scope_skip = true
 		defer ctx.scope_skip = prev_skip
@@ -4456,7 +4446,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
 	// overload-signature exception). Migrated from parser.odin in slice 4.
 	ck_check_class_constructors(c, ctx, cls)
-	// §15.7.1 — private getter/setter static-mismatch (slice 11).
+	// §15.7.1 — private getter/setter static-mismatch.
 	ck_check_class_private_static_mismatch(c, cls)
 	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
 	// set pair. Subsumes the static-mismatch helper for the get/set pair

@@ -1651,14 +1651,6 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			report_ts2309_export_assignment(p, program.body[:])
 		}
 
-		// §14.2.1 / §14.3.1.1 — the lex/var duplicate-binding scan now
-		// fires from the semantic checker (checker_run_for_job sets
-		// p.pending_checker before invoking verify_scopes, then clears
-		// it on exit). The parser itself still BUILDS the scope_pending
-		// queue at parse time so the checker doesn't have to recreate
-		// the scope tree from the AST; only the diagnostic-emission step
-		// is deferred. This matches OXC: oxc_parser builds scopes,
-		// oxc_semantic runs the early-error checks.
 	}
 
 	// §13.2.5.1 CoverInitializedName: any ObjectExpression that parsed
@@ -1709,12 +1701,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		}
 	}
 
-	// §14.2.1 / §14.3.1.1 — program-level scope check. The body's
-	// inner scopes (block / function / class element bodies) are
-	// scope-checked inline at parse-exit; here we only need to fire
-	// the program-body lex/var clash check. Promoted from the semantic
-	// checker (pre-slice-16 lived there) so parser-only snaps catch
-	// duplicate-binding / lex-var clashes natively.
+	// §14.2.1 — program-level lex/var clash check.
 
 	// TS declaration conflict check — catches cross-kind redeclarations
 	// (class+class, class+enum, type+type, enum+var, etc.) that the
@@ -2300,7 +2287,6 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// mode `yield: 1`, `let: 1`, `eval: 1`, etc. are SyntaxErrors
 			// because the LabelIdentifier production is `Identifier` and
 			// the Identifier in question is one of the strict-reserved
-			// names. Promoted from the semantic checker.
 			if p.ctx.strict_mode {
 				if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
 					msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
@@ -2381,8 +2367,6 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						// gates on "NotInClassBody and StrictFormalParameters
 						// is not strict". In strict mode the carve-out is
 						// removed and \`label: function f() {}\` is a
-						// SyntaxError. Promoted from the semantic checker
-						// (ck_walk_stmt's ^LabeledStatement case).
 						if p.ctx.strict_mode {
 							report_error(p, "Function declarations cannot be labeled items in strict mode")
 						}
@@ -2471,7 +2455,6 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		//   * iteration / with body — always false
 		//   * label inside iteration / if-body — false (recursive call)
 		//
-		// Promoted from the semantic checker (ck_check_single_stmt_function).
 		// The strict-mode case is the test262 cluster
 		// language/statements/if/if-decl-*-strict.js etc.
 		if !allow_plain_function {
@@ -3065,9 +3048,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			}
 
 			// §13.7.5.1 — "only a single declarator" + "no initializer"
-			// rules. Promoted from the semantic checker
-			// (ck_check_for_in_of_head) so parser-only snaps reject the
-			// `for (let x = 1 of [])` / `for (var a, b of [])` / etc.
+			// rules.
 			// clusters.
 			//
 			// Annex B.3.5 web-compat carve-out: a sloppy-mode
@@ -3766,9 +3747,6 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 	eat(p) // consume with
 
 	// §14.11.1 — `with` statements are forbidden in strict mode.
-	// Promoted from the semantic checker (ck_walk_stmt's ^WithStatement
-	// case) so parser-only snaps reject the language/statements/with
-	// strict-mode cluster.
 	if p.ctx.strict_mode {
 		report_error_at(p, LexerLoc(start.start), "'with' statements are not allowed in strict mode")
 	}
@@ -4746,13 +4724,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	}
 
 	body.loc.end = prev_end_offset(p)
-	// §14.2.1 — inline lex/var clash check on this function body.
-	// is_block_scope=false: a FunctionBody is its own function-scope,
-	// so a sloppy plain FunctionDeclaration inside it hoists as .Var
-	// (§14.1.3), matching the semantics of the previous scope_recurse
-	// path. Skip when the body has nothing scope-relevant (typical
-	// callback bodies like `() => { return jsx }`) or in --ast-only
-	// bench mode.
+	// §14.2.1 — function-body lex/var clash check.
 	parser_scope_check(p, body.body[:], false)
 	return body
 }
@@ -5900,8 +5872,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 			report_error_at(p, LexerLoc(elem.loc.start), msg)
 		}
 		// §15.7.1 — static and instance elements cannot share the same
-		// private name. Promoted from the semantic checker so parser-only
-		// snaps catch the test262 private-static-mismatch cluster.
+		// private name.
 		if static_mismatch {
 			msg := fmt.tprintf("Duplicate private name '#%s'. Static and instance elements cannot share the same private name.", name)
 			report_error_at(p, LexerLoc(elem.loc.start), msg)
@@ -6637,11 +6608,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
-	// parameter shape (rest / default initializer). Promoted from the
-	// semantic checker to parser-side syntax errors in slice 15 because
-	// these rules are structural per the grammar (a setter with rest can't
-	// be a syntactically valid PropertySetParameterList). Matches OXC's
-	// parser-only behavior and closes the class-accessor cluster of
+	// parameter shape (rest / default initializer).
 	// oxc-only-rejects in the corpus.
 	if kind == .Get || kind == .Set {
 		key_loc: LexerLoc
@@ -6775,7 +6742,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Class methods always have UniqueFormalParameters — the
 		// MethodDefinition production (§15.4) names the constraint, so
 		// duplicates fire regardless of outer strict mode.
-		// (parser_check_dup_params called above after parse_function_params)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList. A class method that has both a
@@ -7102,8 +7068,6 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		// §14.3.1.1 — BoundNames of a LexicalDeclaration must not
 		// contain `"let"` AND must not contain duplicates. `var` is
 		// exempt (Annex B.3.3.1 "VarDeclaredNames of a Script may
-		// contain repeats"). Promoted from the semantic checker
-		// (ck_check_var_decl_let_binding + the duplicate-name pass).
 		//
 		// One pass over collected BoundNames covers both rules: the
 		// `let`-as-name check fires first because it has a more
@@ -9926,9 +9890,6 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 	}
 }
 
-// Process a single body's lex / var bindings against fresh ScopeMap pairs.
-// Replaces scope_verify_body's first half. The recursive second half
-// (scope_recurse / scope_recurse_expr / scope_recurse_class_elements) is
 // scope_check_body — run lex/var clash detection over one body.
 // is_block_scope=true for BlockStatement / switch case-list;
 // false for FunctionBody / ArrowFunction block body / static block.
@@ -10230,16 +10191,6 @@ check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 		}
 	}
 }
-
-// (Removed AST walker in favour of inline scope_check_body calls at
-// each scope-bearing parse-exit — see parse_block_statement,
-// parse_function_body, parse_switch_statement, and parse_program.
-// The inline approach matches the pre-slice-14 parser-side
-// implementation: each scope's check happens right after the body is
-// built, naturally covering nested scopes regardless of where they
-// appear in the AST — inside expressions, class fields, arrow
-// bodies, or anywhere parse_block_statement / parse_function_body
-// are reached.)
 
 // Reset a ScopeMap so the caller's `lex` / `vars` pool can be reused for the
 // next body. Keeps the items backing buffer (capacity) and the spill map's
@@ -14653,7 +14604,6 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 
 		// Getters / setters always have UniqueFormalParameters
 		// (ECMA-262 §15.4.3 / §15.4.4).
-		// (parser_check_dup_params called above after parse_function_params)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal accessors. Setters
@@ -14768,7 +14718,6 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		p.ctx.in_derived_constructor = prev_in_derived_ctor
 
 		// Object-literal methods run under UniqueFormalParameters rules.
-		// (parser_check_dup_params called above after parse_function_params)
 
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal methods.
