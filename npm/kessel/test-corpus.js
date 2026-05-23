@@ -17,7 +17,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { decode } = require('./binary-reader');
 
-const KESSEL = path.resolve(__dirname, '../bin/kessel');
+const KESSEL = path.resolve(__dirname, '../../bin/kessel');
 const args = process.argv.slice(2);
 const specificDir = args.find((_, i, a) => a[i - 1] === '--dir');
 const EXTENSIONS = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts']);

@@ -1,0 +1,21 @@
+{
+  "name": "@dvrdlibs/kessel-darwin-arm64",
+  "version": "0.0.0",
+  "description": "Native libkessel binary for darwin-arm64. Installed automatically as an optional dependency of @dvrdlibs/kessel.",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "libkessel.dylib"
+  ],
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvrd/kessel.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

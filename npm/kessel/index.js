@@ -24,20 +24,26 @@ function findLib() {
   const ext = process.platform === 'darwin' ? 'dylib'
             : process.platform === 'win32' ? 'dll' : 'so';
 
-  // 1. Project-local build (monorepo / development)
-  const local = path.resolve(__dirname, '../bin/libkessel.' + ext);
+  // 1. Project-local build (monorepo / development). From npm/kessel/index.js
+  //    two levels up is the repo root, where `task build:lib` writes.
+  const local = path.resolve(__dirname, '../../bin/libkessel.' + ext);
   if (fs.existsSync(local)) return local;
 
-  // 2. Bundled platform binary
-  const bundled = path.join(__dirname, 'bin', `libkessel-${process.platform}-${process.arch}.${ext}`);
-  if (fs.existsSync(bundled)) return bundled;
-
-  throw new Error(
-    `kessel: cannot find libkessel.${ext}\n` +
-    `  tried: ${local}\n` +
-    `  tried: ${bundled}\n` +
-    `  build: task build:lib`
-  );
+  // 2. Production: resolve the platform-specific sub-package. npm only
+  //    installs the optional dependency whose `os` / `cpu` fields match,
+  //    so this require() resolves to exactly one sub-package on disk.
+  const subpkg = `@dvrdlibs/kessel-${process.platform}-${process.arch}`;
+  try {
+    return require(subpkg);
+  } catch (err) {
+    throw new Error(
+      `kessel: no prebuilt binary for ${process.platform}-${process.arch}\n` +
+      `  supported: darwin-arm64, darwin-x64, linux-x64, linux-arm64, win32-x64\n` +
+      `  expected sub-package: ${subpkg}\n` +
+      `  underlying error: ${err && err.message}\n` +
+      `  for unsupported platforms, build from source: https://github.com/dvrd/kessel`
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------

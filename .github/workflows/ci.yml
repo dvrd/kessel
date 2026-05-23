@@ -42,7 +42,7 @@ jobs:
 
       - name: Test npm package
         run: |
-          cd npm
+          cd npm/kessel
           npm install
           node test.js
 
@@ -134,12 +134,13 @@ jobs:
             -show-system-calls \
             ${{ matrix.ldflags }}
 
-      # npm/index.js findLib() searches ../bin/libkessel.<ext> first, so the
-      # build output above is picked up without any staging step.
+      # npm/kessel/index.js findLib() searches ../../bin/libkessel.<ext> first
+      # (the repo-root build), so the build output above is picked up without
+      # any staging step.
       - name: Smoke test (npm)
         shell: bash
         run: |
-          cd npm
+          cd npm/kessel
           npm install
           node test.js
 

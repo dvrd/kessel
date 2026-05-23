@@ -1,0 +1,57 @@
+{
+  "name": "@dvrdlibs/kessel",
+  "version": "0.0.0",
+  "description": "Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs. 8% faster than OXC at the npm boundary.",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./binary-reader": "./binary-reader.js",
+    "./visitor": "./visitor.js"
+  },
+  "files": [
+    "index.js",
+    "binary-reader.js",
+    "visitor.js",
+    "README.md",
+    "CHANGELOG.md"
+  ],
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "koffi": "^3.0.1"
+  },
+  "optionalDependencies": {
+    "@dvrdlibs/kessel-darwin-arm64": "0.0.0",
+    "@dvrdlibs/kessel-darwin-x64": "0.0.0",
+    "@dvrdlibs/kessel-linux-arm64": "0.0.0",
+    "@dvrdlibs/kessel-linux-x64": "0.0.0",
+    "@dvrdlibs/kessel-win32-x64": "0.0.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "parser",
+    "javascript",
+    "typescript",
+    "jsx",
+    "tsx",
+    "estree",
+    "ast",
+    "fast"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvrd/kessel.git"
+  },
+  "bugs": {
+    "url": "https://github.com/dvrd/kessel/issues"
+  },
+  "homepage": "https://github.com/dvrd/kessel#readme",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

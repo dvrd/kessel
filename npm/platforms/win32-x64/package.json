@@ -1,0 +1,21 @@
+{
+  "name": "@dvrdlibs/kessel-win32-x64",
+  "version": "0.0.0",
+  "description": "Native libkessel binary for win32-x64. Installed automatically as an optional dependency of @dvrdlibs/kessel.",
+  "main": "index.js",
+  "files": [
+    "index.js",
+    "libkessel.dll"
+  ],
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvrd/kessel.git"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
