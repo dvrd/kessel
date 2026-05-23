@@ -82,8 +82,15 @@ tasks:
     deps: [build:coverage]
     silent: true
     cmds:
-      - ./bin/kessel_coverage run all --update
-      - ./bin/kessel_coverage run all --update --semantic
+      - ./bin/kessel_coverage run misc --update
+      - ./bin/kessel_coverage run estree --update
+      - ./bin/kessel_coverage run babel --update
+      - ./bin/kessel_coverage run typescript --update
+      - ./bin/kessel_coverage run test262 --update
+      - ./bin/kessel_coverage run misc --semantic --update
+      - ./bin/kessel_coverage run estree --semantic --update
+      - ./bin/kessel_coverage run babel --semantic --update
+      - ./bin/kessel_coverage run test262 --semantic --update
 
   test:coverage:run:
     desc: "Run a single coverage suite via the standalone binary. Usage: task test:coverage:run -- <suite> [--semantic] [--update]. Suites: test262 / babel / typescript / estree / misc / all."
