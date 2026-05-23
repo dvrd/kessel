@@ -228,11 +228,7 @@ function decode(buffer, source) {
         node.tail = readBool();
         const hasCooked = readU8();
         const cooked = hasCooked ? readStr() : null;
-        node.value = { raw: (readStr()), cooked };
-        // swap: raw was read after cooked flag
-        // Actually: format is [tail:bool][hasCooked:u8][cooked:str?][raw:str]
-        // Let me fix: cooked already read, raw is next... but I read raw inside value
-        // The binary format: tail, hasCooked, (cooked if has), raw
+        node.value = { raw: readStr(), cooked };
         break;
       }
       case T.TaggedTemplateExpression:
@@ -266,8 +262,6 @@ function decode(buffer, source) {
       case T.FunctionDeclaration: {
         const idTag = readU8();
         node.id = idTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null;
-        // Fix: if idTag is not VT_STR (4), it should be VT_NULL (0)
-        if (idTag !== 4 && idTag !== 0) off -= 1; // shouldn't happen
         node.async = readBool();
         node.generator = readBool();
         node.params = readFunctionParams();

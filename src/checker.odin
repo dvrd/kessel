@@ -223,12 +223,8 @@ Checker :: struct {
 	errors:    [dynamic]ParseError,
 	allocator: mem.Allocator,
 	// pending_parser — the active parser whose AST we're walking.
-	// Set by `checker_run_for_job` for the lifetime of the
-	// `check_program` walk, cleared after. Used by `ck_run_scope_check`
-	// to call back into the parser-side scope_check_body helper
-	// (which still owns the lex/var clash detection logic). Nil when
-	// no parser is bound (e.g. direct check_program invocation from
-	// tests); ck_run_scope_check is a no-op in that case.
+	// Set by `checker_run_for_job`, cleared after. Used by
+	// `ck_run_scope_check` to call scope_check_body.
 	pending_parser: ^Parser,
 	// scope_lex / scope_vars — reusable ScopeMap pair backing every
 	// scope-check invocation. Cleared between bodies so each scope is
@@ -2301,23 +2297,7 @@ ck_check_ts_enum_member_dups :: proc(c: ^Checker, decl: ^TSEnumDeclaration) {
 // each entry that duplicates an earlier one.
 @(private="file")
 ck_check_ts_type_param_dups :: proc(c: ^Checker, tp: ^TSTypeParameterDeclaration) {
-	// OXC does not enforce TS2300 type-param dups at parser/semantic level.
-	// This is a TS type-checker responsibility. Disabled for OXC parity.
-	if true { return }
-	if c == nil || tp == nil || len(tp.params) < 2 { return }
-	seen: map[string]bool
-	seen.allocator = context.temp_allocator
-	defer delete(seen)
-	for p in tp.params {
-		name := p.name.name
-		if name == "" { continue }
-		if seen[name] {
-			msg := fmt.tprintf("Duplicate identifier '%s'", name)
-			ck_report(c, u32(p.name.loc.start), msg)
-		} else {
-			seen[name] = true
-		}
-	}
+	// OXC does not enforce TS2300 type-param dups — type-checker concern.
 }
 
 // =============================================================================
@@ -2335,138 +2315,9 @@ ck_check_ts_type_param_dups :: proc(c: ^Checker, tp: ^TSTypeParameterDeclaration
 // callable types, and method overloads are the canonical way to
 // express union return types.
 //
-// Same key-kind discipline as ck_check_ts_class_member_dups: only same-
-// kind keys collide (Identifier+Identifier, StringLiteral+StringLiteral,
-// etc.). EXCEPT — for plain identifiers vs single-quoted/double-quoted
-// string literals, TSC treats `"item"` and `item` as the same property
-// name (the canonical PropertyName equivalence), so we DO collide them.
-// This is required for `duplicateStringNamedProperty1.ts`-style fixtures
-// (`{ "artist": string; artist: string; }`).
 @(private="file")
 ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
-	// OXC does not enforce TS2300 interface member dups. Disabled for parity.
-	if true { return }
-	if c == nil || len(body.body) == 0 { return }
-
-	IfKind :: enum u8 { Property, Method, Get, Set }
-	IfEntry :: struct {
-		at:        u32,
-		kind:      IfKind,
-		name:      string,
-		has_anno:  bool,  // TSPropertySignature only: has type annotation
-	}
-
-	// Identifier and StringLiteral keys both map to the same PropertyName
-	// per the TS spec (a string literal of value "foo" is the same property
-	// as the identifier `foo`). NumericLiteral with value matching another
-	// numeric is also the same; we treat the raw form as the canonical
-	// representation here for simplicity.
-	extract_key :: proc(key: ^Expression, computed: bool) -> (name: string, ok: bool) {
-		if computed || key == nil { return "", false }
-		#partial switch k in key^ {
-		case ^Identifier:
-			if k != nil { return k.name, true }
-		case ^StringLiteral:
-			if k != nil { return k.value, true }
-		case ^NumericLiteral:
-			if k != nil { return k.raw, true }
-		}
-		return "", false
-	}
-
-	entries: [dynamic]IfEntry
-	entries.allocator = context.temp_allocator
-	defer delete(entries)
-
-	for sig in body.body {
-		if sig == nil { continue }
-		switch s in sig^ {
-		case TSPropertySignature:
-			name, ok := extract_key(s.key, s.computed)
-			if !ok { continue }
-			_, has_anno := s.type_annotation.(^TSTypeAnnotation)
-			append(&entries, IfEntry{
-				at = u32(s.loc.start), kind = .Property, name = name,
-				has_anno = has_anno,
-			})
-		case TSMethodSignature:
-			name, ok := extract_key(s.key, s.computed)
-			if !ok { continue }
-			k: IfKind
-			switch s.kind {
-			case .Method: k = .Method
-			case .Get:    k = .Get
-			case .Set:    k = .Set
-			}
-			append(&entries, IfEntry{
-				at = u32(s.loc.start), kind = k, name = name, has_anno = true,
-			})
-		case TSCallSignatureDeclaration, TSConstructSignatureDeclaration, TSIndexSignature:
-			// No name — can't form a name-keyed slot.
-			continue
-		}
-	}
-	if len(entries) < 2 { return }
-
-	processed: [dynamic]bool
-	processed.allocator = context.temp_allocator
-	defer delete(processed)
-	resize(&processed, len(entries))
-
-	for i in 0..<len(entries) {
-		if processed[i] { continue }
-		anchor := entries[i]
-
-		slot: [dynamic]int
-		slot.allocator = context.temp_allocator
-		defer delete(slot)
-		append(&slot, i)
-		for j in i+1..<len(entries) {
-			if processed[j] { continue }
-			if entries[j].name == anchor.name {
-				append(&slot, j)
-			}
-		}
-		for idx in slot { processed[idx] = true }
-		if len(slot) < 2 { continue }
-
-		n_prop, n_meth, n_get, n_set := 0, 0, 0, 0
-		for idx in slot {
-			switch entries[idx].kind {
-			case .Property: n_prop += 1
-			case .Method:   n_meth += 1
-			case .Get:      n_get  += 1
-			case .Set:      n_set  += 1
-			}
-		}
-
-		// Carve-out: legal accessor pair on the same name.
-		if n_get == 1 && n_set == 1 && n_prop == 0 && n_meth == 0 {
-			continue
-		}
-
-		// Carve-out: pure method overload set (multiple TSMethodSignature
-		// of kind .Method on the same name). Interfaces use this to
-		// express callable-type unions (e.g. `m(x: number): number;
-		// m(x: string): string;`).
-		if n_prop == 0 && n_get == 0 && n_set == 0 && n_meth >= 1 {
-			continue
-		}
-
-		// (Previously: a `bare-prop` carve-out skipped any slot containing
-		// a TSPropertySignature without a type annotation, to work around
-		// kessel parser bugs that mis-split `m<U>(): T` and `readonly _A: T`
-		// into two signatures. Those bugs are fixed in `parse_ts_object_member`,
-		// so the carve-out is no longer needed. Bare-name duplicates such as
-		// `interface Bar { x; x; }` are now correctly flagged.)
-
-		// General TS2300: emit on each entry after the first.
-		msg := fmt.tprintf("Duplicate identifier '%s'", anchor.name)
-		for s_idx, slot_pos in slot {
-			if slot_pos == 0 { continue }
-			ck_report(c, entries[s_idx].at, msg)
-		}
-	}
+	// OXC does not enforce TS2300 interface member dups — type-checker concern.
 }
 
 
@@ -3672,10 +3523,6 @@ ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^State
 	if !ctx.is_dts && !is_block_scope {
 		ck_check_ts_func_overloads(c, body)
 		ck_check_ts_dup_func_impls(c, body)
-		// TS2448 use-before-decl and TS2384 ambient mismatch are type-checker
-		// concerns that OXC does not enforce. Disabled for OXC parity.
-		// ck_check_ts_use_before_decl(c, body)
-		// ck_check_ts2384_ambient_mismatch(c, body)
 	}
 }
 
@@ -4300,10 +4147,6 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			// for the body, so we check against the post-lift value
 			// directly here.
 			name_strict := ctx.strict_mode || (!fn.no_body && fn_body_lifts_strict(fn.body))
-			name_in_async := ctx.in_async
-			name_in_gen   := ctx.in_generator
-			_ = name_in_async
-			_ = name_in_gen
 			// TS mode: OXC does not enforce eval/arguments function-name ban.
 			if name_strict && ctx.lang != .TS && ctx.lang != .TSX {
 				if is_eval_or_arguments(id.name) {

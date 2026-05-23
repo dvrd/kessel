@@ -165,13 +165,6 @@ Raw_Dynamic_Array :: struct {
 	allocator: mem.Allocator,
 }
 
-// NOTE — the `ScopePending` struct + queue were deleted in slice 14
-// when the parser-driven scope-clash pass moved into the semantic
-// checker. The checker now finds scope-bearing bodies via its own
-// recursive AST walk (no queue), invoking the parser's
-// `scope_check_body` at each entry point. See checker.odin's
-// `ck_run_scope_check` for the replacement.
-
 // PendingPrivRef — captured at every PrivateIdentifier reference site.
 // Resolved at end of parse_class_body against the just-parsed elements.
 // Unresolved ones bubble up to the enclosing class body's queue.
@@ -472,22 +465,6 @@ Parser :: struct {
 	dynamicImports: [dynamic]ESMDynamicImport,
 	importMetas:    [dynamic]ESMImportMeta,
 
-	// NOTE — in slice 14 the `scope_pending` queue, the
-	// `pending_checker: ^Checker` bridge field, and the `scope_skip`
-	// flag were all deleted from the Parser. The semantic checker now
-	// drives the scope-clash pass directly: it walks the AST, calls
-	// the parser's scope_check_body / scope_process_statement / scope_add
-	// at each scope-bearing entry, and tracks the array/object-literal
-	// scope-skipping context on its own CheckerContext.scope_skip
-	// field. The parser stays free of any reference to the checker
-	// (the scope_* helpers take ^Checker explicitly).
-	//
-	// CORRECTNESS NOTE preserved verbatim from the original
-	// scope_skip comment: the parser's nested-arrow-in-array-literal
-	// duplicate-let detection gap (intentional, matches pre-
-	// session-21 shipped behaviour and OXC) is preserved by the
-	// checker's scope_skip context flag.
-
 	// Reusable ScopeMap pair for inline scope checking at each
 	// scope-bearing parse exit (BlockStatement, SwitchStatement,
 	// FunctionBody, Program). Cleared between scopes.
@@ -495,8 +472,7 @@ Parser :: struct {
 	scope_vars: ScopeMap,
 
 	// `ast_only` switches off all scope tracking, duplicate-binding
-	// detection, exported-name dedup, strict-reserved-name string checks,
-	// and the post-parse `verify_scopes` walk. The parser still produces
+	// detection, and exported-name dedup. The parser still produces
 	// a complete ESTree-compatible AST and reports syntactic errors
 	// (mismatched braces, invalid expressions, etc.) but skips the
 	// semantic / scope-level checks that OXC's parser also defers to its
@@ -735,12 +711,6 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	prime_token_cache(p)
 }
 
-// NOTE — `mark_last_scope_function_scope` was deleted in slice 14.
-// Block-vs-function-scope is now decided by the checker's recursive
-// walker at each entry point (ArrowFunctionExpression block bodies
-// and class StaticBlock bodies are function-scope; ordinary
-// BlockStatement bodies are block-scope) without needing a
-// post-hoc re-stamp.
 
 // Returns true if the body contains at least one statement whose presence
 // at the top level of a scope contributes work to scope_check_body's lex /
@@ -1162,16 +1132,6 @@ report_error :: proc(p: ^Parser, message: string) {
 report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
 	bump_append(&p.errors, ParseError{loc = loc, message = message})
 }
-
-// NOTE — the parser-side `report_semantic_error` and
-// `report_semantic_error_at` helpers were removed in slice 13e once
-// the migration of every inline call to src/checker.odin completed.
-// All early-error reporting now flows through ck_report (file-private
-// to checker.odin) or `checker_append_error` (the package-level entry
-// point used by the parser's verify_scopes machinery via
-// p.pending_checker). The architectural rule — parser = syntax,
-// checker = semantic — is now structurally enforced rather than
-// convention-only.
 
 enable_profiling :: proc(p: ^Parser) {
 	if p == nil {
@@ -7581,19 +7541,6 @@ enforce_accessor_param_shape :: proc(
 	}
 }
 
-// NOTE — duplicate-param checks (report_duplicate_param_names) were
-// removed from the parser in favour of the semantic checker's
-// ck_check_duplicate_param_names. OXC's parser does not enforce
-// duplicate-param errors; oxc_semantic does. Kessel matches this
-// layering so `kessel parse` (parser-only) is apples-to-apples
-// with OXC's parseSync.
-
-// NOTE — §14.3.1.1 per-LexicalDeclaration duplicate-name check
-// (`report_duplicate_lexical_names`) was migrated to the semantic
-// checker (ck_check_var_decl_lexical_dups) in slice 11; the parser-side
-// stub was deleted in the slice-13e cleanup once every call site was
-// purged.
-
 parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := false, is_declare := false) -> ^VariableDeclarator {
 	start := cur_loc(p)
 
@@ -7999,16 +7946,6 @@ report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 // reserved word are SyntaxErrors. Used after parse_function_body when
 // the body's directive prologue contained `"use strict"` or the
 // enclosing context was strict.
-// NOTE — the strict-mode parameter / assignment-target / update-target
-// helper procs (`report_strict_param_names`, `report_strict_param_pattern`,
-// `report_strict_eval_arguments_in_target`,
-// `report_strict_update_on_eval_or_arguments`) were migrated to the
-// semantic checker in slice 11 (ck_check_strict_param_pattern /
-// ck_check_strict_binding_pattern / ck_check_strict_eval_arguments_in_target
-// / ck_check_strict_update_eval_arguments) and the parser-side stubs
-// were deleted in the slice-13e cleanup once every call site was
-// purged.
-
 // A numeric literal's raw source looks like a "0-prefixed integer" if
 // it starts with `0` and the next character is a decimal digit. This
 // covers both LegacyOctalIntegerLiteral (`0777`) and
@@ -9992,20 +9929,9 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 // Process a single body's lex / var bindings against fresh ScopeMap pairs.
 // Replaces scope_verify_body's first half. The recursive second half
 // (scope_recurse / scope_recurse_expr / scope_recurse_class_elements) is
-// gone: every scope-bearing body now self-registers into p.scope_pending
-// at parse time, and verify_scopes drains that queue directly.
-//
-// is_block_scope=true is the default for genuine BlockStatement / catch /
-// finally / switch case-list scopes (Annex B.3.2 sloppy plain
-// FunctionDecl follows the hybrid .FunctionAnnexB kind). false for
-// FunctionBody / ArrowFunction block body / static-block bodies
-// (function-scope; sloppy plain FunctionDecl hoists as .Var).
-//
-// Takes pre-allocated ScopeMap pointers so the caller (verify_scopes) can
-// pool a single pair across all bodies. Clearing two dynamic-array headers
-// (resize to 0, cap retained) and a possibly-allocated spill map per body
-// is far cheaper than allocating fresh maps for every entry - on real
-// bundles like antd.js that's 3,994 × 2 saved allocations.
+// scope_check_body — run lex/var clash detection over one body.
+// is_block_scope=true for BlockStatement / switch case-list;
+// false for FunctionBody / ArrowFunction block body / static block.
 scope_check_body :: #force_inline proc(p: ^Parser, body: []^Statement, is_block_scope: bool, lex, vars: ^ScopeMap) {
 	for stmt in body {
 		scope_process_statement(p, stmt, lex, vars, is_block_scope)
@@ -10324,37 +10250,6 @@ scope_map_clear :: #force_inline proc(m: ^ScopeMap) {
 		clear(&m.spill)
 	}
 }
-
-// NOTE — §15.2.1.1 / §15.5.1 formal-parameter vs body let/const
-// redeclaration check (`check_params_vs_body_lex`) was migrated to
-// the semantic checker (ck_check_params_vs_body_lex) in slice 13c
-// and the parser-side stub was deleted in the slice-13e cleanup once
-// every call site was purged.
-
-// verify_scopes runs the lex/var clash check across every scope-bearing
-// body in the program. The Program-level body is processed first, then
-// every entry in p.scope_pending (queued at parse-EXIT by parse_function_body /
-// parse_block_statement / parse_switch_statement; static-block and
-// arrow-block bodies are re-stamped via mark_last_scope_function_scope).
-//
-// Each scope is verified independently with a fresh ScopeMap pair, so the
-// iteration order doesn't affect correctness. We sort by start_offset
-// before iterating so error messages surface in source order - parse-exit
-// push order is innermost-first within a parent, which matches source
-// only for left-to-right siblings, not for nested-vs-following-sibling.
-// NOTE — the parser-side `verify_scopes` proc was deleted in slice 14
-// once the semantic checker took over the AST walk. Each scope-bearing
-// body is now visited by the checker's recursive walker (ck_walk_stmt /
-// ck_walk_function / ck_walk_expr ArrowFunctionExpression / etc.) and
-// the parser's `scope_check_body` is invoked from those entry points
-// directly. The `scope_pending` queue, the parse-exit pushes that fed
-// it, and the ScopePending struct are gone. See checker.odin's
-// `ck_run_scope_check` for the new entry.
-
-// =========================================================================
-// §15.7.3 AllPrivateIdentifiersValid — migrated to checker.odin
-// (ck_check_private_name_resolved + ck_walk_class private-name stack).
-// =========================================================================
 
 // Helper: Convert ExportSpecifierName to ESMExportNameEntry
 convert_export_spec_name :: proc(name: ExportSpecifierName) -> ESMExportNameEntry {
