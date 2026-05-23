@@ -97,6 +97,16 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # Activate MSVC build environment on Windows so link.exe can find
+      # Windows SDK libraries (kernel32.lib, msvcrt.lib, ...). Without
+      # vcvars64.bat, the LIB env var is empty and Odin's linker
+      # invocation fails with LNK1181 on a system library reference.
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -121,6 +131,7 @@ jobs:
             -out:libkessel.${{ matrix.ext }} \
             -o:speed \
             -no-bounds-check \
+            -show-system-calls \
             ${{ matrix.ldflags }}
 
       # npm/index.js findLib() searches ../bin/libkessel.<ext> first, so the
