@@ -32,10 +32,16 @@ NAPI_AUTO_LENGTH :: max(uint)
 // N-API function imports — resolved at load time from the Node.js host
 // ============================================================================
 
-when ODIN_BUILD_MODE == .Dynamic {
+// The N-API addon is Mac-only today. It links against `system:System`
+// (the macOS framework whose dynamic-lookup behavior, combined with the
+// `-undefined dynamic_lookup` linker flag, lets N-API symbols be
+// resolved at load time from the Node.js host process). Windows and
+// Linux have no equivalent, and on Windows the bare "system" token
+// leaks into link.exe args as `system.obj` (LNK1181). The koffi FFI
+// path in lib_exports.odin is the cross-platform shipping binding;
+// this file is an alternative experimental interface.
+when ODIN_BUILD_MODE == .Dynamic && ODIN_OS == .Darwin {
 
-// N-API symbols are resolved at load time from the Node.js host process.
-// On macOS we build with -undefined dynamic_lookup.
 foreign import napi_host "system:System"
 
 @(default_calling_convention="c")
@@ -1002,4 +1008,4 @@ napi_register_module_v1 :: proc "c" (env: napi_env, exports: napi_value) -> napi
 	return exports
 }
 
-} // when ODIN_BUILD_MODE == .Dynamic
+} // when ODIN_BUILD_MODE == .Dynamic && ODIN_OS == .Darwin
