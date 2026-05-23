@@ -32,8 +32,8 @@ load_estree :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixt
 
 	for f in files {
 		// Parent-dir basename: `pass` or `fail`.
-		dir := filepath.dir(f.abs, allocator)
-		defer delete(dir, allocator)
+		dir := filepath.dir(f.abs)
+		defer delete(dir)
 		bucket := filepath.base(dir)
 
 		should_fail := bucket == "fail"

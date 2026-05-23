@@ -326,7 +326,7 @@ find_kessel_root :: proc() -> string {
 		if os.exists(taskfile) {
 			return dir
 		}
-		parent := filepath.dir(dir, context.temp_allocator)
+		parent := filepath.dir(dir)
 		if parent == dir { break }
 		dir = parent
 	}

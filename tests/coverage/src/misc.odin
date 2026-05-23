@@ -85,8 +85,8 @@ load_misc :: proc(project_root: string, allocator: runtime.Allocator) -> []Fixtu
 // `tests/coverage/misc/` is reachable through one of the two buckets).
 @(private="file")
 resolve_misc_should_fail :: proc(path: string, allocator: runtime.Allocator) -> bool {
-	cur := filepath.dir(path, allocator)
-	defer delete(cur, allocator)
+	cur := filepath.dir(path)
+	defer delete(cur)
 
 	// `filepath.dir` returns "." or "/" once we walk past the root.
 	for cur != "." && cur != "/" && cur != "" {
@@ -95,9 +95,9 @@ resolve_misc_should_fail :: proc(path: string, allocator: runtime.Allocator) -> 
 		case "fail": return true
 		case "pass": return false
 		}
-		parent := filepath.dir(cur, allocator)
+		parent := filepath.dir(cur)
 		if parent == cur { break }
-		delete(cur, allocator)
+		delete(cur)
 		cur = parent
 	}
 	return false

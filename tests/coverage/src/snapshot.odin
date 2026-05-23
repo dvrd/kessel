@@ -184,7 +184,7 @@ snap_file_path :: proc(project_root: string, run: CoverageRun, allocator: runtim
 
 write_snap :: proc(path: string, content: string) -> bool {
 	// Ensure directory exists.
-	dir := filepath.dir(path, context.temp_allocator)
+	dir := filepath.dir(path)
 	make_dir_all(dir)
 
 	bytes := transmute([]u8)content
@@ -202,7 +202,7 @@ read_snap :: proc(path: string, allocator: runtime.Allocator) -> (string, bool) 
 @(private="file")
 make_dir_all :: proc(path: string) {
 	if os.exists(path) { return }
-	parent := filepath.dir(path, context.temp_allocator)
+	parent := filepath.dir(path)
 	if parent != path { make_dir_all(parent) }
 	os.make_directory(path)
 }

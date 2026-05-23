@@ -167,8 +167,8 @@ is_typescript_dts :: proc(opts: BabelOptions) -> bool {
 //
 // `dir` is the directory CONTAINING the input file (we read sibling files).
 determine_should_fail :: proc(input_path: string, opts: BabelOptions, allocator: runtime.Allocator) -> bool {
-	dir := filepath.dir(input_path, allocator)
-	defer delete(dir, allocator)
+	dir := filepath.dir(input_path)
+	defer delete(dir)
 
 	// Step 1 — sibling output.json (or output.extended.json).
 	for name in ([?]string{"output.json", "output.extended.json"}) {
@@ -226,8 +226,8 @@ read_babel_options_chain :: proc(dir: string, allocator: runtime.Allocator) -> B
 			)
 			_ = ok
 		}
-		parent := filepath.dir(cur, allocator)
-		defer delete(parent, allocator)
+		parent := filepath.dir(cur)
+		defer delete(parent)
 		if parent == cur { break }
 		cur = strings.clone(parent, allocator)
 	}
@@ -401,8 +401,8 @@ load_babel :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixtu
 	out := make([dynamic]Fixture, 0, len(files), allocator)
 
 	for f in files {
-		dir := filepath.dir(f.abs, allocator)
-		defer delete(dir, allocator)
+		dir := filepath.dir(f.abs)
+		defer delete(dir)
 
 		opts := read_babel_options_chain(dir, allocator)
 

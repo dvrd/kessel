@@ -205,7 +205,7 @@ find_kessel_root_for_test :: proc() -> string {
 	for {
 		taskfile, _ := filepath.join({dir, "Taskfile.yml"}, context.temp_allocator)
 		if os.exists(taskfile) { return dir }
-		parent := filepath.dir(dir, context.temp_allocator)
+		parent := filepath.dir(dir)
 		if parent == dir { break }
 		dir = parent
 	}
