@@ -5,8 +5,9 @@
  * No process spawn, no JSON serialization. Returns ESTree-compatible ASTs.
  *
  * Usage:
- *   const { parseSync } = require('kessel');
+ *   const { parseSync, parseAsync } = require('@dvrdlibs/kessel');
  *   const { program, errors } = parseSync('app.js', source);
+ *   const { program, errors } = await parseAsync('app.js', source);
  */
 
 'use strict';
@@ -52,13 +53,19 @@ function findLib() {
 
 const lib = koffi.load(findLib());
 
+// Handle-based ParseResult. The `handle` field is an opaque owning pointer
+// returned by kessel_parse_binary; the caller MUST pass it back to
+// kessel_free_result once the buffer has been copied into JS-owned memory.
+// Moving the free off a thread-local slot lets parseAsync hand the parse
+// to a libuv worker thread and free from the main thread without leaking.
 const ParseResult = koffi.struct('KesselParseResult', {
+  handle:  'void *',
   buf_ptr: 'void *',
   buf_len: 'int32',
 });
 
 const _parse_binary = lib.func('kessel_parse_binary', ParseResult, ['void *', 'int32', 'int32']);
-const _free_result = lib.func('kessel_free_result', 'void', []);
+const _free_result  = lib.func('kessel_free_result',  'void',       ['void *']);
 
 // ---------------------------------------------------------------------------
 // Language detection
@@ -76,6 +83,10 @@ function detectLang(filename) {
   }
 }
 
+function resolveLang(filename, opts) {
+  return opts && opts.lang ? (LANG[opts.lang] ?? LANG.js) : detectLang(filename);
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -83,20 +94,74 @@ function detectLang(filename) {
 /**
  * Parse source code synchronously and return an ESTree-compatible AST.
  *
- * @param {string} filename  File path or synthetic name (for language detection)
- * @param {string} source    Source code to parse
+ * Blocks the calling thread for the entire parse. Use {@link parseAsync}
+ * to keep the Node event loop responsive while a large source is parsing,
+ * or to parse many files concurrently across libuv's worker pool.
+ *
+ * @param {string} filename  File path or synthetic name (drives language detection).
+ * @param {string} source    Source code to parse.
  * @param {object} [opts]    Options:
  *   - lang: 'js' | 'jsx' | 'ts' | 'tsx'  (overrides filename detection)
  * @returns {{ program: object, errors: Array }}
  */
-function parseSync(filename, source, opts = {}) {
-  const lang = opts.lang ? (LANG[opts.lang] ?? LANG.js) : detectLang(filename);
+function parseSync(filename, source, opts) {
+  const lang = resolveLang(filename, opts);
   const sourceBuf = Buffer.from(source, 'utf8');
-
   const result = _parse_binary(sourceBuf, sourceBuf.length, lang);
+  return finishParse(result, source, filename);
+}
 
+/**
+ * Parse source code asynchronously on a libuv worker thread.
+ *
+ * Same signature and return shape as {@link parseSync}, but the native
+ * parse runs off the Node main thread via koffi's `.async()`. The Node
+ * event loop stays responsive during the parse and concurrent calls fan
+ * out across libuv's worker pool (default 4 threads, raise with
+ * `UV_THREADPOOL_SIZE` env var if you need more parallelism).
+ *
+ * Throughput characteristics:
+ *   - For one-shot parses, parseAsync is marginally slower than parseSync
+ *     because the FFI call has a small thread-handoff overhead (~10-50µs).
+ *   - For N concurrent parses on M-core hosts, parseAsync scales close to
+ *     min(N, UV_THREADPOOL_SIZE) until the pool saturates.
+ *   - The post-parse JS work (binary decode + enrichErrors) still runs on
+ *     the awaiting thread; only the native parse itself is offloaded.
+ *
+ * @param {string} filename  File path or synthetic name (drives language detection).
+ * @param {string} source    Source code to parse.
+ * @param {object} [opts]    Same shape as parseSync's opts.
+ * @returns {Promise<{ program: object, errors: Array }>}
+ */
+function parseAsync(filename, source, opts) {
+  const lang = resolveLang(filename, opts);
+  const sourceBuf = Buffer.from(source, 'utf8');
+  // koffi.func.async runs the FFI call on a libuv worker thread and
+  // delivers the result via a Node-style callback. We wrap it as a
+  // Promise so the public API matches OXC's parseAsync shape. The
+  // buffer the FFI hands back is owned by the heap-allocated handle
+  // inside the struct, so freeing it via that handle works from any
+  // thread — we can safely free back on the main thread after the
+  // await without touching whatever worker thread did the parse.
+  return new Promise(function (resolve, reject) {
+    _parse_binary.async(sourceBuf, sourceBuf.length, lang, function (err, result) {
+      if (err) { reject(err); return; }
+      try { resolve(finishParse(result, source, filename)); }
+      catch (e) { reject(e); }
+    });
+  });
+}
+
+// Shared post-FFI pipeline: validate, copy out, free the handle, decode,
+// enrich. Centralised so parseSync and parseAsync surface identical
+// errors and identical AST shapes — the only difference between the two
+// is which thread runs `_parse_binary`.
+function finishParse(result, source, filename) {
   if (!result.buf_ptr || result.buf_len <= 0) {
-    _free_result();
+    // Handle may still be non-null even when the parse couldn't produce a
+    // buffer (e.g. parse_job_open_inline failed); free defensively before
+    // returning the synthetic empty Program so we never leak the LibResult.
+    if (result.handle) _free_result(result.handle);
     return {
       program: { type: 'Program', body: [], sourceType: 'script', start: 0, end: 0 },
       errors: [{ message: 'Parse failed', filename, start: 0, end: 0, line: 1, column: 1 }],
@@ -104,7 +169,7 @@ function parseSync(filename, source, opts = {}) {
   }
 
   const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
-  _free_result();
+  _free_result(result.handle);
 
   const decoded = decode(buf, source);
   enrichErrors(decoded.errors, source, filename);
@@ -167,4 +232,4 @@ function offsetToLineColumn(offset, lineStarts) {
   return [lo + 1, offset - lineStarts[lo] + 1];
 }
 
-module.exports = { parseSync };
+module.exports = { parseSync, parseAsync };

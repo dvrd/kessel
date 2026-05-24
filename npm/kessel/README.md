@@ -23,10 +23,15 @@ TypeScript declarations ship inside the package under `types/` and are wired up 
 ## Usage
 
 ```js
-const { parseSync } = require('@dvrdlibs/kessel');
+const { parseSync, parseAsync } = require('@dvrdlibs/kessel');
 
+// Blocking — returns the result directly.
 const { program, errors } = parseSync('app.js', 'const x = 1 + 2;');
 console.log(program.body[0].type); // "VariableDeclaration"
+
+// Non-blocking — native parse runs on a libuv worker thread, event
+// loop stays responsive, concurrent calls fan out across the pool.
+const { program: p2 } = await parseAsync('app.js', 'const y = 3 + 4;');
 ```
 
 ### Language detection
@@ -49,22 +54,47 @@ parseSync('file.js', source, { lang: 'tsx' });
 ### API
 
 ```ts
-function parseSync(
-  filename: string,
-  source: string,
-  opts?: { lang?: 'js' | 'jsx' | 'ts' | 'tsx' }
-): {
+type ParseOptions = { lang?: 'js' | 'jsx' | 'ts' | 'tsx' };
+
+type ParseResult = {
   program: ESTree.Program;
   errors: Array<{
     message: string;
     filename: string;
-    start: number;       // byte offset
-    end: number;
+    start: number;       // UTF-8 byte offset
+    end: number;         // exclusive; > start for token-aware spans
     line: number;        // 1-based
-    column: number;      // 1-based
+    column: number;      // 1-based, UTF-8 byte column
   }>;
-}
+};
+
+function parseSync(
+  filename: string,
+  source: string,
+  opts?: ParseOptions,
+): ParseResult;
+
+function parseAsync(
+  filename: string,
+  source: string,
+  opts?: ParseOptions,
+): Promise<ParseResult>;
 ```
+
+#### When to reach for `parseAsync`
+
+`parseAsync` dispatches the native parse onto libuv's worker thread pool.
+It is the right call when:
+
+- The parse is large enough that blocking the Node event loop for its
+  duration would hurt latency (server request handlers, editor tooling).
+- You want to parse N files concurrently and let the pool schedule them.
+  Throughput scales close to `min(N, UV_THREADPOOL_SIZE)`; raise
+  `UV_THREADPOOL_SIZE` (default 4) to widen the pool.
+
+For small one-off parses, `parseSync` is faster than `parseAsync` by the
+thread-handoff overhead (~10-50µs) — prefer it when you're already on a
+synchronous code path and concurrency isn't on the table.
 
 ### Rendering errors
 

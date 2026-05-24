@@ -4,7 +4,7 @@
  */
 
 'use strict';
-const { parseSync } = require('./index');
+const { parseSync, parseAsync } = require('./index');
 
 const tests = [
   ['const x = 1;', 'VariableDeclaration'],
@@ -189,5 +189,90 @@ for (const src of alignmentCases) {
   }
 }
 
-console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
-process.exit(failed > 0 ? 1 : 0);
+// parseAsync regression tests. Wrapped in an async IIFE so the existing
+// synchronous tests above keep their straightforward control flow; the
+// final tally + exit code waits for the IIFE to settle.
+(async () => {
+  // 1) Single-call correctness — parseAsync must return the same AST
+  //    shape and the same number of errors as parseSync for the same
+  //    input. Same FFI, just dispatched onto a libuv worker thread.
+  try {
+    const src = 'function f(a, b) { return a + b; }';
+    const sync = parseSync('p.js', src);
+    const asyn = await parseAsync('p.js', src);
+    if (sync.program.body[0].type !== asyn.program.body[0].type) {
+      console.error('FAIL: parseAsync produced different top-level type than parseSync');
+      failed++;
+    } else if (sync.errors.length !== asyn.errors.length) {
+      console.error('FAIL: parseAsync produced different error count:', sync.errors.length, 'vs', asyn.errors.length);
+      failed++;
+    } else {
+      passed++;
+    }
+  } catch (e) { console.error('CRASH: parseAsync correctness:', e.message); failed++; }
+
+  // 2) Concurrent fan-out — 20 simultaneous parses across libuv's worker
+  //    pool. Verifies the handle-based FFI (no thread-local state) lets
+  //    multiple parses run in flight without crossing each other's buffers.
+  try {
+    const N = 20;
+    const tasks = Array.from({ length: N }, (_, i) =>
+      parseAsync('p' + i + '.ts', 'const v' + i + ': number = ' + i + ';')
+    );
+    const all = await Promise.all(tasks);
+    const ok = all.length === N
+            && all.every((r, i) => r.program.body[0].type === 'VariableDeclaration'
+                                && r.errors.length === 0);
+    if (!ok) {
+      console.error('FAIL: parseAsync concurrent fan-out got bad results');
+      failed++;
+    } else {
+      passed++;
+    }
+  } catch (e) { console.error('CRASH: parseAsync concurrent:', e.message); failed++; }
+
+  // 3) Error path — invalid input surfaces the same errors as parseSync.
+  try {
+    const src = 'const x = ;';
+    const { errors } = await parseAsync('bad.js', src);
+    if (errors.length === 0) {
+      console.error('FAIL: parseAsync invalid input produced 0 errors');
+      failed++;
+    } else if (errors[0].filename !== 'bad.js' || errors[0].line < 1) {
+      console.error('FAIL: parseAsync errors not enriched:', errors[0]);
+      failed++;
+    } else {
+      passed++;
+    }
+  } catch (e) { console.error('CRASH: parseAsync errors:', e.message); failed++; }
+
+  // 4) Event loop responsiveness — the parse must not block setImmediate
+  //    callbacks. We schedule a tick before kicking off a parseAsync and
+  //    expect the tick to fire before the parse resolves (since the parse
+  //    runs on a worker, the main-thread tick queue drains immediately).
+  try {
+    let tickFiredFirst = false;
+    let parseResolved = false;
+    const tick = new Promise((res) => setImmediate(() => {
+      if (!parseResolved) tickFiredFirst = true;
+      res();
+    }));
+    // A wide flat program — many top-level statements rather than a deep
+    // expression tree, so we don't trip the binary reader's MAX_DEPTH guard
+    // while still giving the parse enough work to matter.
+    const bigSrc = 'var a = 1;\n'.repeat(20000);
+    const parse = parseAsync('p.js', bigSrc).then(() => {
+      parseResolved = true;
+    });
+    await Promise.all([tick, parse]);
+    if (!tickFiredFirst) {
+      console.error('FAIL: parseAsync blocked the event loop (setImmediate ran after parse resolved)');
+      failed++;
+    } else {
+      passed++;
+    }
+  } catch (e) { console.error('CRASH: parseAsync event-loop:', e.message); failed++; }
+
+  console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
+  process.exit(failed > 0 ? 1 : 0);
+})();

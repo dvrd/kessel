@@ -6,42 +6,65 @@ package kessel
 // Build: odin build src -build-mode:shared -out:libkessel.dylib -o:speed -no-bounds-check
 //
 // Exports:
-//   kessel_parse_binary(source, source_len, lang) → (buf_ptr, buf_len)
-//   kessel_free_result(buf_ptr)
+//   kessel_parse_binary(src, src_len, lang) -> KesselParseResult{handle, buf_ptr, buf_len}
+//   kessel_free_result(handle)
 //
 // The returned buffer is the compact binary AST (same format as --binary).
 // Caller passes it to the JS binary-reader.js for decoding.
+//
+// THREADING MODEL — every call is fully self-contained:
+//   * No thread-local state, no module-global state.
+//   * `kessel_parse_binary` may run on any thread (e.g. a libuv worker
+//     thread when invoked via koffi's .async() from the npm package's
+//     parseAsync).
+//   * `kessel_free_result(handle)` may run on any thread, INCLUDING a
+//     different thread than the one that produced `handle` — the
+//     allocation lives on the C heap (`runtime.heap_allocator`), which
+//     is process-global and thread-safe.
+//   * Concurrent calls only touch read-only data (the lookup tables
+//     populated by `@(init)` procs at library load).
 // ============================================================================
 
-import "core:mem"
-import mvirtual "core:mem/virtual"
 import "base:runtime"
 
-// Result handle — keeps the arena alive until caller frees it.
+// Owning handle. Holds the binary buffer alive until the caller passes
+// its rawptr address back to kessel_free_result. Embedded inside the
+// allocation rather than referenced by a TLS slot so that parse and free
+// can cross thread boundaries (required for the npm parseAsync flow,
+// which runs the parse on a libuv worker and frees from the main
+// thread).
 LibResult :: struct {
-	arena:    mvirtual.Arena,
-	buf:      [dynamic]u8,
-	buf_ptr:  [^]u8,
-	buf_len:  int,
+	buf:     [dynamic]u8,
+	buf_ptr: [^]u8,
+	buf_len: int,
 }
 
-// Global results — simple pool. In production you'd use a handle map.
-// For now, single-threaded usage with one outstanding result at a time.
-@(thread_local)
-lib_last_result: ^LibResult
+// Wire-shaped return record. Layout intentionally matches the koffi
+// `koffi.struct('KesselParseResult', ...)` declaration on the JS side:
+//   handle   void*    8 bytes
+//   buf_ptr  void*    8 bytes
+//   buf_len  int32    4 bytes  (+ 4 bytes tail padding for natural alignment)
+// Total: 24 bytes.
+//
+// On x86_64 SysV (Linux / macOS) the struct exceeds two eightbytes, so
+// the ABI returns it via a hidden out-pointer first argument. On AArch64
+// AAPCS it travels in x0/x1/x2. On Windows x64 it goes via a hidden
+// out-pointer for any struct > 8 bytes. Odin's C-ABI lowering and koffi's
+// struct-return decoder agree on all three, so callers see a normal
+// struct value either way.
+KesselParseResult :: struct {
+	handle:  rawptr,
+	buf_ptr: [^]u8,
+	buf_len: i32,
+}
 
 @(export, link_name="kessel_parse_binary")
 kessel_parse_binary :: proc "c" (
 	source_ptr: [^]u8,
 	source_len: i32,
 	lang: i32,         // 0=JS, 1=JSX, 2=TS, 3=TSX
-) -> (buf_ptr: [^]u8, buf_len: i32) {
+) -> KesselParseResult {
 	context = runtime.default_context()
-
-	// Free previous result if any
-	if lib_last_result != nil {
-		kessel_free_result_inner()
-	}
 
 	source := string(source_ptr[:source_len])
 
@@ -64,7 +87,7 @@ kessel_parse_binary :: proc "c" (
 	// Parse
 	job: ParseJob
 	if !parse_job_open_inline(&job, source, config, "lib") {
-		return nil, 0
+		return KesselParseResult{handle = nil, buf_ptr = nil, buf_len = 0}
 	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
@@ -78,30 +101,32 @@ kessel_parse_binary :: proc "c" (
 	bin_emit_errors(&be, job.parser.errors[:])
 	bin_emit_finalize(&be)
 
-	// Store result
+	// Heap-allocate the handle so it survives past the function return
+	// regardless of which thread eventually frees it. Both allocations
+	// (the LibResult container and the [dynamic]u8 buffer) live on the
+	// process-global heap (runtime.heap_allocator).
 	result := new(LibResult, context.allocator)
 	result.buf = be.buf
 	result.buf_ptr = raw_data(be.buf[:])
 	result.buf_len = be.pos
-	lib_last_result = result
 
-	// Don't destroy be — the buf is now owned by result
+	// Strings table backing for the emitter is local; the buf was moved
+	// into `result` above, so only the auxiliary collections need a free.
 	delete(be.strings)
 	delete(be.string_map)
 
-	return result.buf_ptr, i32(result.buf_len)
+	return KesselParseResult{
+		handle  = rawptr(result),
+		buf_ptr = result.buf_ptr,
+		buf_len = i32(result.buf_len),
+	}
 }
 
 @(export, link_name="kessel_free_result")
-kessel_free_result :: proc "c" () {
+kessel_free_result :: proc "c" (handle: rawptr) {
 	context = runtime.default_context()
-	kessel_free_result_inner()
-}
-
-@(private="file")
-kessel_free_result_inner :: proc() {
-	if lib_last_result == nil { return }
-	delete(lib_last_result.buf)
-	free(lib_last_result)
-	lib_last_result = nil
+	if handle == nil { return }
+	result := cast(^LibResult)handle
+	delete(result.buf)
+	free(result)
 }

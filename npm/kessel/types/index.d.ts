@@ -77,7 +77,9 @@ export interface ParseOptions {
  * Synchronously parse `source` and return an ESTree-compatible AST.
  *
  * Goes through a single FFI call into `libkessel`; no subprocess, no
- * JSON, no async boundary. Safe to call from synchronous code paths.
+ * JSON, no async boundary. Blocks the Node event loop for the duration
+ * of the parse — use {@link parseAsync} when that matters (long parses,
+ * concurrent fan-out, server request handlers).
  *
  * @param filename Path or synthetic name. Drives language detection
  *                 unless overridden by `options.lang`.
@@ -89,3 +91,33 @@ export function parseSync(
   source: string,
   options?: ParseOptions
 ): ParseResult;
+
+/**
+ * Asynchronously parse `source` on a libuv worker thread and return an
+ * ESTree-compatible AST.
+ *
+ * Same signature and return shape as {@link parseSync}, but the native
+ * parse runs off the Node main thread via koffi's `.async()`. The event
+ * loop stays responsive during the parse and concurrent calls fan out
+ * across libuv's worker pool (default 4 threads; raise with the
+ * `UV_THREADPOOL_SIZE` environment variable for more parallelism).
+ *
+ * Throughput notes:
+ *  - One-shot parseAsync is marginally slower than parseSync because of
+ *    a small thread-handoff overhead (~10-50µs).
+ *  - For N concurrent parses on M-core hosts, parseAsync scales close to
+ *    `min(N, UV_THREADPOOL_SIZE)` until the pool saturates.
+ *  - The post-parse JS work (binary AST decode + error enrichment) still
+ *    runs on the awaiting thread; only the native parse itself is
+ *    offloaded.
+ *
+ * @param filename Path or synthetic name. Drives language detection
+ *                 unless overridden by `options.lang`.
+ * @param source   UTF-8 source code to parse.
+ * @param options  Optional parse options.
+ */
+export function parseAsync(
+  filename: string,
+  source: string,
+  options?: ParseOptions
+): Promise<ParseResult>;
