@@ -129,9 +129,8 @@ jobs:
           odin build ../src \
             -build-mode:shared \
             -out:libkessel.${{ matrix.ext }} \
-            -o:speed \
-            -no-bounds-check \
-            -show-system-calls \
+            -o:none \
+            -debug \
             ${{ matrix.ldflags }}
 
       # npm/kessel/index.js findLib() searches ../../bin/libkessel.<ext> first
