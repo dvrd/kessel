@@ -19,6 +19,7 @@ on:
       - 'bench/**'
       - 'scripts/xcheck.sh'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/deprecate.yml'
       - '.gitignore'
   # Manual escape hatch — force a release for docs-only commits, or rerun
   # a release that was skipped by paths-ignore.

@@ -1,0 +1,68 @@
+name: Deprecate
+
+# Manually deprecate a published version across the main package and all
+# five platform sub-packages in one shot, using the existing release
+# NPM_TOKEN (which has bypass-2FA enabled). Avoids the per-call WebAuthn
+# round-trip that the npm CLI requires when run locally against an
+# account that doesn't carry an automation token.
+#
+# Trigger: GitHub UI → Actions → Deprecate → Run workflow, then fill in
+# `version` and `message`. The workflow runs once and exits; nothing is
+# scheduled or recurring.
+#
+# Why this exists: v0.4.0 segfaulted on every x86_64 platform; the local
+# `npm deprecate` flow refused without per-package passkey confirms
+# because @dvrdlibs enforces 2FA on publish-class operations. Easier to
+# let CI burn one secret access than to tap a passkey six times.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deprecate (e.g. 0.4.0). Applied to the main package and all five platform sub-packages.'
+        required: true
+        type: string
+      message:
+        description: 'Deprecation message shown on install. Keep it short and actionable — point users at the fixed version.'
+        required: true
+        type: string
+
+# Single in-flight deprecate at a time so concurrent dispatches don't
+# race on the registry's per-package writes.
+concurrency:
+  group: deprecate
+  cancel-in-progress: false
+
+jobs:
+  deprecate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Deprecate ${{ inputs.version }} across all six packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ inputs.version }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          set -eu
+          # Quote-protect the message; npm deprecate takes a single arg
+          # for the message body. Newlines and embedded quotes survive
+          # via the env var, which we expand into the command.
+          for pkg in \
+            @dvrdlibs/kessel \
+            @dvrdlibs/kessel-darwin-arm64 \
+            @dvrdlibs/kessel-darwin-x64 \
+            @dvrdlibs/kessel-linux-arm64 \
+            @dvrdlibs/kessel-linux-x64 \
+            @dvrdlibs/kessel-win32-x64
+          do
+            echo ">>> ${pkg}@${VERSION}"
+            npm deprecate "${pkg}@${VERSION}" "${MESSAGE}"
+          done
+          echo ""
+          echo "All six packages updated. Verify with:"
+          echo "  npm view @dvrdlibs/kessel@${VERSION} deprecated"
