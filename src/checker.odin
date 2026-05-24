@@ -631,12 +631,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		//   * Escaped contextual-reserved words are reserved unconditionally
 		//     (§12.7.2; matches our parser's check_identifier_await_reserved).
 		if v.label.name == "yield" && ctx.strict_mode {
-			ck_report(c, u32(v.label.loc.start),
-				"'yield' is reserved as a label name in strict mode")
+			ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a label name in strict mode")
 		}
 		if v.label.name == "await" && ctx.source_type == .Module {
-			ck_report(c, u32(v.label.loc.start),
-				"'await' is reserved as a label name in module code")
+			ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a label name in module code")
 		}
 		// §15.7.1 — ClassStaticBlock forbids `await` as a LabelIdentifier
 		// regardless of source type. Per test262 static-init-invalid-await.js:
@@ -645,8 +643,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// reserving `await` even in script files. The module-only branch
 		// above doesn't catch this for script-mode fixtures.
 		if v.label.name == "await" && ctx.in_class_static_block && ctx.source_type != .Module {
-			ck_report(c, u32(v.label.loc.start),
-				"'await' is reserved as a label name in a class static block")
+			ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a label name in a class static block")
 		}
 		// Escaped reserved word as label — e.g. `aw\u0061it: 1;` in module
 		// (test262 labeled/value-await-module-escaped.js). The reservation
@@ -881,13 +878,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil {
 			// TS1221 — generators in ambient context (declare function* or .d.ts).
 			if (ctx.lang == .TS || ctx.lang == .TSX) && v.generator && (v.declare || ctx.is_dts) {
-				ck_report(c, u32(v.loc.start),
-					"Generators are not allowed in an ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Generators are not allowed in an ambient context")
 			}
 			// TS1040 — async modifier in ambient context.
 			if (ctx.lang == .TS || ctx.lang == .TSX) && v.async && (v.declare || ctx.is_dts) {
-				ck_report(c, u32(v.loc.start),
-					"'async' modifier cannot be used in an ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "'async' modifier cannot be used in an ambient context")
 			}
 			ck_walk_function(c, ctx, &v.expr)
 		}
@@ -952,8 +947,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				global_ok = true
 			}
 			if !global_ok {
-				ck_report(c, u32(v.loc.start),
-					"Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Augmentations for the global scope can only be directly nested in external modules or ambient module declarations")
 			}
 		}
 		// TS namespace / module body. Most ECMA early errors don't apply
@@ -971,8 +965,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
 			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
-				ck_report(c, u32(v.loc.start),
-					"Interface declarations are only valid at the top level of a module or namespace.")
+				ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Interface declarations are only valid at the top level of a module or namespace")
 			}
 			ck_check_ts_interface_member_dups(c, v.body)
 			ck_check_ts1268_index_sig_param_type(c, v.body)
@@ -991,8 +984,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
 			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
-				ck_report(c, u32(v.loc.start),
-					"Type aliases are only valid at the top level of a module or namespace.")
+				ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Type aliases are only valid at the top level of a module or namespace")
 			}
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
@@ -1824,8 +1816,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 			elem := body.body[i]
 			fn, ok := elem_is_overloadable_method(elem)
 			if !ok || method_fn_has_body(fn) { continue }
-			ck_report(c, u32(elem.loc.start),
-				"Function implementation is missing or not immediately following the declaration.")
+			ck_report_coded(c, u32(elem.loc.start), .K4080_DuplicateImplementation, "Function implementation is missing or not immediately following the declaration")
 		}
 	}
 
@@ -2169,16 +2160,13 @@ ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
 		if !func.no_body { continue }
 		for param in func.params {
 			if param.accessibility != .None {
-				ck_report(c, u32(param.loc.start),
-					"Parameter properties are only allowed in the implementation constructor.")
+				ck_report_coded(c, u32(param.loc.start), .K4022_ParameterPropertyOnlyInCtor, "Parameter properties are only allowed in the implementation constructor")
 			}
 			if param.readonly {
-				ck_report(c, u32(param.loc.start),
-					"'readonly' parameter properties are only allowed in the implementation constructor.")
+				ck_report_coded(c, u32(param.loc.start), .K4022_ParameterPropertyOnlyInCtor, "'readonly' parameter properties are only allowed in the implementation constructor")
 			}
 			if param.override_ {
-				ck_report(c, u32(param.loc.start),
-					"'override' parameter properties are only allowed in the implementation constructor.")
+				ck_report_coded(c, u32(param.loc.start), .K4022_ParameterPropertyOnlyInCtor, "'override' parameter properties are only allowed in the implementation constructor")
 			}
 		}
 	}
@@ -2423,8 +2411,7 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 
 	flush_unimplemented :: proc(c: ^Checker, sigs: []u32) {
 		for at in sigs {
-			ck_report(c, at,
-				"Function implementation is missing or not immediately following the declaration.")
+			ck_report_coded(c, at, .K4080_DuplicateImplementation, "Function implementation is missing or not immediately following the declaration")
 		}
 	}
 
@@ -2583,8 +2570,7 @@ ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
 		entry, found := seen[name]
 		if !found { continue }
 		if entry.has_ambient && entry.has_nonamb {
-			ck_report(c, u32(fn.loc.start),
-				"Overload signatures must all be ambient or non-ambient.")
+			ck_report_coded(c, u32(fn.loc.start), .K4050_AmbientContextRestriction, "Overload signatures must all be ambient or non-ambient")
 			// Remove from map so we only report once per name.
 			delete_key(&seen, name)
 		}
@@ -3191,8 +3177,7 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 				// Skip for now — too complex.
 			}
 			if !valid {
-				ck_report(c, u32(param.loc.start),
-					"An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type.")
+				ck_report_coded(c, u32(param.loc.start), .K4055_IndexSignatureForm, "An index signature parameter type must be 'string', 'number', 'symbol', or a template literal type")
 			}
 		}
 	}
@@ -3217,20 +3202,17 @@ ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
 			#partial switch t in ta.type_annotation^ {
 			case ^TSStringKeyword:
 				if seen_string {
-					ck_report(c, u32(idx.loc.start),
-						"Duplicate index signature for type 'string'.")
+					ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'string'")
 				}
 				seen_string = true
 			case ^TSNumberKeyword:
 				if seen_number {
-					ck_report(c, u32(idx.loc.start),
-						"Duplicate index signature for type 'number'.")
+					ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'number'")
 				}
 				seen_number = true
 			case ^TSSymbolKeyword:
 				if seen_symbol {
-					ck_report(c, u32(idx.loc.start),
-						"Duplicate index signature for type 'symbol'.")
+					ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'symbol'")
 				}
 				seen_symbol = true
 			}
@@ -3337,13 +3319,11 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 			if v != nil {
 				// TS1221 — generators are not allowed in ambient contexts.
 				if v.generator {
-					ck_report(c, u32(v.loc.start),
-						"Generators are not allowed in an ambient context.")
+					ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Generators are not allowed in an ambient context")
 				}
 				// TS1040 — async modifier in ambient context.
 				if v.async {
-					ck_report(c, u32(v.loc.start),
-						"'async' modifier cannot be used in an ambient context.")
+					ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "'async' modifier cannot be used in an ambient context")
 				}
 			}
 			continue
@@ -3405,38 +3385,31 @@ ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
 		#partial switch v in stmt^ {
 		case ^VariableDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^FunctionDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^ClassDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^TSModuleDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^TSEnumDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^TSInterfaceDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^TSTypeAliasDeclaration:
 			if v != nil && v.declare {
-				ck_report(c, u32(v.loc.start),
-					"A 'declare' modifier cannot be used in an already ambient context.")
+				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 			}
 		case ^ExportNamedDeclaration:
 			// Check the inner declaration: `export declare class C {}` inside
@@ -3447,28 +3420,23 @@ ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
 			#partial switch inner in d^ {
 			case ^VariableDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.start),
-						"A 'declare' modifier cannot be used in an already ambient context.")
+					ck_report_coded(c, u32(inner.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 				}
 			case ^FunctionDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.start),
-						"A 'declare' modifier cannot be used in an already ambient context.")
+					ck_report_coded(c, u32(inner.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 				}
 			case ^ClassDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.start),
-						"A 'declare' modifier cannot be used in an already ambient context.")
+					ck_report_coded(c, u32(inner.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 				}
 			case ^TSModuleDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.start),
-						"A 'declare' modifier cannot be used in an already ambient context.")
+					ck_report_coded(c, u32(inner.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 				}
 			case ^TSEnumDeclaration:
 				if inner != nil && inner.declare {
-					ck_report(c, u32(inner.loc.start),
-						"A 'declare' modifier cannot be used in an already ambient context.")
+					ck_report_coded(c, u32(inner.loc.start), .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 				}
 			}
 		}
@@ -3488,28 +3456,23 @@ ck_check_ts1046_dts_top_level :: proc(c: ^Checker, program: ^Program) {
 		#partial switch v in stmt^ {
 		case ^VariableDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.start),
-					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier")
 			}
 		case ^FunctionDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.start),
-					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier")
 			}
 		case ^ClassDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.start),
-					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier")
 			}
 		case ^TSModuleDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.start),
-					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier")
 			}
 		case ^TSEnumDeclaration:
 			if v != nil && !v.declare {
-				ck_report(c, u32(v.loc.start),
-					"Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier.")
+				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Top-level declarations in .d.ts files must start with either a 'declare' or 'export' modifier")
 			}
 		// TSInterfaceDeclaration, TSTypeAliasDeclaration, ImportDeclaration,
 		// ExportNamedDeclaration, ExportDefaultDeclaration, ExportAllDeclaration
@@ -3731,8 +3694,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// Test262 module-code/top-level-await/new-await.js.
 		if ctx.source_type == .Module && e.callee != nil {
 			if id, ok := e.callee^.(^Identifier); ok && id != nil && id.name == "await" {
-				ck_report(c, u32(id.loc.start),
-					"'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'")
+				ck_report_coded(c, u32(id.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as the head of an AwaitExpression in module code; cannot follow 'new'")
 			}
 		}
 		ck_walk_expr(c, ctx, e.callee)
@@ -3893,8 +3855,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 				is_valid = true
 			}
 			if !is_valid {
-				ck_report(c, u32(e.loc.start),
-					"The operand of a 'delete' operator must be a property reference.")
+				ck_report_coded(c, u32(e.loc.start), .K3051_StrictModeProhibited, "The operand of a 'delete' operator must be a property reference")
 			}
 		}
 		ck_walk_expr(c, ctx, e.argument)
@@ -4009,8 +3970,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// in the method's scope, so super IS valid there).
 		if e != nil && ctx.in_class_computed_key && !ctx.in_method &&
 		   (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(e.loc.start),
-				"'super' cannot be referenced in a computed property name.")
+			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'super' cannot be referenced in a computed property name")
 		}
 		// §13.3.7 — SuperProperty / SuperCall is only legal in a
 		// [[HomeObject]]-bearing context (class method / constructor /
@@ -4026,16 +3986,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// TS2465 — 'this' cannot be referenced in a computed property name.
 		if e != nil && ctx.in_class_computed_key &&
 		   (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(e.loc.start),
-				"'this' cannot be referenced in a computed property name.")
+			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'this' cannot be referenced in a computed property name")
 		}
 		// TS2331 — 'this' at the direct body level of a namespace (not
 		// inside any function, arrow, method, or class body).
 		if e != nil && ctx.ts_namespace_depth > 0 &&
 		   ctx.function_depth == 0 && !ctx.in_arrow_body &&
 		   (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(e.loc.start),
-				"'this' cannot be referenced in a module or namespace body.")
+			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'this' cannot be referenced in a module or namespace body")
 		}
 
 	case ^MetaProperty:
@@ -4054,8 +4012,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			// entry, so `await;` lexes/parses as an Identifier instead of
 			// an AwaitExpression). The checker fires the early error.
 			if e.name == "await" && ctx.in_class_static_block {
-				ck_report(c, u32(e.loc.start),
-					"'await' is reserved in a class static block")
+				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted, "'await' is reserved in a class static block")
 			}
 		}
 
@@ -4178,8 +4135,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// TS — function implementations are not allowed in ambient
 	// contexts (.d.ts files, declare module/namespace bodies).
 	if ctx.is_dts && kind == .Plain && !fn.declare && !fn.no_body {
-		ck_report(c, u32(fn.loc.start),
-			"An implementation cannot be declared in ambient contexts.")
+		ck_report_coded(c, u32(fn.loc.start), .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
 	}
 	saved := ck_enter_function(ctx)
 	// Reset the [[HomeObject]] / constructor / class-element flags. The
@@ -4608,8 +4564,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			if (elem.kind == .Get || elem.kind == .Set) && (ctx.lang == .TS || ctx.lang == .TSX) {
 				if len(fn.params) > 0 {
 					if id, ok := fn.params[0].pattern.(^Identifier); ok && id != nil && id.name == "this" {
-						ck_report(c, u32(id.loc.start),
-							"'get' and 'set' accessors cannot declare 'this' parameters.")
+						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "'get' and 'set' accessors cannot declare 'this' parameters")
 					}
 				}
 			}
@@ -4617,16 +4572,14 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
 				for param in fn.params {
 					if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
-						ck_report(c, u32(id.loc.start),
-							"A 'set' accessor cannot have an optional parameter.")
+						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have an optional parameter")
 					}
 				}
 			}
 			// TS1095 — set accessor cannot have a return type annotation.
 			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
 				if _, has_ret := fn.return_type.(^TSTypeAnnotation); has_ret {
-					ck_report(c, u32(fn.loc.start),
-						"A 'set' accessor cannot have a return type annotation.")
+					ck_report_coded(c, u32(fn.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have a return type annotation")
 				}
 			}
 		case .StaticBlock:
@@ -4729,8 +4682,7 @@ ck_check_setter_return_value :: proc(c: ^Checker, body: []^Statement) {
 		case ^ReturnStatement:
 			if v == nil { continue }
 			if _, has_arg := v.argument.(^Expression); has_arg {
-				ck_report(c, u32(v.loc.start),
-					"Setters cannot return a value.")
+				ck_report_coded(c, u32(v.loc.start), .K4061_GetSetForm, "Setters cannot return a value")
 			}
 		case ^BlockStatement:
 			if v != nil { ck_check_setter_return_value(c, v.body[:]) }
@@ -5299,8 +5251,7 @@ stmt_contains_super_call :: proc(stmt: ^Statement) -> bool {
 
 @(private="file")
 ck_report_this_before_super :: proc(c: ^Checker, this_loc: u32) {
-	ck_report(c, this_loc,
-		"'super' must be called before accessing 'this' in the constructor of a derived class.")
+	ck_report_coded(c, this_loc, .K3033_SuperInvalidContext, "'super' must be called before accessing 'this' in the constructor of a derived class")
 }
 
 // expr_find_this — returns the source offset of the first ThisExpression
@@ -5543,8 +5494,7 @@ ck_check_ts1016_required_after_optional :: proc(c: ^Checker, params: []FunctionP
 			seen_optional = true
 		} else if seen_optional && param.default_val == nil {
 			// Required (no `?`, no default) after optional → error.
-			ck_report(c, u32(param.loc.start),
-				"A required parameter cannot follow an optional parameter.")
+			ck_report_coded(c, u32(param.loc.start), .K4063_OptionalAndInit, "A required parameter cannot follow an optional parameter")
 		}
 	}
 }
@@ -5616,8 +5566,7 @@ ck_check_import_export_position :: proc(
 		// Exception: inside `declare module "..."` (ambient module
 		// declarations) and .d.ts files, `export default` IS valid.
 		if is_default && !ctx.is_dts && !ctx.in_ambient_module_decl && (ctx.lang == .TS || ctx.lang == .TSX) {
-			ck_report(c, u32(loc.start),
-				"A default export must be at the top level of a file or module declaration.")
+			ck_report_coded(c, u32(loc.start), .K3021_ExportDefaultRestrictions, "A default export must be at the top level of a file or module declaration")
 		}
 		return
 	}
@@ -6183,8 +6132,7 @@ ck_check_using_at_script_top :: proc(c: ^Checker, ctx: ^CheckerContext, program:
 		if !ok || decl == nil { continue }
 		switch decl.kind {
 		case .Using:
-			ck_report(c, u32(decl.loc.start),
-				"'using' declaration is not allowed at the top level of a script")
+			ck_report_coded(c, u32(decl.loc.start), .K3067_NewTargetOrTopLevelUsing, "'using' declaration is not allowed at the top level of a script")
 		case .AwaitUsing:
 			ck_report_coded(c, u32(decl.loc.start), .K3014_AwaitUsingContextRestricted,
 				"'await using' declaration is not allowed at the top level of a script")
@@ -6218,8 +6166,7 @@ ck_check_if_labelled_function :: proc(c: ^Checker, body: ^Statement) {
 			if v == nil { return }
 			if label_count == 0 { return }  // unlabelled — Annex B allows
 			if v.async || v.generator { return } // parser-side syntax error
-			ck_report(c, u32(v.loc.start),
-				"Labelled function declaration cannot appear in a single-statement context")
+			ck_report_coded(c, u32(v.loc.start), .K3060_SingleStatementContext, "Labelled function declaration cannot appear in a single-statement context")
 			return
 		case:
 			return
@@ -6250,8 +6197,7 @@ ck_check_single_stmt_function :: proc(c: ^Checker, body: ^Statement) {
 		case ^FunctionDeclaration:
 			if v == nil { return }
 			if v.async || v.generator { return } // parser-side syntax error
-			ck_report(c, u32(v.loc.start),
-				"Function declaration cannot appear in a single-statement context")
+			ck_report_coded(c, u32(v.loc.start), .K3060_SingleStatementContext, "Function declaration cannot appear in a single-statement context")
 			return
 		case:
 			return
@@ -7067,8 +7013,7 @@ ck_check_module_await_binding :: proc(c: ^Checker, pat: Pattern) {
 	case ^Identifier:
 		if p == nil { return }
 		if p.name == "await" {
-			ck_report(c, u32(p.loc.start),
-				"'await' is reserved as a binding name in module code")
+			ck_report_coded(c, u32(p.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in module code")
 		}
 	case ^ArrayPattern:
 		if p == nil { return }
@@ -7116,8 +7061,7 @@ ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id
 	if id == nil || id.name != "await" { return }
 	if !id.has_escape { return }
 	if ctx.in_async || ctx.in_class_static_block {
-		ck_report(c, u32(id.loc.start),
-			"'await' is not allowed as an identifier in this context")
+		ck_report_coded(c, u32(id.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is not allowed as an identifier in this context")
 	}
 }
 
