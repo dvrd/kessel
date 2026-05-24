@@ -189,6 +189,29 @@ jobs:
             -no-bounds-check \
             ${{ matrix.ldflags }}
 
+      # Smoke test the freshly-built binary BEFORE upload-artifact so a
+      # broken native binary fails the matrix here — before any
+      # `npm publish` runs in publish-platforms. The same step in ci.yml
+      # catches the same class of bug on PRs, but releases run from
+      # `push: main` without re-running CI, so without this step a fix
+      # that passes CI can still ship broken if (e.g.) a flag, an Odin
+      # nightly, or a runner-image bump introduces a regression between
+      # the CI run and the release run. Adds ~30s per platform.
+      #
+      # The v0.4.0 x86_64 SIGSEGV (latent SIMD alignment bug exposed by
+      # the new multi-line smoke source) shipped to npm precisely
+      # because this step was missing.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Smoke test (npm)
+        shell: bash
+        run: |
+          cd npm/kessel
+          npm install
+          node test.js
+
       - uses: actions/upload-artifact@v4
         with:
           name: libkessel-${{ matrix.target }}
