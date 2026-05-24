@@ -3,15 +3,26 @@
   "version": "0.2.2",
   "description": "Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs. 8% faster than OXC at the npm boundary.",
   "main": "index.js",
+  "types": "./types/index.d.ts",
   "exports": {
-    ".": "./index.js",
-    "./binary-reader": "./binary-reader.js",
-    "./visitor": "./visitor.js"
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./index.js"
+    },
+    "./binary-reader": {
+      "types": "./types/binary-reader.d.ts",
+      "default": "./binary-reader.js"
+    },
+    "./visitor": {
+      "types": "./types/visitor.d.ts",
+      "default": "./visitor.js"
+    }
   },
   "files": [
     "index.js",
     "binary-reader.js",
     "visitor.js",
+    "types/",
     "README.md",
     "CHANGELOG.md"
   ],
@@ -19,6 +30,7 @@
     "test": "node test.js"
   },
   "dependencies": {
+    "@types/estree": "^1.0.0",
     "koffi": "^3.0.1"
   },
   "optionalDependencies": {

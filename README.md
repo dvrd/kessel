@@ -50,7 +50,7 @@ task install                  # Symlink bin/kessel into ~/.local/bin
 npm install @dvrdlibs/kessel
 ```
 
-The install pulls only the platform-specific native binary that matches your host (one of `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, `win32-x64`). The other sub-packages stay on the registry, unfetched.
+The install pulls only the platform-specific native binary that matches your host (one of `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`, `win32-x64`). The other sub-packages stay on the registry, unfetched. TypeScript declarations ship in the package.
 
 ## Usage
 

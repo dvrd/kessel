@@ -10,6 +10,8 @@ npm install @dvrdlibs/kessel
 
 The install pulls only the platform-specific native binary that matches your host. The other sub-packages stay on the registry, unfetched.
 
+TypeScript declarations ship inside the package under `types/` and are wired up via the `exports` map — no separate `@types/...` install needed.
+
 | Sub-package | Platform | Binary |
 |---|---|---|
 | `@dvrdlibs/kessel-darwin-arm64` | macOS, Apple Silicon | `libkessel.dylib` |
