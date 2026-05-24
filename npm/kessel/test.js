@@ -120,15 +120,17 @@ for (const [name, src] of badCases) {
 
 // BISECT: parse small variants to find which trigger the x86_64 crash.
 const variants = [
-  ['v0  multi-line, no string',          'function f() {\n  return 1;\n}'],
-  ['v1  single-line, string',            'function f() { return "abc"; }'],
-  ['v2  string, then newline',           'var x = "abc";\n'],
-  ['v3  newline, then string',           '\nvar x = "abc";'],
-  ['v4  multi-line string only',         'var x = "abc";\nvar y = 1;'],
-  ['v5  multi-line func + string',       'function f() {\n  return "abc";\n}'],
-  ['v6  single LF',                      '\n'],
-  ['v7  string then LF then EOF',        '"a";\n'],
-  ['v8  LF then string then EOF',        '\n"a"'],
+  ['v0  string then LF then ident',      '"a";\nb'],
+  ['v1  string then LF then number',     '"a";\n1'],
+  ['v2  string then LF then keyword',    '"a";\nvar x'],
+  ['v3  number then LF then string',     '1;\n"a"'],
+  ['v4  ident then LF then string',      'x;\n"a"'],
+  ['v5  string then space then ident',   '"a"; b'],
+  ['v6  two strings same line',          '"a"; "b"'],
+  ['v7  two strings sep by LF',          '"a";\n"b"'],
+  ['v8  minimal LF + var',               '"";\nvar a'],
+  ['v9  minimal LF + nothing',           '"a";\n'],
+  ['v10 even shorter',                   '\"\";\n1'],
 ];
 let vi = 0;
 for (const [name, src] of variants) {
