@@ -4,7 +4,7 @@ parser_typescript Summary:
 AST Parsed     : 10773/10773 (100.00%)
 Positive Passed: 10773/10773 (100.00%)
 Negative Passed: 1629/1629 (100.00%)
-typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
+typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
 typescript/tests/cases/compiler/ClassDeclaration13.ts:4:2: Function implementation name must be 'foo'.
@@ -26,7 +26,7 @@ typescript/tests/cases/compiler/FunctionDeclaration7.ts:2:4: Function implementa
 typescript/tests/cases/compiler/InterfaceDeclaration8.ts:1:11: Interface name cannot be 'string'
 typescript/tests/cases/compiler/MemberAccessorDeclaration15.ts:2:28: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/ParameterList13.ts:2:10: 'public' is a reserved identifier in strict mode
-typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
+typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/compiler/ParameterList5.ts:1:23: Expected ')', got identifier 'B'
 typescript/tests/cases/compiler/ParameterList6.ts:2:26: Expected ')', got identifier 'A'
 typescript/tests/cases/compiler/ParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
@@ -129,8 +129,8 @@ typescript/tests/cases/compiler/constDeclarations-errors.ts:3:1: Missing initial
 typescript/tests/cases/compiler/constInClassExpression.ts:2:11: Expected '(', got identifier 'a'
 typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorArgsErrors2.ts:2:25: 'static' is a reserved identifier in strict mode
-typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility modifier already seen.
-typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen.
+typescript/tests/cases/compiler/constructorArgsErrors3.ts:2:25: Accessibility modifier already seen
+typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility modifier already seen
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/compiler/constructorOverloads1.ts:7:5: Duplicate constructor implementations are not allowed.
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
@@ -149,8 +149,8 @@ typescript/tests/cases/compiler/continueTarget6.ts:2:12: Undefined label 'target
 typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_1.ts:3:1: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/crashOnMethodSignatures.ts:2:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/createArray.ts:1:19: Expected expression after 'new'
-typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
-typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context
+typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/compiler/declarationEmitDestructuring2.ts:3:1: Duplicate parameter name 'a' with non-simple parameter list
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties2.ts:2:43: A parameter property may not be declared using a binding pattern
@@ -231,10 +231,10 @@ typescript/tests/cases/compiler/es6ImportParseErrors.ts:1:8: Expected import sou
 typescript/tests/cases/compiler/es6ImportWithoutFromClauseWithExport.ts::client.ts:1:24: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ModuleInternalNamedImports.ts:22:5: Export declarations are not permitted in a namespace.
 typescript/tests/cases/compiler/es6ModuleInternalNamedImports2.ts:24:5: Export declarations are not permitted in a namespace.
-typescript/tests/cases/compiler/exportAlreadySeen.ts:2:12: 'export' modifier already seen.
+typescript/tests/cases/compiler/exportAlreadySeen.ts:2:12: 'export' modifier already seen
 typescript/tests/cases/compiler/exportAssignmentWithDeclareAndExportModifiers.ts:2:16: Expected semicolon
 typescript/tests/cases/compiler/exportAssignmentWithDeclareModifier.ts:2:9: Expected semicolon
-typescript/tests/cases/compiler/exportAssignmentWithExportModifier.ts:2:8: 'export' modifier already seen.
+typescript/tests/cases/compiler/exportAssignmentWithExportModifier.ts:2:8: 'export' modifier already seen
 typescript/tests/cases/compiler/exportAssignmentWithExports.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/exportClassWithoutName.ts:1:8: A class declaration without the 'default' modifier must have a name.
 typescript/tests/cases/compiler/exportDeclarationInInternalModule.ts:13:5: Export declarations are not permitted in a namespace.
@@ -386,7 +386,7 @@ typescript/tests/cases/compiler/missingRequiredDeclare.d.ts:1:9: Initializers ar
 typescript/tests/cases/compiler/misspelledNewMetaProperty.ts:1:19: Expected expression after 'new'
 typescript/tests/cases/compiler/modifierOnParameter1.ts:2:24: Expected ')', got identifier 'p'
 typescript/tests/cases/compiler/modifiersInObjectLiterals.ts:2:2: 'public' is a reserved identifier in strict mode
-typescript/tests/cases/compiler/modifiersOnInterfaceIndexSignature1.ts:2:3: 'public' modifier cannot appear on an index signature.
+typescript/tests/cases/compiler/modifiersOnInterfaceIndexSignature1.ts:2:3: 'public' modifier cannot appear on an index signature
 typescript/tests/cases/compiler/moduleAugmentationGlobal7_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
 typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
 typescript/tests/cases/compiler/moduleDuplicateIdentifiers.ts:24:14: Identifier 'Kettle' has already been declared
@@ -398,8 +398,8 @@ typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semic
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected 'from', got '='
 typescript/tests/cases/compiler/moduleProperty1.ts:9:5: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.ts:1:8: 'return' outside of function
-typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier.
-typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen.
+typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier
+typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen
 typescript/tests/cases/compiler/multipleExportAssignments.ts:13:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/multipleExports.ts:9:5: Export declarations are not permitted in a namespace.
 typescript/tests/cases/compiler/multipleInheritance.ts:9:19: Expected '{', got ','
@@ -474,8 +474,8 @@ typescript/tests/cases/compiler/prettyContextNotDebugAssertion.ts:1:12: Expected
 typescript/tests/cases/compiler/primitiveTypeAsClassName.ts:1:7: Class name cannot be 'any'
 typescript/tests/cases/compiler/primitiveTypeAsInterfaceName.ts:1:11: Interface name cannot be 'number'
 typescript/tests/cases/compiler/primitiveTypeAsInterfaceNameGeneric.ts:1:11: Interface name cannot be 'number'
-typescript/tests/cases/compiler/privacyGloImportParseErrors.ts:133:9: A 'declare' modifier cannot be used in an already ambient context.
-typescript/tests/cases/compiler/privacyImportParseErrors.ts:314:9: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/compiler/privacyGloImportParseErrors.ts:133:9: A 'declare' modifier cannot be used in an already ambient context
+typescript/tests/cases/compiler/privacyImportParseErrors.ts:314:9: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/compiler/privateNameJsx.tsx:4:22: Expected JSX identifier
 typescript/tests/cases/compiler/propertyWrappedInTry.ts:3:9: Expected '(', got '{'
 typescript/tests/cases/compiler/reachabilityChecksNoCrash1.ts:1:54: Expected ')', got '!'
@@ -514,7 +514,7 @@ typescript/tests/cases/compiler/staticAsIdentifier.ts:12:19: Expected '(', got i
 typescript/tests/cases/compiler/staticClassMemberError.ts:9:1: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/staticClassProps.ts:4:9: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/staticModifierAlreadySeen.ts:2:19: Expected '(', got identifier 'foo'
-typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifier must precede 'static' modifier.
+typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/compiler/staticPrototypeProperty.ts:5:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/compiler/staticsInAFunction.ts:1:13: Expected '(', got '{'
 typescript/tests/cases/compiler/staticsInConstructorBodies.ts:3:3: 'static' is a reserved identifier in strict mode
@@ -587,8 +587,8 @@ typescript/tests/cases/compiler/withStatementErrors.ts:3:1: 'with' statements ar
 typescript/tests/cases/compiler/withStatementNestedScope.ts:2:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/yieldStringLiteral.ts:2:5: 'yield' expression is only allowed in a generator body
 typescript/tests/cases/conformance/ambient/ambientErrors.ts:2:17: Initializers are not allowed in ambient contexts.
-typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath.ts:4:5: A 'declare' modifier cannot be used in an already ambient context.
-typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath2.ts:2:5: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath.ts:4:5: A 'declare' modifier cannot be used in an already ambient context
+typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath2.ts:2:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction5_es2017.ts:1:18: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction6_es2017.ts:1:22: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction7_es2017.ts:3:24: 'await' expression is not allowed in formal parameters of an async function
@@ -674,14 +674,14 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts
 typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts:3:5: Duplicate constructor implementations are not allowed.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:2:23: 'readonly' parameter properties are only allowed in the implementation constructor.
-typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier.
+typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyReadonly.ts:2:23: 'readonly' modifier can only appear on a property declaration
 typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassConstructorWithoutSuperCall.ts:24:36: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperCallsInNonConstructorMembers.ts:8:13: Expected semicolon or line terminator after class field
 typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/superCallInConstructorWithNoBaseType.ts:3:14: 'super' call is only allowed in the constructor of a derived class
-typescript/tests/cases/conformance/classes/indexMemberDeclarations/privateIndexer.ts:4:13: 'private' modifier cannot appear on an index signature.
+typescript/tests/cases/conformance/classes/indexMemberDeclarations/privateIndexer.ts:4:13: 'private' modifier cannot appear on an index signature
 typescript/tests/cases/conformance/classes/indexMemberDeclarations/privateIndexer2.ts:4:13: Expected '}', got '['
-typescript/tests/cases/conformance/classes/indexMemberDeclarations/publicIndexer.ts:4:12: 'public' modifier cannot appear on an index signature.
+typescript/tests/cases/conformance/classes/indexMemberDeclarations/publicIndexer.ts:4:12: 'public' modifier cannot appear on an index signature
 typescript/tests/cases/conformance/classes/members/accessibility/privateInstanceMemberAccessibility.ts:12:12: Expected semicolon or line terminator after class field
 typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers6.ts:6:21: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts:7:56: 'super' property access is only valid inside a method
@@ -728,11 +728,11 @@ typescript/tests/cases/conformance/classes/members/privateNames/privateNamesNotA
 typescript/tests/cases/conformance/classes/members/privateNames/privateNamesUnique-3.ts:3:5: Duplicate private name '#foo'
 typescript/tests/cases/conformance/classes/nestedClassDeclaration.ts:5:11: Expected '(', got identifier 'C2'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/abstractPropertyInitializer.ts:3:1: Abstract property cannot have an initializer.
-typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessibilityModifiers.ts:21:20: 'private' modifier must precede 'static' modifier.
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessibilityModifiers.ts:21:20: 'private' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessorsOverrideProperty7.ts:3:1: Abstract property cannot have an initializer.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessorDisallowedModifiers.ts:2:23: Expected '(', got identifier 'a'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/canFollowGetSetKeyword.ts:7:6: Setter must have exactly one formal parameter
-typescript/tests/cases/conformance/classes/propertyMemberDeclarations/derivedUninitializedPropertyDeclaration.ts:15:17: 'declare' modifier cannot be used here.
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/derivedUninitializedPropertyDeclaration.ts:15:17: 'declare' modifier cannot be used here
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionOverloadMixingStaticAndInstance.ts:2:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndAccessorWithSameName.ts:3:5: Duplicate identifier 'x'.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndFunctionWithSameName.ts:3:5: Duplicate identifier 'x'.
@@ -741,8 +741,8 @@ typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyNa
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts:57:1: Classes may not have a static member named 'prototype'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName.ts:3:5: Duplicate identifier 'x'.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/twoAccessorsWithSameName2.ts:3:5: Duplicate identifier 'x'.
-typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature4.ts:12:5: 'static' modifier cannot appear on an index signature.
-typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature5.ts:7:5: 'static' modifier cannot appear on a type member.
+typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature4.ts:12:5: 'static' modifier cannot appear on an index signature
+typescript/tests/cases/conformance/classes/staticIndexSignature/staticIndexSignature5.ts:7:5: 'static' modifier cannot appear on a type member
 typescript/tests/cases/conformance/controlFlow/controlFlowDeleteOperator.ts:14:5: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertions.ts:69:10: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/controlFlow/definiteAssignmentAssertionsWithObjectShortHand.ts:2:16: Expected '}', got '!'
@@ -1053,7 +1053,7 @@ typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsP
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface05.ts:3:5: 'interface' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceExtendingOptionalChain.ts:5:25: Expected '{', got '?.'
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceThatInheritsFromItself.ts:10:15: Expected '{', got identifier 'implements'
-typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceWithAccessibilityModifiers.ts:3:5: 'public' modifier cannot appear on a type member.
+typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfaceWithAccessibilityModifiers.ts:3:5: 'public' modifier cannot appear on a type member
 typescript/tests/cases/conformance/interfaces/interfaceDeclarations/interfacesWithPredefinedTypesAsNames.ts:1:11: Interface name cannot be 'any'
 typescript/tests/cases/conformance/interfaces/interfacesExtendingClasses/interfaceExtendingClass2.ts:15:6: Expected '}', got end of input
 typescript/tests/cases/conformance/internalModules/moduleBody/invalidModuleWithStatementsOfEveryKind.ts:4:5: 'public' is a reserved identifier in strict mode
@@ -1095,12 +1095,12 @@ typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExp
 typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.
 typescript/tests/cases/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other.ts:3:22: Expected 'with' in import type options
-typescript/tests/cases/conformance/override/override11.ts:6:34: 'public' modifier must precede 'override' modifier.
+typescript/tests/cases/conformance/override/override11.ts:6:34: 'public' modifier must precede 'override' modifier
 typescript/tests/cases/conformance/override/override5.ts:22:23: Expected '(', got identifier 'oop'
 typescript/tests/cases/conformance/override/override7.ts:19:23: Expected '(', got identifier 'oop'
-typescript/tests/cases/conformance/override/override9.ts:8:5: 'override' modifier cannot appear on a type member.
+typescript/tests/cases/conformance/override/override9.ts:8:5: 'override' modifier cannot appear on a type member
 typescript/tests/cases/conformance/override/overrideKeywordOrder.ts:12:18: Expected '(', got identifier 'm2'
-typescript/tests/cases/conformance/override/overrideParameterProperty.ts:20:31: 'public' modifier must precede 'override' modifier.
+typescript/tests/cases/conformance/override/overrideParameterProperty.ts:20:31: 'public' modifier must precede 'override' modifier
 typescript/tests/cases/conformance/parser/ecmascript2018/forAwait/parser.forAwait.es2018.ts::forAwaitInWithDeclIsError.ts:1:20: 'await' can only be used in conjunction with 'for...of' statements
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.binaryNegative.ts::1.ts:1:5: Numeric separator not allowed here
 typescript/tests/cases/conformance/parser/ecmascript2021/numericSeparators/parser.numericSeparators.decmialNegative.ts::10.ts:1:4: Numeric separator not allowed here
@@ -1116,7 +1116,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors9
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserGetAccessorWithTypeParameters1.ts:2:16: A 'get' accessor cannot have type parameters.
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeAnnotation1.ts:2:23: A 'set' accessor cannot have a return type annotation.
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeParameters1.ts:2:18: A 'set' accessor cannot have type parameters.
-typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter.
+typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts::fileJs.js:1:20: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression13.ts::fileJs.js:1:19: Empty parenthesized expression
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression14.ts::fileJs.js:1:9: Expected ')', got ':'
@@ -1141,7 +1141,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration4.ts:1:32: Expected '{', got 'extends'
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration5.ts:1:32: Expected '{', got identifier 'implements'
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration6.ts:1:18: Expected '{', got ','
-typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums.
@@ -1149,19 +1149,19 @@ typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/pa
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration3.ts:2:10: Expected '(', got identifier 'constructor'
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration4.ts:2:25: 'declare' modifier cannot appear on a constructor declaration
-typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration6.ts:2:10: Accessibility modifier already seen.
-typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration7.ts:2:10: Accessibility modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration6.ts:2:10: Accessibility modifier already seen
+typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration7.ts:2:10: Accessibility modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration8.ts:3:21: Class field cannot be named 'constructor'
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration9.ts:2:20: Type parameters cannot appear on a constructor declaration
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum4.ts:2:9: Expected enum member name
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum5.ts:2:12: Expected '}', got ':'
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum7.ts:2:3: An enum member cannot have a numeric name.
-typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration4.ts:1:6: Identifier expected. 'void' is a reserved word that cannot be used here.
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic1.ts:3:15: 'public' modifier must precede 'static' modifier.
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic10.ts:3:15: 'public' modifier must precede 'static' modifier.
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic6.ts:3:14: 'public' modifier must precede 'static' modifier.
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic7.ts:3:15: 'public' modifier must precede 'static' modifier.
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic1.ts:3:15: 'public' modifier must precede 'static' modifier
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic10.ts:3:15: 'public' modifier must precede 'static' modifier
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic6.ts:3:14: 'public' modifier must precede 'static' modifier
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic7.ts:3:15: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList1.ts:3:4: Expected ')', got 'return'
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList2.ts:2:8: Expected ')', got ';'
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/ArgumentLists/parserErrorRecovery_ArgumentList3.ts:3:4: Expected ')', got 'return'
@@ -1223,7 +1223,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserErrant
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserErrantSemicolonInClass1.ts:15:16: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserFuzz1.ts:1:9: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserMissingLambdaOpenBrace1.ts:4:13: Expected ')', got 'var'
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnPropertySignature1.ts:2:5: 'public' modifier cannot appear on a type member.
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnPropertySignature1.ts:2:5: 'public' modifier cannot appear on a type member
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock2.ts:2:20: Initializers are not allowed in ambient contexts.
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserPublicBreak1.ts:1:1: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnfinishedTypeNameBeforeKeyword1.ts:2:11: Expected '=', ',', or ';' after variable binding
@@ -1247,7 +1247,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExp
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExpression4.ts:1:5: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExpression5.ts:1:18: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExpression7.ts:1:13: Invalid left-hand side expression in prefix operation
-typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration1.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration1.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration2.d.ts:1:14: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration2.ts:1:24: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration3.ts:1:1: Function implementation is missing or not immediately following the declaration.
@@ -1273,8 +1273,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/Generics/parserGreaterThan
 typescript/tests/cases/conformance/parser/ecmascript5/Generics/parserMemberAccessExpression1.ts:3:7: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/conformance/parser/ecmascript5/Generics/parserMemberAccessOffOfGenericType1.ts:1:21: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration10.ts:2:18: Expected '(', got '['
-typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration7.ts:2:11: 'public' modifier cannot appear on an index signature.
-typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration8.ts:2:12: 'private' modifier cannot appear on an index signature.
+typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration7.ts:2:11: 'public' modifier cannot appear on an index signature
+typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration8.ts:2:12: 'private' modifier cannot appear on an index signature
 typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration9.ts:2:11: Expected '(', got '['
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature1.ts:2:3: An index signature parameter cannot use a rest pattern
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature10.ts:2:6: Expected ']', got ','
@@ -1289,10 +1289,10 @@ typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/pars
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration2.ts:1:13: Expected '{', got identifier 'implements'
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration3.ts:1:1: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration4.ts:1:1: 'static' is a reserved identifier in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration6.ts:1:8: 'export' modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration6.ts:1:8: 'export' modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration8.ts:1:11: Interface name cannot be 'string'
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration10.ts:2:12: Expected '(', got 'UNKNOWN'
-typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration11.ts:2:23: 'declare' modifier cannot be used here.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration11.ts:2:23: 'declare' modifier cannot be used here
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration12.ts:2:8: Getter must not have any formal parameters
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration13.ts:2:8: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration14.ts:2:8: Setter must have exactly one formal parameter
@@ -1300,25 +1300,25 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration16.ts:2:12: A 'set' accessor cannot have an initializer.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration17.ts:2:12: A 'set' accessor cannot have an optional parameter.
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration18.ts:2:12: Setter parameter cannot be a rest element
-typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration7.ts:2:12: Accessibility modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration7.ts:2:12: Accessibility modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration8.ts:2:19: Expected '(', got 'UNKNOWN'
-typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration9.ts:2:19: 'public' modifier must precede 'static' modifier.
-typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration1.ts:2:12: Accessibility modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration9.ts:2:19: 'public' modifier must precede 'static' modifier
+typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration1.ts:2:12: Accessibility modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration2.ts:2:19: Expected '(', got identifier 'Foo'
-typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration3.ts:2:19: 'public' modifier must precede 'static' modifier.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration3.ts:2:19: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration4.ts:2:12: Expected '(', got identifier 'Foo'
-typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration5.ts:2:19: 'declare' modifier cannot be used here.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration5.ts:2:19: 'declare' modifier cannot be used here
 typescript/tests/cases/conformance/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclarationAmbiguities1.ts:5:3: Duplicate identifier 'public'.
-typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration1.ts:2:10: Accessibility modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration1.ts:2:10: Accessibility modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration2.ts:2:17: Expected '(', got identifier 'Foo'
-typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration3.ts:2:17: 'public' modifier must precede 'static' modifier.
+typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration3.ts:2:17: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration4.ts:2:10: Expected '(', got identifier 'Foo'
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken1.ts:1:5: Unexpected reserved word 'finally'
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken2.ts:1:1: Unterminated regular expression
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration10.ts:1:1: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
-typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts:2:3: A 'declare' modifier cannot be used in an already ambient context.
-typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts:3:5: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts:3:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/ObjectTypes/parserObjectType5.ts:3:7: Expected '(' after type parameters in call signature
 typescript/tests/cases/conformance/parser/ecmascript5/ObjectTypes/parserObjectType6.ts:3:4: An index signature must have a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList1.ts:2:10: A rest parameter must be last in a parameter list
@@ -1331,7 +1331,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts:2:16: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList2.ts:2:10: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts:2:9: A required parameter cannot follow an optional parameter.
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList5.ts:1:23: Expected ')', got identifier 'B'
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList6.ts:2:26: Expected ')', got identifier 'A'
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
@@ -1339,9 +1339,9 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList9.ts:2:14: Expected ')', got '?'
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected1.ts:1:1: 'protected' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected2.ts:1:1: 'protected' is a reserved identifier in strict mode
-typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected4.ts:2:13: Accessibility modifier already seen.
-typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected6.ts:2:20: 'protected' modifier must precede 'static' modifier.
-typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected7.ts:2:13: Accessibility modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected4.ts:2:13: Accessibility modifier already seen
+typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected6.ts:2:20: 'protected' modifier must precede 'static' modifier
+typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected7.ts:2:13: Accessibility modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/RealWorld/parserharness.ts:1430:9: 'private' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509630.ts:3:1: Expected ']', got '}'
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser509667.ts:4:4: Expected identifier after '.'
@@ -1355,7 +1355,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser5211
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser566700.ts:1:11: Empty parenthesized expression
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser579071.ts:1:10: Unterminated group in regular expression
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser585151.ts:2:7: Expected '(', got identifier 'icecream'
-typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser618973.ts:1:8: 'export' modifier already seen.
+typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser618973.ts:1:8: 'export' modifier already seen
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser642331.ts:2:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser642331_1.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/RegressionTests/parser645086_1.ts:1:13: Expected semicolon
@@ -1459,7 +1459,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/TupleTypes/TupleType6.ts:1
 typescript/tests/cases/conformance/parser/ecmascript5/Types/parserTypeQuery3.ts:1:17: Expected property name after '.'
 typescript/tests/cases/conformance/parser/ecmascript5/Types/parserTypeQuery4.ts:1:17: Expected property name after '.'
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration10.ts:1:7: Expected binding pattern
-typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration4.ts:2:4: A 'declare' modifier cannot be used in an already ambient context.
+typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration4.ts:2:4: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration5.ts:1:7: Expected binding pattern
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration6.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration8.ts:1:5: Expected binding pattern
@@ -1595,9 +1595,9 @@ typescript/tests/cases/conformance/types/mapped/mappedTypeProperties.ts:9:5: Exp
 typescript/tests/cases/conformance/types/members/duplicatePropertyNames.ts:23:5: Duplicate identifier 'bar'.
 typescript/tests/cases/conformance/types/members/objectTypeWithDuplicateNumericProperty.ts:6:5: Duplicate identifier '1'.
 typescript/tests/cases/conformance/types/members/objectTypeWithStringNamedNumericProperty.ts:33:13: Legacy octal literals are not allowed in strict mode
-typescript/tests/cases/conformance/types/namedTypes/interfaceWithPrivateMember.ts:4:5: 'private' modifier cannot appear on a type member.
+typescript/tests/cases/conformance/types/namedTypes/interfaceWithPrivateMember.ts:4:5: 'private' modifier cannot appear on a type member
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignatureWithOptionalParameterAndInitializer.ts:3:28: A parameter cannot have a question mark and an initializer.
-typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithAccessibilityModifiersOnParameters.ts:3:33: 'public' modifier cannot appear on a parameter.
+typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithAccessibilityModifiersOnParameters.ts:3:33: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithDuplicateParameters.ts:6:10: Duplicate parameter name 'x' in strict mode
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts:4:14: A parameter initializer is only allowed in a function or constructor implementation.
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters.ts:16:17: Expected ')', got identifier 'x'

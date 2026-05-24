@@ -195,33 +195,33 @@ tests/coverage/misc/fail/oxc-11538.js:1:20: Expected template literal continuati
 tests/coverage/misc/fail/oxc-11592-1.ts:1:11: Expected semicolon
 tests/coverage/misc/fail/oxc-11592-2.ts:1:11: Expected semicolon
 tests/coverage/misc/fail/oxc-11592-3.ts:1:12: Expected `{` but found `;`
-tests/coverage/misc/fail/oxc-11713-1.ts:2:2: 'abstract' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-10.ts:2:2: 'async' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-11.ts:2:2: 'const' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-12.ts:2:2: 'const' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-13.ts:2:3: 'const' modifier cannot appear on an index signature.
-tests/coverage/misc/fail/oxc-11713-14.ts:2:2: 'const' modifier cannot appear on an index signature.
-tests/coverage/misc/fail/oxc-11713-15.ts:2:2: 'declare' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-16.ts:2:2: 'declare' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-17.ts:2:2: 'default' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-18.ts:2:2: 'default' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-19.ts:2:2: 'default' modifier cannot appear on an index signature.
-tests/coverage/misc/fail/oxc-11713-2.ts:2:2: 'static' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-20.ts:2:2: 'default' modifier cannot appear on an index signature.
-tests/coverage/misc/fail/oxc-11713-21.ts:2:2: 'export' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-22.ts:2:2: 'export' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-23.ts:2:18: 'readonly' modifier can only appear on a property declaration or index signature.
-tests/coverage/misc/fail/oxc-11713-24.ts:2:20: 'declare' modifier cannot be used here.
+tests/coverage/misc/fail/oxc-11713-1.ts:2:2: 'abstract' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-10.ts:2:2: 'async' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-11.ts:2:2: 'const' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-12.ts:2:2: 'const' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-13.ts:2:3: 'const' modifier cannot appear on an index signature
+tests/coverage/misc/fail/oxc-11713-14.ts:2:2: 'const' modifier cannot appear on an index signature
+tests/coverage/misc/fail/oxc-11713-15.ts:2:2: 'declare' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-16.ts:2:2: 'declare' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-17.ts:2:2: 'default' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-18.ts:2:2: 'default' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-19.ts:2:2: 'default' modifier cannot appear on an index signature
+tests/coverage/misc/fail/oxc-11713-2.ts:2:2: 'static' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-20.ts:2:2: 'default' modifier cannot appear on an index signature
+tests/coverage/misc/fail/oxc-11713-21.ts:2:2: 'export' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-22.ts:2:2: 'export' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-23.ts:2:18: 'readonly' modifier can only appear on a property declaration or index signature
+tests/coverage/misc/fail/oxc-11713-24.ts:2:20: 'declare' modifier cannot be used here
 tests/coverage/misc/fail/oxc-11713-25.ts:2:18: 'readonly' modifier can only appear on a property declaration
-tests/coverage/misc/fail/oxc-11713-26.ts:1:32: 'readonly' modifier cannot appear on a parameter.
+tests/coverage/misc/fail/oxc-11713-26.ts:1:32: 'readonly' modifier cannot appear on a parameter
 tests/coverage/misc/fail/oxc-11713-27.ts:1:38: Parameter property modifiers are only allowed in constructors
-tests/coverage/misc/fail/oxc-11713-3.ts:1:31: 'private' modifier cannot appear on a parameter.
-tests/coverage/misc/fail/oxc-11713-4.ts:2:23: 'declare' modifier cannot be used here.
-tests/coverage/misc/fail/oxc-11713-5.ts:2:2: 'abstract' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-6.ts:2:2: 'abstract' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-7.ts:2:2: 'accessor' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-8.ts:2:2: 'accessor' modifier cannot appear on a type member.
-tests/coverage/misc/fail/oxc-11713-9.ts:2:2: 'async' modifier cannot appear on a type member.
+tests/coverage/misc/fail/oxc-11713-3.ts:1:31: 'private' modifier cannot appear on a parameter
+tests/coverage/misc/fail/oxc-11713-4.ts:2:23: 'declare' modifier cannot be used here
+tests/coverage/misc/fail/oxc-11713-5.ts:2:2: 'abstract' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-6.ts:2:2: 'abstract' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-7.ts:2:2: 'accessor' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-8.ts:2:2: 'accessor' modifier cannot appear on a type member
+tests/coverage/misc/fail/oxc-11713-9.ts:2:2: 'async' modifier cannot appear on a type member
 tests/coverage/misc/fail/oxc-11789-1.ts:1:13: Type parameter list cannot be empty
 tests/coverage/misc/fail/oxc-11789-2.ts:1:13: Type parameter list cannot be empty
 tests/coverage/misc/fail/oxc-12546-1.ts:1:25: Expected interface name after 'extends'
@@ -262,7 +262,7 @@ tests/coverage/misc/fail/oxc-4449-4.ts:1:25: Computed property names are not all
 tests/coverage/misc/fail/oxc-4449-5.ts:1:11: Enum member expected.
 tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-5036.js:2:11: Label 'Test' has already been declared
-tests/coverage/misc/fail/oxc-5177.ts:5:1: An 'accessor' property cannot be declared optional.
+tests/coverage/misc/fail/oxc-5177.ts:5:1: An 'accessor' property cannot be declared optional
 tests/coverage/misc/fail/oxc-5355.jsx:1:14: Identifiers in JSX cannot contain hyphens
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected '}', got '?'

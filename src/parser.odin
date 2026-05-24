@@ -1886,7 +1886,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// standalone `abstract` identifier). Same semantics as `async\nfunction`.
 		if is_next_token(p, .Class) && !peek_token(p).had_line_terminator {
 			if !allow_ts_mode(p) {
-				report_error(p, "'abstract' modifier is only allowed in TypeScript files")
+				report_error_coded(p, .K4032_ModifierMisplaced, "'abstract' modifier is only allowed in TypeScript files")
 			}
 			eat(p) // consume `abstract`
 			prev_abs := p.ctx.class_is_abstract
@@ -4322,7 +4322,7 @@ report_parameter_modifiers_disallowed :: proc(p: ^Parser, params: []FunctionPara
 			if fp.accessibility == .Protected { name = "protected" }
 			if fp.readonly && fp.accessibility == .None { name = "readonly" }
 			if fp.override_ && fp.accessibility == .None && !fp.readonly { name = "override" }
-			report_error(p, fmt.tprintf("'%s' modifier cannot appear on a parameter.", name))
+			report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on a parameter", name))
 		}
 	}
 }
@@ -4462,15 +4462,15 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 				val := cur_value(p)
 				switch val {
 				case "public":
-					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
+					if param.accessibility != .None { report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen") }
 					param.accessibility = .Public
 					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "private":
-					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
+					if param.accessibility != .None { report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen") }
 					param.accessibility = .Private
 					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "protected":
-					if param.accessibility != .None { report_error(p, "Accessibility modifier already seen.") }
+					if param.accessibility != .None { report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen") }
 					param.accessibility = .Protected
 					param_access_order = param_mod_idx; param_mod_idx += 1; eat(p); consumed = true; found_modifier = true
 				case "readonly":
@@ -4487,16 +4487,16 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			acc_name := "public"
 			if param.accessibility == .Private { acc_name = "private" }
 			if param.accessibility == .Protected { acc_name = "protected" }
-			report_error(p, fmt.tprintf("'%s' modifier must precede 'readonly' modifier.", acc_name))
+			report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'readonly' modifier", acc_name))
 		}
 		if param_override_order >= 0 && param_readonly_order >= 0 && param_override_order > param_readonly_order {
-			report_error(p, "'override' modifier must precede 'readonly' modifier.")
+			report_error_coded(p, .K4030_ModifierOrder, "'override' modifier must precede 'readonly' modifier")
 		}
 		if param_access_order >= 0 && param_override_order >= 0 && param_access_order > param_override_order {
 			acc_name := "public"
 			if param.accessibility == .Private { acc_name = "private" }
 			if param.accessibility == .Protected { acc_name = "protected" }
-			report_error(p, fmt.tprintf("'%s' modifier must precede 'override' modifier.", acc_name))
+			report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'override' modifier", acc_name))
 		}
 		param.loc = cur_loc(p)
 	}
@@ -5826,7 +5826,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 
 		// TS: static + abstract is invalid.
 		if elem.static && elem.abstract && allow_ts_mode(p) {
-			report_error(p, "'static' modifier cannot be used with 'abstract' modifier.")
+			report_error_coded(p, .K4032_ModifierMisplaced, "'static' modifier cannot be used with 'abstract' modifier")
 		}
 		// TS1242 — constructors cannot be abstract.
 		if elem.kind == .Constructor && elem.abstract && allow_ts_mode(p) {
@@ -6028,21 +6028,21 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				if accessibility == .None {
 					accessibility = .Public; access_name = "public"; access_order = mod_order_idx; eat(p); consumed = true
 				} else {
-					report_error(p, "Accessibility modifier already seen.")
+					report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
 					eat(p); consumed = true
 				}
 			case "private":
 				if accessibility == .None {
 					accessibility = .Private; access_name = "private"; access_order = mod_order_idx; eat(p); consumed = true
 				} else {
-					report_error(p, "Accessibility modifier already seen.")
+					report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
 					eat(p); consumed = true
 				}
 			case "protected":
 				if accessibility == .None {
 					accessibility = .Protected; access_name = "protected"; access_order = mod_order_idx; eat(p); consumed = true
 				} else {
-					report_error(p, "Accessibility modifier already seen.")
+					report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
 					eat(p); consumed = true
 				}
 			case "readonly":
@@ -6094,13 +6094,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// Modifier ordering validation (OXC parser-level).
 	if allow_ts_mode(p) {
 		if access_order >= 0 && static_order >= 0 && access_order > static_order {
-			report_error(p, fmt.tprintf("'%s' modifier must precede 'static' modifier.", access_name))
+			report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'static' modifier", access_name))
 		}
 		if access_order >= 0 && readonly_order >= 0 && access_order > readonly_order {
-			report_error(p, fmt.tprintf("'%s' modifier must precede 'readonly' modifier.", access_name))
+			report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'readonly' modifier", access_name))
 		}
 		if static_order >= 0 && readonly_order >= 0 && static_order > readonly_order {
-			report_error(p, "'static' modifier must precede 'readonly' modifier.")
+			report_error_coded(p, .K4030_ModifierOrder, "'static' modifier must precede 'readonly' modifier")
 		}
 	}
 
@@ -6323,7 +6323,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				// Confirmed: parse and discard the index signature. Same shape
 				// as parse_ts_object_member's index-signature arm.
 				if accessibility != .None {
-					report_error(p, fmt.tprintf("'%s' modifier cannot appear on an index signature.", access_name))
+					report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", access_name))
 				}
 				eat(p)            // `[`
 				eat(p)            // identifier
@@ -6553,7 +6553,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		elem.type_annotation = field_type_ann
 		elem.optional = field_optional
 		if is_accessor && field_optional {
-			report_error(p, "An 'accessor' property cannot be declared optional.")
+			report_error_coded(p, .K4032_ModifierMisplaced, "An 'accessor' property cannot be declared optional")
 		}
 		elem.definite = field_definite
 		elem.accessibility = accessibility
@@ -6589,7 +6589,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	if is_readonly {
-		report_error(p, "'readonly' modifier can only appear on a property declaration")
+		report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' modifier can only appear on a property declaration")
 	}
 	if kind == .Constructor && is_override {
 		report_error_coded(p, .K4020_ConstructorTSModifier, "'override' modifier cannot appear on a constructor declaration")
@@ -6703,7 +6703,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 	}
 	if is_declare && (kind == .Get || kind == .Set || kind == .Method) {
-		report_error(p, "'declare' modifier cannot be used here.")
+		report_error_coded(p, .K4032_ModifierMisplaced, "'declare' modifier cannot be used here")
 	}
 
 	// For abstract methods and for TS overload signatures there's no body
@@ -11040,7 +11040,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// the semantic checker (ck_check_import_export_position).
 
 	if is_token(p, .Export) {
-		report_error(p, "'export' modifier already seen.")
+		report_error_coded(p, .K4031_DuplicateModifier, "'export' modifier already seen")
 		eat(p)
 	}
 
@@ -11352,7 +11352,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	} else if is_token(p, .Abstract) && is_next_token(p, .At) {
 		// `export default abstract @dec class C {}` is INVALID. Decorators
 		// must come before `abstract`, not after.
-		report_error(p, "Decorators must precede the 'abstract' modifier on a class declaration")
+		report_error_coded(p, .K4033_DecoratorOrder, "Decorators must precede the 'abstract' modifier on a class declaration")
 		cls_stmt := parse_statement_or_declaration(p)
 		if cls_stmt != nil {
 			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
@@ -14769,7 +14769,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Regular property with value. `async a: v` / `*a: v` are not valid
 		// data properties; `async` and `*` only modify method definitions.
 		if is_async || is_generator {
-			report_error(p, "Object property modifier requires a method definition")
+			report_error_coded(p, .K4032_ModifierMisplaced, "Object property modifier requires a method definition")
 		}
 		// Use Assignment precedence - comma separates properties, not expressions
 		value = parse_expr_with_prec(p, .Assignment)
@@ -19591,7 +19591,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 				_, is_arr := operand^.(^TSArrayType)
 				_, is_tup := operand^.(^TSTupleType)
 				if !is_arr && !is_tup {
-					report_error(p, "'readonly' type modifier is only permitted on array and tuple literal types")
+					report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' type modifier is only permitted on array and tuple literal types")
 				}
 			}
 			node := new_node(p, TSTypeOperator); node.loc = start
@@ -20995,9 +20995,9 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		// Differentiate index signature messages
 		is_idx_sig := nxt == .LBracket
 		if is_idx_sig {
-			report_error(p, fmt.tprintf("'%s' modifier cannot appear on an index signature.", modifier_name))
+			report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", modifier_name))
 		} else {
-			report_error(p, fmt.tprintf("'%s' modifier cannot appear on a type member.", modifier_name))
+			report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on a type member", modifier_name))
 		}
 		eat(p)
 	}
@@ -21329,7 +21329,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		// TSC: TS1024. OXC: "'readonly' modifier can only appear on a
 		// property declaration or index signature.".
 		if readonly {
-			report_error(p, "'readonly' modifier can only appear on a property declaration or index signature.")
+			report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' modifier can only appear on a property declaration or index signature")
 		}
 		sig := new_node(p, TSSignature)
 		method := TSMethodSignature{loc = start, key = key, computed = computed, optional = optional, kind = .Method}
@@ -21395,7 +21395,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	// NOT for source_is_dts — .d.ts files commonly use top-level
 	// `declare` despite being implicitly ambient, and OXC accepts them.
 	if p.ctx.in_ambient {
-		report_error(p, "A 'declare' modifier cannot be used in an already ambient context.")
+		report_error_coded(p, .K4032_ModifierMisplaced, "A 'declare' modifier cannot be used in an already ambient context")
 	}
 
 	// Capture the `declare` keyword's start BEFORE eating so we can
@@ -21445,7 +21445,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
   ensure_nxt(p)
 		if p.lexer.nxt.kind == .Class {
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error(p, "Line terminator not permitted between 'abstract' and 'class'")
+				report_error_coded(p, .K4034_AbstractNewline, "Line terminator not permitted between 'abstract' and 'class'")
 			}
 			eat(p) // consume `abstract`
 			prev_abs := p.ctx.class_is_abstract

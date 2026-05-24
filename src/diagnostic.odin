@@ -87,6 +87,13 @@ ErrorCode :: enum u16 {
 	K4021_PrivateNameWithModifier                 = 4021,
 	K4022_ParameterPropertyOnlyInCtor             = 4022,
 	K4023_NamespaceMergeOrder                     = 4023,
+
+	// TypeScript modifier rules.
+	K4030_ModifierOrder                           = 4030,
+	K4031_DuplicateModifier                       = 4031,
+	K4032_ModifierMisplaced                       = 4032,
+	K4033_DecoratorOrder                          = 4033,
+	K4034_AbstractNewline                         = 4034,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -433,6 +440,57 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 			default_message = "namespace declaration must follow the class or function it merges with",
 			hint            = "",
 			ts_code         = "TS2434",
+			severity        = .Error,
+		}
+
+	// K4030 — TypeScript modifiers appear in a fixed order; this site
+	//   saw modifier X after modifier Y where X must precede Y.
+	case .K4030_ModifierOrder:
+		return ErrorInfo{
+			default_message = "TypeScript modifiers are out of order",
+			hint            = "",
+			ts_code         = "TS1029",
+			severity        = .Error,
+		}
+
+	// K4031 — the same modifier appeared twice on a single declaration
+	//   (e.g. two accessibility modifiers, two `export` keywords).
+	case .K4031_DuplicateModifier:
+		return ErrorInfo{
+			default_message = "modifier already seen",
+			hint            = "",
+			ts_code         = "TS1030",
+			severity        = .Error,
+		}
+
+	// K4032 — a modifier is not permitted in this position: on a
+	//   parameter, index signature, type member, in an ambient context,
+	//   or in JavaScript when the modifier is TypeScript-only.
+	case .K4032_ModifierMisplaced:
+		return ErrorInfo{
+			default_message = "this modifier is not allowed here",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4033 — decorators must precede the `abstract` modifier on a
+	//   class declaration.
+	case .K4033_DecoratorOrder:
+		return ErrorInfo{
+			default_message = "decorators must precede the 'abstract' modifier",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4034 — line terminator not permitted between `abstract` and the
+	//   following `class` token.
+	case .K4034_AbstractNewline:
+		return ErrorInfo{
+			default_message = "line terminator not permitted between 'abstract' and 'class'",
+			hint            = "",
+			ts_code         = "",
 			severity        = .Error,
 		}
 	}

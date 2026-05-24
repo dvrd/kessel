@@ -1480,7 +1480,7 @@ babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_
 babel/packages/babel-parser/test/fixtures/esprima/statement-variable/complex-pattern-requires-init/input.js:2:1: Missing initializer in destructuring declaration
 babel/packages/babel-parser/test/fixtures/estree/class-private-property/typescript-invalid-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier
 babel/packages/babel-parser/test/fixtures/estree/typescript/getter-setter/input.ts:3:8: Setter must have exactly one formal parameter
-babel/packages/babel-parser/test/fixtures/estree/typescript/invalid-class-method-empty-body/input.js:4:19: 'declare' modifier cannot be used here.
+babel/packages/babel-parser/test/fixtures/estree/typescript/invalid-class-method-empty-body/input.js:4:19: 'declare' modifier cannot be used here
 babel/packages/babel-parser/test/fixtures/flow/expect-plugin/export-interface/input.js:1:8: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/flow/expect-plugin/export-type-named/input.js:2:13: Expected semicolon
 babel/packages/babel-parser/test/fixtures/flow/expect-plugin/export-type/input.js:1:13: Expected semicolon
@@ -1518,30 +1518,30 @@ babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-with-
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-property-initializer/input.ts:3:3: Abstract property cannot have an initializer.
 babel/packages/babel-parser/test/fixtures/typescript/class/accessor-invalid/input.ts:3:20: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-overload-modifiers-invalid/input.ts:2:24: Parameter properties are only allowed in the implementation constructor.
-babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-1/input.ts:2:33: 'override' modifier must precede 'readonly' modifier.
-babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-2/input.ts:2:31: 'public' modifier must precede 'readonly' modifier.
-babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-3/input.ts:2:40: 'public' modifier must precede 'readonly' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-1/input.ts:2:33: 'override' modifier must precede 'readonly' modifier
+babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-2/input.ts:2:31: 'public' modifier must precede 'readonly' modifier
+babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-3/input.ts:2:40: 'public' modifier must precede 'readonly' modifier
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-type-parameters/input.ts:2:26: Type parameters cannot appear on a constructor declaration
-babel/packages/babel-parser/test/fixtures/typescript/class/declare-accessor/input.ts:3:3: 'declare' modifier cannot be used here.
+babel/packages/babel-parser/test/fixtures/typescript/class/declare-accessor/input.ts:3:3: 'declare' modifier cannot be used here
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-field-initializer/input.ts:2:31: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-initializer/input.ts:2:18: Initializers are not allowed in ambient contexts.
-babel/packages/babel-parser/test/fixtures/typescript/class/declare-method/input.ts:2:17: 'declare' modifier cannot be used here.
+babel/packages/babel-parser/test/fixtures/typescript/class/declare-method/input.ts:2:17: 'declare' modifier cannot be used here
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-new-line-abstract/input.ts:1:9: Line terminator not permitted between 'abstract' and 'class'
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-readonly-field-initializer-w-annotation/input.ts:3:31: Initializers are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-1/input.ts:2:26: Expected '(', got identifier 'foo'
 babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-2/input.ts:2:33: Expected '(', got identifier 'foo'
-babel/packages/babel-parser/test/fixtures/typescript/class/duplicates-accessibility/input.ts:2:10: Accessibility modifier already seen.
+babel/packages/babel-parser/test/fixtures/typescript/class/duplicates-accessibility/input.ts:2:10: Accessibility modifier already seen
 babel/packages/babel-parser/test/fixtures/typescript/class/empty-type-parameters/input.ts:1:9: Type parameter list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/class/extends-empty/input.ts:1:23: Expected interface name after 'extends'
 babel/packages/babel-parser/test/fixtures/typescript/class/extends-implements-empty/input.ts:1:34: Expected interface name after 'implements'
 babel/packages/babel-parser/test/fixtures/typescript/class/generator-method-with-modifiers/input.ts:5:17: Method 'd' cannot have an implementation because it is marked abstract.
 babel/packages/babel-parser/test/fixtures/typescript/class/implements-empty/input.ts:1:22: Expected interface name after 'implements'
-babel/packages/babel-parser/test/fixtures/typescript/class/index-signature-errors/input.ts:2:21: 'static' modifier must precede 'readonly' modifier.
-babel/packages/babel-parser/test/fixtures/typescript/class/invalid-modifiers-order/input.ts:3:20: 'private' modifier must precede 'readonly' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/class/index-signature-errors/input.ts:2:21: 'static' modifier must precede 'readonly' modifier
+babel/packages/babel-parser/test/fixtures/typescript/class/invalid-modifiers-order/input.ts:3:20: 'private' modifier must precede 'readonly' modifier
 babel/packages/babel-parser/test/fixtures/typescript/class/method-readonly/input.ts:2:15: 'readonly' modifier can only appear on a property declaration
 babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-parameters/input.ts:2:15: 'private' is a reserved identifier in strict mode
-babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-index-signatures/input.ts:4:11: 'private' modifier cannot appear on an index signature.
-babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-order/input.ts:21:17: 'public' modifier must precede 'static' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-index-signatures/input.ts:4:11: 'private' modifier cannot appear on an index signature
+babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-order/input.ts:21:17: 'public' modifier must precede 'static' modifier
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override-errors/input.ts:2:23: 'override' modifier cannot appear on a constructor declaration
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-async-error/input.js:3:10: Expected '(', got '?'
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-generator-method-with-invalid-modifiers/input.ts:2:18: Method 'd' cannot have an implementation because it is marked abstract.
@@ -1596,8 +1596,8 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/get-set-type-para
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-abstract-interface/input.ts:1:10: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-extends/input.ts:2:27: Expected interface name after 'extends'
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-get-properties/input.ts:2:10: Expected '(', got ':'
-babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-method/input.ts:2:3: 'private' modifier cannot appear on a type member.
-babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-property/input.ts:2:3: 'private' modifier cannot appear on a type member.
+babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-method/input.ts:2:3: 'private' modifier cannot appear on a type member
+babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-property/input.ts:2:3: 'private' modifier cannot appear on a type member
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-set-properties/input.ts:2:10: Expected '(', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
@@ -1640,11 +1640,11 @@ babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-in
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-type-type/input.ts:2:6: Identifier 'A' has already been declared
 babel/packages/babel-parser/test/fixtures/typescript/scope/redeclaration-var-enum/input.ts:2:6: Identifier 'Foo' has already been declared
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-private-01/input.ts:2:18: Expected method or property name
-babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-private-02/input.ts:2:18: 'private' modifier must precede 'static' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-private-02/input.ts:2:18: 'private' modifier must precede 'static' modifier
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-protected-01/input.ts:2:20: Expected method or property name
-babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-protected-02/input.ts:2:20: 'protected' modifier must precede 'static' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-protected-02/input.ts:2:20: 'protected' modifier must precede 'static' modifier
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-public-01/input.ts:2:17: Expected method or property name
-babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-public-02/input.ts:2:17: 'public' modifier must precede 'static' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-accessibility-public-02/input.ts:2:17: 'public' modifier must precede 'static' modifier
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-abstract-01/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-abstract-02/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-override-01/input.ts:2:19: Expected method or property name
@@ -1653,7 +1653,7 @@ babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-stati
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-static/input.ts:2:17: Expected '(', got '{'
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifer-declare-01/input.ts:2:18: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifer-declare-02/input.ts:2:18: Expected method or property name
-babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-01/input.ts:2:19: 'static' modifier must precede 'readonly' modifier.
+babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-01/input.ts:2:19: 'static' modifier must precede 'readonly' modifier
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-02/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/tsx/anonymous-function-generator-invalid/input.ts:1:23: Expected type parameter name, got ','
 babel/packages/babel-parser/test/fixtures/typescript/tsx/cast-invalid/input.tsx:3:22: Expected ']', got ':'
