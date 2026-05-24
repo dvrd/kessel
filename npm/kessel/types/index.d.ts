@@ -18,6 +18,17 @@ export type Lang = 'js' | 'jsx' | 'ts' | 'tsx';
 export interface ParseError {
   /** Human-readable error message. */
   message: string;
+  /**
+   * Byte offset into the source where the error was reported. The parser
+   * tracks errors as single-point locations, so `start` and `end` are
+   * currently the same value.
+   */
+  start: number;
+  /**
+   * End offset of the error span. Equals `start` until token-aware
+   * spans land in a future release.
+   */
+  end: number;
 }
 
 /** Result envelope returned by {@link parseSync}. */

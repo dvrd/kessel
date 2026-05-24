@@ -153,6 +153,14 @@ BinValType :: enum u8 {
 // Binary Emitter state
 // ============================================================================
 
+// Binary format version. Bump when the on-the-wire layout changes;
+// the JS decoder (npm/kessel/binary-reader.js) hard-checks this.
+//
+//   v1: [header 16B] [nodes] [string table]
+//   v2: [header 24B] [nodes] [errors] [string table]
+BINARY_FORMAT_VERSION :: u32(2)
+BINARY_HEADER_SIZE    :: 24
+
 BinaryEmitter :: struct {
 	buf:          [dynamic]u8,       // output buffer
 	pos:          int,               // write cursor
@@ -160,12 +168,14 @@ BinaryEmitter :: struct {
 	string_map:   map[string]u32,    // dedup: string → index in strings
 	source:       string,            // borrowed source text
 	node_count:   u32,
+	errors_off:   u32,               // start of errors section (0 = no errors written)
+	error_count:  u32,               // count of errors written
 }
 
 binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc: mem.Allocator) {
 	cap := max(len(source), 64 * 1024)
 	be.buf = make([dynamic]u8, cap, alloc)
-	be.pos = 16  // skip header (filled at the end)
+	be.pos = BINARY_HEADER_SIZE  // skip header (filled at the end)
 	be.strings = make([dynamic]string, 0, 4096, alloc)
 	be.string_map = make(map[string]u32, 4096, alloc)
 	be.source = source
@@ -1182,6 +1192,25 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 // Finalize — write header + string table
 // ============================================================================
 
+// Append the errors section to the buffer. Must be called after
+// bin_emit_program and before bin_emit_finalize so the section lands
+// between the node stream and the string table.
+//
+// Layout per error: u32 loc, u32 msg_len, msg_len bytes (no padding).
+// `loc` is a byte offset into source; `msg` is UTF-8.
+bin_emit_errors :: proc(be: ^BinaryEmitter, errors: []ParseError) {
+	be.errors_off = u32(be.pos)
+	be.error_count = u32(len(errors))
+	for err in errors {
+		bw_u32(be, u32(err.loc))
+		msg_bytes := transmute([]u8)err.message
+		bw_u32(be, u32(len(msg_bytes)))
+		be_ensure(be, len(msg_bytes))
+		copy(be.buf[be.pos:], msg_bytes)
+		be.pos += len(msg_bytes)
+	}
+}
+
 bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 	string_table_off := u32(be.pos)
 
@@ -1217,17 +1246,24 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 		}
 	}
 
-	// Write header at offset 0
-	magic := u32(0x4B455354)  // "KEST"
-	be.buf[0]  = u8(magic);       be.buf[1]  = u8(magic >> 8)
-	be.buf[2]  = u8(magic >> 16); be.buf[3]  = u8(magic >> 24)
-	version := u32(1)
-	be.buf[4]  = u8(version);     be.buf[5]  = u8(version >> 8)
-	be.buf[6]  = u8(version >> 16); be.buf[7]  = u8(version >> 24)
-	nc := be.node_count
-	be.buf[8]  = u8(nc);          be.buf[9]  = u8(nc >> 8)
-	be.buf[10] = u8(nc >> 16);    be.buf[11] = u8(nc >> 24)
-	st := string_table_off
-	be.buf[12] = u8(st);          be.buf[13] = u8(st >> 8)
-	be.buf[14] = u8(st >> 16);    be.buf[15] = u8(st >> 24)
+	// Write 24-byte header at offset 0.
+	// Layout (all little-endian u32):
+	//   0  magic            0x4B455354 ('KEST')
+	//   4  version          BINARY_FORMAT_VERSION
+	//   8  node_count
+	//  12  string_table_off
+	//  16  errors_off       (0 if bin_emit_errors was never called)
+	//  20  error_count
+	write_u32 :: #force_inline proc(buf: []u8, off: int, v: u32) {
+		buf[off + 0] = u8(v)
+		buf[off + 1] = u8(v >> 8)
+		buf[off + 2] = u8(v >> 16)
+		buf[off + 3] = u8(v >> 24)
+	}
+	write_u32(be.buf[:], 0,  u32(0x4B455354))     // magic 'KEST'
+	write_u32(be.buf[:], 4,  BINARY_FORMAT_VERSION)
+	write_u32(be.buf[:], 8,  be.node_count)
+	write_u32(be.buf[:], 12, string_table_off)
+	write_u32(be.buf[:], 16, be.errors_off)
+	write_u32(be.buf[:], 20, be.error_count)
 }

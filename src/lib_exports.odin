@@ -69,10 +69,13 @@ kessel_parse_binary :: proc "c" (
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 
-	// Emit binary
+	// Emit binary. Errors are written between the node stream and the
+	// string table so the JS decoder can surface real parse diagnostics
+	// instead of always seeing an empty errors[] array.
 	be: BinaryEmitter
 	binary_emitter_init(&be, source, context.allocator)
 	bin_emit_program(&be, job.program)
+	bin_emit_errors(&be, job.parser.errors[:])
 	bin_emit_finalize(&be)
 
 	// Store result
