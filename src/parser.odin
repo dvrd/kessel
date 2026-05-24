@@ -2568,7 +2568,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	// Spread/rest is not valid in the if-condition expression.
 	if expr_contains_spread(test) {
-		report_error(p, "Unexpected spread/rest element in expression")
+		report_error_coded(p, .K3042_RestSpreadMisuse, "Unexpected spread/rest element in expression")
 	}
 
 	if !expect_close_paren_or_recover(p) {
@@ -4367,9 +4367,9 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
      ensure_nxt(p)
 					nxt := p.lexer.nxt.kind
 					if nxt != .RParen && nxt != .EOF {
-						report_error(p, "A rest parameter must be last in a parameter list")
+						report_error_coded(p, .K3040_RestNotLast, "A rest parameter must be last in a parameter list")
 					} else if !p.ctx.in_ambient && !p.source_is_dts {
-						report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
+						report_error_coded(p, .K3041_RestForm, "A rest parameter or binding pattern may not have a trailing comma")
 					}
 				}
 			}
@@ -6641,7 +6641,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 					report_error_coded(p, .K4022_ParameterPropertyOnlyInCtor, "Parameter property modifiers are only allowed in constructors")
 				} else {
 					if _, is_ident := param.pattern.(^Identifier); !is_ident {
-						report_error(p, "A parameter property may not be declared using a binding pattern")
+						report_error_coded(p, .K3043_DestructuringInvalid, "A parameter property may not be declared using a binding pattern")
 					}
 				}
 			}
@@ -7064,7 +7064,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			if kind == .Let {
 				report_error(p, "'let' declaration requires a binding name")
 			} else {
-				report_error(p, "Expected binding pattern")
+				report_error_coded(p, .K3043_DestructuringInvalid, "Expected binding pattern")
 			}
 		}
 		decl.declarations = make([dynamic]VariableDeclarator, 0, 2, p.allocator)
@@ -7222,7 +7222,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		for d in decl.declarations {
 			if _, have := d.init.(^Expression); have { continue }
 			if _, is_ident := d.id.(^Identifier); !is_ident {
-				report_error(p, "Missing initializer in destructuring declaration")
+				report_error_coded(p, .K3043_DestructuringInvalid, "Missing initializer in destructuring declaration")
 			}
 		}
 	}
@@ -7521,7 +7521,8 @@ enforce_accessor_param_shape :: proc(
 	}
 	if !is_setter {
 		if real_n != 0 {
-			report_error_at(p, key_loc, "Getter must not have any formal parameters")
+			report_error_coded_span(p, .K3035_GetterSetterParam, u32(key_loc), u32(key_loc),
+				"Getter must not have any formal parameters")
 		}
 		return
 	}
@@ -7532,7 +7533,7 @@ enforce_accessor_param_shape :: proc(
 	param := params[real_idx]
 	param_loc := LexerLoc(param.loc.start)
 	if _, is_rest := param.pattern.(^RestElement); is_rest {
-		report_error_at(p, param_loc, "Setter parameter cannot be a rest element")
+		report_error_coded_span(p, .K3035_GetterSetterParam, u32(param_loc), u32(param_loc), "Setter parameter cannot be a rest element")
 	}
 	// TS-only: §15.4.5 + TS strictness forbid `set foo(v = ...) {}`. JS
 	// permits it via SingleNameBinding's Initializer_opt; do not flag.
@@ -8256,7 +8257,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		return ident
 	}
 
-	report_error(p, "Expected binding pattern")
+	report_error_coded(p, .K3043_DestructuringInvalid, "Expected binding pattern")
 	return nil
 }
 
@@ -8305,7 +8306,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 			// Rest element must be last
 			if !is_token(p, .RBrace) {
-				report_error(p, "Rest element must be last in object pattern")
+				report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in object pattern")
 			}
 			break
 		}
@@ -8347,7 +8348,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			// String-literal keys require `:` — they cannot be shorthand.
 			// `{ "while" }` is invalid; must be `{ "while": binding }`.
 			if !is_token(p, .Colon) {
-				report_error(p, "Expected ':' after string property key in destructuring pattern")
+				report_error_coded(p, .K3043_DestructuringInvalid, "Expected ':' after string property key in destructuring pattern")
 			}
 		} else if is_token(p, .Number) {
 			// Numeric key: `{ 0: v, 1: w }` (§14.3.3 PropertyName :
@@ -8744,7 +8745,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			// Rest element must be last - and cannot take an Initializer
 			// (§14.3.3: no `= default` on BindingRestElement).
 			if !is_token(p, .RBracket) && !is_token(p, .EOF) {
-				report_error(p, "Rest element must be last in array pattern")
+				report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in array pattern")
 			}
 			break
 		}
@@ -12072,7 +12073,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// §15.3.1 - A trailing comma after a rest element `...x` in
 			// `(...x, ) => body` is a SyntaxError. Check before eating.
 			if _, is_spread := left.(^SpreadElement); is_spread {
-				report_error(p, "Rest element may not have a trailing comma")
+				report_error_coded(p, .K3041_RestForm, "Rest element may not have a trailing comma")
 			}
 			eat(p)
 			break
@@ -14002,7 +14003,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			report_error(p, "Parenthesized expressions may not have a trailing comma.")
 		}
 		if _, is_spread_expr := expr.(^SpreadElement); is_spread_expr && !is_token(p, .Arrow) {
-			report_error(p, "Expected `=>` after parenthesized rest parameter")
+			report_error_coded(p, .K3042_RestSpreadMisuse, "Expected `=>` after parenthesized rest parameter")
 		}
 		// Note: OXC/Acorn do NOT adjust the inner expression span to
 		// include the parentheses in most cases. The parentheses are
@@ -14045,7 +14046,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// is invalid — rest/spread in parens is only the
 			// cover grammar for arrow function parameters.
 			if expr_contains_spread(expr) {
-				report_error(p, "Unexpected spread/rest element outside of arrow parameters")
+				report_error_coded(p, .K3042_RestSpreadMisuse, "Unexpected spread/rest element outside of arrow parameters")
 			}
 		}
 		return expr
@@ -15326,7 +15327,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 				arg := parse_assignment_expression(p)
 				if arg != nil {
 					if _, nested_spread := arg.(^SpreadElement); nested_spread {
-						report_error(p, "Spread argument cannot contain another spread element")
+						report_error_coded(p, .K3042_RestSpreadMisuse, "Spread argument cannot contain another spread element")
 					}
 					spread, spread_e := new_expr(p, SpreadElement)
 					spread.loc = spread_start // Use location of ... token, not the argument
@@ -15739,7 +15740,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 					// must be the last element of the ObjectBindingPattern.
 					// `for ({...rest, b} of ...)` is a SyntaxError.
 					if idx != prop_count - 1 {
-						report_error(p, "Rest element must be last in object pattern")
+						report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in object pattern")
 					} else if p.lexer != nil {
 						src := p.lexer.source_bytes
 						search_start := int(spread.loc.end)
@@ -15749,16 +15750,16 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 							c := src[k]
 							if c == '}' { break }
 							if c == ',' {
-								report_error(p, "Rest property may not have a trailing comma")
+								report_error_coded(p, .K3041_RestForm, "Rest property may not have a trailing comma")
 								break
 							}
 						}
 					}
 					if _, is_array := spread.argument.(^ArrayExpression); is_array {
-						report_error(p, "Rest property may not be a binding pattern")
+						report_error_coded(p, .K3041_RestForm, "Rest property may not be a binding pattern")
 					}
 					if _, is_object := spread.argument.(^ObjectExpression); is_object {
-						report_error(p, "Rest property may not be a binding pattern")
+						report_error_coded(p, .K3041_RestForm, "Rest property may not be a binding pattern")
 					}
 					// TS `as T` on a rest argument: `{ ...{} as T}` is invalid
 					// because the inner expression `{}` is not a valid assignment
@@ -15775,10 +15776,10 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 						}
 						if has_ts_wrap && unwrapped != nil {
 							if _, is_obj := unwrapped^.(^ObjectExpression); is_obj {
-								report_error(p, "Invalid rest operator's argument")
+								report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest operator's argument")
 							}
 							if _, is_arr := unwrapped^.(^ArrayExpression); is_arr {
-								report_error(p, "Invalid rest operator's argument")
+								report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest operator's argument")
 							}
 						}
 					}
@@ -15881,7 +15882,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 			//     spread's end and the array's end for a `,`.
 			if spread, is_spread := elem^.(^SpreadElement); is_spread {
 				if i != len(e.elements) - 1 {
-					report_error(p, "Rest element must be last in array pattern")
+					report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in array pattern")
 				} else if p.lexer != nil {
 					src := p.lexer.source_bytes
 					search_start := int(spread.loc.end)
@@ -15891,7 +15892,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 						c := src[k]
 						if c == ']' { break }
 						if c == ',' {
-							report_error(p, "Rest element may not have a trailing comma")
+							report_error_coded(p, .K3041_RestForm, "Rest element may not have a trailing comma")
 							break
 						}
 					}
@@ -15901,7 +15902,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 				// target. The cover keeps it legal as an ArrayExpression /
 				// SpreadElement; reject at pattern conversion.
 				if ae, is_ae := inner_expr^.(^AssignmentExpression); is_ae && ae.operator == .Assign {
-					report_error(p, "Rest element cannot have a default initializer")
+					report_error_coded(p, .K3041_RestForm, "Rest element cannot have a default initializer")
 					inner_expr = ae.left
 				}
 				inner, ok := expr_to_pattern(p, inner_expr)
@@ -15965,7 +15966,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	// Everything else that reached here (Literal, SequenceExpression,
 	// CallExpression, BinaryExpression, UnaryExpression, ...) is NOT a
 	// legal AssignmentTarget per §12.6.2.3 / §13.15.5.2.
-	report_error(p, "Invalid destructuring assignment target")
+	report_error_coded(p, .K3043_DestructuringInvalid, "Invalid destructuring assignment target")
 	return nil, false
 }
 
@@ -16367,7 +16368,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				}
 			}
 			if !paren_wrapped_spread {
-				report_error(p, "Rest parameter must be wrapped in parentheses")
+				report_error_coded(p, .K3042_RestSpreadMisuse, "Rest parameter must be wrapped in parentheses")
 			}
 			inner := e.argument
 			if inner != nil {
@@ -16379,7 +16380,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					param := FunctionParameter{ loc = e.loc, pattern = rest }
 					bump_append(&params, param)
 				} else {
-					report_error(p, "Invalid rest parameter target in arrow function")
+					report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest parameter target in arrow function")
 				}
 			}
 		case ^SequenceExpression:
@@ -16419,7 +16420,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					case ^SpreadElement:
 						// Rest parameter: (a, b, ...rest) => ... (multi-param case).
 						if param_index != len(e.expressions) - 1 {
-							report_error(p, "Rest parameter must be last in arrow function parameters")
+							report_error_coded(p, .K3040_RestNotLast, "Rest parameter must be last in arrow function parameters")
 						}
 						// The SpreadElement was built during the earlier
 						// parse_unary_expr pass over the paren-group; its span
@@ -16447,7 +16448,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 							if pat, ok := expr_to_pattern(p, ident_expr); ok {
 								rest.argument = pat
 							} else {
-								report_error(p, "Expected identifier or pattern in rest parameter")
+								report_error_coded(p, .K3042_RestSpreadMisuse, "Expected identifier or pattern in rest parameter")
 							}
 						}
 						// arg.loc already spans `...<ident>` - keep it as-is.
@@ -20862,7 +20863,7 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
 			}
 		}
 		if param_is_rest && param_optional {
-			report_error(p, "A rest parameter cannot be optional")
+			report_error_coded(p, .K3041_RestForm, "A rest parameter cannot be optional")
 		}
 		param_ann: Maybe(^TSTypeAnnotation)
 		if is_token(p, .Colon) { param_ann = parse_ts_type_annotation(p) }
@@ -20918,10 +20919,10 @@ parse_ts_sig_params :: proc(p: ^Parser) -> [dynamic]TSFunctionParam {
    ensure_nxt(p)
 			if p.lexer.nxt.kind == .RParen {
 				if !p.ctx.in_ambient && !p.source_is_dts {
-					report_error(p, "A rest parameter or binding pattern may not have a trailing comma.")
+					report_error_coded(p, .K3041_RestForm, "A rest parameter or binding pattern may not have a trailing comma")
 				}
 			} else {
-				report_error(p, "A rest parameter must be last in a parameter list")
+				report_error_coded(p, .K3040_RestNotLast, "A rest parameter must be last in a parameter list")
 			}
 		}
 		if !match_token(p, .Comma) { break }
@@ -21096,7 +21097,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
  ensure_nxt(p)
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Dot3 {
 		// `[...x]: T` - spread in index signature.
-		report_error(p, "An index signature parameter cannot use a rest pattern")
+		report_error_coded(p, .K4040_TSRestInvalid, "An index signature parameter cannot use a rest pattern")
 		eat(p) // `[`
 		for !is_token(p, .RBracket) && !is_token(p, .EOF) { eat(p) }
 		if is_token(p, .RBracket) { eat(p) }
@@ -21279,7 +21280,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 					report_error(p, "A set accessor parameter cannot be optional")
 				}
 				if _, is_rest := params[0].pattern.(^RestElement); is_rest {
-					report_error(p, "A set accessor parameter cannot be a rest parameter")
+					report_error_coded(p, .K4040_TSRestInvalid, "A set accessor parameter cannot be a rest parameter")
 				}
 				if id, is_id := params[0].pattern.(^Identifier); is_id && id.name == "this" {
 					report_error(p, "A set accessor cannot have a this parameter")

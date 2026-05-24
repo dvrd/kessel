@@ -81,6 +81,13 @@ ErrorCode :: enum u16 {
 	K3035_GetterSetterParam                       = 3035,
 	K3036_ObjectLiteralDuplicate                  = 3036,
 
+	// Destructuring, rest, spread (§14.3.3 — BindingPattern,
+	// §15.7 — RestElement, §13.3 — SpreadElement).
+	K3040_RestNotLast                             = 3040,
+	K3041_RestForm                                = 3041,
+	K3042_RestSpreadMisuse                        = 3042,
+	K3043_DestructuringInvalid                    = 3043,
+
 	// K4xxx — TypeScript parser-level rules.
 	K4010_TypeOnlyImportExportInvalid             = 4010,
 	K4020_ConstructorTSModifier                   = 4020,
@@ -94,6 +101,7 @@ ErrorCode :: enum u16 {
 	K4032_ModifierMisplaced                       = 4032,
 	K4033_DecoratorOrder                          = 4033,
 	K4034_AbstractNewline                         = 4034,
+	K4040_TSRestInvalid                           = 4040,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -489,6 +497,63 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	case .K4034_AbstractNewline:
 		return ErrorInfo{
 			default_message = "line terminator not permitted between 'abstract' and 'class'",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K3040 — a rest element / rest parameter / rest property is not in
+	//   the final position of its parameter list or binding pattern.
+	case .K3040_RestNotLast:
+		return ErrorInfo{
+			default_message = "rest element must be last",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3041 — rest element has an invalid form: trailing comma after
+	//   the rest element; default initializer on rest; rest property
+	//   as a binding pattern; rest parameter marked optional.
+	case .K3041_RestForm:
+		return ErrorInfo{
+			default_message = "invalid rest element form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3042 — spread / rest used in a position that the spec disallows:
+	//   spread in expression; spread of spread; rest in non-pattern
+	//   target; rest parameter without parentheses; ill-formed rest
+	//   argument.
+	case .K3042_RestSpreadMisuse:
+		return ErrorInfo{
+			default_message = "invalid use of rest or spread",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3043 — destructuring pattern shape is invalid: missing
+	//   initializer; missing colon in `{ "x" }` form; non-pattern as
+	//   binding target; for-in LHS pattern not allowed; parameter
+	//   property as a pattern.
+	case .K3043_DestructuringInvalid:
+		return ErrorInfo{
+			default_message = "invalid destructuring pattern",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4040 — TypeScript-specific rest/parameter restrictions: index
+	//   signature parameter cannot be a rest pattern; set accessor
+	//   parameter cannot be a rest parameter.
+	case .K4040_TSRestInvalid:
+		return ErrorInfo{
+			default_message = "this TypeScript signature cannot use a rest parameter",
 			hint            = "",
 			ts_code         = "",
 			severity        = .Error,

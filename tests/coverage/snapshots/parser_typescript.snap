@@ -941,7 +941,7 @@ typescript/tests/cases/conformance/es7/exponentiationOperator/exponentiationOper
 typescript/tests/cases/conformance/es7/exponentiationOperator/exponentiationOperatorSyntaxError1.ts:2:4: Unparenthesized unary expression cannot appear as the left operand of '**'
 typescript/tests/cases/conformance/es7/exponentiationOperator/exponentiationOperatorSyntaxError2.ts:4:15: Unparenthesized unary expression cannot appear as the left operand of '**'
 typescript/tests/cases/conformance/es7/trailingCommasInBindingPatterns.ts:1:12: Rest element must be last in array pattern
-typescript/tests/cases/conformance/es7/trailingCommasInFunctionParametersAndArguments.ts:5:20: A rest parameter or binding pattern may not have a trailing comma.
+typescript/tests/cases/conformance/es7/trailingCommasInFunctionParametersAndArguments.ts:5:20: A rest parameter or binding pattern may not have a trailing comma
 typescript/tests/cases/conformance/es7/trailingCommasInGetter.ts:2:11: Expected binding pattern
 typescript/tests/cases/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticAbstract.ts:6:44: A decorator can only decorate a method implementation, not an overload.
 typescript/tests/cases/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-exportModifier.2.ts::file13.ts:2:10: Expected semicolon

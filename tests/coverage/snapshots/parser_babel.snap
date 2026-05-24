@@ -660,7 +660,7 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-parens-
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/multiple-await-in-async-arrow-params/input.js:1:16: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/newline-before-arrow/input.js:2:1: Line terminator not permitted before '=>'
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/no-constructor/input.js:2:20: Constructor can't be an async method
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/params-invalid-rest-trailing-comma/input.js:1:12: A rest parameter or binding pattern may not have a trailing comma.
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/params-invalid-rest-trailing-comma/input.js:1:12: A rest parameter or binding pattern may not have a trailing comma
 babel/packages/babel-parser/test/fixtures/es2017/trailing-function-commas/5/input.js:1:5: Argument expression expected
 babel/packages/babel-parser/test/fixtures/es2017/trailing-function-commas/6/input.js:1:14: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/es2017/trailing-function-commas/7/input.js:1:9: Parenthesized expressions may not have a trailing comma.

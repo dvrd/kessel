@@ -907,7 +907,7 @@ test262/test/language/expressions/async-arrow-function/early-errors-arrow-formal
 test262/test/language/expressions/async-arrow-function/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/expressions/async-arrow-function/object-destructuring-param-strict-body.js:121:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-arrow-function/rest-param-strict-body.js:121:2: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-arrow-function/rest-params-trailing-comma-early-error.js:46:13: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/async-arrow-function/rest-params-trailing-comma-early-error.js:46:13: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-function/await-as-binding-identifier-escaped.js:29:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-function/await-as-binding-identifier.js:29:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-function/await-as-identifier-reference-escaped.js:29:8: Keyword 'await' must not contain escaped characters
@@ -936,13 +936,13 @@ test262/test/language/expressions/async-function/named-dflt-params-duplicates.js
 test262/test/language/expressions/async-function/named-dflt-params-rest.js:40:24: Expected ')', got '='
 test262/test/language/expressions/async-function/named-object-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-function/named-rest-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-function/named-rest-params-trailing-comma-early-error.js:33:23: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/async-function/named-rest-params-trailing-comma-early-error.js:33:23: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-function/nameless-array-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-function/nameless-dflt-params-duplicates.js:36:2: Duplicate parameter name 'x' with non-simple parameter list
 test262/test/language/expressions/async-function/nameless-dflt-params-rest.js:40:22: Expected ')', got '='
 test262/test/language/expressions/async-function/nameless-object-destructuring-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-function/nameless-rest-param-strict-body.js:107:2: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-function/nameless-rest-params-trailing-comma-early-error.js:33:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/async-function/nameless-rest-params-trailing-comma-early-error.js:33:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-generator/array-destructuring-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/await-as-binding-identifier-escaped.js:30:7: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/async-generator/await-as-binding-identifier.js:30:7: 'await' is reserved as a binding name in this context
@@ -1009,7 +1009,7 @@ test262/test/language/expressions/async-generator/named-dflt-params-duplicates.j
 test262/test/language/expressions/async-generator/named-dflt-params-rest.js:43:27: Expected ')', got '='
 test262/test/language/expressions/async-generator/named-object-destructuring-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/named-rest-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-generator/named-rest-params-trailing-comma-early-error.js:36:26: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/async-generator/named-rest-params-trailing-comma-early-error.js:36:26: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-generator/named-yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/named-yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/async-generator/named-yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
@@ -1020,7 +1020,7 @@ test262/test/language/expressions/async-generator/named-yield-identifier-spread-
 test262/test/language/expressions/async-generator/named-yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/async-generator/object-destructuring-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/rest-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/async-generator/rest-params-trailing-comma-early-error.js:36:24: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/async-generator/rest-params-trailing-comma-early-error.js:36:24: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-generator/yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/async-generator/yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
@@ -1044,7 +1044,7 @@ test262/test/language/expressions/class/async-gen-method-static/dflt-params-dupl
 test262/test/language/expressions/class/async-gen-method-static/dflt-params-rest.js:67:29: Expected ')', got '='
 test262/test/language/expressions/class/async-gen-method-static/object-destructuring-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method-static/rest-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method-static/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
@@ -1064,7 +1064,7 @@ test262/test/language/expressions/class/async-gen-method/dflt-params-duplicates.
 test262/test/language/expressions/class/async-gen-method/dflt-params-rest.js:67:22: Expected ')', got '='
 test262/test/language/expressions/class/async-gen-method/object-destructuring-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-gen-method/rest-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/async-gen-method/rest-params-trailing-comma-early-error.js:60:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/async-gen-method/rest-params-trailing-comma-early-error.js:60:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
@@ -1084,7 +1084,7 @@ test262/test/language/expressions/class/async-method-static/dflt-params-duplicat
 test262/test/language/expressions/class/async-method-static/dflt-params-rest.js:65:28: Expected ')', got '='
 test262/test/language/expressions/class/async-method-static/object-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method-static/rest-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/async-method-static/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/async-method-static/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/async-method/array-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/class/async-method/await-as-binding-identifier.js:36:9: 'await' is reserved as a binding name in this context
@@ -1096,7 +1096,7 @@ test262/test/language/expressions/class/async-method/dflt-params-duplicates.js:6
 test262/test/language/expressions/class/async-method/dflt-params-rest.js:65:28: Expected ')', got '='
 test262/test/language/expressions/class/async-method/object-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/async-method/rest-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/async-method/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/async-method/rest-params-trailing-comma-early-error.js:57:27: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/class-name-ident-await-escaped-module.js:23:15: 'await' cannot be used as a class name in module context
 test262/test/language/expressions/class/class-name-ident-await-module.js:22:15: 'await' cannot be used as a class name in module context
 test262/test/language/expressions/class/class-name-ident-let-escaped.js:27:15: Keyword 'let' must not contain escaped characters
@@ -1604,7 +1604,7 @@ test262/test/language/expressions/class/gen-method-static/dflt-params-duplicates
 test262/test/language/expressions/class/gen-method-static/dflt-params-rest.js:88:23: Expected ')', got '='
 test262/test/language/expressions/class/gen-method-static/object-destructuring-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method-static/rest-param-strict-body.js:155:17: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/gen-method-static/rest-params-trailing-comma-early-error.js:81:22: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/gen-method-static/rest-params-trailing-comma-early-error.js:81:22: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method-static/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
@@ -1618,7 +1618,7 @@ test262/test/language/expressions/class/gen-method/dflt-params-duplicates.js:84:
 test262/test/language/expressions/class/gen-method/dflt-params-rest.js:88:16: Expected ')', got '='
 test262/test/language/expressions/class/gen-method/object-destructuring-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/gen-method/rest-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/gen-method/rest-params-trailing-comma-early-error.js:81:15: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/gen-method/rest-params-trailing-comma-early-error.js:81:15: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/gen-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
@@ -1634,13 +1634,13 @@ test262/test/language/expressions/class/method-static/dflt-params-duplicates.js:
 test262/test/language/expressions/class/method-static/dflt-params-rest.js:84:22: Expected ')', got '='
 test262/test/language/expressions/class/method-static/object-destructuring-param-strict-body.js:151:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method-static/rest-param-strict-body.js:151:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/method-static/rest-params-trailing-comma-early-error.js:76:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/method-static/rest-params-trailing-comma-early-error.js:76:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/method/array-destructuring-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method/dflt-params-duplicates.js:80:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/expressions/class/method/dflt-params-rest.js:84:15: Expected ')', got '='
 test262/test/language/expressions/class/method/object-destructuring-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/class/method/rest-param-strict-body.js:151:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/class/method/rest-params-trailing-comma-early-error.js:76:14: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/class/method/rest-params-trailing-comma-early-error.js:76:14: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/class/static-gen-method-param-dflt-yield.js:26:22: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/expressions/class/static-init-await-binding.js:21:12: 'await' cannot be used as a class name in module / async / static-block context
 test262/test/language/expressions/class/static-method-param-dflt-yield.js:21:16: 'yield' is a reserved identifier in strict mode
@@ -2043,7 +2043,7 @@ test262/test/language/expressions/function/param-duplicated-strict-body-2.js:23:
 test262/test/language/expressions/function/param-duplicated-strict-body-3.js:21:2: Duplicate parameter name 'param' in strict mode
 test262/test/language/expressions/function/param-eval-strict-body.js:22:12: Parameter name 'eval' is not allowed in strict mode
 test262/test/language/expressions/function/rest-param-strict-body.js:130:4: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/function/rest-params-trailing-comma-early-error.js:55:17: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/function/rest-params-trailing-comma-early-error.js:55:17: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/function/use-strict-with-non-simple-param.js:19:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/array-destructuring-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/dflt-params-duplicates.js:60:4: Duplicate parameter name 'x' with non-simple parameter list
@@ -2071,7 +2071,7 @@ test262/test/language/expressions/generators/named-yield-identifier-strict.js:26
 test262/test/language/expressions/generators/object-destructuring-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/param-dflt-yield.js:25:23: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/expressions/generators/rest-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/generators/rest-params-trailing-comma-early-error.js:57:18: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/generators/rest-params-trailing-comma-early-error.js:57:18: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/generators/use-strict-with-non-simple-param.js:20:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/yield-as-binding-identifier-escaped.js:28:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name inside a generator
@@ -2193,7 +2193,7 @@ test262/test/language/expressions/object/method-definition/async-gen-meth-dflt-p
 test262/test/language/expressions/object/method-definition/async-gen-meth-escaped-async.js:25:15: Expected '}', got '*'
 test262/test/language/expressions/object/method-definition/async-gen-meth-object-destructuring-param-strict-body.js:115:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/async-gen-meth-rest-param-strict-body.js:115:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/async-gen-meth-rest-params-trailing-comma-early-error.js:41:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/object/method-definition/async-gen-meth-rest-params-trailing-comma-early-error.js:41:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-binding-identifier-escaped.js:29:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-binding-identifier.js:29:9: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference-escaped.js:29:10: Keyword 'yield' must not contain escaped characters
@@ -2208,7 +2208,7 @@ test262/test/language/expressions/object/method-definition/async-meth-dflt-param
 test262/test/language/expressions/object/method-definition/async-meth-escaped-async.js:25:16: Expected '}', got identifier 'm'
 test262/test/language/expressions/object/method-definition/async-meth-object-destructuring-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/async-meth-rest-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/async-meth-rest-params-trailing-comma-early-error.js:34:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/object/method-definition/async-meth-rest-params-trailing-comma-early-error.js:34:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/object/method-definition/early-errors-object-async-method-duplicate-parameters.js:27:3: Duplicate parameter name 'a' in strict mode
 test262/test/language/expressions/object/method-definition/early-errors-object-method-NSPL-with-USD.js:16:6: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/early-errors-object-method-arguments-in-formal-parameters.js:17:14: 'arguments' cannot be used as a binding name in strict mode
@@ -2233,7 +2233,7 @@ test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-
 test262/test/language/expressions/object/method-definition/gen-meth-dflt-params-rest.js:70:16: Expected ')', got '='
 test262/test/language/expressions/object/method-definition/gen-meth-object-destructuring-param-strict-body.js:137:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/gen-meth-rest-param-strict-body.js:137:10: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/gen-meth-rest-params-trailing-comma-early-error.js:63:15: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/object/method-definition/gen-meth-rest-params-trailing-comma-early-error.js:63:15: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/object/method-definition/gen-yield-as-binding-identifier-escaped.js:29:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/gen-yield-as-binding-identifier.js:29:9: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/object/method-definition/gen-yield-as-identifier-reference-escaped.js:29:10: Keyword 'yield' must not contain escaped characters
@@ -2254,7 +2254,7 @@ test262/test/language/expressions/object/method-definition/meth-dflt-params-dupl
 test262/test/language/expressions/object/method-definition/meth-dflt-params-rest.js:66:15: Expected ')', got '='
 test262/test/language/expressions/object/method-definition/meth-object-destructuring-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/meth-rest-param-strict-body.js:133:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/expressions/object/method-definition/meth-rest-params-trailing-comma-early-error.js:58:14: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/expressions/object/method-definition/meth-rest-params-trailing-comma-early-error.js:58:14: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/object/method-definition/name-param-redecl.js:19:5: Formal parameter 'param' cannot be redeclared with let/const in function body
 test262/test/language/expressions/object/method-definition/name-super-call-body.js:17:10: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/object/method-definition/name-super-call-param.js:16:23: 'super' call is only allowed in the constructor of a derived class
@@ -3099,7 +3099,7 @@ test262/test/language/statements/async-function/escaped-async.js:24:1: 'async' k
 test262/test/language/statements/async-function/let-newline-await-in-async-function.js:23:5: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-function/object-destructuring-param-strict-body.js:107:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/async-function/rest-param-strict-body.js:107:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/async-function/rest-params-trailing-comma-early-error.js:33:22: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/async-function/rest-params-trailing-comma-early-error.js:33:22: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/async-generator/array-destructuring-param-strict-body.js:110:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/async-generator/await-as-binding-identifier-escaped.js:30:7: 'await' is reserved as a binding name in this context
 test262/test/language/statements/async-generator/await-as-binding-identifier.js:30:7: 'await' is reserved as a binding name in this context
@@ -3124,7 +3124,7 @@ test262/test/language/statements/async-generator/dstr/dflt-ary-ptrn-rest-not-fin
 test262/test/language/statements/async-generator/escaped-async.js:24:1: 'async' keyword must not contain Unicode escape sequences
 test262/test/language/statements/async-generator/object-destructuring-param-strict-body.js:110:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/async-generator/rest-param-strict-body.js:110:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/async-generator/rest-params-trailing-comma-early-error.js:36:23: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/async-generator/rest-params-trailing-comma-early-error.js:36:23: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/async-generator/yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/async-generator/yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/async-generator/yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
@@ -3196,7 +3196,7 @@ test262/test/language/statements/class/async-gen-method-static/dflt-params-dupli
 test262/test/language/statements/class/async-gen-method-static/dflt-params-rest.js:67:29: Expected ')', got '='
 test262/test/language/statements/class/async-gen-method-static/object-destructuring-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method-static/rest-param-strict-body.js:134:23: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/async-gen-method-static/rest-params-trailing-comma-early-error.js:60:28: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method-static/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
@@ -3216,7 +3216,7 @@ test262/test/language/statements/class/async-gen-method/dflt-params-duplicates.j
 test262/test/language/statements/class/async-gen-method/dflt-params-rest.js:66:22: Expected ')', got '='
 test262/test/language/statements/class/async-gen-method/object-destructuring-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-gen-method/rest-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/async-gen-method/rest-params-trailing-comma-early-error.js:59:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/async-gen-method/rest-params-trailing-comma-early-error.js:59:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier-escaped.js:35:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method/yield-as-binding-identifier.js:35:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
@@ -3237,7 +3237,7 @@ test262/test/language/statements/class/async-method-static/dflt-params-duplicate
 test262/test/language/statements/class/async-method-static/dflt-params-rest.js:64:28: Expected ')', got '='
 test262/test/language/statements/class/async-method-static/object-destructuring-param-strict-body.js:131:22: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method-static/rest-param-strict-body.js:131:22: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/async-method-static/rest-params-trailing-comma-early-error.js:56:27: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/async-method-static/rest-params-trailing-comma-early-error.js:56:27: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/async-method/array-destructuring-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
 test262/test/language/statements/class/async-method/await-as-binding-identifier.js:36:9: 'await' is reserved as a binding name in this context
@@ -3249,7 +3249,7 @@ test262/test/language/statements/class/async-method/dflt-params-duplicates.js:61
 test262/test/language/statements/class/async-method/dflt-params-rest.js:65:21: Expected ')', got '='
 test262/test/language/statements/class/async-method/object-destructuring-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/async-method/rest-param-strict-body.js:132:15: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/async-method/rest-params-trailing-comma-early-error.js:57:20: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/async-method/rest-params-trailing-comma-early-error.js:57:20: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/class-name-ident-await-escaped-module.js:23:7: 'await' cannot be used as a class name in module context
 test262/test/language/statements/class/class-name-ident-await-module.js:22:7: 'await' cannot be used as a class name in module context
 test262/test/language/statements/class/class-name-ident-let-escaped.js:27:7: Keyword 'let' must not contain escaped characters
@@ -3781,7 +3781,7 @@ test262/test/language/statements/class/gen-method-static/dflt-params-duplicates.
 test262/test/language/statements/class/gen-method-static/dflt-params-rest.js:86:23: Expected ')', got '='
 test262/test/language/statements/class/gen-method-static/object-destructuring-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method-static/rest-param-strict-body.js:153:17: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/gen-method-static/rest-params-trailing-comma-early-error.js:79:22: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/gen-method-static/rest-params-trailing-comma-early-error.js:79:22: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method-static/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
@@ -3795,7 +3795,7 @@ test262/test/language/statements/class/gen-method/dflt-params-duplicates.js:82:3
 test262/test/language/statements/class/gen-method/dflt-params-rest.js:86:16: Expected ')', got '='
 test262/test/language/statements/class/gen-method/object-destructuring-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/gen-method/rest-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/gen-method/rest-params-trailing-comma-early-error.js:79:15: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/gen-method/rest-params-trailing-comma-early-error.js:79:15: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/gen-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method/yield-as-binding-identifier.js:34:9: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
@@ -3811,13 +3811,13 @@ test262/test/language/statements/class/method-static/dflt-params-duplicates.js:7
 test262/test/language/statements/class/method-static/dflt-params-rest.js:83:22: Expected ')', got '='
 test262/test/language/statements/class/method-static/object-destructuring-param-strict-body.js:150:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method-static/rest-param-strict-body.js:150:16: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/method-static/rest-params-trailing-comma-early-error.js:75:21: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/method-static/rest-params-trailing-comma-early-error.js:75:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/method/array-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/dflt-params-duplicates.js:79:3: Duplicate parameter name 'x' in strict mode
 test262/test/language/statements/class/method/dflt-params-rest.js:83:15: Expected ')', got '='
 test262/test/language/statements/class/method/object-destructuring-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/class/method/rest-param-strict-body.js:150:9: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/class/method/rest-params-trailing-comma-early-error.js:75:14: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/class/private-non-static-getter-static-setter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
 test262/test/language/statements/class/private-non-static-setter-static-getter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
 test262/test/language/statements/class/private-static-getter-non-static-setter-early-error.js:17:3: Duplicate private name '#f'. Static and instance elements cannot share the same private name.
@@ -4250,7 +4250,7 @@ test262/test/language/statements/function/param-duplicated-strict-body-3.js:22:1
 test262/test/language/statements/function/param-eval-strict-body.js:22:23: Parameter name 'eval' is not allowed in strict mode
 test262/test/language/statements/function/param-eval-strict.js:22:22: 'eval' cannot be used as a binding name in strict mode
 test262/test/language/statements/function/rest-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/function/rest-params-trailing-comma-early-error.js:56:16: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/function/rest-params-trailing-comma-early-error.js:56:16: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/function/static-init-await-binding-invalid.js:24:14: 'await' cannot be used as a function name in module / async context
 test262/test/language/statements/function/use-strict-with-non-simple-param.js:19:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/generators/array-destructuring-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
@@ -4271,7 +4271,7 @@ test262/test/language/statements/generators/dstr/dflt-ary-ptrn-rest-not-final-ob
 test262/test/language/statements/generators/object-destructuring-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/generators/param-dflt-yield.js:24:22: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/statements/generators/rest-param-strict-body.js:131:1: Illegal 'use strict' directive in function with non-simple parameter list
-test262/test/language/statements/generators/rest-params-trailing-comma-early-error.js:57:17: A rest parameter or binding pattern may not have a trailing comma.
+test262/test/language/statements/generators/rest-params-trailing-comma-early-error.js:57:17: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/generators/use-strict-with-non-simple-param.js:20:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/generators/yield-as-binding-identifier-escaped.js:28:7: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/generators/yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name inside a generator
