@@ -2916,7 +2916,7 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	for l.offset < src_len {
 		// SIMD bulk skip: 16 bytes at a time, vectors already initialized
 		for l.offset + 16 <= src_len {
-			chunk := (cast(^Vec16)&src[l.offset])^
+			chunk := load_u8x16_unaligned(&src[l.offset])
 			combined :=
 				simd.lanes_eq(chunk, tick_v)   |
 				simd.lanes_eq(chunk, dollar_v) |
@@ -2997,7 +2997,7 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	for l.offset < src_len {
 		for l.offset + 16 <= src_len {
-			chunk := (cast(^Vec16)&src[l.offset])^
+			chunk := load_u8x16_unaligned(&src[l.offset])
 			combined :=
 				simd.lanes_eq(chunk, tick_v2)   |
 				simd.lanes_eq(chunk, dollar_v2) |

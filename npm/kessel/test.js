@@ -112,5 +112,31 @@ try {
   }
 } catch (err) { console.error('CRASH: formatError:', err.message); failed++; }
 
+// Regression test for the x86_64 SIMD alignment bug. JS `Buffer.from(source)`
+// hands the parser a buffer with no 16-byte alignment guarantee. Before the
+// fix, the SIMD lexer's 16-byte load `(cast(^Vec16)&src[off])^` was lowered
+// by LLVM to MOVAPS (aligned move) on x86_64. MOVAPS faults on misaligned
+// addresses → SIGSEGV — silent on ARM64 because NEON tolerates unaligned
+// loads natively. The fix routes every SIMD load through
+// `intrinsics.unaligned_load`, forcing MOVDQU / MOVUPS. We exercise a few
+// shapes at different lengths so the chance of the buffer happening to
+// land at an aligned address is zero across runs.
+const alignmentCases = [
+  'function bad() {\n  return "untermi',                      // len 34 — gdb-confirmed minimum repro
+  'function bad() {\n  return "unterminated\n}',              // len 41 — original repro from the field
+  'function f() {\n  return "abc";\n}',                       // len 32 — terminated string in a multi-line fn
+  'var a = 1;\n  var b = 2;\n  var c = 3;\n  var d = 4;\n',   // 16-space indents force the SIMD WS skipper
+  'a;\n'.repeat(50),                                           // many short statements; long whitespace runs
+];
+for (const src of alignmentCases) {
+  try {
+    parseSync('align.js', src);
+    passed++;
+  } catch (e) {
+    console.error(`CRASH: alignment src (len=${src.length}): ${e.message}`);
+    failed++;
+  }
+}
+
 console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
