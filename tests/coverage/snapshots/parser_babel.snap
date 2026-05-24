@@ -513,7 +513,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/329/input.js:1:23
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/331/input.js:1:27: Class declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/332/input.js:1:19: Binding identifier 'eval' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/334/input.js:1:5: Binding identifier 'eval' not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/335/input.js:1:19: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/335/input.js:1:19: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/339/input.js:1:6: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/340/input.js:1:16: Expected '{', got numeric literal '42'
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/341/input.js:1:20: Expected '{', got numeric literal '42'
@@ -572,8 +572,8 @@ babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-insi
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-2/input.js:2:4: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-inside-generator-3/input.js:2:10: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-arrow-no-parens-inside-generator/input.js:2:3: 'yield' is not allowed in arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator-method/input.js:1:12: 'yield' is reserved as a binding name inside a generator
-babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator/input.js:1:14: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator-method/input.js:1:12: 'yield' is reserved as a binding name in a generator
+babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-generator/input.js:1:14: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict-body/input.js:1:13: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/yield/parameter-name-strict/input.js:2:13: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/yield/yield-star-parameter-default-inside-generator/input.js:1:23: 'yield' expression is not allowed in formal parameters of a generator
@@ -1109,7 +1109,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-for-of/invalid-var-init
 babel/packages/babel-parser/test/fixtures/esprima/es2015-for-of/unexpected-number/input.js:1:15: Expected '=', ',', or ';' after variable binding
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-method-with-invalid-computed-name/input.js:1:6: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-parameter-binding-element/input.js:2:13: Function declaration requires a name
-babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-parameter-binding-property-reserved/input.js:1:18: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-parameter-binding-property-reserved/input.js:1:18: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-parameter-binding-property/input.js:2:13: Function declaration requires a name
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-parameter-computed-property-name/input.js:2:13: Function declaration requires a name
 babel/packages/babel-parser/test/fixtures/esprima/es2015-generator/generator-parameter-invalid-binding-element/input.js:2:14: Function declaration requires a name
@@ -1171,20 +1171,20 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-exp
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-default/input.js:1:22: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-parameter/input.js:1:17: 'yield' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-arrow-parameters/input.js:1:26: 'yield' is not allowed in arrow function parameters
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-catch/input.js:1:31: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-catch/input.js:1:31: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-declaration/input.js:1:27: 'yield' cannot be used as a function name in generator context
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-export-default/input.js:1:26: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-expression-name/input.js:1:11: 'yield' cannot be used as the name of a generator function expression
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-expression-parameter/input.js:1:13: 'yield' is reserved as a binding name inside a generator
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-expression-rest/input.js:1:19: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-expression-parameter/input.js:1:13: 'yield' is reserved as a binding name in a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-expression-rest/input.js:1:19: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-function-declaration/input.js:1:26: 'yield' cannot be used as a function name in generator context
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-lexical-declaration/input.js:1:21: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-lexical-declaration/input.js:1:21: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-member-expression/input.js:1:29: Unexpected token '.'
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-parameter/input.js:1:13: 'yield' is reserved as a binding name inside a generator
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-rest/input.js:1:25: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-parameter/input.js:1:13: 'yield' is reserved as a binding name in a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-rest/input.js:1:25: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-strict-function-expression/input.js:1:47: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-strict-function-parameter/input.js:1:48: 'yield' is a reserved identifier in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-variable-declaration/input.js:1:21: 'yield' is reserved as a binding name inside a generator
+babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-generator-variable-declaration/input.js:1:21: 'yield' is reserved as a binding name in a generator
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-array-pattern/input.js:1:17: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-arrow-parameter-default/input.js:1:20: 'yield' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-yield/invalid-yield-strict-arrow-parameter-name/input.js:1:16: 'yield' is a reserved identifier in strict mode
@@ -1523,11 +1523,11 @@ babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-inva
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-invalid-order-modifiers-3/input.ts:2:40: 'public' modifier must precede 'readonly' modifier
 babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-type-parameters/input.ts:2:26: Type parameters cannot appear on a constructor declaration
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-accessor/input.ts:3:3: 'declare' modifier cannot be used here
-babel/packages/babel-parser/test/fixtures/typescript/class/declare-field-initializer/input.ts:2:31: Initializers are not allowed in ambient contexts.
-babel/packages/babel-parser/test/fixtures/typescript/class/declare-initializer/input.ts:2:18: Initializers are not allowed in ambient contexts.
+babel/packages/babel-parser/test/fixtures/typescript/class/declare-field-initializer/input.ts:2:31: Initializers are not allowed in ambient contexts
+babel/packages/babel-parser/test/fixtures/typescript/class/declare-initializer/input.ts:2:18: Initializers are not allowed in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-method/input.ts:2:17: 'declare' modifier cannot be used here
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-new-line-abstract/input.ts:1:9: Line terminator not permitted between 'abstract' and 'class'
-babel/packages/babel-parser/test/fixtures/typescript/class/declare-readonly-field-initializer-w-annotation/input.ts:3:31: Initializers are not allowed in ambient contexts.
+babel/packages/babel-parser/test/fixtures/typescript/class/declare-readonly-field-initializer-w-annotation/input.ts:3:31: Initializers are not allowed in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-1/input.ts:2:26: Expected '(', got identifier 'foo'
 babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-2/input.ts:2:33: Expected '(', got identifier 'foo'
 babel/packages/babel-parser/test/fixtures/typescript/class/duplicates-accessibility/input.ts:2:10: Accessibility modifier already seen
@@ -1561,14 +1561,14 @@ babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-await-using
 babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-namespace-await-using/input.ts:3:3: 'await using' declarations are not allowed in ambient contexts.
 babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-namespace-class-method-implementation/input.ts:3:14: An implementation cannot be declared in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-namespace-using/input.ts:3:3: 'using' declarations are not allowed in ambient contexts.
-babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-namespace-var/input.ts:2:11: Initializers are not allowed in ambient contexts.
+babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-namespace-var/input.ts:2:11: Initializers are not allowed in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-using-declaration-with-initializer/input.ts:1:9: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/declare/invalid-using-declaration/input.ts:1:9: Expected semicolon
-babel/packages/babel-parser/test/fixtures/typescript/declare/module-class/input.ts:3:20: Initializers are not allowed in ambient contexts.
-babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-class/input.ts:3:20: Initializers are not allowed in ambient contexts.
+babel/packages/babel-parser/test/fixtures/typescript/declare/module-class/input.ts:3:20: Initializers are not allowed in ambient contexts
+babel/packages/babel-parser/test/fixtures/typescript/declare/namespace-class/input.ts:3:20: Initializers are not allowed in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-assertion/input.ts:1:1: This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.
 babel/packages/babel-parser/test/fixtures/typescript/disallow-jsx-ambiguity/type-parameter/input.ts:1:1: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.
-babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-initializer/input.ts:2:10: Initializers are not allowed in ambient contexts.
+babel/packages/babel-parser/test/fixtures/typescript/dts/invalid-class-initializer/input.ts:2:10: Initializers are not allowed in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-interface/input.js:1:8: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-type-named/input.js:2:13: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/expect-plugin/export-type/input.js:1:13: Expected semicolon

@@ -102,7 +102,7 @@ tests/coverage/misc/fail/negative/018_private_identifier_outside_class.js:6:9: P
 tests/coverage/misc/fail/negative/019_new_dynamic_import.js:3:5: Dynamic 'import()' cannot be invoked with 'new'
 tests/coverage/misc/fail/negative/020_duplicate_destructured_params.js:6:1: Duplicate parameter name 'a' with non-simple parameter list
 tests/coverage/misc/fail/negative/021_arrow_duplicate_params.js:4:11: Duplicate parameter name 'a' in strict mode
-tests/coverage/misc/fail/negative/022_yield_as_binding_in_generator.js:5:6: 'yield' is reserved as a binding name inside a generator
+tests/coverage/misc/fail/negative/022_yield_as_binding_in_generator.js:5:6: 'yield' is reserved as a binding name in a generator
 tests/coverage/misc/fail/negative/023_await_as_binding_in_async.js:6:6: 'await' is reserved as a binding name in this context
 tests/coverage/misc/fail/negative/024_new_target_outside_function.js:4:21: 'new.target' is only allowed inside functions
 tests/coverage/misc/fail/negative/025_legacy_octal_bigint.js:6:13: BigInt literal cannot use legacy octal / non-octal-decimal form
@@ -253,20 +253,20 @@ tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression
 tests/coverage/misc/fail/oxc-2394.ts:20:22: Expected 'with' in import type options
 tests/coverage/misc/fail/oxc-3528.jsx:1:25: Expected corresponding JSX closing tag for 'Apple'.
 tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected '}', got identifier 'foo'
-tests/coverage/misc/fail/oxc-4111-1.js:1:19: Type assertions can only be used in TypeScript files.
+tests/coverage/misc/fail/oxc-4111-1.js:1:19: Type assertions can only be used in TypeScript files
 tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected '(', got identifier 'enum'
-tests/coverage/misc/fail/oxc-4449-1.ts:1:16: Computed property names are not allowed in enums.
-tests/coverage/misc/fail/oxc-4449-2.ts:1:14: Computed property names are not allowed in enums.
-tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name.
-tests/coverage/misc/fail/oxc-4449-4.ts:1:25: Computed property names are not allowed in enums.
-tests/coverage/misc/fail/oxc-4449-5.ts:1:11: Enum member expected.
-tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Computed property names are not allowed in enums.
+tests/coverage/misc/fail/oxc-4449-1.ts:1:16: Computed property names are not allowed in enums
+tests/coverage/misc/fail/oxc-4449-2.ts:1:14: Computed property names are not allowed in enums
+tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name
+tests/coverage/misc/fail/oxc-4449-4.ts:1:25: Computed property names are not allowed in enums
+tests/coverage/misc/fail/oxc-4449-5.ts:1:11: Enum member expected
+tests/coverage/misc/fail/oxc-4449-6.ts:2:1: Computed property names are not allowed in enums
 tests/coverage/misc/fail/oxc-5036.js:2:11: Label 'Test' has already been declared
 tests/coverage/misc/fail/oxc-5177.ts:5:1: An 'accessor' property cannot be declared optional
 tests/coverage/misc/fail/oxc-5355.jsx:1:14: Identifiers in JSX cannot contain hyphens
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected '}', got '?'
-tests/coverage/misc/fail/oxc-5955-3.ts:2:18: An index signature must have a type annotation.
+tests/coverage/misc/fail/oxc-5955-3.ts:2:18: An index signature must have a type annotation
 tests/coverage/misc/fail/oxc-7582.js:4:9: Private field '#x' must be declared in an enclosing class
 tests/coverage/misc/fail/oxc-9497.js:2:10: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-1.js:1:4: Unexpected token after ?.

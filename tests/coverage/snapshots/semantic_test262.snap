@@ -492,8 +492,8 @@ test262/test/language/expressions/assignment/dstr/array-rest-nested-array-yield-
 test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-invalid.js:23:30: Invalid destructuring assignment target
 test262/test/language/expressions/assignment/dstr/array-rest-nested-obj-yield-ident-invalid.js:23:14: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/array-rest-yield-ident-invalid.js:24:10: 'yield' is a reserved identifier in strict mode
-test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js:24:12: 'yield' is reserved as a binding name inside a generator
-test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-expr.js:24:12: 'yield' is reserved as a binding name in a generator
+test262/test/language/expressions/assignment/dstr/obj-id-identifier-yield-ident-invalid.js:23:12: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/assignment/dstr/obj-id-init-simple-strict.js:23:6: Binding identifier 'eval' not allowed in strict mode
 test262/test/language/expressions/assignment/dstr/obj-id-init-yield-ident-invalid.js:23:10: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/assignment/dstr/obj-id-simple-strict.js:23:6: 'eval' cannot be used as a shorthand property identifier in strict mode
@@ -991,7 +991,7 @@ test262/test/language/expressions/async-generator/early-errors-expression-formal
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-call.js:17:27: 'super' call is only allowed in the constructor of a derived class
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-super-property.js:17:22: 'super' property access is only valid inside a method
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield-expr.js:17:27: 'yield' expression is not allowed in formal parameters of a generator
-test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield.js:18:18: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield.js:18:18: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/async-generator/early-errors-expression-label-name-await.js:23:3: 'await' cannot be used as a label identifier in an async function
 test262/test/language/expressions/async-generator/early-errors-expression-label-name-yield.js:25:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/async-generator/early-errors-expression-not-simple-assignment-target.js:17:24: Cannot assign to this expression
@@ -1011,7 +1011,7 @@ test262/test/language/expressions/async-generator/named-object-destructuring-par
 test262/test/language/expressions/async-generator/named-rest-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/named-rest-params-trailing-comma-early-error.js:36:26: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-generator/named-yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/async-generator/named-yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/async-generator/named-yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/async-generator/named-yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/named-yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/async-generator/named-yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
@@ -1022,7 +1022,7 @@ test262/test/language/expressions/async-generator/object-destructuring-param-str
 test262/test/language/expressions/async-generator/rest-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/async-generator/rest-params-trailing-comma-early-error.js:36:24: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/async-generator/yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/async-generator/yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/async-generator/yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/async-generator/yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/async-generator/yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
@@ -2061,7 +2061,7 @@ test262/test/language/expressions/generators/dstr/dflt-ary-ptrn-rest-not-final-a
 test262/test/language/expressions/generators/dstr/dflt-ary-ptrn-rest-not-final-id.js:53:20: Rest element must be last in array pattern
 test262/test/language/expressions/generators/dstr/dflt-ary-ptrn-rest-not-final-obj.js:53:24: Rest element must be last in array pattern
 test262/test/language/expressions/generators/named-yield-as-binding-identifier-escaped.js:28:7: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/generators/named-yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/generators/named-yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/generators/named-yield-as-identifier-reference-escaped.js:28:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/named-yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/generators/named-yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
@@ -2074,14 +2074,14 @@ test262/test/language/expressions/generators/rest-param-strict-body.js:131:4: Il
 test262/test/language/expressions/generators/rest-params-trailing-comma-early-error.js:57:18: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/generators/use-strict-with-non-simple-param.js:20:9: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/generators/yield-as-binding-identifier-escaped.js:28:7: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/generators/yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/generators/yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/generators/yield-as-generator-expression-binding-identifier.js:17:19: 'yield' cannot be used as the name of a generator function expression
 test262/test/language/expressions/generators/yield-as-identifier-reference-escaped.js:28:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/generators/yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/generators/yield-as-logical-or-expression.js:18:9: 'yield' expression cannot be used as an operand of a conditional or binary operator
-test262/test/language/expressions/generators/yield-as-parameter.js:17:19: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/generators/yield-as-parameter.js:17:19: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/generators/yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/generators/yield-identifier-strict.js:26:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/generators/yield-star-after-newline.js:18:3: Unexpected token '*'
@@ -2174,7 +2174,7 @@ test262/test/language/expressions/object/identifier-shorthand-protected-invalid-
 test262/test/language/expressions/object/identifier-shorthand-public-invalid-strict-mode.js:31:5: 'public' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-static-init-await-invalid.js:23:14: 'await' cannot be used as a shorthand property identifier
 test262/test/language/expressions/object/identifier-shorthand-static-invalid-strict-mode.js:31:5: 'static' is a reserved identifier in strict mode
-test262/test/language/expressions/object/identifier-shorthand-yield-invalid-strict-mode.js:32:3: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/object/identifier-shorthand-yield-invalid-strict-mode.js:32:3: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/object/method-definition/async-await-as-binding-identifier-escaped.js:30:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/async-await-as-binding-identifier.js:30:9: 'await' is reserved as a binding name in this context
 test262/test/language/expressions/object/method-definition/async-await-as-identifier-reference-escaped.js:30:10: Keyword 'await' must not contain escaped characters
@@ -2195,7 +2195,7 @@ test262/test/language/expressions/object/method-definition/async-gen-meth-object
 test262/test/language/expressions/object/method-definition/async-gen-meth-rest-param-strict-body.js:115:16: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/async-gen-meth-rest-params-trailing-comma-early-error.js:41:21: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-binding-identifier-escaped.js:29:9: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/object/method-definition/async-gen-yield-as-binding-identifier.js:29:9: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/object/method-definition/async-gen-yield-as-binding-identifier.js:29:9: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference-escaped.js:29:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
@@ -2235,14 +2235,14 @@ test262/test/language/expressions/object/method-definition/gen-meth-object-destr
 test262/test/language/expressions/object/method-definition/gen-meth-rest-param-strict-body.js:137:10: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/gen-meth-rest-params-trailing-comma-early-error.js:63:15: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/expressions/object/method-definition/gen-yield-as-binding-identifier-escaped.js:29:9: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/object/method-definition/gen-yield-as-binding-identifier.js:29:9: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/object/method-definition/gen-yield-as-binding-identifier.js:29:9: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/object/method-definition/gen-yield-as-identifier-reference-escaped.js:29:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/object/method-definition/gen-yield-identifier-spread-strict.js:35:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/gen-yield-identifier-strict.js:27:13: 'yield' is a reserved identifier in strict mode
-test262/test/language/expressions/object/method-definition/generator-param-id-yield.js:19:11: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/object/method-definition/generator-param-id-yield.js:19:11: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/object/method-definition/generator-param-init-yield.js:20:22: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/expressions/object/method-definition/generator-param-redecl-const.js:21:9: Formal parameter 'a' cannot be redeclared with let/const in function body
 test262/test/language/expressions/object/method-definition/generator-param-redecl-let.js:21:9: Formal parameter 'a' cannot be redeclared with let/const in function body
@@ -2273,7 +2273,7 @@ test262/test/language/expressions/object/method-definition/private-name-early-er
 test262/test/language/expressions/object/method-definition/setter-use-strict-with-non-simple-param.js:20:8: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/use-strict-with-non-simple-param.js:20:4: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/expressions/object/method-definition/yield-as-logical-or-expression.js:18:11: 'yield' expression cannot be used as an operand of a conditional or binary operator
-test262/test/language/expressions/object/method-definition/yield-as-parameter.js:18:6: 'yield' is reserved as a binding name inside a generator
+test262/test/language/expressions/object/method-definition/yield-as-parameter.js:18:6: 'yield' is reserved as a binding name in a generator
 test262/test/language/expressions/object/method-definition/yield-star-after-newline.js:19:5: Unexpected token '*'
 test262/test/language/expressions/object/method-definition/yield-weak-binding.js:17:27: 'yield' expression cannot be the right-hand side of a binary operator
 test262/test/language/expressions/object/prop-def-invalid-async-prefix.js:35:14: Generator/async shorthand property not allowed
@@ -3126,7 +3126,7 @@ test262/test/language/statements/async-generator/object-destructuring-param-stri
 test262/test/language/statements/async-generator/rest-param-strict-body.js:110:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/async-generator/rest-params-trailing-comma-early-error.js:36:23: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/async-generator/yield-as-binding-identifier-escaped.js:30:7: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/async-generator/yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/async-generator/yield-as-binding-identifier.js:30:7: 'yield' is reserved as a binding name in a generator
 test262/test/language/statements/async-generator/yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/async-generator/yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/async-generator/yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
@@ -4015,8 +4015,8 @@ test262/test/language/statements/for-in/dstr/array-rest-nested-array-yield-ident
 test262/test/language/statements/for-in/dstr/array-rest-nested-obj-invalid.js:32:29: Invalid destructuring assignment target
 test262/test/language/statements/for-in/dstr/array-rest-nested-obj-yield-ident-invalid.js:32:16: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/array-rest-yield-ident-invalid.js:33:12: 'yield' is a reserved identifier in strict mode
-test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
-test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name in a generator
+test262/test/language/statements/for-in/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name in a generator
 test262/test/language/statements/for-in/dstr/obj-id-init-simple-strict.js:32:8: Binding identifier 'eval' not allowed in strict mode
 test262/test/language/statements/for-in/dstr/obj-id-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-in/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
@@ -4092,8 +4092,8 @@ test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-ary.js:
 test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-id.js:51:15: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/let-ary-ptrn-rest-not-final-obj.js:51:19: Rest element must be last in array pattern
 test262/test/language/statements/for-of/dstr/let-obj-ptrn-init-err.js:17:6: for-of loop variable declaration may not have an initializer
-test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name inside a generator
-test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-expr.js:33:14: 'yield' is reserved as a binding name in a generator
+test262/test/language/statements/for-of/dstr/obj-id-identifier-yield-ident-invalid.js:32:14: 'yield' is reserved as a binding name in a generator
 test262/test/language/statements/for-of/dstr/obj-id-init-simple-strict.js:32:8: Binding identifier 'eval' not allowed in strict mode
 test262/test/language/statements/for-of/dstr/obj-id-init-yield-ident-invalid.js:32:12: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/for-of/dstr/obj-id-simple-strict.js:32:8: 'eval' cannot be used as a shorthand property identifier in strict mode
@@ -4274,13 +4274,13 @@ test262/test/language/statements/generators/rest-param-strict-body.js:131:1: Ill
 test262/test/language/statements/generators/rest-params-trailing-comma-early-error.js:57:17: A rest parameter or binding pattern may not have a trailing comma
 test262/test/language/statements/generators/use-strict-with-non-simple-param.js:20:1: Illegal 'use strict' directive in function with non-simple parameter list
 test262/test/language/statements/generators/yield-as-binding-identifier-escaped.js:28:7: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/generators/yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/generators/yield-as-binding-identifier.js:28:7: 'yield' is reserved as a binding name in a generator
 test262/test/language/statements/generators/yield-as-identifier-reference-escaped.js:28:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/generators/yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/generators/yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/generators/yield-as-logical-or-expression.js:18:9: 'yield' expression cannot be used as an operand of a conditional or binary operator
-test262/test/language/statements/generators/yield-as-parameter.js:17:13: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/generators/yield-as-parameter.js:17:13: 'yield' is reserved as a binding name in a generator
 test262/test/language/statements/generators/yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/generators/yield-identifier-strict.js:26:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/generators/yield-star-after-newline.js:18:3: Unexpected token '*'
@@ -4352,7 +4352,7 @@ test262/test/language/statements/let/syntax/identifier-let-disallowed-as-boundna
 test262/test/language/statements/let/syntax/let-let-declaration-split-across-two-lines.js:32:1: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/let/syntax/let-let-declaration-with-initializer-split-across-two-lines.js:32:1: 'let' is disallowed as a lexically bound name
 test262/test/language/statements/let/syntax/let-newline-await-in-normal-function.js:23:11: Expected '=', ',', or ';' after variable binding
-test262/test/language/statements/let/syntax/let-newline-yield-in-generator-function.js:24:5: 'yield' is reserved as a binding name inside a generator
+test262/test/language/statements/let/syntax/let-newline-yield-in-generator-function.js:24:5: 'yield' is reserved as a binding name in a generator
 test262/test/language/statements/let/syntax/let-newline-yield-in-normal-function.js:22:11: Expected '=', ',', or ';' after variable binding
 test262/test/language/statements/let/syntax/with-initialisers-in-statement-positions-do-statement-while-expression.js:14:15: Lexical declaration cannot appear in a single-statement context
 test262/test/language/statements/let/syntax/with-initialisers-in-statement-positions-for-statement.js:15:1: Lexical declaration cannot appear in a single-statement context

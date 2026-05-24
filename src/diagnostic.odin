@@ -102,6 +102,14 @@ ErrorCode :: enum u16 {
 	K4033_DecoratorOrder                          = 4033,
 	K4034_AbstractNewline                         = 4034,
 	K4040_TSRestInvalid                           = 4040,
+
+	// TypeScript ambient / type system parser-level rules.
+	K4050_AmbientContextRestriction               = 4050,
+	K4051_TSDeclarationStructure                  = 4051,
+	K4052_AccessorOrTypeParamForm                 = 4052,
+	K4053_TSOnlyInJS                              = 4053,
+	K4054_EnumInvalid                             = 4054,
+	K4055_IndexSignatureForm                      = 4055,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -554,6 +562,73 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	case .K4040_TSRestInvalid:
 		return ErrorInfo{
 			default_message = "this TypeScript signature cannot use a rest parameter",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4050 — ambient context (`declare module/namespace/...`, `.d.ts`
+	//   file) restrictions: implementations, initializers, statements
+	//   not allowed at ambient scope.
+	case .K4050_AmbientContextRestriction:
+		return ErrorInfo{
+			default_message = "this construct is not allowed in an ambient context",
+			hint            = "ambient contexts (`declare ...` / `.d.ts`) describe shape only — no implementations, initializers, or statements",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4051 — invalid TS declaration shape: interface / type-alias in
+	//   single-statement context; missing name on interface declaration;
+	//   line terminator after `interface` / `namespace`; bad tuple element
+	//   order or label.
+	case .K4051_TSDeclarationStructure:
+		return ErrorInfo{
+			default_message = "invalid TypeScript declaration shape",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4052 — accessor or generic-parameter form is invalid: get/set
+	//   accessor with type parameters; set accessor with return type;
+	//   empty type-parameter / type-argument list; `?` / `!` at
+	//   start or end of a type position.
+	case .K4052_AccessorOrTypeParamForm:
+		return ErrorInfo{
+			default_message = "invalid accessor or type parameter form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4053 — a TypeScript-only construct appears in a `.js` / `.jsx`
+	//   file: type assertions, satisfies expression, non-null `!`,
+	//   type parameters, `'enum'` as identifier.
+	case .K4053_TSOnlyInJS:
+		return ErrorInfo{
+			default_message = "this TypeScript-only construct is not allowed in JavaScript",
+			hint            = "rename to `.ts` / `.tsx`, or remove the TypeScript syntax",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4054 — enum declaration shape: numeric member name; computed
+	//   member name; private member name (→ K3032); missing member name;
+	//   `enum` used as a binding name in JS.
+	case .K4054_EnumInvalid:
+		return ErrorInfo{
+			default_message = "invalid enum form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4055 — index signature must have a type annotation; without it
+	//   the signature is malformed at parser level.
+	case .K4055_IndexSignatureForm:
+		return ErrorInfo{
+			default_message = "invalid index signature form",
 			hint            = "",
 			ts_code         = "",
 			severity        = .Error,

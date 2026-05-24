@@ -46,16 +46,16 @@ typescript/tests/cases/compiler/alwaysStrictES6.ts:2:9: 'arguments' cannot be us
 typescript/tests/cases/compiler/alwaysStrictModule.ts:3:13: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/alwaysStrictModule2.ts::a.ts:3:13: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/alwaysStrictNoImplicitUseStrict.ts:3:13: 'arguments' cannot be used as a binding name in strict mode
-typescript/tests/cases/compiler/ambientErrors1.ts:1:17: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/ambientErrors1.ts:1:17: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/ambientGetters.ts:6:18: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/ambientPropertyDeclarationInJs.ts:6:17: Expected '(', got ':'
-typescript/tests/cases/compiler/ambientStatement1.ts:4:22: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/ambientStatement1.ts:4:22: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/ambiguousGenericAssertion1.ts:4:10: Expected initializer expression after '='
 typescript/tests/cases/compiler/anonymousModules.ts:1:8: Expected semicolon
 typescript/tests/cases/compiler/argumentsReferenceInConstructor4_Js.ts:18:9: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/argumentsReferenceInMethod4_Js.ts:16:9: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/argumentsUsedInClassFieldInitializerOrStaticInitializationBlock.ts:3:10: 'arguments' cannot appear in a class field initializer
-typescript/tests/cases/compiler/arraySigChecking.ts:11:28: An index signature must have a type annotation.
+typescript/tests/cases/compiler/arraySigChecking.ts:11:28: An index signature must have a type annotation
 typescript/tests/cases/compiler/arrowFunctionErrorSpan.ts:18:5: Line terminator not permitted before '=>'
 typescript/tests/cases/compiler/arrowFunctionMissingCurlyWithSemicolon.ts:2:15: Unexpected token
 typescript/tests/cases/compiler/arrowFunctionsMissingTokens.ts:2:16: Empty parenthesized expression
@@ -99,7 +99,7 @@ typescript/tests/cases/compiler/catchClauseWithInitializer1.ts:3:10: Expected ')
 typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing9.ts:14:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/circularOptionalityRemoval.ts:5:55: A parameter cannot have a question mark and an initializer.
 typescript/tests/cases/compiler/class2.ts:1:29: 'static' is a reserved identifier in strict mode
-typescript/tests/cases/compiler/classExpressionPropertyModifiers.ts:2:40: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/classExpressionPropertyModifiers.ts:2:40: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/classExtendsMultipleBaseClasses.ts:3:18: Expected '{', got ','
 typescript/tests/cases/compiler/classFieldsBrokenConstructorEmitNoCrash1.ts:4:1: Class field cannot be named 'constructor'
 typescript/tests/cases/compiler/classHeritageWithTrailingSeparator.ts:2:18: Expected '{', got ','
@@ -124,7 +124,7 @@ typescript/tests/cases/compiler/conflictMarkerTrivia3.tsx:2:1: Expected '<', got
 typescript/tests/cases/compiler/conflictMarkerTrivia4.ts:1:11: Unexpected '<': not a valid TS type assertion or generic arrow
 typescript/tests/cases/compiler/conflictingTypeAnnotatedVar.ts:2:1: Duplicate function implementation.
 typescript/tests/cases/compiler/constDeclarationShadowedByVarDeclaration.ts:6:5: Identifier 'x' has already been declared
-typescript/tests/cases/compiler/constDeclarations-ambient-errors.ts:2:29: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/constDeclarations-ambient-errors.ts:2:29: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/constDeclarations-errors.ts:3:1: Missing initializer in 'const' declaration
 typescript/tests/cases/compiler/constInClassExpression.ts:2:11: Expected '(', got identifier 'a'
 typescript/tests/cases/compiler/constructorArgsErrors1.ts:2:18: 'static' is a reserved identifier in strict mode
@@ -197,10 +197,10 @@ typescript/tests/cases/compiler/emptyTypeArgumentList.ts:2:5: Expected expressio
 typescript/tests/cases/compiler/emptyTypeArgumentListWithNew.ts:2:9: Expected expression after operator
 typescript/tests/cases/compiler/enumConflictsWithGlobalIdentifier.ts:5:5: Expected semicolon
 typescript/tests/cases/compiler/enumGenericTypeClash.ts:2:6: Identifier 'X' has already been declared
-typescript/tests/cases/compiler/enumIdentifierLiterals.ts:2:5: An enum member cannot have a numeric name.
+typescript/tests/cases/compiler/enumIdentifierLiterals.ts:2:5: An enum member cannot have a numeric name
 typescript/tests/cases/compiler/enumMemberResolution.ts:5:5: Expected semicolon
 typescript/tests/cases/compiler/enumNoInitializerFollowsNonLiteralInitializer.ts::./bad.ts:4:5: Enum member must have initializer.
-typescript/tests/cases/compiler/enumWithBigint.ts:2:3: An enum member cannot have a numeric name.
+typescript/tests/cases/compiler/enumWithBigint.ts:2:3: An enum member cannot have a numeric name
 typescript/tests/cases/compiler/enumWithParenthesizedInitializer1.ts:3:1: Expected ')', got '}'
 typescript/tests/cases/compiler/enumWithPrimitiveName.ts:1:6: Enum name cannot be 'string'
 typescript/tests/cases/compiler/erasableSyntaxOnly2.ts:1:10: Unexpected '<': not a valid TS type assertion or generic arrow
@@ -251,7 +251,7 @@ typescript/tests/cases/compiler/extendsClauseAlreadySeen.ts:4:19: Expected '{', 
 typescript/tests/cases/compiler/extendsClauseAlreadySeen2.ts:4:30: Expected '{', got 'extends'
 typescript/tests/cases/compiler/extension.ts:16:22: Expected semicolon
 typescript/tests/cases/compiler/externModule.ts:1:9: Expected declaration after 'declare'
-typescript/tests/cases/compiler/externSemantics.ts:1:15: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/externSemantics.ts:1:15: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/externSyntax.ts:8:20: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/fatarrowfunctionsErrors.ts:2:21: Invalid expression for arrow function parameters
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgs.ts:57:14: Expected expression after '?' in conditional expression
@@ -279,9 +279,9 @@ typescript/tests/cases/compiler/functionsWithModifiersInBlocks1.ts:2:25: An impl
 typescript/tests/cases/compiler/genericCallWithoutArgs.ts:4:17: An instantiation expression cannot be followed by a property access.
 typescript/tests/cases/compiler/genericSpecializations2.ts:8:9: Type parameter name cannot be 'string'
 typescript/tests/cases/compiler/gettersAndSettersErrors.ts:6:16: Getter must not have any formal parameters
-typescript/tests/cases/compiler/giant.ts:62:17: An index signature must have a type annotation.
+typescript/tests/cases/compiler/giant.ts:62:17: An index signature must have a type annotation
 typescript/tests/cases/compiler/identifierStartAfterNumericLiteral.ts:3:2: Expected semicolon
-typescript/tests/cases/compiler/illegalModifiersOnClassElements.ts:2:20: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/illegalModifiersOnClassElements.ts:2:20: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/illegalSuperCallsInConstructor.ts:9:37: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/implementClausePrecedingExtends.ts:2:22: Expected '{', got 'extends'
 typescript/tests/cases/compiler/implementsClauseAlreadySeen.ts:4:22: Expected '{', got identifier 'implements'
@@ -292,23 +292,23 @@ typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignment.
 typescript/tests/cases/compiler/incompleteDottedExpressionAtEOF.ts:2:18: Expected identifier after '.'
 typescript/tests/cases/compiler/incompleteObjectLiteral1.ts:1:14: Unexpected ';' in object literal
 typescript/tests/cases/compiler/incorrectClassOverloadChain.ts:2:5: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/indexSignatureMustHaveTypeAnnotation.ts:4:16: An index signature must have a type annotation.
+typescript/tests/cases/compiler/indexSignatureMustHaveTypeAnnotation.ts:4:16: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexSignatureTypeCheck.ts:14:9: An index signature parameter cannot have a question mark.
 typescript/tests/cases/compiler/indexSignatureTypeCheck2.ts:10:9: An index signature parameter cannot have a question mark.
 typescript/tests/cases/compiler/indexSignatureWithAccessibilityModifier.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/indexSignatureWithInitializer1.ts:2:14: Expected ']', got '='
 typescript/tests/cases/compiler/indexSignatureWithTrailingComma.ts:2:17: Expected ']', got ','
-typescript/tests/cases/compiler/indexSignatureWithoutTypeAnnotation1.ts:2:14: An index signature must have a type annotation.
-typescript/tests/cases/compiler/indexTypeCheck.ts:2:12: An index signature must have a type annotation.
+typescript/tests/cases/compiler/indexSignatureWithoutTypeAnnotation1.ts:2:14: An index signature must have a type annotation
+typescript/tests/cases/compiler/indexTypeCheck.ts:2:12: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexWithoutParamType.ts:1:10: An index signature must have a parameter
 typescript/tests/cases/compiler/indexer2A.ts:4:5: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/indexerAsOptional.ts:3:10: An index signature parameter cannot have a question mark.
-typescript/tests/cases/compiler/indexerConstraints2.ts:80:1: An index signature must have a type annotation.
+typescript/tests/cases/compiler/indexerConstraints2.ts:80:1: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexerSignatureWithRestParam.ts:2:5: An index signature parameter cannot use a rest pattern
 typescript/tests/cases/compiler/innerModExport1.ts:5:12: Expected semicolon
 typescript/tests/cases/compiler/innerModExport2.ts:5:12: Expected semicolon
 typescript/tests/cases/compiler/instantiateTypeParameter.ts:2:14: Type argument list cannot be empty
-typescript/tests/cases/compiler/intTypeCheck.ts:37:17: An index signature must have a type annotation.
+typescript/tests/cases/compiler/intTypeCheck.ts:37:17: An index signature must have a type annotation
 typescript/tests/cases/compiler/interfaceDeclaration4.ts:39:14: Expected '{', got '.'
 typescript/tests/cases/compiler/interfaceMayNotBeExtendedWitACall.ts:3:29: Expected '{', got '('
 typescript/tests/cases/compiler/interfaceNaming1.ts:1:1: 'interface' is a reserved identifier in strict mode
@@ -337,13 +337,13 @@ typescript/tests/cases/compiler/jsFileCompilationImportEqualsSyntax.ts:1:10: Exp
 typescript/tests/cases/compiler/jsFileCompilationInterfaceSyntax.ts:1:11: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationMethodOverloadSyntax.ts:2:8: Expected '{', got ';'
 typescript/tests/cases/compiler/jsFileCompilationModuleSyntax.ts:1:11: Expected semicolon
-typescript/tests/cases/compiler/jsFileCompilationNonNullAssertion.ts:1:3: Non-null assertions can only be used in TypeScript files.
+typescript/tests/cases/compiler/jsFileCompilationNonNullAssertion.ts:1:3: Non-null assertions can only be used in TypeScript files
 typescript/tests/cases/compiler/jsFileCompilationOptionalParameter.ts:1:13: Expected ')', got '?'
 typescript/tests/cases/compiler/jsFileCompilationPublicParameterModifier.ts:1:23: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/jsFileCompilationReturnTypeSyntaxOfFunction.ts:1:13: Expected '{', got ':'
 typescript/tests/cases/compiler/jsFileCompilationTypeAliasSyntax.ts:1:6: Expected semicolon
 typescript/tests/cases/compiler/jsFileCompilationTypeArgumentSyntaxOfCall.ts:1:14: Empty parenthesized expression
-typescript/tests/cases/compiler/jsFileCompilationTypeAssertions.ts:1:3: Type assertions can only be used in TypeScript files.
+typescript/tests/cases/compiler/jsFileCompilationTypeAssertions.ts:1:3: Type assertions can only be used in TypeScript files
 typescript/tests/cases/compiler/jsFileCompilationTypeOfParameter.ts:1:13: Expected ')', got ':'
 typescript/tests/cases/compiler/jsFileCompilationTypeParameterSyntaxOfClass.ts:1:8: Expected '{', got '<'
 typescript/tests/cases/compiler/jsFileCompilationTypeParameterSyntaxOfClassExpression.ts:1:18: Expected '{', got '<'
@@ -374,7 +374,7 @@ typescript/tests/cases/compiler/letInVarDeclOfForIn_ES6.ts:2:10: 'let' is a rese
 typescript/tests/cases/compiler/letInVarDeclOfForOf_ES5.ts:2:10: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/letInVarDeclOfForOf_ES6.ts:2:10: 'let' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/libMembers.ts:9:17: Expected expression after 'new'
-typescript/tests/cases/compiler/literalsInComputedProperties1.ts:39:5: An enum member cannot have a numeric name.
+typescript/tests/cases/compiler/literalsInComputedProperties1.ts:39:5: An enum member cannot have a numeric name
 typescript/tests/cases/compiler/manyCompilerErrorsInTheTwoFiles.ts::a.ts:1:12: Decorators can only be applied to class expressions
 typescript/tests/cases/compiler/methodInAmbientClass1.ts:2:20: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/missingArgument1.ts:1:7: Argument expression expected
@@ -382,7 +382,7 @@ typescript/tests/cases/compiler/missingCloseBrace.ts:8:6: Expected '}' at end of
 typescript/tests/cases/compiler/missingCloseBraceInObjectLiteral.ts:4:11: Expected '}', got end of input
 typescript/tests/cases/compiler/missingCloseBracketInArray.ts:1:48: Expected ']', got end of input
 typescript/tests/cases/compiler/missingFunctionImplementation.ts:2:3: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/missingRequiredDeclare.d.ts:1:9: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/missingRequiredDeclare.d.ts:1:9: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/misspelledNewMetaProperty.ts:1:19: Expected expression after 'new'
 typescript/tests/cases/compiler/modifierOnParameter1.ts:2:24: Expected ')', got identifier 'p'
 typescript/tests/cases/compiler/modifiersInObjectLiterals.ts:2:2: 'public' is a reserved identifier in strict mode
@@ -456,8 +456,8 @@ typescript/tests/cases/compiler/parseErrorInHeritageClause1.ts:1:19: Expected '{
 typescript/tests/cases/compiler/parseErrorIncorrectReturnToken.ts:2:17: Unexpected token in TS object type
 typescript/tests/cases/compiler/parseImportAttributesError.ts::/index.ts:2:30: Numeric or bigint literal cannot be an import attribute key
 typescript/tests/cases/compiler/parseInvalidNames.ts:1:11: Expected semicolon
-typescript/tests/cases/compiler/parseInvalidNonNullableTypes.ts:1:36: '!' at the end of a type is not valid TypeScript syntax.
-typescript/tests/cases/compiler/parseInvalidNullableTypes.ts:1:30: '?' at the start of a type is not valid TypeScript syntax.
+typescript/tests/cases/compiler/parseInvalidNonNullableTypes.ts:1:36: '!' at the end of a type is not valid TypeScript syntax
+typescript/tests/cases/compiler/parseInvalidNullableTypes.ts:1:30: '?' at the start of a type is not valid TypeScript syntax
 typescript/tests/cases/compiler/parseJsxElementInUnaryExpressionNoCrash1.ts:1:4: Expected '>', got '<'
 typescript/tests/cases/compiler/parseJsxElementInUnaryExpressionNoCrash2.ts:1:9: Expected expression after operator
 typescript/tests/cases/compiler/parseJsxElementInUnaryExpressionNoCrash3.ts:1:5: Expected '...', got ':'
@@ -580,13 +580,13 @@ typescript/tests/cases/compiler/unusedLocalsInMethod4.ts:104:5: Missing initiali
 typescript/tests/cases/compiler/validRegexp.ts:1:24: Expected semicolon
 typescript/tests/cases/compiler/varArgConstructorMemberParameter.ts:10:42: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/varArgWithNoParamName.ts:1:16: Expected binding pattern
-typescript/tests/cases/compiler/varBlock.ts:8:18: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/compiler/varBlock.ts:8:18: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/variableDeclarationInStrictMode1.ts:2:5: 'eval' cannot be used as a binding name in strict mode
 typescript/tests/cases/compiler/withStatement.ts:3:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/withStatementErrors.ts:3:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/withStatementNestedScope.ts:2:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/yieldStringLiteral.ts:2:5: 'yield' expression is only allowed in a generator body
-typescript/tests/cases/conformance/ambient/ambientErrors.ts:2:17: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/conformance/ambient/ambientErrors.ts:2:17: Initializers are not allowed in ambient contexts
 typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath.ts:4:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/ambient/ambientModuleDeclarationWithReservedIdentifierInDottedPath2.ts:2:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/async/es2017/asyncArrowFunction/asyncArrowFunction5_es2017.ts:1:18: 'await' is reserved as a binding name in this context
@@ -756,7 +756,7 @@ typescript/tests/cases/conformance/decorators/class/method/decoratorOnClassMetho
 typescript/tests/cases/conformance/decorators/class/method/parameter/decoratorOnClassMethodParameter3.ts:5:23: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/decorators/class/method/parameter/decoratorOnClassMethodThisParameter.ts:4:17: Decorators cannot be applied to 'this' parameters.
 typescript/tests/cases/conformance/decorators/class/property/decoratorOnClassProperty3.ts:4:12: Expected method or property name
-typescript/tests/cases/conformance/decorators/decoratorMetadata-jsdoc.ts:5:15: '?' at the end of a type is not valid TypeScript syntax.
+typescript/tests/cases/conformance/decorators/decoratorMetadata-jsdoc.ts:5:15: '?' at the end of a type is not valid TypeScript syntax
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnArrowFunction.ts:3:17: Decorators can only be applied to class expressions
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnAwait.ts:4:1: Expected class after decorator
 typescript/tests/cases/conformance/decorators/invalid/decoratorOnEnum.ts:4:1: Expected class after decorator
@@ -946,7 +946,7 @@ typescript/tests/cases/conformance/es7/trailingCommasInGetter.ts:2:11: Expected 
 typescript/tests/cases/conformance/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticAbstract.ts:6:44: A decorator can only decorate a method implementation, not an overload.
 typescript/tests/cases/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-exportModifier.2.ts::file13.ts:2:10: Expected semicolon
 typescript/tests/cases/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-exportModifier.ts::file3.js:2:13: Expected class after decorator
-typescript/tests/cases/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticAmbient.ts:6:38: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/conformance/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-staticAmbient.ts:6:38: Initializers are not allowed in ambient contexts
 typescript/tests/cases/conformance/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticAbstract.ts:6:37: A decorator can only decorate a method implementation, not an overload.
 typescript/tests/cases/conformance/esDecorators/esDecorators-privateFieldAccess.ts:3:17: Private name reference is not allowed outside of a class
 typescript/tests/cases/conformance/expressions/assignmentOperator/assignmentLHSIsValue.ts:6:26: Cannot assign to this expression
@@ -968,7 +968,7 @@ typescript/tests/cases/conformance/expressions/superPropertyAccess/errorSuperPro
 typescript/tests/cases/conformance/expressions/typeAssertions/typeAssertions.ts:44:4: Unexpected '<': not a valid TS type assertion or generic arrow
 typescript/tests/cases/conformance/expressions/typeGuards/typeGuardFunctionErrors.ts:17:57: Expected '{', got 'is'
 typescript/tests/cases/conformance/expressions/typeGuards/typePredicateOnVariableDeclaration02.ts:1:10: Expected '=', ',', or ';' after variable binding
-typescript/tests/cases/conformance/expressions/typeSatisfaction/typeSatisfaction_js.ts:1:19: Type satisfaction expressions can only be used in TypeScript files.
+typescript/tests/cases/conformance/expressions/typeSatisfaction/typeSatisfaction_js.ts:1:19: Type satisfaction expressions can only be used in TypeScript files
 typescript/tests/cases/conformance/expressions/unaryOperators/bitwiseNotOperator/bitwiseNotOperatorInvalidOperations.ts:5:10: Expected semicolon
 typescript/tests/cases/conformance/expressions/unaryOperators/decrementOperator/decrementOperatorWithAnyOtherTypeInvalidOperations.ts:37:28: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/expressions/unaryOperators/decrementOperator/decrementOperatorWithEnumTypeInvalidOperations.ts:14:45: Invalid left-hand side expression in prefix operation
@@ -1000,8 +1000,8 @@ typescript/tests/cases/conformance/externalModules/exportNonInitializedVariables
 typescript/tests/cases/conformance/externalModules/exportNonInitializedVariablesSystem.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/externalModules/exportNonInitializedVariablesUMD.ts:1:4: Expected binding pattern
 typescript/tests/cases/conformance/externalModules/importNonStringLiteral.ts:2:22: Expected string literal in require() module reference
-typescript/tests/cases/conformance/externalModules/importTsBeforeDTs.ts::foo_0.d.ts:1:24: Initializers are not allowed in ambient contexts.
-typescript/tests/cases/conformance/externalModules/initializersInDeclarations.ts:4:15: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/conformance/externalModules/importTsBeforeDTs.ts::foo_0.d.ts:1:24: Initializers are not allowed in ambient contexts
+typescript/tests/cases/conformance/externalModules/initializersInDeclarations.ts:4:15: Initializers are not allowed in ambient contexts
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithAMD.ts::1.ts:1:10: Expected 'as', got 'from'
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithCommonjs.ts::1.ts:1:10: Expected 'as', got 'from'
 typescript/tests/cases/conformance/externalModules/invalidSyntaxNamespaceImportWithSystem.ts::1.ts:1:10: Expected 'as', got 'from'
@@ -1113,9 +1113,9 @@ typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors6
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors7.ts:1:15: Getter must not have any formal parameters
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors8.ts:1:15: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserAccessors9.ts:1:15: Setter must have exactly one formal parameter
-typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserGetAccessorWithTypeParameters1.ts:2:16: A 'get' accessor cannot have type parameters.
-typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeAnnotation1.ts:2:23: A 'set' accessor cannot have a return type annotation.
-typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeParameters1.ts:2:18: A 'set' accessor cannot have type parameters.
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserGetAccessorWithTypeParameters1.ts:2:16: A 'get' accessor cannot have type parameters
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeAnnotation1.ts:2:23: A 'set' accessor cannot have a return type annotation
+typescript/tests/cases/conformance/parser/ecmascript5/Accessors/parserSetAccessorWithTypeParameters1.ts:2:18: A 'set' accessor cannot have type parameters
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression10.ts::fileJs.js:1:20: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression13.ts::fileJs.js:1:19: Empty parenthesized expression
@@ -1144,7 +1144,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration3.ts:2:10: Expected '(', got identifier 'constructor'
@@ -1155,7 +1155,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/pa
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration9.ts:2:20: Type parameters cannot appear on a constructor declaration
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum4.ts:2:9: Expected enum member name
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum5.ts:2:12: Expected '}', got ':'
-typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum7.ts:2:3: An enum member cannot have a numeric name.
+typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum7.ts:2:3: An enum member cannot have a numeric name
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration4.ts:1:6: Identifier expected. 'void' is a reserved word that cannot be used here.
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic1.ts:3:15: 'public' modifier must precede 'static' modifier
@@ -1224,7 +1224,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserErrant
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserFuzz1.ts:1:9: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserMissingLambdaOpenBrace1.ts:4:13: Expected ')', got 'var'
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnPropertySignature1.ts:2:5: 'public' modifier cannot appear on a type member
-typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock2.ts:2:20: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock2.ts:2:20: Initializers are not allowed in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserPublicBreak1.ts:1:1: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnfinishedTypeNameBeforeKeyword1.ts:2:11: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnterminatedGeneric1.ts:2:54: Expected '>', got end of input
@@ -1278,12 +1278,12 @@ typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/pa
 typescript/tests/cases/conformance/parser/ecmascript5/IndexMemberDeclarations/parserIndexMemberDeclaration9.ts:2:11: Expected '(', got '['
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature1.ts:2:3: An index signature parameter cannot use a rest pattern
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature10.ts:2:6: Expected ']', got ','
-typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature11.ts:3:21: An index signature must have a type annotation.
+typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature11.ts:3:21: An index signature must have a type annotation
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature2.ts:2:11: Expected ']', got identifier 'a'
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature3.ts:2:6: Expected expression after '?' in conditional expression
-typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature6.ts:3:1: An index signature must have a type annotation.
-typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature7.ts:3:1: An index signature must have a type annotation.
-typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature8.ts:1:24: An index signature must have a type annotation.
+typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature6.ts:3:1: An index signature must have a type annotation
+typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature7.ts:3:1: An index signature must have a type annotation
+typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature8.ts:1:24: An index signature must have a type annotation
 typescript/tests/cases/conformance/parser/ecmascript5/IndexSignatures/parserIndexSignature9.ts:2:4: An index signature must have a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration1.ts:1:23: Expected '{', got 'extends'
 typescript/tests/cases/conformance/parser/ecmascript5/InterfaceDeclarations/parserInterfaceDeclaration2.ts:1:13: Expected '{', got identifier 'implements'
@@ -1431,7 +1431,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserReturnSta
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserSwitchStatement1.d.ts:1:1: Statements are not allowed in declaration files.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserThrowStatement1.d.ts:1:1: Statements are not allowed in declaration files.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserTryStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement1.d.ts:1:9: Initializers are not allowed in ambient contexts.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement1.d.ts:1:9: Initializers are not allowed in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWhileStatement1.d.ts:1:1: Statements are not allowed in declaration files.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement1.d.ts:1:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement2.ts:1:1: 'with' statements are not allowed in strict mode
@@ -1477,12 +1477,12 @@ typescript/tests/cases/conformance/parser/ecmascript5/parserS12.11_A3_T4.ts:16:9
 typescript/tests/cases/conformance/parser/ecmascript5/parserS7.9_A5.7_T1.ts:19:1: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/parser/ecmascript5/parservoidInQualifiedName1.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName1.ts:1:15: Computed property name requires a value
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName16.ts:2:7: Computed property names are not allowed in enums.
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName26.ts:3:9: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName16.ts:2:7: Computed property names are not allowed in enums
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName26.ts:3:9: Computed property names are not allowed in enums
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName27.ts:4:9: Expected semicolon or line terminator after class field
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName30.ts:3:9: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName30.ts:3:9: Computed property names are not allowed in enums
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName33.ts:4:12: Expected semicolon or line terminator after class field
-typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName34.ts:3:9: Computed property names are not allowed in enums.
+typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName34.ts:3:9: Computed property names are not allowed in enums
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName35.ts:2:7: Expected ']', got ','
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName36.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName37.ts:2:6: 'public' is a reserved identifier in strict mode

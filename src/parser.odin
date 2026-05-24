@@ -2519,11 +2519,11 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		}
 	case ^TSInterfaceDeclaration:
 		if allow_ts_mode(p) {
-			report_error(p, "Interface declaration cannot appear in a single-statement context")
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Interface declaration cannot appear in a single-statement context")
 		}
 	case ^TSTypeAliasDeclaration:
 		if allow_ts_mode(p) {
-			report_error(p, "Type alias declaration cannot appear in a single-statement context")
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Type alias declaration cannot appear in a single-statement context")
 		}
 	case ^LabeledStatement:
 		// Recurse through labels: `label1: label2: function f() {}` in
@@ -3930,7 +3930,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// can never serve as a function or class name in JS. The lexer
 			// emits `enum` as .Identifier (contextual), so check by value.
 			if current.value == "enum" {
-				report_error(p, "'enum' is a reserved word and cannot be used as a function name")
+				report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word and cannot be used as a function name")
 			}
 			if !is_expr {
 				if current.value == "await" {
@@ -4127,7 +4127,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		// Covers both `declare function f() {}` (explicit) and
 		// `declare module { function f() {} }` (inherited ambient).
 		if allow_no_body || p.ctx.in_ambient || p.source_is_dts {
-			report_error(p, "An implementation cannot be declared in ambient contexts")
+			report_error_coded(p, .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
 		}
 		body = parse_function_body(p)
 		body_strict = p.last_body_strict
@@ -4935,7 +4935,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		eat(p)
 		implements_list = parse_ts_heritage_list(p)
 		if len(implements_list) == 0 {
-			report_error(p, "Expected interface name after 'implements'")
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Expected interface name after 'implements'")
 		}
 	}
 
@@ -6336,7 +6336,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				if is_token(p, .Colon) && allow_ts_mode(p) {
 					_ = parse_ts_type_annotation(p)
 				} else if allow_ts_mode(p) {
-					report_error(p, "An index signature must have a type annotation.")
+					report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
 				}
 				match_semicolon_or_asi(p)
 				// Return nil so the class-body loop swallows the element
@@ -6491,7 +6491,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				// UNLESS both `declare` and `readonly` are present
 				// (OXC allows `declare readonly x = 1;`).
 				if (is_declare || p.ctx.in_ambient || p.source_is_dts) && !is_readonly {
-					report_error(p, "Initializers are not allowed in ambient contexts.")
+					report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
 				}
 				if is_abstract {
 					report_error(p, "Abstract property cannot have an initializer.")
@@ -6577,7 +6577,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// In JS mode, `<T>` after a method name is a comparison, not
 		// type parameters. Report error and skip the angle-bracketed
 		// content for recovery.
-		report_error(p, "Type parameters are only allowed in TypeScript files")
+		report_error_coded(p, .K4053_TSOnlyInJS, "Type parameters are only allowed in TypeScript files")
 		eat(p) // consume `<`
 		depth := 1
 		for depth > 0 && !is_token(p, .EOF) {
@@ -6691,14 +6691,14 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// parameters or a return type annotation.
 	if allow_ts_mode(p) {
 		if kind == .Get && method_type_parameters != nil {
-			report_error(p, "A 'get' accessor cannot have type parameters.")
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'get' accessor cannot have type parameters")
 		}
 		if kind == .Set {
 			if method_type_parameters != nil {
-				report_error(p, "A 'set' accessor cannot have type parameters.")
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'set' accessor cannot have type parameters")
 			}
 			if _, has_return_type := method_return_type.?; has_return_type {
-				report_error(p, "A 'set' accessor cannot have a return type annotation.")
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'set' accessor cannot have a return type annotation")
 			}
 		}
 	}
@@ -6746,7 +6746,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// Body stays empty.
 	} else {
 		if p.ctx.in_ambient {
-			report_error(p, "An implementation cannot be declared in ambient contexts")
+			report_error_coded(p, .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
 		}
 		// OXC reports abstract-with-body for non-constructor methods;
 		// abstract constructors are accepted by OXC at parser level.
@@ -7622,15 +7622,15 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 		// Inherited ambient (namespace) only errors for non-const kinds.
 		if p.source_is_dts {
 			if kind != .Const {
-				report_error(p, "Initializers are not allowed in ambient contexts.")
+				report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
 			}
 		} else {
 			if is_declare && has_type_ann {
-				report_error(p, "Initializers are not allowed in ambient contexts.")
+				report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
 			} else if is_declare && kind != .Const {
-				report_error(p, "Initializers are not allowed in ambient contexts.")
+				report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
 			} else if p.ctx.in_ambient && kind != .Const {
-				report_error(p, "Initializers are not allowed in ambient contexts.")
+				report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
 			}
 		}
 		init_expr := parse_assignment_expression(p)
@@ -8158,7 +8158,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// Both tokens already have dedicated TokenTypes in Kessel's lexer,
 	// so the check is a simple kind comparison.
 	if (p.ctx.in_generator || p.ctx.in_generator_params) && p.cur_type == .Yield {
-		report_error(p, "'yield' is reserved as a binding name inside a generator")
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -8183,7 +8183,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// .d.ts declaration files allow `await` as a binding name (tsc/OXC agree).
 	if p.source_is_dts { await_reserved_for_binding = false }
 	if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "await"))) && await_reserved_for_binding {
-		report_error(p, "'await' is reserved as a binding name in this context")
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		eat(p)
@@ -8617,7 +8617,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					}
 					// `yield` is reserved in generator bodies; `await` in async.
 					if v.name == "yield" && yield_is_reserved_here(p) {
-						report_error(p, "'yield' is reserved as a binding name inside a generator")
+						report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
 					}
 					if v.name == "await" {
 						await_reserved := await_is_reserved_here(p)
@@ -8626,7 +8626,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 							else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
 						}
 						if await_reserved {
-							report_error(p, "'await' is reserved as a binding name in this context")
+							report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
 						}
 					}
 					left_ident := new_node(p, Identifier)
@@ -8771,11 +8771,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "await"))) &&
 			   dstr_await_reserved {
-				report_error(p, "'await' is reserved as a binding name in this context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
 			}
 			if (p.cur_type == .Yield || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "yield"))) &&
 			   yield_is_reserved_here(p) {
-				report_error(p, "'yield' is reserved as a binding name in this context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in this context")
 			}
 			// Strict-mode reserved words as array-pattern element binding.
 			if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
@@ -11368,7 +11368,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// `export default interface {}` - anonymous interface is rejected.
   ensure_nxt(p)
 		if !is_next_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
-			report_error(p, "Interface declaration must have a name")
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Interface declaration must have a name")
 		}
 		iface_stmt := parse_ts_interface_declaration(p)
 		if iface_stmt != nil {
@@ -11948,9 +11948,9 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	for is_token(p, .As) || is_token(p, .Satisfies) {
 		if !allow_ts_mode(p) {
 			if is_token(p, .Satisfies) {
-				report_error(p, "Type satisfaction expressions can only be used in TypeScript files.")
+				report_error_coded(p, .K4053_TSOnlyInJS, "Type satisfaction expressions can only be used in TypeScript files")
 			} else {
-				report_error(p, "Type assertions can only be used in TypeScript files.")
+				report_error_coded(p, .K4053_TSOnlyInJS, "Type assertions can only be used in TypeScript files")
 			}
 		}
 		if is_token(p, .As) {
@@ -12675,7 +12675,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// reserved. The lexer emits it as .Identifier (contextual for
 		// TS enum decls). Mirrors the check in parse_primary_expr.
 		if !cur_has_escape(p) && cur_value_eq(p, "enum") {
-			report_error(p, "'enum' is a reserved word")
+			report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word")
 		}
 		// Inline identifier parse + LHS tail. Pull only the fields we need
 		// out of the current token before eat() advances - the FastToken
@@ -13133,7 +13133,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// lexer's can_start_regex set for the prefix-NOT case). The
 			// postfix assertion means `/` is always division here.
 			if !allow_ts_mode(p) {
-				report_error(p, "Non-null assertions can only be used in TypeScript files.")
+				report_error_coded(p, .K4053_TSOnlyInJS, "Non-null assertions can only be used in TypeScript files")
 			}
 
 			nn, nn_e := new_expr(p, TSNonNullExpression)
@@ -13861,7 +13861,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `enum` as .Identifier (contextual for TS enum decls), so
 		// we must check by value here in expression position.
 		if current.value == "enum" {
-			report_error(p, "'enum' is a reserved word")
+			report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word")
 		}
 		// §12.6.1.1 - strict-mode IdentifierReference cannot be "let" /
 		// "yield" / "implements" / "interface" / "package" /
@@ -14855,7 +14855,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				}
 				// Contextually reserved: `yield` in generators, `await` in async/static blocks.
 				if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
-					report_error(p, "'yield' is reserved as a binding name inside a generator")
+					report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
 				}
 				if k != nil && k.name == "await" && await_is_reserved_here(p) {
 					report_error_coded(p, .K3010_AwaitYieldAsBindingName,
@@ -15100,7 +15100,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		implements_list = parse_ts_heritage_list(p)
 		if len(implements_list) == 0 {
-			report_error(p, "Expected interface name after 'implements'")
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Expected interface name after 'implements'")
 		}
 	}
 
@@ -15225,7 +15225,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	if ta, is_ta := callee^.(^TSTypeAssertion); is_ta {
 		// Check if the assertion starts right after `new ` (no parens).
 		if p.lexer != nil && ta.loc.start == start.start + 4 {
-			report_error(p, "Type assertion is not allowed after 'new'")
+			report_error_coded(p, .K4053_TSOnlyInJS, "Type assertion is not allowed after 'new'")
 		}
 	}
 
@@ -16288,7 +16288,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				}
 			}
 			if e.name == "enum" {
-				report_error(p, "'enum' is a reserved identifier")
+				report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved identifier")
 			}
 			if e.name == "await" && (p.ctx.in_async || p.ctx.in_static_block) {
 				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
@@ -19027,13 +19027,13 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					inner := parse_ts_type(p)
 					if inner != nil {
 						if _, is_opt_type := inner^.(^TSOptionalType); is_opt_type {
-							report_error(p, "A labeled tuple element cannot use postfix optional type syntax")
+							report_error_coded(p, .K4051_TSDeclarationStructure, "A labeled tuple element cannot use postfix optional type syntax")
 						}
 					}
 					if optional {
 						optional_seen = true
 					} else if optional_seen {
-						report_error(p, "A required tuple element cannot follow an optional element")
+						report_error_coded(p, .K4051_TSDeclarationStructure, "A required tuple element cannot follow an optional element")
 					}
 					named_member := new_node(p, TSNamedTupleMember)
 					named_member.loc = elem_start
@@ -19054,7 +19054,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 						elev = new_node(p, TSType); elev^ = opt
 						optional_seen = true
 					} else if optional_seen {
-						report_error(p, "A required tuple element cannot follow an optional element")
+						report_error_coded(p, .K4051_TSDeclarationStructure, "A required tuple element cannot follow an optional element")
 					}
 				}
 			}
@@ -19489,7 +19489,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// outside type arguments (TS17020).
 		if allow_ts_mode(p) {
 			if p.ts_in_type_arguments == 0 {
-				report_error(p, "'?' at the start of a type is not valid TypeScript syntax.")
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "'?' at the start of a type is not valid TypeScript syntax")
 			}
 			eat(p) // consume `?`
 			return parse_ts_primary_type(p)
@@ -19500,7 +19500,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// TSJSDocNonNullableType. Accept permissively.
 		// TS17020: `!` at the start of a type is not valid TypeScript syntax.
 		if allow_ts_mode(p) {
-			report_error(p, "'!' at the start of a type is not valid TypeScript syntax.")
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "'!' at the start of a type is not valid TypeScript syntax")
 			eat(p) // consume `!`
 			return parse_ts_primary_type(p)
 		}
@@ -19557,7 +19557,7 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 		result := new_node(p, TSType); result^ = node
 		// Reject indexed access on intrinsic keyword.
 		if is_token(p, .LBracket) {
-			report_error(p, "Indexed access is not allowed on 'intrinsic' keyword type")
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "Indexed access is not allowed on 'intrinsic' keyword type")
 		}
 		return parse_ts_postfix(p, result, start)
 	case "readonly":
@@ -19668,7 +19668,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// TS17019: `!` at the end of a type is not valid TypeScript syntax.
 	if is_token(p, .Not) && !cur_has_newline(p) {
 		if allow_ts_mode(p) {
-			report_error(p, "'!' at the end of a type is not valid TypeScript syntax.")
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "'!' at the end of a type is not valid TypeScript syntax")
 		}
 		eat(p) // consume `!`
 	}
@@ -19687,7 +19687,7 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 		if nxt == .RParen || nxt == .Comma || nxt == .Semi || nxt == .RBrace ||
 		   nxt == .RBracket || nxt == .RAngle || nxt == .Assign || nxt == .EOF {
 			if allow_ts_mode(p) && p.ts_in_type_arguments == 0 {
-				report_error(p, "'?' at the end of a type is not valid TypeScript syntax.")
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "'?' at the end of a type is not valid TypeScript syntax")
 			}
 			eat(p) // consume `?`
 		}
@@ -19774,7 +19774,7 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 		t := parse_ts_type(p); if t != nil { bump_append(&params, t) }; if !match_token(p, .Comma) { break }
 	}
 	if empty_at_start && len(params) == 0 {
-		report_error(p, "Type argument list cannot be empty")
+		report_error_coded(p, .K4052_AccessorOrTypeParamForm, "Type argument list cannot be empty")
 	}
 	expect_close_angle(p)
 	p.ts_in_type_arguments -= 1
@@ -20486,7 +20486,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		if !had_trailing_comma { break }
 	}
 	if empty_at_start && len(params) == 0 {
-		report_error(p, "Type parameter list cannot be empty")
+		report_error_coded(p, .K4052_AccessorOrTypeParamForm, "Type parameter list cannot be empty")
 	}
 	// Use expect_close_angle so `>=` splits into `>` + `=`.
 	// Fixes: `type T<U>=U` where `>=` should close the type params.
@@ -20588,7 +20588,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		if is_token(p, .Colon) {
 			val_ann = parse_ts_type_annotation(p)
 		} else {
-			report_error(p, "An index signature must have a type annotation.")
+			report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
 		}
 		param_name_ident := new_node(p, Identifier)
 		param_name_ident.loc = loc_from_token(&param_name_tok)
@@ -20694,7 +20694,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			if is_token(p, .Colon) {
 				val_ann = parse_ts_type_annotation(p)
 			} else {
-				report_error(p, "An index signature must have a type annotation.")
+				report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
 			}
 			param_name_ident := new_node(p, Identifier)
 			param_name_ident.loc = param_name.loc
@@ -21144,7 +21144,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			if is_token(p, .Colon) {
 				val_ann = parse_ts_type_annotation(p)
 			} else {
-				report_error(p, "An index signature must have a type annotation.")
+				report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
 			}
 
 			idx_sig := TSIndexSignature{
@@ -21263,7 +21263,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 
 		if is_token(p, .LAngle) {
-			report_error(p, "An accessor cannot have type parameters")
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "An accessor cannot have type parameters")
 			_ = parse_ts_type_parameters(p)
 		}
 		params := parse_ts_sig_params(p)
@@ -21291,7 +21291,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		if is_token(p, .Colon) {
 			ret = parse_ts_return_type_annotation(p)
 			if accessor_kind == .Set {
-				report_error(p, "A set accessor cannot have a return type annotation")
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A set accessor cannot have a return type annotation")
 			}
 		}
 		method := TSMethodSignature{
@@ -21494,7 +21494,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			// `declare interface\nFoo {}` → error. OXC / TSC agree.
    ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error(p, "Line terminator not permitted after 'interface'")
+				report_error_coded(p, .K4051_TSDeclarationStructure, "Line terminator not permitted after 'interface'")
 			}
 			stmt = parse_ts_interface_declaration(p)
 			if stmt != nil {
@@ -21523,7 +21523,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			// Newline between `namespace` and its name triggers ASI.
    ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error(p, "Line terminator not permitted after 'namespace'")
+				report_error_coded(p, .K4051_TSDeclarationStructure, "Line terminator not permitted after 'namespace'")
 			}
 			if is_next_token(p, .Identifier) {
 				stmt = parse_ts_module_declaration(p, .Namespace)
@@ -21639,7 +21639,7 @@ parse_ts_interface_declaration :: proc(p: ^Parser) -> ^Statement {
 	if match_token(p, .Extends) {
 		extends_list = parse_ts_heritage_list(p)
 		if len(extends_list) == 0 {
-			report_error(p, "Expected interface name after 'extends'")
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Expected interface name after 'extends'")
 		}
 	}
 	body_start := cur_loc(p)  // position of `{`
@@ -21725,7 +21725,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Reject empty enum member positions: `enum E { , }`.
 		if is_token(p, .Comma) {
-			report_error(p, "Expected enum member name")
+			report_error_coded(p, .K4054_EnumInvalid, "Expected enum member name")
 			eat(p)
 			continue
 		}
@@ -21737,7 +21737,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		if is_token(p, .String) {
 			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
 		} else if is_token(p, .Number) || is_token(p, .BigInt) {
-			report_error(p, "An enum member cannot have a numeric name.")
+			report_error_coded(p, .K4054_EnumInvalid, "An enum member cannot have a numeric name")
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
 			member_id = expression_from(p, mid)
 		} else if is_token(p, .LBracket) {
@@ -21763,7 +21763,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 					is_static = true
 				}
 				if !is_static {
-					report_error(p, "Computed property names are not allowed in enums.")
+					report_error_coded(p, .K4054_EnumInvalid, "Computed property names are not allowed in enums")
 				}
 				member_id = inner
 			} else {
@@ -21772,7 +21772,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 		} else if is_token(p, .Template) || is_token(p, .TemplateHead) {
 			// Template literals are not valid enum member names.
-			report_error(p, "Enum member expected.")
+			report_error_coded(p, .K4054_EnumInvalid, "Enum member expected")
 			member_id = parse_template_literal(p, false)
 		} else {
 			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)

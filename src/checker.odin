@@ -3384,7 +3384,8 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 			case ^WithStatement:            if s != nil { off = u32(s.loc.start) }
 			case ^DebuggerStatement:        if s != nil { off = u32(s.loc.start) }
 			}
-			ck_report(c, off, "Statements are not allowed in ambient contexts.")
+			ck_report_coded(c, off, .K4050_AmbientContextRestriction,
+				"Statements are not allowed in ambient contexts")
 		}
 	}
 }
@@ -5756,7 +5757,7 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 		}
 	}
 	if name == "enum" {
-		ck_report(c, loc, "'enum' is a reserved identifier")
+		ck_report_coded(c, loc, .K4054_EnumInvalid, "'enum' is a reserved identifier")
 	}
 	if name == "await" && (ctx.in_async || ctx.source_type == .Module || ctx.in_class_static_block) {
 		ck_report_coded(c, loc, .K3010_AwaitYieldAsBindingName,
