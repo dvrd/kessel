@@ -16,6 +16,14 @@ package kessel
 import "core:mem"
 import mvirtual "core:mem/virtual"
 import "base:runtime"
+import "core:fmt"
+import "core:os"
+
+@(private="file")
+dbg :: proc(msg: string) {
+	fmt.fprintf(os.stderr, "[ODIN] %s\n", msg)
+	os.flush(os.stderr)
+}
 
 // Result handle — keeps the arena alive until caller frees it.
 LibResult :: struct {
@@ -37,9 +45,11 @@ kessel_parse_binary :: proc "c" (
 	lang: i32,         // 0=JS, 1=JSX, 2=TS, 3=TSX
 ) -> (buf_ptr: [^]u8, buf_len: i32) {
 	context = runtime.default_context()
+	dbg(fmt.tprintf("enter source_len=%d lang=%d", source_len, lang))
 
 	// Free previous result if any
 	if lib_last_result != nil {
+		dbg("freeing previous result")
 		kessel_free_result_inner()
 	}
 
@@ -61,22 +71,30 @@ kessel_parse_binary :: proc "c" (
 		ast_only = true,
 	}
 
+	dbg("opening parse job")
 	// Parse
 	job: ParseJob
 	if !parse_job_open_inline(&job, source, config, "lib") {
+		dbg("parse_job_open_inline failed")
 		return nil, 0
 	}
 	defer parse_job_close(&job)
+	dbg("running parse job")
 	parse_job_run(&job)
+	dbg(fmt.tprintf("parse done, errors=%d", len(job.parser.errors)))
 
 	// Emit binary. Errors are written between the node stream and the
 	// string table so the JS decoder can surface real parse diagnostics
 	// instead of always seeing an empty errors[] array.
 	be: BinaryEmitter
 	binary_emitter_init(&be, source, context.allocator)
+	dbg("emitter inited")
 	bin_emit_program(&be, job.program)
+	dbg(fmt.tprintf("emitted program, pos=%d", be.pos))
 	bin_emit_errors(&be, job.parser.errors[:])
+	dbg(fmt.tprintf("emitted errors, pos=%d errors_off=%d", be.pos, be.errors_off))
 	bin_emit_finalize(&be)
+	dbg(fmt.tprintf("finalized, pos=%d buf_len=%d", be.pos, len(be.buf)))
 
 	// Store result
 	result := new(LibResult, context.allocator)
@@ -84,10 +102,12 @@ kessel_parse_binary :: proc "c" (
 	result.buf_ptr = raw_data(be.buf[:])
 	result.buf_len = be.pos
 	lib_last_result = result
+	dbg("result stored")
 
 	// Don't destroy be — the buf is now owned by result
 	delete(be.strings)
 	delete(be.string_map)
+	dbg("returning")
 
 	return result.buf_ptr, i32(result.buf_len)
 }
