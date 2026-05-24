@@ -7,27 +7,6 @@ Kessel ships in two consumption modes — a standalone CLI and an npm package. P
 - **CLI** (`bin/kessel`) for shell pipelines, batch parsing, editor integrations.
 - **npm package** (`@dvrdlibs/kessel`) for in-process Node.js use via a synchronous FFI binding — no subprocess, no JSON serialization.
 
-## Performance
-
-Measured on Apple M1 Max, parsing real-world files:
-
-| File | Size | Kessel |
-|---|---|---|
-| typescript.js | 9.0 MB | 32.4 ms |
-| d3.js | 587 KB | 3.5 ms |
-| react-dom.dev.js | 1.1 MB | 2.7 ms |
-| lodash.js | 544 KB | 1.0 ms |
-| jquery.js | 285 KB | 1.2 ms |
-
-Architecture notes:
-
-- **SIMD lexer** — cross-platform 128-bit SIMD (SSE2 on x86-64, NEON on ARM64, scalar fallback elsewhere) via Odin's portable `core:simd`, for string scanning, identifier scanning, whitespace, and comment skipping.
-- **Arena-only memory** — single bump allocator, no malloc during parse, no GC.
-- **16-byte FastToken** — passed by value between lexer and parser, fits in a register pair.
-- **Perfect-hash keyword lookup** — 268-entry table, O(1) with 3-byte verification.
-- **Lazy two-token lookahead** — `nxt` is only lexed on demand, eliminating a 16-byte copy on roughly 90% of advances.
-- **Apple Silicon QoS pinning** — P-core bias via `pthread_set_qos_class_self_np`.
-
 ## Conformance
 
 Tracked via a port of OXC's coverage harness (`tests/coverage/`) against the standard JS/TS conformance corpora.
@@ -157,6 +136,15 @@ Three-pass pipeline:
 2. **Parser** (`src/parser.odin`) — Hand-written Pratt recursive descent. Arena-only allocation. Builds the AST and enforces the subset of ECMA-262 / TypeScript early errors that belong at parser level (overload chains, ambient restrictions, accessor shapes, etc.). Does not implement TypeScript type-system checks — those are downstream.
 
 3. **Semantic Checker** (`src/checker.odin`) — Walks the finished AST. Enforces ECMA-262 early errors (break/continue context, label scoping, duplicate bindings, strict-mode restrictions, etc.). Opt-in via `--show-semantic-errors`.
+
+### Implementation notes
+
+- **SIMD lexer** — cross-platform 128-bit SIMD (SSE2 on x86-64, NEON on ARM64, scalar fallback elsewhere) via Odin's portable `core:simd`, for string scanning, identifier scanning, whitespace, and comment skipping.
+- **Arena-only memory** — single bump allocator, no malloc during parse, no GC.
+- **16-byte FastToken** — passed by value between lexer and parser, fits in a register pair.
+- **Perfect-hash keyword lookup** — 268-entry table, O(1) with 3-byte verification.
+- **Lazy two-token lookahead** — `nxt` is only lexed on demand, eliminating a 16-byte copy on roughly 90% of advances.
+- **Apple Silicon QoS pinning** — P-core bias via `pthread_set_qos_class_self_np`.
 
 ### Source Layout
 

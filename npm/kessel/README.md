@@ -54,15 +54,6 @@ function parseSync(
 ): { program: ESTree.Program, errors: Array<{ message: string }> }
 ```
 
-## Performance
-
-Measured with 50 iterations, min time, Node.js v25, Apple M1 Max:
-
-| File | Size | Parse time |
-|---|---|---|
-| lodash.js  | 531 KB | 3.6 ms |
-| jquery.js  | 279 KB | 3.9 ms |
-
 ## How it works
 
 1. Source → native shared library (`libkessel`) via [koffi](https://koffi.dev) FFI
