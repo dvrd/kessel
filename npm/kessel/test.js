@@ -118,6 +118,29 @@ for (const [name, src] of badCases) {
   }
 }
 
+// BISECT: parse small variants to find which trigger the x86_64 crash.
+const variants = [
+  ['v1 short multi-line all good',         'a;\nb;'],
+  ['v2 multi-line valid',                  'function f() {\n  return 1;\n}'],
+  ['v3 single-line unterminated',          'function f() { return "abc'],
+  ['v4 multi-line, term string on line 2', 'function f() {\n  return "abc";\n}'],
+  ['v5 multi-line, unterm string EOL',     'function f() { return "abc\n}'],
+  ['v6 ORIGINAL multi-line unterm string', 'function bad() {\n  return "unterminated\n}'],
+];
+let vi = 0;
+for (const [name, src] of variants) {
+  log('variant #' + vi + ' ' + name + ' (len=' + src.length + ')');
+  vi++;
+  try {
+    const { errors } = parseSync('demo.js', src);
+    log('  parsed, errors=' + errors.length);
+    passed++;
+  } catch (e) {
+    log('  threw: ' + e.message);
+    failed++;
+  }
+}
+
 // formatError helper renders a multi-line codeframe.
 log('formatError test pre-parse');
 try {
