@@ -2712,7 +2712,15 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if !l.skip_regex_validation {
 		diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
 		for d in diags {
-			append(&l.lexer_errors, LexerError{offset = d.offset, message = d.message})
+			// Propagate the validator's code if it set one, otherwise
+			// fall back to K1012_InvalidRegex — every regex-validator
+			// diagnostic is by construction a regex problem.
+			code := d.code if d.code != .None else .K1012_InvalidRegex
+			append(&l.lexer_errors, LexerError{
+				offset  = d.offset,
+				message = d.message,
+				code    = code,
+			})
 		}
 	}
 

@@ -25,9 +25,17 @@ import "core:mem"
 
 // One validator-emitted diagnostic. Caller maps these onto whatever
 // error type its diagnostic channel uses (LexerError today).
+//
+// `code` was added in Phase 5d so the regex validator's diagnostics
+// flow through with a stable K1012_InvalidRegex code, just like
+// the rest of the K1xxx lexer codes. The default value (.None) keeps
+// older call sites that build RegexDiagnostic literals working
+// unchanged; sites migrated to populate `code` benefit from the
+// JSON / pretty / binary surface area.
 RegexDiagnostic :: struct {
 	offset:  u32,
 	message: string,
+	code:    ErrorCode,
 }
 
 // Per-call validator state. Source is borrowed; errors and allocator

@@ -1752,10 +1752,19 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// the lexer has seen every token.
 	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
 		for lex_err in p.lexer.lexer_errors {
+			// Propagate the lexer's code + severity into the parser's
+			// error list so JSON / pretty / binary emitters all see
+			// the same K-code regardless of which pass produced the
+			// diagnostic. `error_info` provides the severity since
+			// LexerError doesn't carry one (lexer-side warnings are
+			// not yet a thing).
+			info := error_info(lex_err.code)
 			err := ParseError{
-				start   = lex_err.offset,
-				end     = lex_err.offset,
-				message = lex_err.message,
+				start    = lex_err.offset,
+				end      = lex_err.offset,
+				message  = lex_err.message,
+				code     = lex_err.code,
+				severity = info.severity,
 			}
 			bump_append(&p.errors, err)
 		}
