@@ -111,7 +111,7 @@ tests/coverage/misc/fail/negative/027_rest_trailing_comma.js:4:16: Rest element 
 tests/coverage/misc/fail/negative/028_delete_private_field.js:8:3: Private fields cannot be deleted
 tests/coverage/misc/fail/negative/028_for_await_script_top_level.js:2:11: Top-level 'for await' is only valid in module code
 tests/coverage/misc/fail/negative/029_throw_line_terminator.js:6:2: Illegal newline after 'throw'
-tests/coverage/misc/fail/negative/030_duplicate_constructor.js:9:1: Multiple constructor implementations are not allowed.
+tests/coverage/misc/fail/negative/030_duplicate_constructor.js:9:1: Multiple constructor implementations are not allowed
 tests/coverage/misc/fail/negative/031_super_call_in_non_derived_constructor.js:7:8: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/negative/032_super_call_in_non_constructor_method.js:10:8: 'super' call is only allowed in the constructor of a derived class
 tests/coverage/misc/fail/negative/033_escaped_keyword_as_keyword.js:11:1: Keyword 'if' must not contain escaped characters
@@ -247,7 +247,7 @@ tests/coverage/misc/fail/oxc-18231.mjs:2:10: 'f' has already been declared
 tests/coverage/misc/fail/oxc-1942-1.ts:2:8: Expected `(` but found `:`
 tests/coverage/misc/fail/oxc-1942-2.ts:2:8: Expected `(` but found `:`
 tests/coverage/misc/fail/oxc-2144.js:2:8: A class declaration without the 'default' modifier must have a name.
-tests/coverage/misc/fail/oxc-22157.js:2:6: Unexpected token: array literal cannot be a computed class member name
+tests/coverage/misc/fail/oxc-22157.js:2:6: Array literal cannot be a computed class member name
 tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variable binding
 tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression
 tests/coverage/misc/fail/oxc-2394.ts:20:22: Expected 'with' in import type options

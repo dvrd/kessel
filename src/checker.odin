@@ -1595,15 +1595,13 @@ ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_d
 			case ^ClassDeclaration:
 				if v2 == nil || v2.declare { continue }
 				if id, ok := v2.id.(BindingIdentifier); ok && id.name == name {
-					ck_report(c, ns_loc,
-						"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+					ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
 					break
 				}
 			case ^FunctionDeclaration:
 				if v2 == nil || v2.declare { continue }
 				if id, ok := v2.id.(BindingIdentifier); ok && id.name == name {
-					ck_report(c, ns_loc,
-						"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+					ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
 					break
 				}
 			case ^ExportNamedDeclaration:
@@ -1613,15 +1611,13 @@ ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_d
 					case ^ClassDeclaration:
 						if inner != nil && !inner.declare {
 							if id, ok := inner.id.(BindingIdentifier); ok && id.name == name {
-								ck_report(c, ns_loc,
-									"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+								ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
 							}
 						}
 					case ^FunctionDeclaration:
 						if inner != nil && !inner.declare {
 							if id, ok := inner.id.(BindingIdentifier); ok && id.name == name {
-								ck_report(c, ns_loc,
-									"A namespace declaration cannot be located prior to a class or function with which it is merged.")
+								ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
 							}
 						}
 					}
@@ -5717,12 +5713,12 @@ ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpres
 
 	if is_strict_reserved_simple_name(name) {
 		msg := fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", name)
-		ck_report(c, loc, msg)
+		ck_report_coded(c, loc, .K3030_ClassDeclarationStructure, msg)
 		return
 	}
 	if is_eval_or_arguments(name) {
 		msg := fmt.tprintf("Class name '%s' is not allowed", name)
-		ck_report(c, loc, msg)
+		ck_report_coded(c, loc, .K3030_ClassDeclarationStructure, msg)
 		return
 	}
 	if name == "await" && (ctx.in_async || ctx.source_type == .Module || ctx.in_class_static_block) {

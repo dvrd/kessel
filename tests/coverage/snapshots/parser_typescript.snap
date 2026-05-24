@@ -641,7 +641,7 @@ typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionD
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncOrYieldAsBindingIdentifier1.ts:14:9: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/awaitAndYieldInProperty.ts:3:21: 'await' is only allowed within async functions and at the top levels of modules
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractAccessor.ts:3:22: Method 'aa' cannot have an implementation because it is marked abstract.
-typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts:3:2: 'abstract' modifier cannot appear on a constructor declaration.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts:3:2: 'abstract' modifier cannot appear on a constructor declaration
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractCrashedOnce.ts:8:5: Expected identifier after '.'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractDeclarations.d.ts:2:28: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractInstantiations2.ts:46:5: Function implementation is missing or not immediately following the declaration.
@@ -791,10 +791,10 @@ typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/invalidBinar
 typescript/tests/cases/conformance/es6/binaryAndOctalIntegerLiteral/octalIntegerLiteralError.ts:2:19: Expected semicolon
 typescript/tests/cases/conformance/es6/classDeclaration/parseClassDeclarationInStrictModeByDefaultInES6.ts:4:16: 'arguments' cannot be used as a binding name in strict mode
 typescript/tests/cases/conformance/es6/classDeclaration/superCallFromClassThatHasNoBaseTypeButWithSameSymbolInterface.ts:5:14: 'super' call is only allowed in the constructor of a derived class
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts:5:8: Unexpected token: array literal cannot be a computed class member name
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts:5:8: Unexpected token: array literal cannot be a computed class member name
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES5.ts:5:12: Unexpected token: array literal cannot be a computed class member name
-typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES6.ts:5:12: Unexpected token: array literal cannot be a computed class member name
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES5.ts:5:8: Array literal cannot be a computed class member name
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames14_ES6.ts:5:8: Array literal cannot be a computed class member name
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES5.ts:5:12: Array literal cannot be a computed class member name
+typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames17_ES6.ts:5:12: Array literal cannot be a computed class member name
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES5.ts:7:6: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames24_ES6.ts:9:6: 'super' property access is only valid inside a method
 typescript/tests/cases/conformance/es6/computedProperties/computedPropertyNames26_ES5.ts:8:12: 'super' property access is only valid inside a method
@@ -1145,10 +1145,10 @@ typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserCl
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums.
-typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration3.ts:2:10: Expected '(', got identifier 'constructor'
-typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration4.ts:2:25: 'declare' modifier cannot appear on a constructor declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration4.ts:2:25: 'declare' modifier cannot appear on a constructor declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration6.ts:2:10: Accessibility modifier already seen.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration7.ts:2:10: Accessibility modifier already seen.
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration8.ts:3:21: Class field cannot be named 'constructor'

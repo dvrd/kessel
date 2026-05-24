@@ -417,7 +417,7 @@ babel/packages/babel-parser/test/fixtures/es2015/statements/label-invalid-let/in
 babel/packages/babel-parser/test/fixtures/es2015/template/error-after-newline/input.js:3:2: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/109/input.js:1:6: for-of loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/123/input.js:1:46: 'super' call is only allowed in the constructor of a derived class
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js:1:48: Multiple constructor implementations are not allowed.
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/125/input.js:1:48: Multiple constructor implementations are not allowed
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/126/input.js:1:26: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/127/input.js:1:23: Class constructor cannot be a generator method
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/151/input.js:1:6: Computed property name requires a value
@@ -1467,7 +1467,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0270/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0271/input.js:2:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0272/input.js:1:25: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0273/input.js:1:25: Class constructor cannot be a setter
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js:2:1: Multiple constructor implementations are not allowed.
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js:2:1: Multiple constructor implementations are not allowed
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0275/input.js:1:12: Expected '(', got 'UNKNOWN'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0276/input.js:1:24: Expected '(', got 'UNKNOWN'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0277/input.js:1:12: 'enum' is a reserved word and cannot be used as a binding identifier
@@ -1478,7 +1478,7 @@ babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_
 babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_0004/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/esprima/statement-expression/migrated_0005/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/esprima/statement-variable/complex-pattern-requires-init/input.js:2:1: Missing initializer in destructuring declaration
-babel/packages/babel-parser/test/fixtures/estree/class-private-property/typescript-invalid-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier.
+babel/packages/babel-parser/test/fixtures/estree/class-private-property/typescript-invalid-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier
 babel/packages/babel-parser/test/fixtures/estree/typescript/getter-setter/input.ts:3:8: Setter must have exactly one formal parameter
 babel/packages/babel-parser/test/fixtures/estree/typescript/invalid-class-method-empty-body/input.js:4:19: 'declare' modifier cannot be used here.
 babel/packages/babel-parser/test/fixtures/flow/expect-plugin/export-interface/input.js:1:8: 'interface' is a reserved identifier in strict mode
@@ -1545,7 +1545,7 @@ babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-ord
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override-errors/input.ts:2:23: 'override' modifier cannot appear on a constructor declaration
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-async-error/input.js:3:10: Expected '(', got '?'
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-generator-method-with-invalid-modifiers/input.ts:2:18: Method 'd' cannot have an implementation because it is marked abstract.
-babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier.
+babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-private/input.ts:2:11: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-protected/input.ts:2:13: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-public/input.ts:2:10: An accessibility modifier cannot be used with a private identifier.

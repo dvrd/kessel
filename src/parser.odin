@@ -2416,7 +2416,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						}
 					}
 				case ^ClassDeclaration:
-					report_error(p, "Class declaration cannot appear in a single-statement context")
+					report_error_coded(p, .K3030_ClassDeclarationStructure, "Class declaration cannot appear in a single-statement context")
 				case ^FunctionDeclaration:
 					if v != nil {
 						if v.async || v.generator {
@@ -2497,7 +2497,7 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 			report_error(p, msg)
 		}
 	case ^ClassDeclaration:
-		report_error(p, "Class declaration cannot appear in a single-statement context")
+		report_error_coded(p, .K3030_ClassDeclarationStructure, "Class declaration cannot appear in a single-statement context")
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if v.async || v.generator {
@@ -3323,7 +3323,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// outer in_function is set to true so new.target works, but a
 	// literal `return` is forbidden by the grammar parameter.
 	if p.ctx.in_static_block {
-		report_error(p, "'return' is not allowed in a class static block")
+		report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'return' is not allowed in a class static block")
 	}
 
 	argument: Maybe(^Expression)
@@ -4807,7 +4807,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// / sloppy setting.
 		// §12.1.1 - `enum` is always reserved; never a valid class name.
 		if current.value == "enum" {
-			report_error(p, "'enum' is a reserved word and cannot be a class name")
+			report_error_coded(p, .K3030_ClassDeclarationStructure, "'enum' is a reserved word and cannot be a class name")
 		}
 		// Escaped-ReservedWord in the BindingIdentifier position. Class
 		// names are strict-mode-only, so `class l\u0065t` reaches the
@@ -4828,7 +4828,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// reservation list applies. Skip in TS mode — tsc and OXC
 		// allow strict-reserved words as class names in TypeScript.
 		if !allow_ts_mode(p) && is_strict_reserved_binding_name(current.value) {
-			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
+			report_error_coded(p, .K3030_ClassDeclarationStructure, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
 		}
 		// TS2414 — primitive type names cannot be class names.
 		check_ts_primitive_decl_name(p, "Class", current.value, loc_from_token(&current))
@@ -5830,7 +5830,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		}
 		// TS1242 — constructors cannot be abstract.
 		if elem.kind == .Constructor && elem.abstract && allow_ts_mode(p) {
-			report_error(p, "'abstract' modifier cannot appear on a constructor declaration.")
+			report_error_coded(p, .K4020_ConstructorTSModifier, "'abstract' modifier cannot appear on a constructor declaration")
 		}
 
 		// TS: abstract on a private identifier (#name) is invalid for
@@ -5844,7 +5844,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 					}
 				}
 				if !is_method {
-					report_error(p, "'abstract' modifier cannot be used with a private identifier.")
+					report_error_coded(p, .K4021_PrivateNameWithModifier, "'abstract' modifier cannot be used with a private identifier")
 				}
 			}
 		}
@@ -5854,7 +5854,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		// getter, setter, accessor. Non-static `prototype` is legal.
 		if elem.static && !elem.computed && !p.ctx.in_ambient {
 			if class_element_prop_name(elem.key) == "prototype" {
-				report_error(p, "Classes may not have a static member named 'prototype'")
+				report_error_coded(p, .K3030_ClassDeclarationStructure, "Classes may not have a static member named 'prototype'")
 			}
 		}
 
@@ -5872,7 +5872,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 					if fn.body.loc.end > fn.body.loc.start {
 						constructor_count += 1
 						if constructor_count > 1 {
-							report_error(p, "Multiple constructor implementations are not allowed.")
+							report_error_coded(p, .K3034_ConstructorShape, "Multiple constructor implementations are not allowed")
 						}
 					}
 				}
@@ -5883,7 +5883,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		if !is_private || pid == nil { continue }
 		name := pid.name
 		if name == "constructor" {
-			report_error(p, "Class private member name cannot be '#constructor'")
+			report_error_coded(p, .K3030_ClassDeclarationStructure, "Class private member name cannot be '#constructor'")
 			continue
 		}
 		// TS overload signatures (body-less methods/constructors): skip
@@ -6292,10 +6292,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 					"Class constructor cannot be a generator method")
 			}
 			if kind == .Get {
-				report_error(p, "Class constructor cannot be a getter")
+				report_error_coded(p, .K3034_ConstructorShape, "Class constructor cannot be a getter")
 			}
 			if kind == .Set {
-				report_error(p, "Class constructor cannot be a setter")
+				report_error_coded(p, .K3034_ConstructorShape, "Class constructor cannot be a setter")
 			}
 		}
 	} else if is_token(p, .LBracket) {
@@ -6359,7 +6359,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// rejected by OXC. (Object literal `[{}]` is accepted.)
 		if key != nil {
 			if _, is_arr := key^.(^ArrayExpression); is_arr {
-				report_error(p, "Unexpected token: array literal cannot be a computed class member name")
+				report_error_coded(p, .K3030_ClassDeclarationStructure, "Array literal cannot be a computed class member name")
 			}
 		}
 		if !expect_token(p, .RBracket) {
@@ -6520,7 +6520,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			if !skip {
 				name := class_element_prop_name(key)
 				if name == "constructor" {
-					report_error(p, "Class field cannot be named 'constructor'")
+					report_error_coded(p, .K3034_ConstructorShape, "Class field cannot be named 'constructor'")
 				}
 			}
 		}
@@ -6592,7 +6592,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		report_error(p, "'readonly' modifier can only appear on a property declaration")
 	}
 	if kind == .Constructor && is_override {
-		report_error(p, "'override' modifier cannot appear on a constructor declaration")
+		report_error_coded(p, .K4020_ConstructorTSModifier, "'override' modifier cannot appear on a constructor declaration")
 	}
 
 	// Capture paren position for FunctionExpression start
@@ -6638,7 +6638,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			has_modifier := param.accessibility != .None || param.readonly || param.override_
 			if has_modifier {
 				if kind != .Constructor {
-					report_error(p, "Parameter property modifiers are only allowed in constructors")
+					report_error_coded(p, .K4022_ParameterPropertyOnlyInCtor, "Parameter property modifiers are only allowed in constructors")
 				} else {
 					if _, is_ident := param.pattern.(^Identifier); !is_ident {
 						report_error(p, "A parameter property may not be declared using a binding pattern")
@@ -6678,13 +6678,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 	if kind == .Constructor {
 		if method_type_parameters != nil {
-			report_error(p, "Type parameters cannot appear on a constructor declaration")
+			report_error_coded(p, .K4020_ConstructorTSModifier, "Type parameters cannot appear on a constructor declaration")
 		}
 		if _, has_return_type := method_return_type.?; has_return_type {
-			report_error(p, "Type annotation cannot appear on a constructor declaration.")
+			report_error_coded(p, .K4020_ConstructorTSModifier, "Type annotation cannot appear on a constructor declaration")
 		}
 		if is_declare {
-			report_error(p, "'declare' modifier cannot appear on a constructor declaration.")
+			report_error_coded(p, .K4020_ConstructorTSModifier, "'declare' modifier cannot appear on a constructor declaration")
 		}
 	}
 	// TS: getters cannot have type parameters. Setters cannot have type
@@ -12656,9 +12656,9 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// context, so the early-out hits ~100% of the hot path.
 		if (p.ctx.in_static_block || p.ctx.in_field_init) && cur_value_eq(p, "arguments") {
 			if p.ctx.in_static_block {
-				report_error(p, "'arguments' is not allowed in a class static block")
+				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
 			} else {
-				report_error(p, "'arguments' cannot appear in a class field initializer")
+				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
 			}
 		}
 		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
@@ -12817,19 +12817,19 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				// whitespace between `#` and the identifier. If `pid.name == ""`
 				// the lexer saw only `#` with no following IdentifierName.
 				if pid.name == "" {
-					report_error(p, "Private identifier must not have whitespace after '#'")
+					report_error_coded(p, .K3032_PrivateNameInvalid, "Private identifier must not have whitespace after '#'")
 				}
 				// §15.7.3 — `obj.#x` outside any class body cannot resolve;
 				// inside a class, queue for end-of-body validation.
 				if p.class_depth == 0 {
-					report_error(p, "Private name reference is not allowed outside of a class")
+					report_error_coded(p, .K3032_PrivateNameInvalid, "Private name reference is not allowed outside of a class")
 				} else if pid.name != "" {
 					append(&p.pending_priv_refs, PendingPrivRef{name = pid.name, loc = pid.loc, depth = p.class_depth})
 				}
 				// §15.7.3 — `super.#name` is a SyntaxError.
 				if expr != nil {
 					if _, is_super := expr^.(^Super); is_super {
-						report_error(p, "Private fields cannot be accessed through 'super'")
+						report_error_coded(p, .K3032_PrivateNameInvalid, "Private fields cannot be accessed through 'super'")
 					}
 				}
 			} else {
@@ -12886,7 +12886,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					// §15.7.3 — `obj?.#x` outside any class cannot resolve;
 					// inside a class, queue for end-of-body validation.
 					if p.class_depth == 0 {
-						report_error(p, "Private name reference is not allowed outside of a class")
+						report_error_coded(p, .K3032_PrivateNameInvalid, "Private name reference is not allowed outside of a class")
 					} else if pid.name != "" {
 						append(&p.pending_priv_refs, PendingPrivRef{name = pid.name, loc = pid.loc, depth = p.class_depth})
 					}
@@ -13019,7 +13019,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// constructor of a derived class.
 			if _, is_super := expr^.(^Super); is_super {
 				if !p.ctx.in_derived_constructor {
-					report_error(p, "'super' call is only allowed in the constructor of a derived class")
+					report_error_coded(p, .K3033_SuperInvalidContext, "'super' call is only allowed in the constructor of a derived class")
 				}
 			}
 			// Save and clear pending_paren_start before parsing arguments.
@@ -13472,7 +13472,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 		private_ref_loc := loc_from_token(&current)
 		if p.class_depth == 0 {
-			report_error(p, "Private name reference is not allowed outside of a class")
+			report_error_coded(p, .K3032_PrivateNameInvalid, "Private name reference is not allowed outside of a class")
 		} else if name != "" {
 			append(&p.pending_priv_refs, PendingPrivRef{name = name, loc = private_ref_loc, depth = p.class_depth})
 		}
@@ -13495,7 +13495,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `super.x` / `super[x]` outside a method body is a SyntaxError.
   ensure_nxt(p)
 		if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method {
-			report_error(p, "'super' property access is only valid inside a method")
+			report_error_coded(p, .K3033_SuperInvalidContext, "'super' property access is only valid inside a method")
 		}
 		eat(p)
 		super, super_e := new_expr(p, Super)
@@ -13903,9 +13903,9 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// every identifier in the hot path.
 		if (p.ctx.in_static_block || p.ctx.in_field_init) && current.value == "arguments" {
 			if p.ctx.in_static_block {
-				report_error(p, "'arguments' is not allowed in a class static block")
+				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
 			} else {
-				report_error(p, "'arguments' cannot appear in a class field initializer")
+				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
 			}
 		}
 		return id_expr
@@ -15025,7 +15025,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		// §15.7.1 strict-reserved / eval / arguments — class names
 		// are always parsed in strict mode. Skip in TS mode (tsc/OXC allow).
 		if !allow_ts_mode(p) && is_strict_reserved_binding_name(current.value) {
-			report_error(p, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
+			report_error_coded(p, .K3030_ClassDeclarationStructure, fmt.tprintf("'%s' is a reserved identifier and cannot be a class name", current.value))
 		}
 		// §12.6.1.1 contextual `await` reservation.
 		if current.value == "await" {
@@ -15215,7 +15215,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 	}
 	if _, is_super := callee^.(^Super); is_super {
-		report_error(p, "'new super()' is not allowed")
+		report_error_coded(p, .K3033_SuperInvalidContext, "'new super()' is not allowed")
 	}
 	// `new <T>Foo()` — legacy TS type assertion after `new` is ambiguous
 	// with type parameters. OXC rejects this form. Only fire when the
@@ -21729,7 +21729,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// Private names are not valid enum member names.
 		if is_token(p, .PrivateIdentifier) {
-			report_error(p, "An enum member cannot have a private name")
+			report_error_coded(p, .K3032_PrivateNameInvalid, "An enum member cannot have a private name")
 		}
 		ms := cur_loc(p); member_id: ^Expression; mc := snap_current(p)
 		if is_token(p, .String) {

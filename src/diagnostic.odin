@@ -64,8 +64,20 @@ ErrorCode :: enum u16 {
 	K3023_ImportMetaOrDynamicImportInvalid        = 3023,
 	K3024_ImportAttributeInvalid                  = 3024,
 
+	// Class (§15.7 — ClassDefinitions, §13.2.7 — PrivateName).
+	K3030_ClassDeclarationStructure               = 3030,
+	K3031_StaticBlockOrFieldInitRestriction       = 3031,
+	K3032_PrivateNameInvalid                      = 3032,
+	K3033_SuperInvalidContext                     = 3033,
+	K3034_ConstructorShape                        = 3034,
+	K3035_GetterSetterParam                       = 3035,
+
 	// K4xxx — TypeScript parser-level rules.
 	K4010_TypeOnlyImportExportInvalid             = 4010,
+	K4020_ConstructorTSModifier                   = 4020,
+	K4021_PrivateNameWithModifier                 = 4021,
+	K4022_ParameterPropertyOnlyInCtor             = 4022,
+	K4023_NamespaceMergeOrder                     = 4023,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -234,6 +246,111 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 			default_message = "invalid form in a type-only import or export",
 			hint            = "",
 			ts_code         = "TS1363",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K3030 — class declaration shape: declaration in single-statement
+	//   context; field named 'constructor'; static member 'prototype';
+	//   private member name '#constructor'; reserved word as class name;
+	//   array literal as computed member name.
+	case .K3030_ClassDeclarationStructure:
+		return ErrorInfo{
+			default_message = "class declaration form is invalid here",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3031 — restrictions inside a class static block or a class field
+	//   initializer: `return`, `arguments` are not bound there.
+	case .K3031_StaticBlockOrFieldInitRestriction:
+		return ErrorInfo{
+			default_message = "this construct is not allowed in a class static block or field initializer",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3032 — private name (`#x`) used in an invalid position: outside
+	//   any class; with whitespace after `#`; via `super.#x`.
+	case .K3032_PrivateNameInvalid:
+		return ErrorInfo{
+			default_message = "private name is not valid in this position",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3033 — `super` used in a context the spec disallows: `super()`
+	//   outside a derived constructor; `super.x` outside a method;
+	//   `new super(...)`.
+	case .K3033_SuperInvalidContext:
+		return ErrorInfo{
+			default_message = "'super' is not valid in this context",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3034 — class constructor shape: cannot be a getter or setter;
+	//   class field cannot be named 'constructor'; cannot have multiple
+	//   constructor implementations.
+	case .K3034_ConstructorShape:
+		return ErrorInfo{
+			default_message = "invalid class constructor form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3035 — getter / setter parameter list violations: a getter must
+	//   take zero parameters; a setter parameter cannot be a rest element.
+	case .K3035_GetterSetterParam:
+		return ErrorInfo{
+			default_message = "invalid getter or setter parameter list",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4020 — TypeScript modifier (`abstract`, `override`, `declare`,
+	//   `type-param`, type-annotation) used on a constructor declaration.
+	case .K4020_ConstructorTSModifier:
+		return ErrorInfo{
+			default_message = "this TypeScript modifier cannot appear on a constructor declaration",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4021 — TypeScript modifier combined with a private name where the
+	//   spec disallows it: `abstract` + `#x`, accessibility + `#x`.
+	case .K4021_PrivateNameWithModifier:
+		return ErrorInfo{
+			default_message = "this modifier cannot be used with a private identifier",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4022 — TypeScript parameter property used outside a constructor.
+	case .K4022_ParameterPropertyOnlyInCtor:
+		return ErrorInfo{
+			default_message = "parameter property modifiers are only allowed in constructors",
+			hint            = "",
+			ts_code         = "TS2369",
+			severity        = .Error,
+		}
+
+	// K4023 — TypeScript declaration merging order: a namespace
+	//   declaration cannot be located prior to the class or function
+	//   with which it is merged.
+	case .K4023_NamespaceMergeOrder:
+		return ErrorInfo{
+			default_message = "namespace declaration must follow the class or function it merges with",
+			hint            = "",
+			ts_code         = "TS2434",
 			severity        = .Error,
 		}
 	}
