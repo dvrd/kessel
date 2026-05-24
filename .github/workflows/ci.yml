@@ -141,7 +141,24 @@ jobs:
         run: |
           cd npm/kessel
           npm install
-          node test.js
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            sudo apt-get update -y && sudo apt-get install -y gdb
+            ulimit -c unlimited
+            # Run under gdb so we get a stack trace on SIGSEGV.
+            gdb -batch \
+              -ex 'set confirm off' \
+              -ex 'set pagination off' \
+              -ex 'handle SIGUSR1 nostop noprint' \
+              -ex 'handle SIGPIPE nostop noprint' \
+              -ex 'set print frame-info source-and-location' \
+              -ex 'run' \
+              -ex 'bt 50' \
+              -ex 'info registers' \
+              -ex 'x/16i $rip' \
+              --args node test.js || true
+          else
+            node test.js
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
