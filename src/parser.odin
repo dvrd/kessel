@@ -11669,7 +11669,8 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 	// Escaped form `\u0066rom` is lexed as .Identifier with has_escape=true.
 	if is_token(p, .Identifier) && cur_value_eq(p, "from") {
 		if cur_has_escape(p) {
-			report_error(p, "'from' keyword must not contain Unicode escape sequences")
+			report_error_coded(p, .K3015_KeywordContainsEscape,
+				"'from' keyword must not contain Unicode escape sequences")
 		}
 		// Treat the identifier 'from' as the From keyword for recovery.
 		p.cur_type = .From
@@ -15493,7 +15494,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		// Untagged templates reject §12.9.6 invalid EscapeSequences in
 		// ALL modes - truncated \xH, \uH, \u{bad}, legacy-octal, etc.
 		if !tagged && untagged_template_raw_has_invalid_escape(elem.raw) {
-			report_error(p, "Invalid escape sequence in template literal")
+			report_error_coded(p, .K1011_InvalidEscapeSequence, "Invalid escape sequence in template literal")
 		}
 		return tmpl_e
 	}
@@ -15565,7 +15566,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		if !tagged {
 			for q in tmpl.quasis {
 				if untagged_template_raw_has_invalid_escape(q.raw) {
-					report_error(p, "Invalid escape sequence in template literal")
+					report_error_coded(p, .K1011_InvalidEscapeSequence, "Invalid escape sequence in template literal")
 					break
 				}
 			}

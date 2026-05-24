@@ -4913,8 +4913,7 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 				seen[name] = .Data
 			case .Data, .Getter, .Setter, .GetterSetter:
 				err_off := u32(loc_from_expr(prop.key).start)
-				ck_report(c, err_off,
-					"An object literal cannot have multiple properties with the same name.")
+				ck_report_coded(c, err_off, .K3036_ObjectLiteralDuplicate, "An object literal cannot have multiple properties with the same name")
 			}
 		case .Get:
 			switch state {
@@ -4922,14 +4921,12 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 				seen[name] = .Getter
 			case .Getter, .GetterSetter:
 				err_off := u32(loc_from_expr(prop.key).start)
-				ck_report(c, err_off,
-					"An object literal cannot have multiple get/set accessors with the same name.")
+				ck_report_coded(c, err_off, .K3036_ObjectLiteralDuplicate, "An object literal cannot have multiple get/set accessors with the same name")
 			case .Setter:
 				seen[name] = .GetterSetter
 			case .Data:
 				err_off := u32(loc_from_expr(prop.key).start)
-				ck_report(c, err_off,
-					"An object literal cannot have multiple properties with the same name.")
+				ck_report_coded(c, err_off, .K3036_ObjectLiteralDuplicate, "An object literal cannot have multiple properties with the same name")
 			}
 		case .Set:
 			switch state {
@@ -4937,14 +4934,12 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 				seen[name] = .Setter
 			case .Setter, .GetterSetter:
 				err_off := u32(loc_from_expr(prop.key).start)
-				ck_report(c, err_off,
-					"An object literal cannot have multiple get/set accessors with the same name.")
+				ck_report_coded(c, err_off, .K3036_ObjectLiteralDuplicate, "An object literal cannot have multiple get/set accessors with the same name")
 			case .Getter:
 				seen[name] = .GetterSetter
 			case .Data:
 				err_off := u32(loc_from_expr(prop.key).start)
-				ck_report(c, err_off,
-					"An object literal cannot have multiple properties with the same name.")
+				ck_report_coded(c, err_off, .K3036_ObjectLiteralDuplicate, "An object literal cannot have multiple properties with the same name")
 			}
 		}
 	}

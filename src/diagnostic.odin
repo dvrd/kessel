@@ -40,6 +40,14 @@ Severity :: enum u8 {
 ErrorCode :: enum u16 {
 	None                                          = 0,
 
+	// K1xxx — lexer.
+	K1010_InvalidNumericLiteral                   = 1010,
+	K1011_InvalidEscapeSequence                   = 1011,
+	K1012_InvalidRegex                            = 1012,
+	K1013_UnterminatedString                      = 1013,
+	K1014_InvalidIdentifier                       = 1014,
+	K1015_UnterminatedComment                     = 1015,
+
 	// K2xxx — parser syntax
 	K2002_ExpectedToken                           = 2002,  // "Expected X, got Y" — generic
 	K2003_ExpectedTypeElement                     = 2003,  // empty tuple / type-arg / type-param slot
@@ -71,6 +79,7 @@ ErrorCode :: enum u16 {
 	K3033_SuperInvalidContext                     = 3033,
 	K3034_ConstructorShape                        = 3034,
 	K3035_GetterSetterParam                       = 3035,
+	K3036_ObjectLiteralDuplicate                  = 3036,
 
 	// K4xxx — TypeScript parser-level rules.
 	K4010_TypeOnlyImportExportInvalid             = 4010,
@@ -309,6 +318,79 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	case .K3035_GetterSetterParam:
 		return ErrorInfo{
 			default_message = "invalid getter or setter parameter list",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3036 — object literal duplicates: multiple data properties with
+	//   the same name in strict mode; multiple get/set accessors with
+	//   the same name (§13.2.5.1).
+	case .K3036_ObjectLiteralDuplicate:
+		return ErrorInfo{
+			default_message = "duplicate property in object literal",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K1010 — numeric literal forms: malformed digit groups, BigInt
+	//   restrictions, legacy octal restrictions, missing exponent,
+	//   numeric separator placement.
+	case .K1010_InvalidNumericLiteral:
+		return ErrorInfo{
+			default_message = "invalid numeric literal",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1011 — backslash escape sequence is malformed: short \x or \u
+	//   escapes, \u{} out of range / missing brace, invalid Unicode
+	//   escape in identifier.
+	case .K1011_InvalidEscapeSequence:
+		return ErrorInfo{
+			default_message = "invalid escape sequence",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1012 — regular expression literal: invalid flag, duplicate flag,
+	//   incompatible flag combination, unterminated pattern / group /
+	//   character class, trailing backslash, escape-before-newline.
+	case .K1012_InvalidRegex:
+		return ErrorInfo{
+			default_message = "invalid regular expression",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1013 — string literal not terminated before EOF or end-of-line.
+	case .K1013_UnterminatedString:
+		return ErrorInfo{
+			default_message = "unterminated string literal",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1014 — identifier contains a character not in ID_Start /
+	//   ID_Continue, or an isolated invalid character at the lex level.
+	case .K1014_InvalidIdentifier:
+		return ErrorInfo{
+			default_message = "invalid character in identifier",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1015 — block comment not terminated before EOF.
+	case .K1015_UnterminatedComment:
+		return ErrorInfo{
+			default_message = "unterminated block comment",
 			hint            = "",
 			ts_code         = "",
 			severity        = .Error,
