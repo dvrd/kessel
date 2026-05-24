@@ -2429,7 +2429,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						// is not strict". In strict mode the carve-out is
 						// removed and \`label: function f() {}\` is a
 						if p.ctx.strict_mode {
-							report_error(p, "Function declarations cannot be labeled items in strict mode")
+							report_error_coded(p, .K3051_StrictModeProhibited, "Function declarations cannot be labeled items in strict mode")
 						}
 					}
 				}
@@ -3805,7 +3805,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 
 	// §14.11.1 — `with` statements are forbidden in strict mode.
 	if p.ctx.strict_mode {
-		report_error_at(p, LexerLoc(start.start), "'with' statements are not allowed in strict mode")
+		report_error_coded_span(p, .K3051_StrictModeProhibited, u32(start.start), u32(start.start), "'with' statements are not allowed in strict mode")
 	}
 
 	if !expect_token(p, .LParen) {
@@ -3908,7 +3908,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// cannot be used as a function name (either declaration or
 			// expression). Class bodies are implicitly strict.
 			if current.value == "yield" && p.ctx.strict_mode {
-				report_error(p, "'yield' is a reserved identifier in strict mode")
+				report_error_coded(p, .K3050_StrictModeReserved, "'yield' is a reserved identifier in strict mode")
 			}
 
 			// §12.6.1.1 contextual reservation - `await` / `yield` as a
@@ -4182,7 +4182,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// combination outright.
 	force_non_simple := !params_are_simple(params[:])
 	if body_strict && force_non_simple {
-		report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start.start), u32(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 	}
 	// §13.1.1 — retroactive strict-mode binding check on params for
 	// functions whose body opted into strict via a `"use strict"`
@@ -4748,7 +4748,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	if body_use_strict {
 		for str_lit in prologue_raws {
 			if str_lit != nil && string_raw_has_forbidden_escape(str_lit.raw) {
-				report_error_at(p, LexerLoc(str_lit.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(str_lit.loc.start), u32(str_lit.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 			}
 		}
 	}
@@ -6801,7 +6801,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// strict_mode restore above because parse_function_body sets it
 		// just before returning.
 		if p.last_body_strict && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(paren_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(paren_loc.start), u32(paren_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
@@ -8562,7 +8562,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					// `{ default }` shorthand below.
 					if is_always_reserved_word_name(v.name) {
 						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
-						report_error(p, msg)
+						report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
 					}
 					// Strict-mode reserved words as shorthand-with-default binding.
 					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
@@ -8606,7 +8606,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					// rationale.
 					if is_always_reserved_word_name(v.name) {
 						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
-						report_error(p, msg)
+						report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
 					}
 					// Strict-mode reserved words as shorthand binding.
 					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
@@ -10532,7 +10532,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		// §16.2.2 — `await` is reserved as a binding name in module code.
 		// Import declarations are module syntax, so `await` always forbidden.
 		if local.name == "await" {
-			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
+			report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(local.loc.start), u32(local.loc.start), "'await' is reserved as a binding name in module code")
 		}
 		// Strict-mode reserved word as namespace import binding.
 		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
@@ -10562,7 +10562,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		local := parse_identifier(p)
 		// §16.2.2 — `await` is reserved as a binding name in module code.
 		if local.name == "await" {
-			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
+			report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(local.loc.start), u32(local.loc.start), "'await' is reserved as a binding name in module code")
 		}
 		// Strict-mode reserved word as default import binding.
 		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
@@ -10937,9 +10937,9 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// auto-detection state.
 	if !is_string_import && !is_token(p, .As) {
 		if imported.name == "await" {
-			report_error_at(p, LexerLoc(imported.loc.start), "'await' is reserved as a binding name in module code")
+			report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(imported.loc.start), u32(imported.loc.start), "'await' is reserved as a binding name in module code")
 		} else if imported.name == "yield" {
-			report_error_at(p, LexerLoc(imported.loc.start), "'yield' is reserved as a binding name in strict mode")
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(imported.loc.start), u32(imported.loc.start), "'yield' is reserved as a binding name in strict mode")
 		}
 	}
 	if match_token(p, .As) {
@@ -10967,9 +10967,9 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		                  (p.cur_type == .Identifier && cur_value_eq(p, "yield"))
 		local = parse_identifier(p)
 		if local_is_await {
-			report_error_at(p, LexerLoc(local.loc.start), "'await' is reserved as a binding name in module code")
+			report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(local.loc.start), u32(local.loc.start), "'await' is reserved as a binding name in module code")
 		} else if local_is_yield {
-			report_error_at(p, LexerLoc(local.loc.start), "'yield' is reserved as a binding name in strict mode")
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(local.loc.start), u32(local.loc.start), "'yield' is reserved as a binding name in strict mode")
 		}
 	} else if is_string_import {
 		// String import names MUST have `as local`.
@@ -12413,7 +12413,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// so `delete (x)` and `delete x` both reach here.
 			if p.ctx.strict_mode {
 				if _, is_id := unary.argument.(^Identifier); is_id {
-					report_error_at(p, LexerLoc(unary.loc.start), "Deleting an unqualified identifier is not allowed in strict mode")
+					report_error_coded_span(p, .K3051_StrictModeProhibited, u32(unary.loc.start), u32(unary.loc.start), "Deleting an unqualified identifier is not allowed in strict mode")
 				}
 			}
 		}
@@ -13536,7 +13536,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`). Promoted from the
 		// semantic checker (ck_check_legacy_octal_number).
 		if p.ctx.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
-			report_error_at(p, LexerLoc(num.loc.start), "Legacy octal literals are not allowed in strict mode")
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(num.loc.start), u32(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
 
@@ -13554,7 +13554,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// for already-strict scope. Body-promoted (retroactive) strict
 		// for prologue strings stays on the semantic checker.
 		if p.ctx.strict_mode && string_raw_has_forbidden_escape(str.raw) {
-			report_error_at(p, LexerLoc(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(str.loc.start), u32(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 		return str_e
 
@@ -14632,7 +14632,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// above), so the only way the non-simple guard fires here is when
 		// that lone setter param is a destructuring / default / rest form.
 		if body_strict && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(fn_start.start), u32(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 		// §13.1.1 — retroactive strict-mode param check for
 		// `set x(eval) { "use strict"; }` and friends.
@@ -14741,7 +14741,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
 		// !IsSimpleParameterList for object-literal methods.
 		if body_strict && !params_are_simple(params[:]) {
-			report_error_at(p, LexerLoc(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(fn_start.start), u32(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 		}
 		// §13.1.1 — retroactive strict-mode param check (see the same
 		// hook on parse_function_declaration above). Object-literal
@@ -14851,7 +14851,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				// has_escape pre-capture.
 				if k != nil && is_always_reserved_word_name(k.name) {
 					msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", k.name)
-					report_error(p, msg)
+					report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
 				}
 				// Contextually reserved: `yield` in generators, `await` in async/static blocks.
 				if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
@@ -14954,7 +14954,7 @@ parse_property_name :: proc(p: ^Parser) -> ^Expression {
 		// destructuring keys, and TS literal-type names go through other
 		// branches that don't surface to runtime evaluation.
 		if p.ctx.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
-			report_error_at(p, LexerLoc(num.loc.start), "Legacy octal literals are not allowed in strict mode")
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(num.loc.start), u32(num.loc.start), "Legacy octal literals are not allowed in strict mode")
 		}
 		return num_e
 
@@ -16282,9 +16282,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			// §15.3.1 - ArrowParameters BindingIdentifier checks.
 			if p.ctx.strict_mode {
 				if is_eval_or_arguments(e.name) {
-					report_error(p, fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name))
+					report_error_coded(p, .K3050_StrictModeReserved, fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name))
 				} else if is_strict_reserved_binding_name(e.name) {
-					report_error(p, fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name))
+					report_error_coded(p, .K3050_StrictModeReserved, fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name))
 				}
 			}
 			if e.name == "enum" {
@@ -16560,7 +16560,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
-				report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+				report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start.start), u32(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
 			// §13.1.1 — retroactive strict-mode binding check on
 			// arrow params when the body promotes to strict and the
@@ -17277,7 +17277,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
-				report_error_at(p, LexerLoc(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+				report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start.start), u32(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
 			if !p.ctx.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])
@@ -20393,7 +20393,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	if is_block_body {
 		if arrow_body_lifts_strict(body) {
 			if !params_are_simple(params[:]) {
-				report_error_at(p, LexerLoc(start_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+				report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start_loc.start), u32(start_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 			}
 			if !p.ctx.strict_mode {
 				report_strict_param_pattern_retro(p, params[:])

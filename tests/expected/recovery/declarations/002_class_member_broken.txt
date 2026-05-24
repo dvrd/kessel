@@ -71,6 +71,8 @@
   ],
   "errors": [
     {
+      "code": "K3053",
+      "severity": "error",
       "message": "Reserved word 'return' is not a valid binding identifier",
       "line": 4,
       "column": 12,

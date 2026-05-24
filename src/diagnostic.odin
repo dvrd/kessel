@@ -88,6 +88,12 @@ ErrorCode :: enum u16 {
 	K3042_RestSpreadMisuse                        = 3042,
 	K3043_DestructuringInvalid                    = 3043,
 
+	// Strict mode (§10.2.1 / §14.6.1).
+	K3050_StrictModeReserved                      = 3050,
+	K3051_StrictModeProhibited                    = 3051,
+	K3052_UseStrictWithComplexParams              = 3052,
+	K3053_ReservedAsBindingIdentifier             = 3053,
+
 	// K4xxx — TypeScript parser-level rules.
 	K4010_TypeOnlyImportExportInvalid             = 4010,
 	K4020_ConstructorTSModifier                   = 4020,
@@ -629,6 +635,49 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	case .K4055_IndexSignatureForm:
 		return ErrorInfo{
 			default_message = "invalid index signature form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K3050 — strict-mode reserved identifier used as a binding name:
+	//   `yield`, `let`, `eval`, `arguments`, `package`, `private`, etc.
+	case .K3050_StrictModeReserved:
+		return ErrorInfo{
+			default_message = "identifier is reserved in strict mode",
+			hint            = "rename the binding; strict mode reserves additional names beyond sloppy ES",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3051 — construct prohibited in strict mode: `with` statement;
+	//   legacy octal literal; `\8`/`\9` escape; `delete` of an
+	//   unqualified identifier; labeled function declaration in strict.
+	case .K3051_StrictModeProhibited:
+		return ErrorInfo{
+			default_message = "this construct is not allowed in strict mode",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3052 — illegal `'use strict'` directive in a function with a
+	//   non-simple parameter list (§15.2.1).
+	case .K3052_UseStrictWithComplexParams:
+		return ErrorInfo{
+			default_message = "illegal 'use strict' directive in function with non-simple parameter list",
+			hint            = "the directive is only allowed when the parameter list contains no defaults, destructuring, or rest",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3053 — a hard reserved word (`if`, `for`, `function`, ...) used
+	//   in binding position. Distinct from K3050 (strict-only) and
+	//   K3010 (await/yield contextual): these are reserved unconditionally.
+	case .K3053_ReservedAsBindingIdentifier:
+		return ErrorInfo{
+			default_message = "reserved word is not a valid binding identifier",
 			hint            = "",
 			ts_code         = "",
 			severity        = .Error,

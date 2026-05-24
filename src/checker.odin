@@ -619,7 +619,8 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if ctx.strict_mode && v.body != nil {
 			if fn, is_fn := v.body^.(^FunctionDeclaration); is_fn && fn != nil {
 				if !fn.async && !fn.generator {
-					ck_report(c, u32(fn.loc.start), "Function declaration cannot be a labeled item in strict mode")
+					ck_report_coded(c, u32(fn.loc.start), .K3051_StrictModeProhibited,
+						"Function declaration cannot be a labeled item in strict mode")
 				}
 			}
 		}
@@ -863,7 +864,8 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		// §14.11.1 — WithStatement is forbidden in strict mode.
 		if ctx.strict_mode {
-			ck_report(c, u32(v.loc.start), "'with' statements are not allowed in strict mode")
+			ck_report_coded(c, u32(v.loc.start), .K3051_StrictModeProhibited,
+				"'with' statements are not allowed in strict mode")
 		}
 		ck_walk_expr(c, ctx, v.object)
 		ck_check_single_stmt_function(c, v.body)
@@ -5060,7 +5062,8 @@ ck_check_legacy_octal_number :: proc(c: ^Checker, ctx: ^CheckerContext, num: ^Nu
 	if num == nil { return }
 	if !ctx.strict_mode { return }
 	if !is_legacy_zero_prefixed_integer(num.raw) { return }
-	ck_report(c, u32(num.loc.start), "Legacy octal literals are not allowed in strict mode")
+	ck_report_coded(c, u32(num.loc.start), .K3051_StrictModeProhibited,
+		"Legacy octal literals are not allowed in strict mode")
 }
 
 // §12.9.4 — a StringLiteral whose raw source contains a
