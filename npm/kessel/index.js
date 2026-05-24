@@ -90,10 +90,14 @@ function detectLang(filename) {
  * @returns {{ program: object, errors: Array }}
  */
 function parseSync(filename, source, opts = {}) {
+  const _dbg = (m) => process.stderr.write('[PS] ' + filename + ' ' + m + '\n');
+  _dbg('enter src.len=' + source.length);
   const lang = opts.lang ? (LANG[opts.lang] ?? LANG.js) : detectLang(filename);
   const sourceBuf = Buffer.from(source, 'utf8');
+  _dbg('pre-ffi sourceBuf.len=' + sourceBuf.length + ' lang=' + lang);
 
   const result = _parse_binary(sourceBuf, sourceBuf.length, lang);
+  _dbg('post-ffi buf_ptr=' + !!result.buf_ptr + ' buf_len=' + result.buf_len);
 
   if (!result.buf_ptr || result.buf_len <= 0) {
     _free_result();
@@ -104,10 +108,14 @@ function parseSync(filename, source, opts = {}) {
   }
 
   const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
+  _dbg('post-koffi-decode buf.len=' + buf.length);
   _free_result();
+  _dbg('post-free');
 
   const decoded = decode(buf, source);
+  _dbg('post-decode errors=' + decoded.errors.length);
   enrichErrors(decoded.errors, source, filename);
+  _dbg('post-enrich');
   return decoded;
 }
 
