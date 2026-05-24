@@ -4,6 +4,12 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.4.1] - 2026-05-24
+
+### Fixed
+- fix(parser): use unaligned SIMD loads in lexer to prevent x86_64 segfault (#2)
+
+
 ## [0.4.0] - 2026-05-24
 
 ### Added
