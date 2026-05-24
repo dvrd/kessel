@@ -4,6 +4,12 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.4.0] - 2026-05-24
+
+### Added
+- feat(npm): enrich errors with filename, line/column, and a codeframe helper
+
+
 ## [0.3.1] - 2026-05-24
 
 ### Fixed
