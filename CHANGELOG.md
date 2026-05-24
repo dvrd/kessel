@@ -4,6 +4,18 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.5.0] - 2026-05-24
+
+### Added
+- feat(parser): token-aware error spans (binary format v2 -> v3)
+
+### Fixed
+- fix(npm): scan UTF-8 bytes (not UTF-16 code units) for line offsets
+
+### Performance
+- perf: relock bench baseline (14-26% faster across all 10 files)
+
+
 ## [0.4.1] - 2026-05-24
 
 ### Fixed
