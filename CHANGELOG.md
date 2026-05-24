@@ -4,6 +4,12 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.6.0] - 2026-05-24
+
+### Added
+- feat(npm): parseAsync \u2014 non-blocking parse on libuv worker pool
+
+
 ## [0.5.0] - 2026-05-24
 
 ### Added
