@@ -2926,7 +2926,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		is_in := is_token(p, .In)
 		// §15.8.2 - `for await` is only legal with `of`, never `in`.
 		if is_in && await {
-			report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
+			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted, "'await' can only be used in conjunction with 'for...of' statements")
 		}
 		eat(p) // consume in/of
 		// `for (x of /re/) {}` - after consuming the `of` keyword the next
@@ -3288,7 +3288,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// `for await (;;)` / `for await (let i=0;;)` - await is only valid
 	// with for-of, not regular for-statements.
 	if await {
-		report_error(p, "'await' can only be used in conjunction with 'for...of' statements")
+		report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted, "'await' can only be used in conjunction with 'for...of' statements")
 	}
 
 	for_, for__s := new_stmt(p, ForStatement)
@@ -4420,7 +4420,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			if !decorators_seen {
 				decorators_seen = true
 				if p.class_depth == 0 {
-					report_error(p, "Decorators are not valid here.")
+					report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
 				}
 			}
 			eat(p) // consume `@`
@@ -4899,7 +4899,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 					}
 				}
 				if !paren_wrapped {
-					report_error(p, "Arrow function is not a valid class heritage expression")
+					report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Arrow function is not a valid class heritage expression")
 				}
 			}
 		}
@@ -5548,8 +5548,9 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 		if id2, has2 := fn2.expr.id.?; has2 { name2 = id2.name }
 		if name2 == "" { continue }
 		if impl_count[name2] >= 2 {
-			report_error_at(p, LexerLoc(fn2.expr.loc.start),
-				"Duplicate function implementation.")
+			report_error_coded_span(p, .K4080_DuplicateImplementation,
+				u32(fn2.expr.loc.start), u32(fn2.expr.loc.start),
+				"Duplicate function implementation")
 		}
 	}
 }
@@ -5614,8 +5615,9 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 					if has_body {
 						constructor_impl_count += 1
 						if constructor_impl_count > 1 {
-							report_error_at(p, LexerLoc(elem.loc.start),
-								"Duplicate constructor implementations are not allowed.")
+							report_error_coded_span(p, .K4080_DuplicateImplementation,
+								u32(elem.loc.start), u32(elem.loc.start),
+								"Duplicate constructor implementations are not allowed")
 						}
 					}
 				}
@@ -5944,7 +5946,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// Check for static block: static { ... }
 	if is_token(p, .Static) && is_next_token(p, .LBrace) {
 		if len(decorators) > 0 {
-			report_error(p, "Decorators are not valid here.")
+			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
 		}
 		elem := parse_static_block(p, start)
 		if elem != nil { elem.decorators = decorators }
@@ -6234,7 +6236,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		}
 		// §15.7.6 — string-literal "constructor" must not be get/set/async/generator.
 		if !static_ && str_lit.value == "constructor" {
-			if is_async { report_error(p, "Constructor can't be an async method") }
+			if is_async { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method") }
 			if is_generator { report_error(p, "Constructor can't be a generator") }
 		}
 	} else if is_token(p, .Number) {
@@ -6285,7 +6287,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if !static_ && !is_private && !computed &&
 		   (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) {
 			if is_async {
-				report_error(p, "Constructor can't be an async method")
+				report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method")
 			}
 			if is_generator {
 				report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
@@ -6733,7 +6735,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// §15.2.1 early error: it is a Syntax Error if ClassElementKind of
 		// ClassElement is not Property and the ClassElement has a decorator.
 		if len(decorators) > 0 && (is_overload_sig || is_abstract) {
-			report_error(p, "A decorator can only decorate a method implementation, not an overload.")
+			report_error_coded(p, .K4064_DecoratorInvalid, "A decorator can only decorate a method implementation, not an overload")
 		}
 		match_semicolon_or_asi(p)
 		// Leave body empty
@@ -6741,7 +6743,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// ASI / before-RBrace ambient method - don't consume any token,
 		// the outer parse_class_element loop picks up where we left off.
 		if len(decorators) > 0 {
-			report_error(p, "A decorator can only decorate a method implementation, not an overload.")
+			report_error_coded(p, .K4064_DecoratorInvalid, "A decorator can only decorate a method implementation, not an overload")
 		}
 		// Body stays empty.
 	} else {
@@ -13146,7 +13148,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			continue
 		case .LAngle, .LShift:
 			if _, is_super := expr^.(^Super); is_super {
-				report_error(p, "'super' can only be used with function calls or in property accesses")
+				report_error_coded(p, .K3033_SuperInvalidContext, "'super' can only be used with function calls or in property accesses")
 			}
 			// TS generic call / instantiation expression: `foo<T>(args)` or
 			// `foo<T>` as a stand-alone TSInstantiationExpression. Only in
@@ -13493,7 +13495,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
   ensure_nxt(p)
 		if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
 		   p.lexer.nxt.kind != .LParen {
-			report_error(p, "'super' can only be used with function calls or in property accesses")
+			report_error_coded(p, .K3033_SuperInvalidContext, "'super' can only be used with function calls or in property accesses")
 		}
 		// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
 		// `super.x` / `super[x]` outside a method body is a SyntaxError.
@@ -15088,7 +15090,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 					}
 				}
 				if !paren_wrapped {
-					report_error(p, "Arrow function is not a valid class heritage expression")
+					report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Arrow function is not a valid class heritage expression")
 				}
 			}
 		}
@@ -16326,7 +16328,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					bump_append(&params, param)
 				}
 			} else {
-				report_error(p, "Arrow parameter default must use '=' operator")
+				report_error_coded(p, .K3043_DestructuringInvalid, "Arrow parameter default must use '=' operator")
 			}
 		case ^ObjectExpression:
 			// Single destructure param: `({a, b}) => ...`. Route through
@@ -16487,7 +16489,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// (chalk.js, zod.js, vue.global.js, tinymce.js, etc.) which
 						// use default params on arrow functions.
 						if arg.operator != .Assign {
-							report_error(p, "Arrow parameter default must use '=' operator")
+							report_error_coded(p, .K3043_DestructuringInvalid, "Arrow parameter default must use '=' operator")
 							continue
 						}
 						assign_pat := new_node(p, AssignmentPattern)
@@ -16902,7 +16904,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 			paren_invalid = true
 		}
 		if paren_invalid {
-			report_error(p, "Invalid left-hand side in assignment")
+			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Invalid left-hand side in assignment")
 		}
 	}
 	// TS cast expressions are not valid as direct (unparenthesized) assignment
@@ -16966,7 +16968,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 			// §13.15.1 "Invalid LHS in destructured compound assignment":
 			// enforced by the semantic checker (ck_check_assignment_invalid_lhs).
 		} else {
-			report_error(p, "Invalid left-hand side in assignment")
+			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Invalid left-hand side in assignment")
 		}
 	}
 	// §13.15.1 - logical assignment operators (&&=, ||=, ??=) require a
@@ -17710,7 +17712,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 				}
 			}
 			if !decorators_attached && len(decorators) > 0 {
-				report_error(p, "Decorators are not valid here.")
+				report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
 			}
 		}
 		return stmt

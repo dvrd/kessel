@@ -1918,7 +1918,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 //       class C { x: number; get x(){return 1;} }         field+get
 //       class C { get x(){} get x(){} }                   getter+getter
 //
-//   * TS2393 "Duplicate function implementation." — same `(static,
+//   * TS2393 "Duplicate function implementation" — same `(static,
 //     key)` slot has two or more method bodies. Each impl is flagged.
 //       class C { b(){} b(){} }                → each `b` impl flagged
 //
@@ -2126,7 +2126,8 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 		if n_impl >= 2 && !impls_suppressed_by_generics {
 			for idx in slot {
 				if entries[idx].kind == .MethodImpl {
-					ck_report(c, entries[idx].at, "Duplicate function implementation.")
+					ck_report_coded(c, entries[idx].at, .K4080_DuplicateImplementation,
+						"Duplicate function implementation")
 				}
 			}
 		}
@@ -2613,7 +2614,8 @@ ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
 		name, name_at, has_name := fn_decl_overload_name(fn)
 		if !has_name { continue }
 		if impl_count[name] >= 2 {
-			ck_report(c, name_at, "Duplicate function implementation.")
+			ck_report_coded(c, name_at, .K4080_DuplicateImplementation,
+				"Duplicate function implementation")
 		}
 	}
 }
@@ -4999,7 +5001,8 @@ ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^Cla
 		loc := u32(get_expression_loc(elem.key).start)
 		if ts_mode {
 			if has_body && constructor_implementation_seen {
-				ck_report(c, loc, "Duplicate constructor implementation in class")
+				ck_report_coded(c, loc, .K4080_DuplicateImplementation,
+					"Duplicate constructor implementation in class")
 			}
 			if has_body { constructor_implementation_seen = true }
 			constructor_seen = true

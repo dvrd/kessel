@@ -994,7 +994,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-argu
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-await/input.js:5:7: 'await' is not allowed in a class static block
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-break/input.js:6:9: 'break' must be inside a loop or switch
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-continue/input.js:5:7: 'continue' must be inside a loop
-babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here.
+babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-decorators/input.js:4:3: Decorators are not valid here
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-legacy-octal/input.js:4:5: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-return/input.js:4:12: 'return' is not allowed in a class static block
 babel/packages/babel-parser/test/fixtures/es2022/class-static-block/invalid-super-call/input.js:5:10: 'super' call is only allowed in the constructor of a derived class

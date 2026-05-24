@@ -76,7 +76,7 @@ tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected '>', got ';'
 tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'.
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:1: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:7:3: Duplicate identifier 'b'.
-tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation.
+tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
 tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected ':', got end of input
@@ -187,7 +187,7 @@ tests/coverage/misc/fail/oxc-11453.js:2:1: Unexpected 'import' after 'export'. O
 tests/coverage/misc/fail/oxc-11472.js:1:7: Decorators may not appear after 'export' or 'export default' if they also appear before 'export'
 tests/coverage/misc/fail/oxc-11484.ts:2:1: Expected 'from', got end of input
 tests/coverage/misc/fail/oxc-11485.js:2:10: Expected binding pattern
-tests/coverage/misc/fail/oxc-11485.ts:2:10: Decorators are not valid here.
+tests/coverage/misc/fail/oxc-11485.ts:2:10: Decorators are not valid here
 tests/coverage/misc/fail/oxc-11487.cjs:1:13: 'await' cannot be used as an async arrow parameter
 tests/coverage/misc/fail/oxc-11487.mjs:1:13: 'await' cannot be used as an async arrow parameter
 tests/coverage/misc/fail/oxc-11532.js:1:15: Expected 'from', got '{'

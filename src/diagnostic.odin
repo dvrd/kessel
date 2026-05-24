@@ -132,6 +132,7 @@ ErrorCode :: enum u16 {
 	K4062_InstantiationExprForm                   = 4062,
 	K4063_OptionalAndInit                         = 4063,
 	K4064_DecoratorInvalid                        = 4064,
+	K4080_DuplicateImplementation                 = 4080,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -842,6 +843,17 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 			default_message = "invalid decorator placement",
 			hint            = "",
 			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4080 — TypeScript TS2393: duplicate function or constructor
+	//   implementation in the same scope. Overload signatures may repeat
+	//   freely, but implementations must be unique.
+	case .K4080_DuplicateImplementation:
+		return ErrorInfo{
+			default_message = "duplicate function or constructor implementation",
+			hint            = "only one implementation is allowed; the rest must be overload signatures",
+			ts_code         = "TS2393",
 			severity        = .Error,
 		}
 	}
