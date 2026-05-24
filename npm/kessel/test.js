@@ -120,12 +120,15 @@ for (const [name, src] of badCases) {
 
 // BISECT: parse small variants to find which trigger the x86_64 crash.
 const variants = [
-  ['v1 short multi-line all good',         'a;\nb;'],
-  ['v2 multi-line valid',                  'function f() {\n  return 1;\n}'],
-  ['v3 single-line unterminated',          'function f() { return "abc'],
-  ['v4 multi-line, term string on line 2', 'function f() {\n  return "abc";\n}'],
-  ['v5 multi-line, unterm string EOL',     'function f() { return "abc\n}'],
-  ['v6 ORIGINAL multi-line unterm string', 'function bad() {\n  return "unterminated\n}'],
+  ['v0  multi-line, no string',          'function f() {\n  return 1;\n}'],
+  ['v1  single-line, string',            'function f() { return "abc"; }'],
+  ['v2  string, then newline',           'var x = "abc";\n'],
+  ['v3  newline, then string',           '\nvar x = "abc";'],
+  ['v4  multi-line string only',         'var x = "abc";\nvar y = 1;'],
+  ['v5  multi-line func + string',       'function f() {\n  return "abc";\n}'],
+  ['v6  single LF',                      '\n'],
+  ['v7  string then LF then EOF',        '"a";\n'],
+  ['v8  LF then string then EOF',        '\n"a"'],
 ];
 let vi = 0;
 for (const [name, src] of variants) {
