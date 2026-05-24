@@ -99,12 +99,16 @@
   ],
   "errors": [
     {
+      "code": "K2020",
+      "severity": "error",
       "message": "Expected expression after operator",
       "line": 4,
       "column": 24,
       "offset": 94
     },
     {
+      "code": "K2010",
+      "severity": "error",
       "message": "Expected semicolon",
       "line": 4,
       "column": 24,
@@ -117,5 +121,5 @@ Parse errors (2):
   Line 4, Column 24: Expected semicolon
 
 --- Statistics ---
-Arena: used=38320B reserved=16777216B ratio=0%
+Arena: used=38688B reserved=16777216B ratio=0%
 Parse errors: 2

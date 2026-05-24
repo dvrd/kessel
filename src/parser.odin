@@ -1320,7 +1320,7 @@ expect_semicolon_or_asi :: #force_inline proc(p: ^Parser) -> bool {
 	if can_insert_semicolon(p) {
 		return true
 	}
-	report_error(p, "Expected semicolon")
+	report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon")
 	return false
 }
 
@@ -1379,16 +1379,16 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 	// `try` are equally stray.
 	#partial switch p.cur_type {
 	case .Else:
-		report_error(p, "Unexpected 'else' without matching 'if'")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected 'else' without matching 'if'")
 		eat(p)
 		if !is_token(p, .EOF) { _ = parse_statement_or_declaration(p) }
 		return
 	case .RBrace:
-		report_error(p, "Unexpected '}' \u2014 unmatched closing brace")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '}' \u2014 unmatched closing brace")
 		eat(p)
 		return
 	case .Catch, .Finally:
-		report_error(p, "Unexpected 'catch' or 'finally' without matching 'try'")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected 'catch' or 'finally' without matching 'try'")
 		eat(p)
 		if !is_token(p, .EOF) { _ = parse_statement_or_declaration(p) }
 		return
@@ -1629,7 +1629,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		if int(cur_offset(p)) == loop_start_offset {
 			no_progress_count += 1
 			if no_progress_count > MAX_ERROR_RECOVERY_ITERATIONS {
-				report_error(p, "Maximum parsing iterations exceeded - possible infinite loop")
+				report_error_coded(p, .K2080_ParserBudgetExceeded, "Maximum parsing iterations exceeded - possible infinite loop")
 				break
 			}
 		} else {
@@ -1963,7 +1963,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			if p.ctx.in_ts_namespace {
 				return parse_variable_declaration(p, nil, true)
 			}
-			report_error(p, "'let' declaration requires a binding name")
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "'let' declaration requires a binding name")
 		}
 		return parse_expression_or_labeled_statement(p)
 	case .Using:
@@ -2144,11 +2144,11 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 	case .Semi:
 		return parse_empty_statement(p)
 	case .RBracket:
-		report_error(p, "Unexpected closing token")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected closing token")
 		eat(p)
 		return nil
 	case .RParen:
-		report_error(p, "Unexpected closing token")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected closing token")
 		eat(p)
 		return nil
 	case .Import:
@@ -2238,13 +2238,13 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 		if stmt != nil {
 			bump_append(&block.body, stmt)
 		} else if int(cur_offset(p)) == prev_offset {
-			report_error(p, "Invalid statement in block")
+			report_error_coded(p, .K2040_UnexpectedToken, "Invalid statement in block")
 			eat(p)
 		}
 	}
 
 	if !match_token(p, .RBrace) {
-		report_error(p, "Expected '}' at end of block")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '}' at end of block")
 	}
 
 	block.loc.end = prev_end_offset(p)
@@ -2306,23 +2306,23 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 		case ^BooleanLiteral:
 			// `false:`, `true:` - reserved words used as labels.
 			// Only Identifiers can be LabelIdentifiers (§14.13.1).
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^NullLiteral:
 			// `null:` - same rule.
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^NumericLiteral:
 			// `0:` - numeric literal cannot be a label.
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^StringLiteral:
 			// `"x":` - string literal cannot be a label.
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^ThisExpression:
 			// `this:` - keyword cannot be a label.
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^RegExpLiteral:
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^TemplateLiteral:
-			report_error(p, "Unexpected token ':'")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 		case ^YieldExpression:
 			// §14.13.1 — `yield` cannot be used as a LabelIdentifier inside
 			// a GeneratorBody. The fixture reaches this branch only at
@@ -2337,7 +2337,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
 				"'yield' cannot be used as a label identifier in a generator function")
 			} else {
-				report_error(p, "Unexpected token ':'")
+				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 			}
 		case ^Identifier:
 			eat(p) // consume :
@@ -2350,7 +2350,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			if p.ctx.strict_mode {
 				if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
 					msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
-					report_error_at(p, LexerLoc(e.loc.start), msg)
+					report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
 				}
 			}
 			// §12.1.1 — `await` is reserved as a LabelIdentifier in module code.
@@ -2553,7 +2553,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	// returns nil for `)` without diagnosing, so we surface the error
 	// here. Test262: language/statements/if/S12.5_A8.js.
 	if is_token(p, .RParen) {
-		report_error(p, "Expected expression in `if` condition")
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression in `if` condition")
 		eat(p) // consume `)` to keep the parser moving
 		return nil
 	}
@@ -2562,7 +2562,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		// If the condition expression failed to parse, report an error
 		// rather than silently dropping the entire if-statement.
 		if !is_token(p, .RParen) {
-			report_error(p, "Expected expression in 'if' condition")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression in 'if' condition")
 		}
 		return nil
 	}
@@ -2579,7 +2579,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 	consequent := parse_statement_or_declaration(p)
 	p.block_depth -= 1
 	if consequent == nil {
-		report_error(p, "Expected statement after 'if' condition")
+		report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after 'if' condition")
 	}
 	report_statement_only_position(p, consequent, !p.ctx.strict_mode)
 
@@ -2593,7 +2593,7 @@ parse_if_statement :: proc(p: ^Parser) -> ^Statement {
 		alt := parse_statement_or_declaration(p)
 		p.block_depth -= 1
 		if alt == nil {
-			report_error(p, "Expected statement after 'else'")
+			report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after 'else'")
 		}
 		report_statement_only_position(p, alt, !p.ctx.strict_mode)
 		if_.alternate = alt
@@ -2634,7 +2634,7 @@ parse_while_statement :: proc(p: ^Parser) -> ^Statement {
 	p.block_depth -= 1
 	p.ctx.in_loop = prev_in_loop
 	if body == nil {
-		report_error(p, "Expected statement after 'while' condition")
+		report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after 'while' condition")
 	}
 	report_statement_only_position(p, body, false)
 
@@ -2871,7 +2871,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 							// Peek past the for-of `of` to see if `)` follows.
 							if p.lexer != nil { ensure_nxt(p) }
 						if p.lexer != nil && p.lexer.nxt.kind == .RParen {
-								report_error(p, "'for (var of of)' is ambiguous")
+								report_error_coded(p, .K2040_UnexpectedToken, "'for (var of of)' is ambiguous")
 							}
 						}
 					}
@@ -2957,7 +2957,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				kind_name := "of"
 				if is_in { kind_name = "in" }
 				msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
-				report_error(p, msg)
+				report_error_coded(p, .K2050_InvalidLHS, msg)
 			}
 			// §14.7.5.1 - the LHS of a for-of head cannot be the literal
 			// IdentifierReference `async` (avoids ambiguity with the
@@ -3040,7 +3040,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					kind_name := "of"
 					if is_in { kind_name = "in" }
 					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
-					report_error(p, msg)
+					report_error_coded(p, .K2050_InvalidLHS, msg)
 				}
 				// CallExpression as for-in/of LHS in strict mode is
 				// rejected by the semantic checker
@@ -3063,8 +3063,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			// ArrayExpression / ObjectExpression. The ES spec allows it,
 			// but TypeScript's compiler rejects it (TS2491).
 			if is_in && allow_ts_mode(p) && is_destructure_target_candidate(left_expr) {
-				report_error(p,
-					"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+				report_error_coded(p, .K2040_UnexpectedToken, "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
 			}
 			if is_destructure_target_candidate(left_expr) {
 				_, _ = expr_to_pattern(p, left_expr)
@@ -3090,7 +3089,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				kn := "using"
 				if left_decl.kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
-				report_error(p, msg)
+				report_error_coded(p, .K3061_ForLoopLHS, msg)
 			}
 
 			// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
@@ -3103,8 +3102,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				if _, ok := d_id.(^ArrayPattern); ok { is_pattern = true }
 				if _, ok := d_id.(^ObjectPattern); ok { is_pattern = true }
 				if is_pattern {
-					report_error_at(p, LexerLoc(left_decl.loc.start),
-						"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+					report_error_coded_span(p, .K2040_UnexpectedToken, u32(left_decl.loc.start), u32(left_decl.loc.start), "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
 				}
 			}
 
@@ -3124,7 +3122,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			if is_in { kind_str = "in" }
 			if len(left_decl.declarations) > 1 {
 				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
-				report_error_at(p, LexerLoc(left_decl.loc.start), msg)
+				report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
 			} else {
 				annex_b_ok := is_in && !p.ctx.strict_mode &&
 				              left_decl.kind == .Var &&
@@ -3138,7 +3136,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					for d in left_decl.declarations {
 						if _, have_init := d.init.(^Expression); have_init {
 							msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
-							report_error_at(p, LexerLoc(left_decl.loc.start), msg)
+							report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
 							break // one diagnostic per head, matching the checker
 						}
 					}
@@ -3158,7 +3156,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				}
 				if has_type_ann {
 					msg := fmt.tprintf("The left-hand side of a 'for...%s' statement cannot use a type annotation.", kind_str)
-					report_error_at(p, LexerLoc(left_decl.loc.start), msg)
+					report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
 				}
 			}
 		}
@@ -3193,7 +3191,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		p.block_depth -= 1
 		p.ctx.in_loop = prev_in_loop
 		if body == nil {
-			report_error(p, "Expected statement after for-in/of head")
+			report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after for-in/of head")
 		}
 		report_statement_only_position(p, body, false)
 
@@ -3243,7 +3241,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 			if id.kind == .Using || id.kind == .AwaitUsing {
 				for decl in id.declarations {
 					if _, have := decl.init.(^Expression); !have {
-						report_error(p, "Using declarations must have an initializer")
+						report_error_coded(p, .K2070_RequiredFormOrBinding, "Using declarations must have an initializer")
 					}
 				}
 			}
@@ -3281,7 +3279,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	p.block_depth -= 1
 	p.ctx.in_loop = prev_in_loop
 	if body == nil {
-		report_error(p, "Expected statement after for head")
+		report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after for head")
 	}
 	report_statement_only_position(p, body, false)
 
@@ -3317,7 +3315,7 @@ parse_return_statement :: proc(p: ^Parser) -> ^Statement {
 	// true at every natural `return` site; bare top-level `return` only
 	// shows up in spec-negative fixtures and mutated fuzz cases.
 	if !p.ctx.in_function && !p.is_commonjs && !p.ctx.in_ambient {
-		report_error(p, "'return' outside of function")
+		report_error_coded(p, .K2040_UnexpectedToken, "'return' outside of function")
 	}
 	// §15.7.5 ClassStaticBlockBody is parsed under [~Return]; the
 	// outer in_function is set to true so new.target works, but a
@@ -3438,7 +3436,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 	if lbl, have := label.(LabelIdentifier); have {
 		if !label_in_scope(p, lbl.name) {
 			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
-			report_error_at(p, label_loc, msg)
+			report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(label_loc), u32(label_loc), msg)
 		}
 	} else if !p.ctx.in_loop && !p.ctx.in_switch && !p.ctx.in_ambient {
 		report_error_at(p, LexerLoc(start.start), "'break' must be inside a loop or switch")
@@ -3492,10 +3490,10 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 	if lbl, have := label.(LabelIdentifier); have {
 		if !label_in_scope(p, lbl.name) {
 			msg := fmt.tprintf("Undefined label '%s'", lbl.name)
-			report_error_at(p, label_loc, msg)
+			report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(label_loc), u32(label_loc), msg)
 		} else if !label_iter_in_scope(p, lbl.name) {
 			msg := fmt.tprintf("'continue' must target an iteration label, '%s' does not", lbl.name)
-			report_error_at(p, label_loc, msg)
+			report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(label_loc), u32(label_loc), msg)
 		}
 	} else if !p.ctx.in_loop && !p.ctx.in_ambient {
 		report_error_at(p, LexerLoc(start.start), "'continue' must be inside a loop")
@@ -3550,7 +3548,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 			// Default clause has `test == nil`.
 			if _, has_test := case_.test.(^Expression); !has_test || case_.test == nil {
 				if has_default {
-					report_error(p, "More than one default clause in switch")
+					report_error_coded(p, .K2040_UnexpectedToken, "More than one default clause in switch")
 				}
 				has_default = true
 			}
@@ -3563,7 +3561,7 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	p.ctx.in_switch = prev_in_switch
 
 	if !match_token(p, .RBrace) {
-		report_error(p, "Expected '}' at end of switch statement")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '}' at end of switch statement")
 	}
 
 	switch_.loc.end = prev_end_offset(p)
@@ -3611,13 +3609,13 @@ parse_switch_case :: proc(p: ^Parser) -> ^SwitchCase {
 		// consumed by the next `expect_token(.Colon)` call. Test262:
 		// language/statements/switch/S12.11_A3_T4.js.
 		if is_token(p, .Colon) {
-			report_error(p, "Expected expression after 'case'")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'case'")
 			eat(p) // consume `:`
 			return nil
 		}
 		test = parse_expression(p)
 	} else {
-		report_error(p, "Expected 'case' or 'default' in switch")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'case' or 'default' in switch")
 		return nil
 	}
 
@@ -3694,7 +3692,7 @@ parse_try_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	if try_.handler == nil && try_.finalizer == nil {
-		report_error(p, "Try statement must have catch or finally clause")
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "Try statement must have catch or finally clause")
 	}
 
 	try_.loc.end = prev_end_offset(p)
@@ -3716,7 +3714,7 @@ parse_catch_clause :: proc(p: ^Parser, start: Loc) -> Maybe(CatchClause) {
 	if is_token(p, .LParen) {
 		eat(p)
 		if is_token(p, .RParen) {
-			report_error(p, "Catch parameter is missing")
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Catch parameter is missing")
 		} else {
 			param = parse_binding_pattern(p)
 			// TS § catch-clause-types - the catch parameter may carry a
@@ -3767,12 +3765,12 @@ parse_throw_statement :: proc(p: ^Parser) -> ^Statement {
 	// `throw` and the argument expression. ASI does NOT apply to throw;
 	// a bare `throw` with a newline before the argument is a SyntaxError.
 	if cur_has_newline(p) {
-		report_error(p, "Illegal newline after 'throw'")
+		report_error_coded(p, .K2040_UnexpectedToken, "Illegal newline after 'throw'")
 	}
 
 	argument := parse_expression(p)
 	if argument == nil {
-		report_error(p, "Expected expression after throw")
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after throw")
 		return nil
 	}
 
@@ -3829,7 +3827,7 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 
 	body := parse_statement_or_declaration(p)
 	if body == nil {
-		report_error(p, "Expected statement after 'with' object")
+		report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after 'with' object")
 	}
 	// ECMA-262 §14.11.1 - WithStatement : with ( Expression ) Statement.
 	// Statement excludes hoistable declarations (LexicalDeclaration,
@@ -3862,7 +3860,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	}
 
 	if !is_token(p, .Function) {
-		report_error(p, "Expected function after async")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected function after async")
 		return nil
 	}
 
@@ -3968,12 +3966,12 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 				}
 				if is_reserved_fn_name {
 					msg := fmt.tprintf("Function name '%s' is reserved in strict mode", current.value)
-					report_error(p, msg)
+					report_error_coded(p, .K3050_StrictModeReserved, msg)
 				}
 			}
 			eat(p)
 		} else if !is_expr {
-			report_error(p, "Function declaration requires a name")
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
 		}
 	}
 
@@ -4204,7 +4202,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.ctx.in_ambient && !p.source_is_dts {
 		if is_eval_or_arguments(id_v.name) {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
-			report_error_at(p, LexerLoc(id_v.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_v.loc.start), u32(id_v.loc.start), msg)
 		}
 	}
 	// Retroactive strict-reserved function name check when body
@@ -4217,7 +4215,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		}
 		if is_reserved {
 			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
-			report_error_at(p, LexerLoc(id_v.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_v.loc.start), u32(id_v.loc.start), msg)
 		}
 	}
 
@@ -4601,7 +4599,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	if match_token(p, .Assign) {
 		default_expr := parse_assignment_expression(p)
 		if default_expr == nil {
-			report_error(p, "Expected initializer expression after '='")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected initializer expression after '='")
 		} else {
 			param.default_val = default_expr
 		}
@@ -4778,7 +4776,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	p.last_body_strict = body_use_strict
 
 	if !match_token(p, .RBrace) {
-		report_error(p, "Expected '}' at end of function body")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '}' at end of function body")
 	}
 
 	body.loc.end = prev_end_offset(p)
@@ -4820,7 +4818,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			   current.value == "let" || current.value == "static" ||
 			   current.value == "yield" {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", current.value)
-				report_error(p, msg)
+				report_error_coded(p, .K3015_KeywordContainsEscape, msg)
 			}
 		}
 		// §15.7.1 strict-reserved / eval / arguments — class names
@@ -4867,7 +4865,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
 		if super_class == nil {
-			report_error(p, "Expected expression after 'extends'")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'extends'")
 		}
 		// TS: optional type arguments on the super class - `extends Foo<T, U>`.
 		// parse_left_hand_side_expr stops at the `<` (it's not a JS infix op
@@ -5002,13 +5000,13 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 			bump_append(&body.body, elem^)
 		} else if int(cur_offset(p)) == prev_offset {
 			// parse_class_element failed and didn't consume token - skip it to avoid infinite loop
-			report_error(p, "Invalid class element")
+			report_error_coded(p, .K2040_UnexpectedToken, "Invalid class element")
 			eat(p)
 		}
 	}
 
 	if !match_token(p, .RBrace) {
-		report_error(p, "Expected '}' at end of class body")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '}' at end of class body")
 	}
 
 	body.loc.end = prev_end_offset(p)
@@ -5075,7 +5073,7 @@ resolve_pending_private_refs :: proc(p: ^Parser, elements: []ClassElement, pendi
 		for i in 0..<len(p.pending_priv_refs) {
 			ref := p.pending_priv_refs[i]
 			msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", ref.name)
-			report_error_at(p, LexerLoc(ref.loc.start), msg)
+			report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(ref.loc.start), u32(ref.loc.start), msg)
 		}
 		clear(&p.pending_priv_refs)
 	}
@@ -5463,7 +5461,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 				if name != chain_name {
 					// TS2389: impl name doesn't match overload chain.
 					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
-					report_error_at(p, LexerLoc(fn.expr.loc.start), msg)
+					report_error_coded_span(p, .K2070_RequiredFormOrBinding, u32(fn.expr.loc.start), u32(fn.expr.loc.start), msg)
 				}
 				chain_active = false
 			} else {
@@ -5714,7 +5712,7 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 
 		if dup {
 			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
-			report_error_at(p, LexerLoc(elem.loc.start), msg)
+			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(elem.loc.start), u32(elem.loc.start), msg)
 		}
 	}
 }
@@ -5793,7 +5791,7 @@ report_duplicate_interface_member_errors :: proc(p: ^Parser, members: []^TSSigna
 				}
 			}
 			msg := fmt.tprintf("Duplicate identifier '%s'.", name)
-			report_error_at(p, LexerLoc(loc), msg)
+			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(loc), u32(loc), msg)
 		}
 	}
 }
@@ -5817,7 +5815,7 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 	if allow_ts_mode(p) && !class_is_abstract {
 		for elem in elems {
 			if elem.abstract {
-				report_error(p, "Abstract methods can only appear within an abstract class.")
+				report_error_coded(p, .K2040_UnexpectedToken, "Abstract methods can only appear within an abstract class.")
 				break  // one diagnostic per class
 			}
 		}
@@ -6237,7 +6235,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// §15.7.6 — string-literal "constructor" must not be get/set/async/generator.
 		if !static_ && str_lit.value == "constructor" {
 			if is_async { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method") }
-			if is_generator { report_error(p, "Constructor can't be a generator") }
+			if is_generator { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be a generator") }
 		}
 	} else if is_token(p, .Number) {
 		// Numeric key: `1234()`. Similarly emit as NumericLiteral-backed Literal
@@ -6368,7 +6366,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			return nil
 		}
 	} else {
-		report_error(p, "Expected method or property name")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method or property name")
 		return nil
 	}
 
@@ -6419,7 +6417,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	field_type_ann: Maybe(^TSTypeAnnotation)
 	if is_token(p, .Colon) && allow_ts_mode(p) {
 		if kind == .Get || kind == .Set {
-			report_error(p, "Expected `(` but found `:`")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected `(` but found `:`")
 		}
 		field_type_ann = parse_ts_type_annotation(p)
 	}
@@ -6535,7 +6533,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if is_token(p, .Semi) {
 			eat(p)
 		} else if !is_token(p, .RBrace) && !is_token(p, .EOF) && !cur_has_newline(p) {
-			report_error(p, "Expected semicolon or line terminator after class field")
+			report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon or line terminator after class field")
 		}
 
 		elem := new_node(p, ClassElement)
@@ -7009,7 +7007,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			if k, ok := kind_override.(VariableKind); ok {
 				kind = k
 			} else {
-				report_error(p, "Expected var, let, const, using, or await using")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected var, let, const, using, or await using")
 				return nil
 			}
 		}
@@ -7017,7 +7015,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		if k, ok := kind_override.(VariableKind); ok {
 			kind = k
 		} else {
-			report_error(p, "Expected var, let, or const")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected var, let, or const")
 			return nil
 		}
 	}
@@ -7064,7 +7062,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	if is_token(p, .Semi) || (is_token(p, .EOF) && !in_for) {
 		if !(allow_ts_mode(p) && p.ctx.in_ts_namespace) {
 			if kind == .Let {
-				report_error(p, "'let' declaration requires a binding name")
+				report_error_coded(p, .K2070_RequiredFormOrBinding, "'let' declaration requires a binding name")
 			} else {
 				report_error_coded(p, .K3043_DestructuringInvalid, "Expected binding pattern")
 			}
@@ -7148,7 +7146,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			report_error_at(p, LexerLoc(decl.loc.start), "'let' is disallowed as a lexically bound name")
 		} else if dup_name != "" {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", dup_name)
-			report_error_at(p, LexerLoc(decl.loc.start), msg)
+			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(decl.loc.start), u32(decl.loc.start), msg)
 		}
 	}
 
@@ -7401,7 +7399,7 @@ walk_strict_param_binding :: proc(p: ^Parser, pat: Pattern) {
 			report_error_at(p, LexerLoc(v.loc.start), msg)
 		} else if is_strict_reserved_binding_name(v.name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-			report_error_at(p, LexerLoc(v.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
 		}
 	case ^ObjectPattern:
 		if v == nil { return }
@@ -7436,7 +7434,7 @@ check_strict_ts_decl_name :: proc(p: ^Parser, name: string, loc: Loc) {
 	// declaration names even in strict mode (OXC accepts them).
 	if is_strict_reserved_name(name) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
-		report_error_at(p, LexerLoc(loc.start), msg)
+		report_error_coded_span(p, .K3050_StrictModeReserved, u32(loc.start), u32(loc.start), msg)
 	}
 }
 
@@ -7529,7 +7527,7 @@ enforce_accessor_param_shape :: proc(
 		return
 	}
 	if real_n != 1 {
-		report_error_at(p, key_loc, "Setter must have exactly one formal parameter")
+		report_error_coded_span(p, .K2070_RequiredFormOrBinding, u32(key_loc), u32(key_loc), "Setter must have exactly one formal parameter")
 		return
 	}
 	param := params[real_idx]
@@ -7614,7 +7612,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 		case .Assign, .Comma, .Semi, .In, .Of,
 		     .RParen, .RBracket, .RBrace, .EOF: // legal
 		case:
-			report_error(p, "Expected '=', ',', or ';' after variable binding")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=', ',', or ';' after variable binding")
 		}
 	}
 
@@ -7645,7 +7643,7 @@ parse_variable_declarator :: proc(p: ^Parser, kind: VariableKind, in_for := fals
 			// the problem; the declarator still emits with init = nil
 			// so the caller's for-statement / declaration parse can
 			// continue from the next `;` / `,` / `)`.
-			report_error(p, "Expected initializer expression after '='")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected initializer expression after '='")
 		} else {
 			init = init_expr
 		}
@@ -7930,7 +7928,7 @@ report_escaped_reserved_word_slow :: proc(p: ^Parser) {
 	}
 	if reserved {
 		msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", name)
-		report_error(p, msg)
+		report_error_coded(p, .K3015_KeywordContainsEscape, msg)
 	}
 }
 
@@ -8143,7 +8141,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		id_loc := cur_loc(p)
 		id_name := cur_value(p)
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
-		report_error_at(p, LexerLoc(id_loc.start), msg)
+		report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_loc.start), u32(id_loc.start), msg)
 		eat(p)
 		ident := new_node(p, Identifier)
 		ident.loc = id_loc
@@ -8251,7 +8249,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 				report_error_at(p, LexerLoc(id_loc.start), msg)
 			} else if is_strict_reserved_name(id_name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
-				report_error_at(p, LexerLoc(id_loc.start), msg)
+				report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_loc.start), u32(id_loc.start), msg)
 			}
 		}
 		eat(p)
@@ -8287,7 +8285,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 		// Check for rest element: ...identifier
 		if match_token(p, .Dot3) {
 			if !is_token(p, .Identifier) {
-				report_error(p, "Expected identifier after ... in object pattern")
+				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier after ... in object pattern")
 				return nil
 			}
 			rl := cur_loc(p); rn := cur_value(p)
@@ -8409,11 +8407,11 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				// don't fire. Gate the diagnostic by peeking.
 				if !is_token(p, .Colon) {
 					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", id_name.name)
-					report_error(p, msg)
+					report_error_coded(p, .K3015_KeywordContainsEscape, msg)
 				}
 			}
 		} else {
-			report_error(p, "Expected property key in object pattern")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected property key in object pattern")
 			return nil
 		}
 
@@ -8546,7 +8544,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				prop.loc.end = prev_end_offset(p)
 				bump_append(&obj.properties, prop)
 			} else {
-				report_error(p, "Expected pattern in object pattern value")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected pattern in object pattern value")
 				return nil
 			}
 		} else if match_token(p, .Assign) {
@@ -8572,7 +8570,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 						if is_strict_reserved_binding_name(v.name) {
 							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-							report_error_at(p, LexerLoc(v.loc.start), msg)
+							report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
 						}
 					}
 					left_ident := new_node(p, Identifier)
@@ -8616,7 +8614,7 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 						if is_strict_reserved_binding_name(v.name) {
 							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-							report_error_at(p, LexerLoc(v.loc.start), msg)
+							report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
 						}
 					}
 					// `yield` is reserved in generator bodies; `await` in async.
@@ -8739,7 +8737,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				rest_ident.name = arn
 				rest.argument = rest_ident
 			} else {
-				report_error(p, "Expected identifier or pattern after ... in array pattern")
+				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier or pattern after ... in array pattern")
 				return nil
 			}
 			rest.loc.end = prev_end_offset(p)
@@ -8858,7 +8856,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			}
 			bump_append(&elements, Maybe(Pattern)(val))
 		} else {
-			report_error(p, "Expected pattern in array pattern")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected pattern in array pattern")
 			return nil
 		}
 
@@ -9126,7 +9124,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 						// edge cases that oxc_semantic resolves later.
 						if !allow_ts_mode(p) {
 							msg := fmt.tprintf("Duplicate exported name '%s'", name)
-							report_error_at(p, LexerLoc(off), msg)
+							report_error_coded_span(p, .K3020_ImportExportNameOrBinding, u32(off), u32(off), msg)
 						}
 					} else {
 						scope_map_set(&exported, name, off)
@@ -9150,7 +9148,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 					if _, exists := scope_map_get(&exported, var_name); exists {
 						if !allow_ts_mode(p) {
 							msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-							report_error_at(p, LexerLoc(var_off), msg)
+							report_error_coded_span(p, .K3020_ImportExportNameOrBinding, u32(var_off), u32(var_off), msg)
 						}
 					} else {
 						scope_map_set(&exported, var_name, var_off)
@@ -9167,7 +9165,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			// duplicate. Skip the syntactic flag in TS / TSX modes.
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
-				report_error(p, "Duplicate exported name 'default'")
+				report_error_coded(p, .K2040_UnexpectedToken, "Duplicate exported name 'default'")
 			} else { scope_map_set(&exported, "default", v.loc.start) }
 		case ^ExportAllDeclaration:
 			if v == nil { continue }
@@ -9176,7 +9174,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				if _, exists := scope_map_get(&exported, ns_name.name); exists {
 					if !allow_ts_mode(p) {
 						msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-						report_error_at(p, LexerLoc(ns_name.loc.start), msg)
+						report_error_coded_span(p, .K3020_ImportExportNameOrBinding, u32(ns_name.loc.start), u32(ns_name.loc.start), msg)
 					}
 				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.start) }
 			}
@@ -10521,7 +10519,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 
 		if !is_token(p, .String) {
-			report_error(p, "Expected string literal module specifier")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
 		}
 		decl.source = parse_string_literal(p)
 	} else if is_token(p, .Mul) {
@@ -10542,7 +10540,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
 		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-			report_error_at(p, LexerLoc(local.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(local.loc.start), u32(local.loc.start), msg)
 		}
 		spec := new_node(p, ImportNamespaceSpecifier)
 		spec.loc = star_loc
@@ -10558,7 +10556,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 
 		if !is_token(p, .String) {
-			report_error(p, "Expected string literal module specifier")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
 		}
 		decl.source = parse_string_literal(p)
 	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
@@ -10572,7 +10570,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
 		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-			report_error_at(p, LexerLoc(local.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(local.loc.start), u32(local.loc.start), msg)
 		}
 		spec := new_node(p, ImportDefaultSpecifier)
 		spec.loc = local.loc
@@ -10589,7 +10587,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "A type-only import cannot combine default and named bindings")
 			}
 			if is_token(p, .From) {
-				report_error(p, "Expected import specifier after comma")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected import specifier after comma")
 			} else if is_token(p, .LBrace) {
 				eat(p) // consume {
 
@@ -10649,11 +10647,11 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 
 		if !is_token(p, .String) {
-			report_error(p, "Expected string literal module specifier")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
 		}
 		decl.source = parse_string_literal(p)
 	} else if allow_ts_mode(p) {
-		report_error(p, "Expected import source or specifier")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected import source or specifier")
 	}
 
 	decl.attributes = parse_import_attributes(p)
@@ -10776,7 +10774,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	}
 	if p.cur_type == .Identifier && cur_value_eq(p, "module") &&
 	   p.lexer != nil && p.lexer.nxt.kind == .LParen {
-		report_error(p, "'module(...)' in import-equals is not supported; use 'require(...)' instead")
+		report_error_coded(p, .K2040_UnexpectedToken, "'module(...)' in import-equals is not supported; use 'require(...)' instead")
 		// Consume `module("...")` for recovery.
 		eat(p) // module
 		eat(p) // (
@@ -10795,7 +10793,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		eat(p)  // consume `require`
 		if !expect_token(p, .LParen) { return nil }
 		if !is_token(p, .String) {
-			report_error(p, "Expected string literal in require() module reference")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal in require() module reference")
 			return nil
 		}
 		str := parse_string_literal(p)
@@ -10812,7 +10810,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		// Mirrors parse_member_expr's non-computed dot path but kept inline so
 		// we don't accidentally accept `[expr]`, calls, optional chains, etc.
 		if p.cur_type != .Identifier {
-			report_error(p, "Expected identifier in import-equals module reference")
+			report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier in import-equals module reference")
 			return nil
 		}
 		head_loc := cur_loc(p)
@@ -10825,7 +10823,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 			eat(p)  // consume `.`
 			if p.cur_type != .Identifier && !is_keyword_usable_as_property_name(p.cur_type) &&
 			   p.cur_type != .Await && p.cur_type != .Yield {
-				report_error(p, "Expected identifier after '.' in import-equals module reference")
+				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier after '.' in import-equals module reference")
 				break
 			}
 			rhs_loc := cur_loc(p)
@@ -10977,7 +10975,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		}
 	} else if is_string_import {
 		// String import names MUST have `as local`.
-		report_error(p, "String import names require 'as' binding")
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "String import names require 'as' binding")
 	}
 
 	spec := new_node(p, ImportSpecifier)
@@ -11003,13 +11001,13 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
 	   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-		report_error_at(p, LexerLoc(local.loc.start), msg)
+		report_error_coded_span(p, .K3050_StrictModeReserved, u32(local.loc.start), u32(local.loc.start), msg)
 	}
 	// Always-reserved word as import binding stays a parser-side
 	// structural error (`import { default }` etc).
 	if is_always_reserved_word_name(local.name) {
 		msg := fmt.tprintf("'%s' is a reserved word and cannot be used as an import binding", local.name)
-		report_error(p, msg)
+		report_error_coded(p, .K3020_ImportExportNameOrBinding, msg)
 	}
 	// §16.2.2 - When no `as` clause, the ImportedBinding is the same
 	// identifier as the ModuleExportName.  Reserved words are valid
@@ -11019,7 +11017,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	if local.loc.start == imported.loc.start && !is_string_import {
 		if is_always_reserved_word_name(local.name) {
 			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as an import binding", local.name)
-			report_error(p, msg)
+			report_error_coded(p, .K3020_ImportExportNameOrBinding, msg)
 		}
 	}
 
@@ -11110,10 +11108,10 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		eat(p) // consume `=`
 		expr := parse_assignment_expression(p)
 		if expr == nil {
-			report_error(p, "Expected expression after 'export ='")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'export ='")
 		}
 		if !match_semicolon_or_asi(p) {
-			report_error(p, "Expected semicolon after export assignment")
+			report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export assignment")
 		}
 		decl := new_node(p, TSExportAssignment)
 		decl.loc = start; decl.expression = expr
@@ -11147,7 +11145,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 			id := Identifier{loc = loc_from_token(&cur), name = cur.value}
 			eat(p) // consume identifier
 			if !match_semicolon_or_asi(p) {
-				report_error(p, "Expected semicolon after 'export as namespace'")
+				report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after 'export as namespace'")
 			}
 			decl := new_node(p, TSNamespaceExportDeclaration)
 			decl.loc = start; decl.id = id
@@ -11207,7 +11205,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// After `export`, only `*`, `default`, `{`, or a declaration keyword
 	// is valid. A bare string literal is always a SyntaxError.
 	if is_token(p, .String) {
-		report_error(p, "Unexpected string literal after 'export'")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected string literal after 'export'")
 	}
 
 	// Export declaration. parse_statement_or_declaration returns a ^Statement
@@ -11246,14 +11244,13 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// `export class {}` is invalid; must use `export default class {}`.
 		if v != nil {
 			if _, has_id := v.id.?; !has_id {
-				report_error_at(p, LexerLoc(v.loc.start),
-					"A class declaration without the 'default' modifier must have a name.")
+				report_error_coded_span(p, .K2070_RequiredFormOrBinding, u32(v.loc.start), u32(v.loc.start), "A class declaration without the 'default' modifier must have a name.")
 			}
 		}
 	case ^ImportDeclaration:
 		// `export import X from "..."` is invalid — only the TS
 		// import-equals form `export import X = ...` is valid.
-		report_error(p, "Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.")
 		return nil
 	case ^ExportNamedDeclaration:     decl_union^ = v
 	case ^ExportDefaultDeclaration:   decl_union^ = v
@@ -11276,7 +11273,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// Expression statements, empty statements, and other non-declaration
 		// statement types are SyntaxErrors. `export default <expr>` is handled
 		// by parse_export_default above.
-		report_error(p, "Unexpected token")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
 		return nil
 	}
 
@@ -11338,7 +11335,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			case .LParen, .LBracket, .Dot, .OptionalChain,
 			     .Template, .TemplateHead, .Arrow,
 			     .PlusPlus, .MinusMinus:
-				report_error(p, "Unexpected token after 'export default function' declaration")
+				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after 'export default function' declaration")
 			}
 		}
 	} else if is_token(p, .Class) ||
@@ -11415,7 +11412,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 			// `export default null null;` - second literal follows without separator.
 			#partial switch p.cur_type {
 			case .Null, .True, .False, .Number, .String, .BigInt:
-				report_error(p, "Unexpected token following export default expression")
+				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token following export default expression")
 			}
 		}
 	}
@@ -11481,7 +11478,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 	}
 
 	if !is_token(p, .String) {
-		report_error(p, "Expected string literal module specifier after 'from'")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier after 'from'")
 	}
 	source := parse_string_literal(p)
 
@@ -11498,7 +11495,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 	// they can't have member-access continuations. Use a permissive ASI:
 	// any line terminator terminates the declaration (even before `[`).
 	if !match_semicolon_or_asi_export(p) {
-		report_error(p, "Expected semicolon after export declaration")
+		report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export declaration")
 	}
 	decl.loc.end = prev_end_offset(p)
 
@@ -11682,7 +11679,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 	}
 	if match_token(p, .From) {
 		if !is_token(p, .String) {
-			report_error(p, "Expected string literal module specifier")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
 		}
 		decl.source = parse_string_literal(p)
 		decl.attributes = parse_import_attributes(p)
@@ -11690,7 +11687,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 
 	if !match_semicolon_or_asi_export(p) {
 		// `export {} null;` - unexpected token follows export clause on same line.
-		report_error(p, "Expected semicolon after export declaration")
+		report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export declaration")
 	}
 
 	// §16.2.3 ExportClause: `export { default }` without `as` is a
@@ -12006,7 +12003,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				// the expression parses cleanly (the arrow body carries the
 				// `=>` span regardless).
 				if cur_has_newline(p) {
-					report_error(p, "Unexpected line terminator before '=>' (restricted production)")
+					report_error_coded(p, .K2040_UnexpectedToken, "Unexpected line terminator before '=>' (restricted production)")
 				}
 				// `({}=>0)` — bare ObjectExpression followed by `=>` inside a
 				// paren group is not valid CoverParenthesizedExpression form.
@@ -12027,7 +12024,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 								break
 							}
 							if !has_rparen {
-								report_error(p, "Malformed arrow function parameter list")
+								report_error_coded(p, .K2040_UnexpectedToken, "Malformed arrow function parameter list")
 							}
 						}
 					}
@@ -12175,7 +12172,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		right := parse_expr_with_prec(p, next_min_prec)
 		p.ctx.in_in_rhs = prev_in_in_rhs
 		if right == nil {
-			report_error(p, "Expected expression after operator")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after operator")
 			return left
 		}
 
@@ -12340,7 +12337,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		eat(p)
 		argument := parse_unary_expr(p)
 		if argument == nil {
-			report_error(p, "Expected expression after unary operator")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after unary operator")
 			return nil
 		}
 		// §13.5 UnaryExpression : <op> UnaryExpression. YieldExpression
@@ -12448,7 +12445,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.prefix = true
 		update.loc.end = prev_end_offset(p)
 		if !is_simple_assignment_target(argument, !p.ctx.strict_mode) {
-			report_error(p, "Invalid left-hand side expression in prefix operation")
+			report_error_coded(p, .K2050_InvalidLHS, "Invalid left-hand side expression in prefix operation")
 		}
 		// §13.4.4 — in strict mode `++` / `--` may not target an
 		// IdentifierReference whose name is `eval` or `arguments`.
@@ -12457,7 +12454,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.ctx.strict_mode {
 			if id, is_id := argument.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
 				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
-				report_error_at(p, LexerLoc(id.loc.start), msg)
+				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(id.loc.start), u32(id.loc.start), msg)
 			}
 		}
 		return update_e
@@ -12567,7 +12564,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// "await outside of async function" check at the top of
 			// this branch already covers non-async contexts.
 			if p.ctx.in_async || p.ctx.in_async_params || !p.ctx.in_function {
-				report_error(p, "'await' expression requires an operand")
+				report_error_coded(p, .K2020_ExpectedExpression, "'await' expression requires an operand")
 			}
 			id, id_e := new_expr(p, Identifier)
 			id.loc = loc_from_token(&current)
@@ -12721,13 +12718,13 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		update.prefix = false
 		update.loc.end = prev_end_offset(p)
 		if !is_simple_assignment_target(expr, !p.ctx.strict_mode) {
-			report_error(p, "Invalid left-hand side expression in postfix operation")
+			report_error_coded(p, .K2050_InvalidLHS, "Invalid left-hand side expression in postfix operation")
 		}
 		// §13.4.4 — strict-mode `++` / `--` cannot target eval / arguments.
 		if p.ctx.strict_mode {
 			if id, is_id := expr.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
 				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
-				report_error_at(p, LexerLoc(id.loc.start), msg)
+				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(id.loc.start), u32(id.loc.start), msg)
 			}
 		}
 		return update_e
@@ -12776,7 +12773,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// Test262: language/expressions/property-accessors/non-identifier-name.js.
 			if !is_identifier_like_token(p.cur_type) && p.cur_type != .PrivateIdentifier &&
 			   !is_keyword_usable_as_property_name(p.cur_type) {
-				report_error(p, "Expected identifier after '.'")
+				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier after '.'")
 				return expr
 			}
 			// `.in` / `.instanceof` etc.: the lexer's can_start_regex set
@@ -12866,7 +12863,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				// Distinguish by whether the NewExpression captured argument
 				// tokens (arguments == nil ~= no `()` after the callee).
 				if new_expr_node, is_new := expr^.(^NewExpression); is_new && new_expr_node.arguments == nil {
-					report_error(p, "Invalid optional chain from new expression")
+					report_error_coded(p, .K2040_UnexpectedToken, "Invalid optional chain from new expression")
 				}
 			}
 			eat(p)
@@ -12946,7 +12943,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				// babel/typescript/type-arguments/call-optional-chain/input.ts.
 				targs := parse_ts_type_arguments(p)
 				if !is_token(p, .LParen) {
-					report_error(p, "Expected '(' after type arguments in optional call")
+					report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after type arguments in optional call")
 					return expr
 				}
 				args := parse_arguments(p)
@@ -12959,7 +12956,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else {
-				report_error(p, "Unexpected token after ?.")
+				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after ?.")
 				return expr
 			}
 		case .LBracket:
@@ -13018,7 +13015,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			}
 			if _, is_arrow_call := expr^.(^ArrowFunctionExpression); is_arrow_call {
 				if p.pending_paren_start == max(u32) {
-					report_error(p, "Arrow function must be parenthesized before call")
+					report_error_coded(p, .K2070_RequiredFormOrBinding, "Arrow function must be parenthesized before call")
 				}
 			}
 			// §15.7.6 SuperCall: `super(...)` is only legal inside the
@@ -13439,7 +13436,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return meta_prop_e
 		}
 		// Static import - not valid in expression context
-		report_error(p, "Unexpected import in expression context")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected import in expression context")
 		return nil
 
 	case .This:
@@ -13465,7 +13462,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		invalid_position := p.ctx.in_in_rhs || p.ctx.no_in || !p.ctx.private_in_allowed ||
 		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
 		if invalid_position {
-			report_error(p, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
+			report_error_coded(p, .K2040_UnexpectedToken, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
 		}
 		// §15.7.3 — a PrivateIdentifier reference outside any class body
 		// cannot resolve. Inside a class body, queue the reference for
@@ -13878,7 +13875,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.ctx.strict_mode {
 			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
-				report_error(p, msg)
+				report_error_coded(p, .K3050_StrictModeReserved, msg)
 			}
 		}
 
@@ -13944,7 +13941,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				return seq_e
 			}
 			// Not an arrow, return nil (empty parens not valid expression)
-			report_error(p, "Empty parenthesized expression")
+			report_error_coded(p, .K2040_UnexpectedToken, "Empty parenthesized expression")
 			return nil
 		}
 
@@ -14074,7 +14071,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		// applies to ClassExpression - nothing else accepts decorators).
 		decorators := parse_decorators(p)
 		if !is_token(p, .Class) {
-			report_error(p, "Decorators can only be applied to class expressions")
+			report_error_coded(p, .K2090_MalformedDecorator, "Decorators can only be applied to class expressions")
 			return nil
 		}
 		cls := parse_class_expression(p)
@@ -14199,7 +14196,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			return parse_ts_lt_expression(p)
 		}
-		report_error(p, "Unexpected '<' at expression start")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '<' at expression start")
 		return nil
 	case:
 		// Unknown token type
@@ -14364,7 +14361,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 			// Semicolons are not valid in object literals (spec §13.2.5).
 			// Report the error and eat them for error recovery.
 			if is_token(p, .Semi) {
-				report_error(p, "Unexpected ';' in object literal")
+				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected ';' in object literal")
 				for is_token(p, .Semi) {
 					eat(p)
 				}
@@ -14374,7 +14371,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 		// Double comma: `{x: 0,,}` - object literals don't allow elisions.
 		for is_token(p, .Comma) {
-			report_error(p, "Property assignment expected")
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Property assignment expected")
 			eat(p)
 		}
 		// Also skip stray semicolons after comma
@@ -14488,7 +14485,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		is_generator = true
 		// After `*`, a property name must follow. `{ * }` is invalid.
 		if is_token(p, .RBrace) || is_token(p, .Comma) || is_token(p, .RParen) {
-			report_error(p, "Expected method name after '*'")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method name after '*'")
 			return nil
 		}
 	}
@@ -14540,7 +14537,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		if !is_token(p, .Colon) && !is_token(p, .LParen) {
 			if key_had_escape && is_always_reserved_word_name(key_name) {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
-				report_error(p, msg)
+				report_error_coded(p, .K3015_KeywordContainsEscape, msg)
 			}
 			// Escaped strict-reserved word in BindingIdentifier position is
 			// also forbidden by §12.7.2 (always, not just in strict mode):
@@ -14551,7 +14548,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				   key_name == "let" || key_name == "static" ||
 				   key_name == "yield" {
 					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
-					report_error(p, msg)
+					report_error_coded(p, .K3015_KeywordContainsEscape, msg)
 				}
 			}
 			// §12.6.1.1 strict-mode IdentifierReference reservation check
@@ -14842,11 +14839,11 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// SyntaxErrors. Other key shapes (Identifier / contextual keyword)
 		// fall through to the regular shorthand path.
 		if computed {
-			report_error(p, "Computed property name requires a value")
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Computed property name requires a value")
 		} else if key != nil {
 			#partial switch k in key^ {
 			case ^NumericLiteral, ^StringLiteral, ^BigIntLiteral:
-				report_error(p, "Numeric / string property name requires a value")
+				report_error_coded(p, .K2070_RequiredFormOrBinding, "Numeric / string property name requires a value")
 			case ^Identifier:
 				// Shorthand binding name must be a valid IdentifierReference.
 				// Hard reserved keywords (default, extends, class, function,
@@ -14879,7 +14876,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 						report_error_at(p, LexerLoc(k.loc.start), msg)
 					} else if is_strict_reserved_binding_name(k.name) {
 						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", k.name)
-						report_error_at(p, LexerLoc(k.loc.start), msg)
+						report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
 					}
 				}
 			}
@@ -15025,7 +15022,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 			   current.value == "let" || current.value == "static" ||
 			   current.value == "yield" {
 				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", current.value)
-				report_error(p, msg)
+				report_error_coded(p, .K3015_KeywordContainsEscape, msg)
 			}
 		}
 		// §15.7.1 strict-reserved / eval / arguments — class names
@@ -15066,7 +15063,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
 		if super_class == nil {
-			report_error(p, "Expected expression after 'extends'")
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'extends'")
 		}
 		// OXC parses type arguments on class heritage in all modes.
 		// In JS mode, only plain `<` — `<<` stays as left-shift.
@@ -15203,7 +15200,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 
 	callee := parse_member_expr(p)
 	if callee == nil {
-		report_error(p, "Expected expression after 'new'")
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'new'")
 		return nil
 	}
 	// §15.2.2 — `new await` in module context: `await` is reserved.
@@ -15321,7 +15318,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 			// with no holes. Test262: language/expressions/call/
 			// S11.2.4_A1.3_T1.js (`f_arg(1,,2)`).
 			if is_token(p, .Comma) {
-				report_error(p, "Argument expression expected")
+				report_error_coded(p, .K2020_ExpectedExpression, "Argument expression expected")
 				eat(p) // consume the stray comma so we don't loop
 				continue
 			}
@@ -15344,7 +15341,7 @@ parse_arguments :: proc(p: ^Parser) -> [dynamic]^Expression {
 					// and `fn(...)` (empty) are both SyntaxErrors. Report so
 					// the recovery verifier and error-reporting consumers
 					// see the problem; parse continues at `,` / `)`.
-					report_error(p, "Expected expression after '...'")
+					report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after '...'")
 				}
 			} else {
 				arg := parse_assignment_expression(p)
@@ -15455,7 +15452,7 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	// §15.5.5 - `yield*` (YieldExpression with delegate=true) requires
 	// an AssignmentExpression operand. `yield*` without one is a SyntaxError.
 	if delegate && argument == nil {
-		report_error(p, "'yield*' requires an operand")
+		report_error_coded(p, .K2020_ExpectedExpression, "'yield*' requires an operand")
 	}
 
 	yield, yield_e := new_expr(p, YieldExpression)
@@ -15559,7 +15556,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 				eat(p)
 				break
 			} else {
-				report_error(p, "Expected template literal continuation")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected template literal continuation")
 				return nil
 			}
 		}
@@ -15579,7 +15576,7 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 		return expression_from(p, tmpl)
 	}
 
-	report_error(p, "Expected template literal")
+	report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected template literal")
 	return nil
 }
 
@@ -15686,7 +15683,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 				report_error_at(p, LexerLoc(e.loc.start), msg)
 			} else if is_strict_reserved_binding_name(e.name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
-				report_error_at(p, LexerLoc(e.loc.start), msg)
+				report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
 			}
 		}
 		return id_ptr, true
@@ -16193,7 +16190,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	} else {
 		#partial switch p.cur_type {
 		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
-			report_error(p, "Unexpected token")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
 		}
 		// Expression body - also set in_function so nested `await` / `yield`
 		// / `return` within the expression are recognised as being inside
@@ -16500,7 +16497,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// Expression→Pattern promotion the outer arms use.
 						lhs_pat, lhs_ok := expr_to_pattern(p, arg.left)
 						if !lhs_ok {
-							report_error(p, "Invalid target in arrow parameter default")
+							report_error_coded(p, .K2040_UnexpectedToken, "Invalid target in arrow parameter default")
 							continue
 						}
 						assign_pat.left = lhs_pat
@@ -16510,7 +16507,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						}
 						bump_append(&params, param)
 					case:
-						report_error(p, "Expected identifier in arrow function parameters")
+						report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier in arrow function parameters")
 					}
 				}
 			}
@@ -16633,7 +16630,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 	p.conditional_depth -= 1
 	p.ctx.no_in = prev_no_in
 	if consequent == nil {
-		report_error(p, "Expected expression after '?' in conditional expression")
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after '?' in conditional expression")
 		return nil
 	}
 
@@ -16682,7 +16679,7 @@ parse_conditional_expr :: proc(p: ^Parser, test: ^Expression) -> ^Expression {
 
 	alternate := parse_assignment_expression(p)
 	if alternate == nil {
-		report_error(p, "Expected expression after ':' in conditional expression")
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after ':' in conditional expression")
 		return nil
 	}
 
@@ -16912,7 +16909,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// Use `last_paren_expr` to distinguish: if `left == last_paren_expr`,
 	// the expression was wrapped in parens and is OK.
 	if left != nil && left != p.last_paren_expr && is_unparenthesized_ts_cast(left) {
-		report_error(p, "Invalid left-hand side in assignment expression.")
+		report_error_coded(p, .K2050_InvalidLHS, "Invalid left-hand side in assignment expression.")
 	}
 	// General assignment-target validation. `(foo() as T) = 1` etc.
 	// is_destructure=true allows `[a, b] = c` / `({a} = c)`; the
@@ -16977,7 +16974,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// B.3.4 legacy relaxation for `f() = x`).
 	is_logical_assign := op == .AssignLogicalAnd || op == .AssignLogicalOr || op == .AssignNullish
 	if is_logical_assign && is_call_expression_target(left) {
-		report_error(p, "Invalid left-hand side in assignment expression")
+		report_error_coded(p, .K2050_InvalidLHS, "Invalid left-hand side in assignment expression")
 	}
 
 	// ECMA-262 §13.15.1 — in strict mode it's a SyntaxError for the LHS
@@ -17236,7 +17233,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 	} else {
 		#partial switch p.cur_type {
 		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
-			report_error(p, "Unexpected token")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
 		}
 		// Same in_function fix as parse_arrow_function's expression arm:
 		// without this, a nested `await` inside an async arrow's expression
@@ -17310,7 +17307,7 @@ parse_dynamic_import :: proc(p: ^Parser, phase: string) -> ^Expression {
 parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Expression {
 	// consume (
 	if !is_token(p, .LParen) {
-		report_error(p, "Expected ( after import")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ( after import")
 		return nil
 	}
 	eat(p)
@@ -17318,7 +17315,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	// §13.3.10 ImportCall: the specifier AssignmentExpression is
 	// mandatory. `import()` and `import.defer()` are SyntaxErrors.
 	if is_token(p, .RParen) {
-		report_error(p, "'import()' requires a specifier")
+		report_error_coded(p, .K2020_ExpectedExpression, "'import()' requires a specifier")
 		eat(p)
 		import_expr, import_expr_e := new_expr(p, ImportExpression)
 		import_expr.loc = start
@@ -17377,7 +17374,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 
 	// consume )
 	if !is_token(p, .RParen) {
-		report_error(p, "Expected ) after import specifier")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ) after import specifier")
 		return nil
 	}
 	eat(p)
@@ -17439,7 +17436,7 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		if !expect_token(p, .Colon) { break }
 		// §16.2.2 - attribute values must be string literals.
 		if !is_token(p, .String) {
-			report_error(p, "Only string literals are allowed as import attribute values")
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Only string literals are allowed as import attribute values")
 		}
 		value := parse_string_literal(p)
 		// End must cover the value literal - `attr_start` captured only
@@ -17521,7 +17518,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else {
-				report_error(p, "Expected identifier after '.' in decorator")
+				report_error_coded(p, .K2090_MalformedDecorator, "Expected identifier after '.' in decorator")
 				break
 			}
 		}
@@ -17569,7 +17566,7 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 				mem.loc.end = prev_end_offset(p)
 				expr = expression_from(p, mem)
 			} else {
-				report_error(p, "Expected identifier after '.' in decorator")
+				report_error_coded(p, .K2090_MalformedDecorator, "Expected identifier after '.' in decorator")
 				break
 			}
 		} else if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
@@ -17727,7 +17724,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 		}
 	}
 	if !is_token(p, .Class) {
-		report_error(p, "Expected class after decorator")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected class after decorator")
 		return nil
 	}
 	prev_abs := p.ctx.class_is_abstract
@@ -17759,7 +17756,7 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	// `</>` (lone closing fragment) at expression position has no
 	// matching opening fragment. Reject.
 	if is_token(p, .Div) {
-		report_error(p, "Unexpected token: lone closing JSX fragment '</>'")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token: lone closing JSX fragment '</>'")
 	}
 	if is_token(p, .RAngle) {
 		eat(p)
@@ -17874,7 +17871,7 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 
 parse_jsx_identifier :: proc(p: ^Parser) -> JSXIdentifier {
 	if !is_jsx_identifier_token(p) {
-		report_error(p, "Expected JSX identifier")
+		report_error_coded(p, .K2021_ExpectedIdentifier, "Expected JSX identifier")
 		return JSXIdentifier{}
 	}
 	start_loc := cur_loc(p)
@@ -18030,7 +18027,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					// operator: `{class1, class2}` is a SequenceExpression.
 					// `attr={}` — empty expression container is invalid.
 					if is_next_token(p, .RBrace) {
-						report_error(p, "JSX attributes must only be assigned a non-empty expression")
+						report_error_coded(p, .K2070_RequiredFormOrBinding, "JSX attributes must only be assigned a non-empty expression")
 					}
 					eat(p); expr := parse_expression(p); expect_token(p, .RBrace)
 					// TS18007: JSX expressions may not use the comma operator.
@@ -18047,7 +18044,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					attr_value = parse_jsx_element_or_fragment(p)
 				} else {
 					// JSX attribute has `=` but no value expression.
-					report_error(p, "JSX attributes must only be assigned a non-empty expression")
+					report_error_coded(p, .K2070_RequiredFormOrBinding, "JSX attributes must only be assigned a non-empty expression")
 				}
 			} else {
 				// Boolean attribute (no `=`) - clear the JSX string flag.
@@ -18099,11 +18096,11 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			if len(p.errors) == 0 {
 				for c in text.value {
 					if c == '>' {
-						report_error(p, "Unexpected token. Did you mean `{'>'}` or `&gt;`?")
+						report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token. Did you mean `{'>'}` or `&gt;`?")
 						break
 					}
 					if c == '}' {
-						report_error(p, "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?")
+						report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token. Did you mean `{'}'}` or `&rbrace;`?")
 						break
 					}
 				}
@@ -18363,7 +18360,7 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	}
 	ts_type := parse_ts_type(p)
 	if ts_type == nil {
-		report_error(p, "Expected type after ':'")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type after ':'")
 	}
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
@@ -18436,7 +18433,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	}
 	ts_type := parse_ts_type(p)
 	if ts_type == nil {
-		report_error(p, "Expected type in type annotation")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type in type annotation")
 	}
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
@@ -18702,9 +18699,9 @@ report_unparenthesized_function_type :: proc(p: ^Parser, t: ^TSType) {
 	if t == nil { return }
 	#partial switch _ in t^ {
 	case ^TSFunctionType:
-		report_error(p, "Function type must be parenthesized in union or intersection")
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "Function type must be parenthesized in union or intersection")
 	case ^TSConstructorType:
-		report_error(p, "Constructor type must be parenthesized in union or intersection")
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "Constructor type must be parenthesized in union or intersection")
 	}
 }
 
@@ -18726,12 +18723,12 @@ parse_ts_constructor_type :: proc(p: ^Parser, start: Loc, abstract: bool) -> ^TS
 		type_params = parse_ts_type_parameters(p)
 	}
 	if !is_token(p, .LParen) {
-		report_error(p, "Expected '(' after 'new' in constructor type")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after 'new' in constructor type")
 		return nil
 	}
 	params := parse_ts_sig_params(p)
 	if !is_token(p, .Arrow) {
-		report_error(p, "Expected '=>' in constructor type")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in constructor type")
 		return nil
 	}
 	arrow_start := u32(cur_offset(p))
@@ -18800,7 +18797,7 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 			eat(p)
 			break
 		}
-		report_error(p, "Expected template middle / tail token in template literal type")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected template middle / tail token in template literal type")
 		break
 	}
 	node.loc.end = prev_end_offset(p) + 1 // include trailing backtick
@@ -18849,12 +18846,12 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// shape was wrong).		// "Expected '=', ',', or ';' after variable binding" cluster
 		type_params := parse_ts_type_parameters(p)
 		if !is_token(p, .LParen) {
-			report_error(p, "Expected '(' after generic type parameters in function type")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after generic type parameters in function type")
 			return nil
 		}
 		params := parse_ts_sig_params(p)
 		if !is_token(p, .Arrow) {
-			report_error(p, "Expected '=>' in generic function type")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in generic function type")
 			return nil
 		}
 		arrow_start := u32(cur_offset(p))
@@ -18885,7 +18882,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		if looks_like_ts_function_type(p) {
 			params := parse_ts_sig_params(p)
 			if !is_token(p, .Arrow) {
-				report_error(p, "Expected '=>' in function type")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in function type")
 				return nil
 			}
 			// Capture the `=>` position BEFORE eating so the returnType's
@@ -19132,7 +19129,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				// `typeof A.` (trailing dot without property) is a
 				// SyntaxError. Check that an identifier follows.
 				if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
-					report_error(p, "Expected property name after '.'")
+					report_error_coded(p, .K2021_ExpectedIdentifier, "Expected property name after '.'")
 					break
 				}
 				tq_prop := parse_identifier_name(p)
@@ -19187,7 +19184,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	case .Infer:
 		// TS1338: 'infer' is only valid in the extends clause of a conditional type.
 		if p.ts_in_conditional_extends == 0 && allow_ts_mode(p) {
-			report_error(p, "'infer' declarations are only permitted in the 'extends' clause of a conditional type.")
+			report_error_coded(p, .K2040_UnexpectedToken, "'infer' declarations are only permitted in the 'extends' clause of a conditional type.")
 		}
 		eat(p); pn := parse_identifier(p)
 		node := new_node(p, TSInferType); node.loc = start
@@ -19247,7 +19244,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		op_kind: UnaryOperator = op_tok.type == .Minus ? .Minus : .Plus
 		eat(p) // consume `-` / `+`
 		if p.cur_type != .Number && p.cur_type != .BigInt {
-			report_error(p, "Expected numeric or bigint literal after unary operator in type")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected numeric or bigint literal after unary operator in type")
 			return nil
 		}
 		lit_start := cur_loc(p)
@@ -19342,7 +19339,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// a non-string argument is a SyntaxError.
 		if arg_type != nil {
 			if _, is_lit := arg_type^.(^TSLiteralType); !is_lit {
-				report_error(p, "String literal expected in import type")
+				report_error_coded(p, .K2070_RequiredFormOrBinding, "String literal expected in import type")
 			}
 		}
 		// `with { ... }` import-type attributes - stage-3 since TS 5.3.
@@ -19353,7 +19350,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 			// After the comma, `{` must follow (import-type attributes).
 			// `import("foo", )` with trailing comma is a SyntaxError.
 			if is_token(p, .RParen) {
-				report_error(p, "Expected '{' after ',' in import type options")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
 			}
 			// Parse import-type options object: `{ with: { key: "value" } }`.
 			// Validate structural constraints that OXC/TSC enforce:
@@ -19370,11 +19367,11 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 				} else if is_token(p, .Identifier) && cur_value_eq(p, "with") {
 					// `w\u0069th` — escaped form of `with`.
 					if cur_has_escape(p) {
-						report_error(p, "Expected 'with' in import type options")
+						report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
 					}
 				} else if is_token(p, .String) {
 					// `"with"` as string literal key.
-					report_error(p, "Expected 'with' in import type options")
+					report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
 				}
 				eat(p) // consume key (with / identifier / string)
 				if is_token(p, .Colon) { eat(p) } // consume :
@@ -19386,7 +19383,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 							report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
 						}
 						if is_token(p, .LBracket) {
-							report_error(p, "Import attributes keys must be identifier or string literal")
+							report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
 						}
 						// Validate the key: must be Identifier, String, or keyword-as-name.
 						// Numeric / BigInt literals as keys are invalid here.
@@ -19395,7 +19392,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 						}
 						eat(p) // consume key
 						if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
-							report_error(p, "Expected ':' after import attribute key")
+							report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ':' after import attribute key")
 						}
 						if is_token(p, .Colon) {
 							eat(p) // consume :
@@ -19920,7 +19917,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 			// nothing else is legal: emit one error and bail.
 			lexer_restore(p, snap2)
 			if after != .RAngle {
-				report_error(p, "Malformed generic arrow function")
+				report_error_coded(p, .K2040_UnexpectedToken, "Malformed generic arrow function")
 				return nil
 			}
 			// fall through to assertion for the ambiguous case
@@ -19935,12 +19932,12 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	// `<>expr` — empty type assertion is not valid TS syntax.
 	if type_ann == nil {
 		lexer_restore(p, snap)
-		report_error(p, "Unexpected token")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
 		return nil
 	}
 	if !expect_token(p, .RAngle) {
 		lexer_restore(p, snap)
-		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '<': not a valid TS type assertion or generic arrow")
 		return nil
 	}
 	// After the closing `>`, the assertion's expression starts. If the
@@ -19957,7 +19954,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	expr := parse_unary_expr(p)
 	if expr == nil {
 		lexer_restore(p, snap)
-		report_error(p, "Unexpected '<': not a valid TS type assertion or generic arrow")
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '<': not a valid TS type assertion or generic arrow")
 		return nil
 	}
 	// OXC rejects `<T>yield 0` in generators: `yield` directly after
@@ -20085,7 +20082,7 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 
 	// After the type params we must see `(` for the arrow's parameters.
 	if !is_token(p, .LParen) {
-		report_error(p, "Expected '(' after generic type parameters")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after generic type parameters")
 		return nil
 	}
 
@@ -20111,7 +20108,7 @@ parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
 	if is_token(p, .Colon) { return_type = parse_ts_type_annotation(p) }
 
 	if !is_token(p, .Arrow) {
-		report_error(p, "Expected '=>' in generic arrow function")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in generic arrow function")
 		return nil
 	}
 
@@ -20321,7 +20318,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 		return_type = parse_ts_return_type_annotation(p)
 		// `(a): => {}` — colon with no type before `=>`.
 		if rt, ok := return_type.?; ok && rt != nil && rt.type_annotation == nil {
-			report_error(p, "Expected type after ':' in arrow return type annotation")
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type after ':' in arrow return type annotation")
 		}
 		// If the return type parse produced errors, bail out and let
 		// the outer parser try a different interpretation.
@@ -20367,7 +20364,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	} else {
 		#partial switch p.cur_type {
 		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
-			report_error(p, "Unexpected token")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
 		}
 		body = parse_assignment_expression(p)
 	}
@@ -20465,7 +20462,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 			eat(p)
 			c := parse_ts_type(p)
 			if c == nil {
-				report_error(p, "Expected type after 'extends'")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type after 'extends'")
 			} else {
 				constraint = c
 			}
@@ -20474,7 +20471,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 			eat(p)
 			d := parse_ts_type(p)
 			if d == nil {
-				report_error(p, "Expected type after '='")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type after '='")
 			} else {
 				default_ = d
 			}
@@ -20753,7 +20750,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 			eat(p)
 			name_type = parse_ts_type(p)
 			if name_type == nil {
-				report_error(p, "Expected type after 'as' in mapped type")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type after 'as' in mapped type")
 			}
 		}
 		expect_token(p, .RBracket)
@@ -20804,7 +20801,7 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 		// returns nil leaving readonly + `["a", "b"]` unconsumed in the
 		// outer object loop. Always advance at least one token per iteration.
 		if u32(cur_offset(p)) == prev_off {
-			report_error(p, "Unexpected token in TS object type")
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token in TS object type")
 			eat(p)
 		}
 	}
@@ -21018,7 +21015,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		if is_token(p, .LAngle) {
 			type_params = parse_ts_type_parameters(p)
 			if !is_token(p, .LParen) {
-				report_error(p, "Expected '(' after type parameters in call signature")
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after type parameters in call signature")
 				return nil
 			}
 		}
@@ -21089,7 +21086,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
  ensure_nxt(p)
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .RBracket {
 		// `[]: T` - empty index signature.
-		report_error(p, "An index signature must have a parameter")
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "An index signature must have a parameter")
 		eat(p) // `[`
 		eat(p) // `]`
 		if is_token(p, .Colon) { eat(p); _ = parse_ts_type(p) }
@@ -21277,7 +21274,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			}
 		} else {
 			if len(params) != 1 {
-				report_error(p, "A set accessor must have exactly one parameter")
+				report_error_coded(p, .K2070_RequiredFormOrBinding, "A set accessor must have exactly one parameter")
 			}
 			if len(params) == 1 {
 				if params[0].optional {
@@ -21570,7 +21567,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 
 	if stmt == nil {
-		report_error(p, "Expected declaration after 'declare'")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected declaration after 'declare'")
 		return stmt
 	}
 
@@ -21699,7 +21696,7 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	expect_token(p, .Assign)
 	type_ann := parse_ts_type(p)
 	if type_ann == nil {
-		report_error(p, "Expected type annotation after '='")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected type annotation after '='")
 	}
 	match_semicolon_or_asi(p)
 	decl := new_node(p, TSTypeAliasDeclaration); decl.loc = start; decl.id = id; decl.type_parameters = type_parameters; decl.type_annotation = type_ann
@@ -21811,7 +21808,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 				if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.start }
 				else if sl, ok2 := m.id^.(^StringLiteral); ok2 && sl != nil { loc = sl.loc.start }
 				msg := fmt.tprintf("Duplicate identifier '%s'.", name)
-				report_error_at(p, LexerLoc(loc), msg)
+				report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(loc), u32(loc), msg)
 			}
 			seen_names[name] = true
 		}
@@ -21841,8 +21838,7 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 					if m.id != nil {
 						if id, ok := m.id^.(^Identifier); ok && id != nil { loc = id.loc.start }
 					}
-					report_error_at(p, LexerLoc(loc),
-						"Enum member must have initializer.")
+					report_error_coded_span(p, .K2070_RequiredFormOrBinding, u32(loc), u32(loc), "Enum member must have initializer.")
 				}
 				prev_needs_init = false
 			}
@@ -21983,7 +21979,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	decl := new_node(p, TSModuleDeclaration)
 	decl.loc = start; decl.id = id_expr; decl.kind = kind
 	if !is_token(p, .LBrace) && !p.ctx.in_ambient {
-		report_error(p, "Expected `{` but found `;`")
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected `{` but found `;`")
 	}
 	if is_token(p, .LBrace) {
 		body_start := cur_loc(p); eat(p) // consume `{`

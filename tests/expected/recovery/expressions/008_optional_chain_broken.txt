@@ -65,6 +65,8 @@
   ],
   "errors": [
     {
+      "code": "K2040",
+      "severity": "error",
       "message": "Unexpected token after ?.",
       "line": 3,
       "column": 21,
@@ -76,5 +78,5 @@ Parse errors (1):
   Line 3, Column 21: Unexpected token after ?.
 
 --- Statistics ---
-Arena: used=8560B reserved=16777216B ratio=0%
+Arena: used=37760B reserved=16777216B ratio=0%
 Parse errors: 1

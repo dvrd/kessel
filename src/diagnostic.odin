@@ -51,6 +51,17 @@ ErrorCode :: enum u16 {
 	// K2xxx — parser syntax
 	K2002_ExpectedToken                           = 2002,  // "Expected X, got Y" — generic
 	K2003_ExpectedTypeElement                     = 2003,  // empty tuple / type-arg / type-param slot
+	K2010_ExpectedSemicolon                       = 2010,
+	K2020_ExpectedExpression                      = 2020,
+	K2021_ExpectedIdentifier                      = 2021,
+	K2022_ExpectedStatementBody                   = 2022,
+	K2023_ExpectedKeywordOrPunct                  = 2023,
+	K2040_UnexpectedToken                         = 2040,
+	K2050_InvalidLHS                              = 2050,
+	K2060_DuplicateLabel                          = 2060,
+	K2070_RequiredFormOrBinding                   = 2070,
+	K2080_ParserBudgetExceeded                    = 2080,
+	K2090_MalformedDecorator                      = 2090,
 
 	// K3xxx — ECMA-262 early errors. Phase 4 first slice covers the
 	// await/yield/async/generator family (§15.5 — AsyncFunction,
@@ -93,6 +104,9 @@ ErrorCode :: enum u16 {
 	K3051_StrictModeProhibited                    = 3051,
 	K3052_UseStrictWithComplexParams              = 3052,
 	K3053_ReservedAsBindingIdentifier             = 3053,
+	K3037_DuplicateIdentifier                     = 3037,
+	K3038_ParameterInitReference                  = 3038,
+	K3055_LabelOrLoopControl                      = 3055,
 
 	// Expression / declaration shape rules (the long-tail batch).
 	K3060_SingleStatementContext                  = 3060,
@@ -161,6 +175,154 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 		return ErrorInfo{
 			default_message = "Expected type element",
 			hint            = "remove the stray comma, or fill in the missing type",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2010 — expected `;` (or automatic semicolon insertion site).
+	case .K2010_ExpectedSemicolon:
+		return ErrorInfo{
+			default_message = "expected semicolon",
+			hint            = "",
+			ts_code         = "TS1005",
+			severity        = .Error,
+		}
+
+	// K2020 — expected an expression in a position the grammar requires
+	//   one: after `=` initializer, after `extends`, in `if` condition,
+	//   as an operand of an operator, etc.
+	case .K2020_ExpectedExpression:
+		return ErrorInfo{
+			default_message = "expected expression",
+			hint            = "",
+			ts_code         = "TS1109",
+			severity        = .Error,
+		}
+
+	// K2021 — expected an identifier (name) where the grammar requires
+	//   one: after `.` in member / decorator; as a binding name; etc.
+	case .K2021_ExpectedIdentifier:
+		return ErrorInfo{
+			default_message = "expected identifier",
+			hint            = "",
+			ts_code         = "TS1003",
+			severity        = .Error,
+		}
+
+	// K2022 — expected a statement to follow a header (`if`, `else`,
+	//   `while`, `for`, `try`, ...). The header is well-formed but no
+	//   body follows.
+	case .K2022_ExpectedStatementBody:
+		return ErrorInfo{
+			default_message = "expected statement body",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2023 — expected a specific keyword or punctuation token: `from`
+	//   in import; `with` in import attribute; `=>` in arrow; `:` in
+	//   conditional; `}` at end of block; etc.
+	case .K2023_ExpectedKeywordOrPunct:
+		return ErrorInfo{
+			default_message = "expected a keyword or punctuation token",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2040 — unexpected token in this position. Used when the parser
+	//   cannot identify a more specific category. Includes orphan
+	//   closing tokens (`else` without `if`, `catch`/`finally` without
+	//   `try`), unmatched braces, and unhandled punctuation in expression
+	//   context.
+	case .K2040_UnexpectedToken:
+		return ErrorInfo{
+			default_message = "unexpected token",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2050 — invalid left-hand side: in assignment, in prefix /
+	//   postfix operation, in for-in / for-of, in destructuring target.
+	case .K2050_InvalidLHS:
+		return ErrorInfo{
+			default_message = "invalid left-hand side expression",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2060 — label name already declared in the enclosing scope.
+	case .K2060_DuplicateLabel:
+		return ErrorInfo{
+			default_message = "label has already been declared",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2070 — a declaration form requires a specific element: `let` /
+	//   `const` requires a binding name; `using` requires an initializer;
+	//   try statement must have catch or finally; etc.
+	case .K2070_RequiredFormOrBinding:
+		return ErrorInfo{
+			default_message = "required syntactic element is missing",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2080 — parser hit its iteration budget. This is a kessel-internal
+	//   safety net (loops have fixed upper bounds per TigerStyle); if it
+	//   fires the input is pathological or a parser bug has stalled.
+	case .K2080_ParserBudgetExceeded:
+		return ErrorInfo{
+			default_message = "maximum parsing iterations exceeded",
+			hint            = "this is a kessel safety net — file a bug report with the offending source",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2090 — malformed decorator: missing identifier after `.` in
+	//   `@a.b.c`; non-expression following `@`.
+	case .K2090_MalformedDecorator:
+		return ErrorInfo{
+			default_message = "malformed decorator",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3037 — duplicate identifier in the same lexical scope; also
+	//   covers TDZ violations (block-scoped variable used before its
+	//   declaration).
+	case .K3037_DuplicateIdentifier:
+		return ErrorInfo{
+			default_message = "duplicate identifier in this scope",
+			hint            = "",
+			ts_code         = "TS2300",
+			severity        = .Error,
+		}
+
+	// K3038 — parameter initializer references the parameter itself
+	//   or a parameter declared after it.
+	case .K3038_ParameterInitReference:
+		return ErrorInfo{
+			default_message = "parameter initializer cannot reference itself or a later parameter",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3055 — label / loop-control rule violation: undefined label
+	//   target; `break` outside loop or switch; `continue` outside loop
+	//   or targeting a non-iteration label.
+	case .K3055_LabelOrLoopControl:
+		return ErrorInfo{
+			default_message = "invalid label or loop control",
+			hint            = "",
 			ts_code         = "",
 			severity        = .Error,
 		}

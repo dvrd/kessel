@@ -65,12 +65,16 @@
       "offset": 64
     },
     {
+      "code": "K2040",
+      "severity": "error",
       "message": "Unexpected '}' — unmatched closing brace",
       "line": 2,
       "column": 14,
       "offset": 66
     },
     {
+      "code": "K2010",
+      "severity": "error",
       "message": "Expected semicolon",
       "line": 2,
       "column": 21,

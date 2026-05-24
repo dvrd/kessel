@@ -146,6 +146,8 @@
   ],
   "errors": [
     {
+      "code": "K2023",
+      "severity": "error",
       "message": "Expected type after 'extends'",
       "line": 2,
       "column": 23,
@@ -157,5 +159,5 @@ Parse errors (1):
   Line 2, Column 23: Expected type after 'extends'
 
 --- Statistics ---
-Arena: used=38160B reserved=16777216B ratio=0%
+Arena: used=38336B reserved=16777216B ratio=0%
 Parse errors: 1

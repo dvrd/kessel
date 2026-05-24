@@ -68,6 +68,8 @@
   ],
   "errors": [
     {
+      "code": "K2040",
+      "severity": "error",
       "message": "Unexpected token. Did you mean `{'>'}` or `&gt;`?",
       "line": 3,
       "column": 1,

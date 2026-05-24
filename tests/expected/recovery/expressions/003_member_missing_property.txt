@@ -63,6 +63,8 @@
       "offset": 67
     },
     {
+      "code": "K2020",
+      "severity": "error",
       "message": "Expected initializer expression after '='",
       "line": 2,
       "column": 24,

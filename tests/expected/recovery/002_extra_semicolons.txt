@@ -233,6 +233,8 @@
   ],
   "errors": [
     {
+      "code": "K2040",
+      "severity": "error",
       "message": "Unexpected ';' in object literal",
       "line": 16,
       "column": 7,
@@ -244,5 +246,5 @@ Parse errors (1):
   Line 16, Column 7: Unexpected ';' in object literal
 
 --- Statistics ---
-Arena: used=37872B reserved=16777216B ratio=0%
+Arena: used=38496B reserved=16777216B ratio=0%
 Parse errors: 1

@@ -671,7 +671,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			if lbl_start >= 0 && lbl_end > lbl_start && lbl_end <= len(src) {
 				if strings.contains(src[lbl_start:lbl_end], "\\u") {
 					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", v.label.name)
-					ck_report(c, u32(v.label.loc.start), msg)
+					ck_report_coded(c, u32(v.label.loc.start), .K3015_KeywordContainsEscape, msg)
 				}
 			}
 		}
@@ -968,7 +968,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Interface name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.start), msg)
+				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
 			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
 				ck_report(c, u32(v.loc.start),
@@ -988,7 +988,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 			// TS2457 — type alias name cannot be a predefined type name.
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Type alias name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.start), msg)
+				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
 			}
 			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
 				ck_report(c, u32(v.loc.start),
@@ -1004,7 +1004,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.start), msg)
+				ck_report_coded(c, u32(v.id.loc.start), .K4054_EnumInvalid, msg)
 			}
 			ck_check_ts_enum_member_dups(c, v)
 		}
@@ -1023,7 +1023,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Import name cannot be '%s'.", v.id.name)
-				ck_report(c, u32(v.id.loc.start), msg)
+				ck_report_coded(c, u32(v.id.loc.start), .K3020_ImportExportNameOrBinding, msg)
 			}
 		}
 		// TS1392 import alias + import type — migrated to parser.
@@ -1049,7 +1049,7 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(inner.id.name) {
 				msg := fmt.tprintf("Interface name cannot be '%s'.", inner.id.name)
-				ck_report(c, u32(inner.id.loc.start), msg)
+				ck_report_coded(c, u32(inner.id.loc.start), .K4051_TSDeclarationStructure, msg)
 			}
 			ck_check_ts_interface_member_dups(c, inner.body)
 			if tp, has := inner.type_parameters.(^TSTypeParameterDeclaration); has {
@@ -1060,7 +1060,7 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
 			if is_ts_predefined_type_name(inner.id.name) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", inner.id.name)
-				ck_report(c, u32(inner.id.loc.start), msg)
+				ck_report_coded(c, u32(inner.id.loc.start), .K4054_EnumInvalid, msg)
 			}
 		}
 	case ^TSTypeAliasDeclaration:
@@ -1152,7 +1152,7 @@ ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) 
 		for j := 0; j < i; j += 1 {
 			if names[i] == names[j] {
 				msg := fmt.tprintf("Identifier '%s' has already been declared", names[i])
-				ck_report(c, u32(decl.loc.start), msg)
+				ck_report_coded(c, u32(decl.loc.start), .K3037_DuplicateIdentifier, msg)
 				return
 			}
 		}
@@ -1374,7 +1374,7 @@ ts_decl_merge_add :: proc(
 		both_ambient := existing_ambient && is_ambient
 		if !ts_decl_merge_pair_legal(existing, kind, both_ambient) {
 			msg := fmt.tprintf("Duplicate identifier '%s'", name)
-			ck_report(c, at, msg)
+			ck_report_coded(c, at, .K3037_DuplicateIdentifier, msg)
 			break  // one diagnostic per re-declaration is enough
 		}
 	}
@@ -1871,7 +1871,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 				// as the impl for the chain (TS2389 fires on name mismatch).
 				if name != chain_name {
 					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
-					ck_report(c, u32(elem.loc.start), msg)
+					ck_report_coded(c, u32(elem.loc.start), .K2070_RequiredFormOrBinding, msg)
 				}
 				chain_active = false
 			} else {
@@ -2247,7 +2247,7 @@ ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpr
 			}
 			if param_name != "" && field_names[param_name] {
 				msg := fmt.tprintf("Duplicate identifier '%s'", param_name)
-				ck_report(c, param_loc, msg)
+				ck_report_coded(c, param_loc, .K3037_DuplicateIdentifier, msg)
 			}
 		}
 		break  // only check the implementation constructor
@@ -2289,7 +2289,7 @@ ck_check_ts_enum_member_dups :: proc(c: ^Checker, decl: ^TSEnumDeclaration) {
 		if name == "" { continue }
 		if _, already := seen[name]; already {
 			msg := fmt.tprintf("Duplicate identifier '%s'", name)
-			ck_report(c, loc, msg)
+			ck_report_coded(c, loc, .K3037_DuplicateIdentifier, msg)
 		} else {
 			seen[name] = loc
 		}
@@ -2484,7 +2484,7 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 				// fires on name mismatch (FunctionDeclaration4.ts shape).
 				if name != chain_name {
 					msg := fmt.tprintf("Function implementation name must be '%s'.", chain_name)
-					ck_report(c, name_at, msg)
+					ck_report_coded(c, name_at, .K2070_RequiredFormOrBinding, msg)
 				}
 				chain_active = false
 				clear(&chain_sigs)
@@ -3010,7 +3010,7 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 		// name AND we're not inside a closure, flag it.
 		if len(self_name) > 0 && e.name == self_name && closure_depth == 0 {
 			msg := fmt.tprintf("Block-scoped variable '%s' used before its declaration.", e.name)
-			ck_report(c, u32(e.loc.start), msg)
+			ck_report_coded(c, u32(e.loc.start), .K3037_DuplicateIdentifier, msg)
 			return
 		}
 		decl_off, ok := decls^[e.name]
@@ -3018,7 +3018,7 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 		ref_off := u32(e.loc.start)
 		if ref_off >= decl_off { return }
 		msg := fmt.tprintf("Block-scoped variable '%s' used before its declaration.", e.name)
-		ck_report(c, ref_off, msg)
+		ck_report_coded(c, ref_off, .K3037_DuplicateIdentifier, msg)
 	case ^FunctionExpression:
 		// Entering a closure: increment closure_depth so self-init refs
 		// inside are deferred. Also stop walking — the body is evaluated
@@ -3292,7 +3292,7 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 			if pcount > 0 && prev.param_count > 0 {
 				if pcount != prev.param_count {
 					msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
-					ck_report(c, u32(iface.id.loc.start), msg)
+					ck_report_coded(c, u32(iface.id.loc.start), .K4080_DuplicateImplementation, msg)
 				} else {
 					// Compare parameter names.
 					mismatch := false
@@ -3301,7 +3301,7 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 					}
 					if mismatch {
 						msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
-						ck_report(c, u32(iface.id.loc.start), msg)
+						ck_report_coded(c, u32(iface.id.loc.start), .K4080_DuplicateImplementation, msg)
 					}
 				}
 			} else if pcount > 0 && prev.param_count == 0 {
@@ -4164,13 +4164,13 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			if name_strict && ctx.lang != .TS && ctx.lang != .TSX {
 				if is_eval_or_arguments(id.name) {
 					msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", id.name)
-					ck_report(c, u32(id.loc.start), msg)
+					ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
 				} else if is_strict_reserved_simple_name(id.name) {
 					// `yield` as fn name in strict mode — parser-side
 					// `report_error` already catches generator name clash;
 					// strict-only reservation is checker-side.
 					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
-					ck_report(c, u32(id.loc.start), msg)
+					ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
 				}
 			}
 		}
@@ -4263,7 +4263,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 				for n in self_names {
 					if ck_expr_has_identifier_ref(def, n, context.temp_allocator) {
 						msg := fmt.tprintf("Parameter '%s' cannot reference itself.", n)
-						ck_report(c, u32(pr.loc.start), msg)
+						ck_report_coded(c, u32(pr.loc.start), .K3038_ParameterInitReference, msg)
 						break
 					}
 				}
@@ -4393,7 +4393,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		if id, ok := cls.id.(BindingIdentifier); ok {
 			if is_ts_predefined_type_name(id.name) {
 				msg := fmt.tprintf("Class name cannot be '%s'.", id.name)
-				ck_report(c, u32(id.loc.start), msg)
+				ck_report_coded(c, u32(id.loc.start), .K3030_ClassDeclarationStructure, msg)
 			}
 		}
 	}
@@ -4961,7 +4961,7 @@ ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 		sc := &sw.cases[i]
 		if _, have := sc.test.(^Expression); have { continue } // not a default
 		if default_seen {
-			ck_report(c, u32(sc.loc.start), "More than one default clause in switch")
+			ck_report_coded(c, u32(sc.loc.start), .K2040_UnexpectedToken, "More than one default clause in switch")
 		} else {
 			default_seen = true
 		}
@@ -5650,7 +5650,7 @@ ck_check_assignment_invalid_lhs :: proc(c: ^Checker, e: ^AssignmentExpression) {
 	// errors — every other invalid LHS is a parser-side structural error.
 	#partial switch _ in e.left^ {
 	case ^ArrayExpression, ^ObjectExpression:
-		ck_report(c, u32(e.loc.start), "Invalid left-hand side in assignment")
+		ck_report_coded(c, u32(e.loc.start), .K2050_InvalidLHS, "Invalid left-hand side in assignment")
 	}
 }
 
@@ -5756,10 +5756,10 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 	if ctx.strict_mode {
 		if is_eval_or_arguments(name) {
 			msg := fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", name)
-			ck_report(c, loc, msg)
+			ck_report_coded(c, loc, .K3050_StrictModeReserved, msg)
 		} else if is_strict_reserved_simple_name(name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
-			ck_report(c, loc, msg)
+			ck_report_coded(c, loc, .K3050_StrictModeReserved, msg)
 		}
 	}
 	if name == "enum" {
@@ -5849,7 +5849,7 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 		if name == "default" { return }
 		if _, exists := exported^[name]; exists {
 			msg := fmt.tprintf("Duplicate exported name '%s'", name)
-			ck_report(c, off, msg)
+			ck_report_coded(c, off, .K3020_ImportExportNameOrBinding, msg)
 		} else {
 			exported^[name] = off
 		}
@@ -6548,7 +6548,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if e, have := left_expr.(^Expression); have && e != nil {
 		if ctx.strict_mode && is_call_expression_target(e) {
 			msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_str)
-			ck_report(c, u32(loc_from_expr(e).start), msg)
+			ck_report_coded(c, u32(loc_from_expr(e).start), .K2050_InvalidLHS, msg)
 		}
 		return
 	}
@@ -6556,7 +6556,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if !have_decl || decl == nil { return }
 	if len(decl.declarations) > 1 {
 		msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
-		ck_report(c, u32(decl.loc.start), msg)
+		ck_report_coded(c, u32(decl.loc.start), .K3061_ForLoopLHS, msg)
 	}
 	for_in_init_ok := is_in &&
 	                  !ctx.strict_mode &&
@@ -6582,8 +6582,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 				if _, ok := pat.type_annotation.(^TSTypeAnnotation); ok { has_ann = true }
 			}
 			if has_ann {
-				ck_report(c, u32(decl.loc.start),
-					"The left-hand side of a 'for...in' statement cannot use a type annotation.")
+				ck_report_coded(c, u32(decl.loc.start), .K2040_UnexpectedToken, "The left-hand side of a 'for...in' statement cannot use a type annotation.")
 				return
 			}
 		}
@@ -6599,8 +6598,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 				is_destructuring = true
 			}
 			if is_destructuring {
-				ck_report(c, u32(decl.loc.start),
-					"The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+				ck_report_coded(c, u32(decl.loc.start), .K2040_UnexpectedToken, "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
 				return
 			}
 		}
@@ -6645,7 +6643,7 @@ ck_check_catch_param_dups :: proc(c: ^Checker, h: CatchClause) {
 		for j := i + 1; j < len(names); j += 1 {
 			if names[i] == names[j] {
 				msg := fmt.tprintf("Identifier '%s' has already been declared in catch clause", names[i])
-				ck_report(c, u32(h.loc.start), msg)
+				ck_report_coded(c, u32(h.loc.start), .K3037_DuplicateIdentifier, msg)
 				return
 			}
 		}
@@ -6691,7 +6689,7 @@ ck_check_private_name_resolved :: proc(c: ^Checker, ctx: ^CheckerContext, pid: ^
 	if pid == nil || len(pid.name) == 0 { return }
 	if ck_private_name_in_scope(ctx, pid.name) { return }
 	msg := fmt.tprintf("Private field '#%s' must be declared in an enclosing class", pid.name)
-	ck_report(c, u32(pid.loc.start), msg)
+	ck_report_coded(c, u32(pid.loc.start), .K3032_PrivateNameInvalid, msg)
 }
 
 // ck_check_class_private_duplicates — §15.7.1 — PrivateBoundNames of
@@ -6772,7 +6770,7 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is
 			// Static-mismatch is the only failure mode for the get/set pair.
 			if rec.get_static != rec.set_static {
 				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report(c, rec.last_dup_loc, msg)
+				ck_report_coded(c, rec.last_dup_loc, .K3032_PrivateNameInvalid, msg)
 			}
 			continue
 		}
@@ -6813,14 +6811,14 @@ ck_check_class_private_static_mismatch :: proc(c: ^Checker, cls: ^ClassExpressio
 		case .Get:
 			if prev.has_set && prev.set_static != elem.static {
 				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report(c, u32(elem.loc.start), msg)
+				ck_report_coded(c, u32(elem.loc.start), .K3032_PrivateNameInvalid, msg)
 			}
 			prev.has_get = true
 			prev.get_static = elem.static
 		case .Set:
 			if prev.has_get && prev.get_static != elem.static {
 				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report(c, u32(elem.loc.start), msg)
+				ck_report_coded(c, u32(elem.loc.start), .K3032_PrivateNameInvalid, msg)
 			}
 			prev.has_set = true
 			prev.set_static = elem.static
@@ -6921,7 +6919,7 @@ ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBi
 			ck_report(c, u32(v.loc.start), msg)
 		} else if is_strict_reserved_simple_name(v.name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-			ck_report(c, u32(v.loc.start), msg)
+			ck_report_coded(c, u32(v.loc.start), .K3050_StrictModeReserved, msg)
 		}
 	case ^ObjectPattern:
 		if v == nil { return }
@@ -7000,7 +6998,7 @@ ck_check_strict_update_eval_arguments :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if !is_id || ident == nil { return }
 	if is_eval_or_arguments(ident.name) {
 		msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", ident.name)
-		ck_report(c, u32(ident.loc.start), msg)
+		ck_report_coded(c, u32(ident.loc.start), .K3051_StrictModeProhibited, msg)
 	}
 }
 
@@ -7040,7 +7038,7 @@ ck_check_binding_identifier_strict :: proc(c: ^Checker, ctx: ^CheckerContext,
 	}
 	if is_strict_reserved_simple_name(name) {
 		msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", name)
-		ck_report(c, off, msg)
+		ck_report_coded(c, off, .K3050_StrictModeReserved, msg)
 	}
 }
 
@@ -7056,7 +7054,7 @@ ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, 
 	if !ctx.strict_mode || id == nil { return }
 	if !is_strict_reserved_simple_name(id.name) { return }
 	msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
-	ck_report(c, u32(id.loc.start), msg)
+	ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
 }
 
 // ck_check_module_await_binding — §16.2.2 — the BindingIdentifier

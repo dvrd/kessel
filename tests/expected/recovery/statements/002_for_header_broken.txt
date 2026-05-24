@@ -102,6 +102,8 @@
   ],
   "errors": [
     {
+      "code": "K2020",
+      "severity": "error",
       "message": "Expected expression after operator",
       "line": 2,
       "column": 21,
@@ -113,5 +115,5 @@ Parse errors (1):
   Line 2, Column 21: Expected expression after operator
 
 --- Statistics ---
-Arena: used=8104B reserved=16777216B ratio=0%
+Arena: used=37824B reserved=16777216B ratio=0%
 Parse errors: 1

@@ -95,6 +95,8 @@
       "offset": 88
     },
     {
+      "code": "K2040",
+      "severity": "error",
       "message": "Unexpected '}' — unmatched closing brace",
       "line": 6,
       "column": 1,

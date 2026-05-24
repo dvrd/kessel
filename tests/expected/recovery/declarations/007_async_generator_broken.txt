@@ -111,6 +111,8 @@
   ],
   "errors": [
     {
+      "code": "K2020",
+      "severity": "error",
       "message": "Expected initializer expression after '='",
       "line": 3,
       "column": 18,
@@ -122,5 +124,5 @@ Parse errors (1):
   Line 3, Column 18: Expected initializer expression after '='
 
 --- Statistics ---
-Arena: used=9040B reserved=16777216B ratio=0%
+Arena: used=38592B reserved=16777216B ratio=0%
 Parse errors: 1

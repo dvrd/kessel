@@ -114,18 +114,24 @@
   ],
   "errors": [
     {
+      "code": "K2020",
+      "severity": "error",
       "message": "Expected expression after operator",
       "line": 5,
       "column": 22,
       "offset": 100
     },
     {
+      "code": "K2010",
+      "severity": "error",
       "message": "Expected semicolon",
       "line": 5,
       "column": 22,
       "offset": 100
     },
     {
+      "code": "K2040",
+      "severity": "error",
       "message": "Invalid statement in block",
       "line": 5,
       "column": 22,
@@ -139,5 +145,5 @@ Parse errors (3):
   Line 5, Column 22: Invalid statement in block
 
 --- Statistics ---
-Arena: used=37392B reserved=16777216B ratio=0%
+Arena: used=37888B reserved=16777216B ratio=0%
 Parse errors: 3
