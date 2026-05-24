@@ -57,6 +57,26 @@ task build                    # Release binary → bin/kessel
 task build:debug              # Debug binary with bounds checks
 ```
 
+### Node.js (npm)
+
+Kessel ships as a multi-target npm package with the parser exposed as a
+synchronous FFI call — no process spawn, no JSON serialization. Native
+binaries are delivered as platform-specific optional dependencies, so a
+fresh install pulls one ~3 MB binary, not five.
+
+```bash
+npm install @dvrdlibs/kessel
+```
+
+```js
+const { parseSync } = require('@dvrdlibs/kessel');
+const { program, errors } = parseSync('app.tsx', '<Counter initial={0} />');
+```
+
+Supported targets: `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`,
+`win32-x64`. See [`npm/kessel/README.md`](npm/kessel/README.md) for the
+full API and benchmarks.
+
 ## Usage
 
 ```bash

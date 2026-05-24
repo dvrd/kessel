@@ -1,4 +1,4 @@
-# kessel
+# @dvrdlibs/kessel
 
 Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs via native shared library.
 
@@ -7,13 +7,17 @@ Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs via native sha
 ## Install
 
 ```bash
-npm install kessel
+npm install @dvrdlibs/kessel
 ```
+
+On install, npm pulls only the platform-specific native binary that matches
+your host (one of `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`,
+`win32-x64`). The other four sub-packages stay untouched on the registry.
 
 ## Usage
 
 ```js
-const { parseSync } = require('kessel');
+const { parseSync } = require('@dvrdlibs/kessel');
 
 const { program, errors } = parseSync('app.js', 'const x = 1 + 2;');
 console.log(program.body[0].type); // "VariableDeclaration"
