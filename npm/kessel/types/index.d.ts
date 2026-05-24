@@ -19,9 +19,19 @@ export interface ParseError {
   /** Human-readable error message. */
   message: string;
   /**
+   * The filename passed to `parseSync`. Echoed verbatim so callers can
+   * format errors as `filename:line:column` without threading the
+   * filename through separately.
+   */
+  filename: string;
+  /**
    * Byte offset into the source where the error was reported. The parser
    * tracks errors as single-point locations, so `start` and `end` are
    * currently the same value.
+   *
+   * Computed in UTF-8 bytes by the Odin parser. For source containing
+   * characters outside the Basic Multilingual Plane, this may differ
+   * from a JS string index by 1 or more positions per non-BMP character.
    */
   start: number;
   /**
@@ -29,6 +39,10 @@ export interface ParseError {
    * spans land in a future release.
    */
   end: number;
+  /** 1-based line number derived from `start`. */
+  line: number;
+  /** 1-based column number derived from `start`. */
+  column: number;
 }
 
 /** Result envelope returned by {@link parseSync}. */

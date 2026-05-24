@@ -53,7 +53,40 @@ function parseSync(
   filename: string,
   source: string,
   opts?: { lang?: 'js' | 'jsx' | 'ts' | 'tsx' }
-): { program: ESTree.Program, errors: Array<{ message: string }> }
+): {
+  program: ESTree.Program;
+  errors: Array<{
+    message: string;
+    filename: string;
+    start: number;       // byte offset
+    end: number;
+    line: number;        // 1-based
+    column: number;      // 1-based
+  }>;
+}
+```
+
+### Rendering errors
+
+A small subpath ships a codeframe renderer for human-readable output —
+separate so JSON-only callers don't pay for it:
+
+```js
+const { parseSync } = require('@dvrdlibs/kessel');
+const { formatError } = require('@dvrdlibs/kessel/format');
+
+const src = 'function greet() {\n  return "hello\n}';
+const { errors } = parseSync('app.js', src);
+errors.forEach(e => console.error(formatError(e, src)));
+```
+
+Output:
+
+```
+app.js:3:2: Expected '}' at end of function body
+  2 |   return "hello
+  3 | }
+    |  ^
 ```
 
 ## How it works

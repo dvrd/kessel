@@ -99,14 +99,58 @@ function parseSync(filename, source, opts = {}) {
     _free_result();
     return {
       program: { type: 'Program', body: [], sourceType: 'script', start: 0, end: 0 },
-      errors: [{ message: 'Parse failed' }],
+      errors: [{ message: 'Parse failed', filename, start: 0, end: 0, line: 1, column: 1 }],
     };
   }
 
   const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
   _free_result();
 
-  return decode(buf, source);
+  const decoded = decode(buf, source);
+  enrichErrors(decoded.errors, source, filename);
+  return decoded;
+}
+
+// ---------------------------------------------------------------------------
+// Error enrichment — attach filename + line/column to each diagnostic.
+//
+// The Odin parser emits byte offsets; we expose them as `start`/`end` and
+// also compute 1-based line/column for human-readable output. Line offsets
+// are computed once per parse and shared across all errors in that call.
+// ---------------------------------------------------------------------------
+
+function enrichErrors(errors, source, filename) {
+  if (errors.length === 0) return;
+  const lineStarts = computeLineStarts(source);
+  for (const err of errors) {
+    err.filename = filename;
+    const [line, column] = offsetToLineColumn(err.start, lineStarts);
+    err.line = line;
+    err.column = column;
+  }
+}
+
+function computeLineStarts(source) {
+  // Offsets where each line begins. Counting LF on the JS string is
+  // accurate for ASCII / BMP source (the common case); for source with
+  // characters outside the BMP, byte-based offsets from the parser may
+  // disagree with JS string indices. Documented in ParseError JSDoc.
+  const starts = [0];
+  for (let i = 0; i < source.length; i++) {
+    if (source.charCodeAt(i) === 10) starts.push(i + 1);
+  }
+  return starts;
+}
+
+function offsetToLineColumn(offset, lineStarts) {
+  // Binary search for the largest lineStarts[i] <= offset.
+  let lo = 0, hi = lineStarts.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1;
+    if (lineStarts[mid] <= offset) lo = mid;
+    else hi = mid - 1;
+  }
+  return [lo + 1, offset - lineStarts[lo] + 1];
 }
 
 module.exports = { parseSync };

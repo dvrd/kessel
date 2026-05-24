@@ -73,8 +73,20 @@ for (const [name, src] of badCases) {
       continue;
     }
     const e0 = errors[0];
-    if (typeof e0.message !== 'string' || typeof e0.start !== 'number' || typeof e0.end !== 'number') {
-      console.error(`FAIL: error shape wrong for '${name}':`, e0);
+    const required = ['message', 'filename', 'start', 'end', 'line', 'column'];
+    const missing = required.filter(k => e0[k] === undefined);
+    if (missing.length > 0) {
+      console.error(`FAIL: error missing fields ${missing.join(',')} for '${name}':`, e0);
+      failed++;
+      continue;
+    }
+    if (e0.filename !== 'bad.js') {
+      console.error(`FAIL: filename not echoed for '${name}':`, e0.filename);
+      failed++;
+      continue;
+    }
+    if (e0.line < 1 || e0.column < 1) {
+      console.error(`FAIL: line/column must be 1-based for '${name}':`, e0);
       failed++;
       continue;
     }
@@ -84,6 +96,21 @@ for (const [name, src] of badCases) {
     failed++;
   }
 }
+
+// formatError helper renders a multi-line codeframe.
+try {
+  const { formatError } = require('./format');
+  const src = 'function bad() {\n  return "unterminated\n}';
+  const { errors } = parseSync('demo.js', src);
+  if (errors.length === 0) throw new Error('expected at least one error');
+  const out = formatError(errors[0], src);
+  if (!out.includes('demo.js:') || !out.includes('^') || out.split('\n').length < 3) {
+    console.error('FAIL: formatError output looks wrong:\n' + out);
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (err) { console.error('CRASH: formatError:', err.message); failed++; }
 
 console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);

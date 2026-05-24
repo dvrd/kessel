@@ -16,12 +16,17 @@
     "./visitor": {
       "types": "./types/visitor.d.ts",
       "default": "./visitor.js"
+    },
+    "./format": {
+      "types": "./types/format.d.ts",
+      "default": "./format.js"
     }
   },
   "files": [
     "index.js",
     "binary-reader.js",
     "visitor.js",
+    "format.js",
     "types/",
     "README.md",
     "CHANGELOG.md"
