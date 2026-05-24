@@ -112,6 +112,31 @@ try {
   }
 } catch (err) { console.error('CRASH: formatError:', err.message); failed++; }
 
+// Regression test for UTF-8-correct line/column derivation. Previously
+// computeLineStarts walked source.charCodeAt(i), which is a UTF-16 code-
+// unit index — mismatched against the parser's UTF-8 byte offsets the
+// moment any non-BMP character (4-byte UTF-8 / 2-unit UTF-16 surrogate)
+// appeared before an error site. The fix scans Buffer.from(source) so
+// every offset is consistently in UTF-8 bytes.
+try {
+  // 😀 = U+1F600, 4 UTF-8 bytes / 2 UTF-16 code units.
+  // The trailing `*/` is an unterminated regex / divide — we just need
+  // a parser error AFTER the non-BMP run on line 2.
+  const src = 'const e = "😀😀😀";\nconst x = ;';
+  const { errors } = parseSync('emoji.js', src);
+  if (errors.length === 0) throw new Error('expected at least one error');
+  // The first error should be on line 2 (after the LF that follows the
+  // emoji-laden line). Pre-fix, the LF's table entry was off by 3 (one
+  // per emoji), placing the error in column-N of line 1 instead.
+  const e0 = errors[0];
+  if (e0.line !== 2) {
+    console.error('FAIL: UTF-8 line/column: expected line 2, got', e0.line, e0);
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (err) { console.error('CRASH: utf8 line/col:', err.message); failed++; }
+
 // Regression test for the x86_64 SIMD alignment bug. JS `Buffer.from(source)`
 // hands the parser a buffer with no 16-byte alignment guarantee. Before the
 // fix, the SIMD lexer's 16-byte load `(cast(^Vec16)&src[off])^` was lowered

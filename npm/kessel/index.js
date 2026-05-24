@@ -121,7 +121,13 @@ function parseSync(filename, source, opts = {}) {
 
 function enrichErrors(errors, source, filename) {
   if (errors.length === 0) return;
-  const lineStarts = computeLineStarts(source);
+  // Encode once: the Odin parser tracks offsets in UTF-8 bytes, so the
+  // line-start table must be built over the SAME byte stream or any LF
+  // that follows a non-ASCII character will land at the wrong index.
+  // Buffer.from is the canonical Node UTF-8 encoder; it shares no
+  // allocation with the koffi FFI buffer.
+  const sourceBytes = Buffer.from(source, 'utf8');
+  const lineStarts = computeLineStarts(sourceBytes);
   for (const err of errors) {
     err.filename = filename;
     const [line, column] = offsetToLineColumn(err.start, lineStarts);
@@ -130,14 +136,22 @@ function enrichErrors(errors, source, filename) {
   }
 }
 
-function computeLineStarts(source) {
-  // Offsets where each line begins. Counting LF on the JS string is
-  // accurate for ASCII / BMP source (the common case); for source with
-  // characters outside the BMP, byte-based offsets from the parser may
-  // disagree with JS string indices. Documented in ParseError JSDoc.
+function computeLineStarts(sourceBytes) {
+  // Offsets where each line begins, measured in UTF-8 bytes — same unit
+  // as ParseError.start/end and as everything the Odin parser sees.
+  // Previously we walked source.charCodeAt(i), which is a UTF-16 code-
+  // unit index; for ASCII / BMP source the two indexings agreed, but a
+  // non-BMP character (e.g. an emoji, encoded as 4 UTF-8 bytes / 2 UTF-16
+  // surrogates) pushed every subsequent LF's table entry low by one
+  // position per non-BMP char between offset 0 and the LF — shifting
+  // line numbers off for everything past the first non-BMP byte.
+  //
+  // We only scan for LF (0x0A): CRLF sequences contribute one LF which
+  // we capture; bare CR (classic Mac) is rare on disk and unsupported
+  // here without losing fidelity for the common case.
   const starts = [0];
-  for (let i = 0; i < source.length; i++) {
-    if (source.charCodeAt(i) === 10) starts.push(i + 1);
+  for (let i = 0; i < sourceBytes.length; i++) {
+    if (sourceBytes[i] === 0x0A) starts.push(i + 1);
   }
   return starts;
 }
