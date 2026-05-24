@@ -112,6 +112,32 @@ try {
   }
 } catch (err) { console.error('CRASH: formatError:', err.message); failed++; }
 
+// Regression test for token-aware error spans (binary format v3).
+// Before v3 every error had start === end (single-byte caret). Now
+// errors reported via the parser's primary report_error path carry the
+// full extent of the offending token, so renderers can underline
+// `[start, end)` instead of dropping a single caret. Lexer-side and
+// some legacy parser report_error_at call sites still emit single-point
+// reports (start === end); both shapes are valid and the test accepts
+// either as long as `end >= start` for every error.
+try {
+  const { errors } = parseSync('span.js', 'const x = ;');
+  if (errors.length === 0) throw new Error('expected at least one error');
+  let sawSpan = false;
+  for (const e of errors) {
+    if (typeof e.start !== 'number' || typeof e.end !== 'number' || e.end < e.start) {
+      throw new Error('error has invalid span shape: ' + JSON.stringify(e));
+    }
+    if (e.end > e.start) sawSpan = true;
+  }
+  if (!sawSpan) {
+    console.error('FAIL: token-aware spans: expected at least one error with end > start');
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (err) { console.error('CRASH: token-aware spans:', err.message); failed++; }
+
 // Regression test for UTF-8-correct line/column derivation. Previously
 // computeLineStarts walked source.charCodeAt(i), which is a UTF-16 code-
 // unit index — mismatched against the parser's UTF-8 byte offsets the

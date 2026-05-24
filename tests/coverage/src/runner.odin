@@ -130,7 +130,7 @@ render_first_error :: proc(
 	if len(job.lexer.line_offsets) == 0 {
 		kessel.build_line_table(&job.lexer)
 	}
-	line, col := kessel.offset_to_line_col(job.lexer.line_offsets, u32(err.loc))
+	line, col := kessel.offset_to_line_col(job.lexer.line_offsets, err.start)
 	buf := strings.builder_make(alloc)
 	fmt.sbprintf(&buf, "%s:%d:%d: %s", rel, line, col, err.message)
 	return strings.to_string(buf)

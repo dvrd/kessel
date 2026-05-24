@@ -508,9 +508,15 @@ ParserProfile :: struct {
 	recovery_tokens_eaten:  u64,
 }
 
-// Parse error structure
+// Parse error structure. `start` and `end` are byte offsets into the
+// source. For single-point reports (the common case before token-aware
+// spans landed) callers set start == end; report_error / report_error_at
+// helpers below do the right thing. Token-aware spans (start < end)
+// come from report_error_span and from the parser's primary report_error
+// which now reads both ends off the current FastToken.
 ParseError :: struct {
-	loc:     LexerLoc,
+	start:   u32,
+	end:     u32,
 	message: string,
 }
 
@@ -1099,20 +1105,34 @@ using_starts_decl :: proc(p: ^Parser) -> bool {
 	return nxt.type == .Identifier || can_be_binding_identifier(nxt.type)
 }
 
+// report_error surfaces a diagnostic at the CURRENT token. The span is
+// [cur.start, cur.end), so the error covers the whole offending token
+// instead of a single byte — callers that just need a caret keep the
+// caret at .start; renderers that want an underline get the full extent
+// for free. End-of-source errors trivially collapse to start == end.
 report_error :: proc(p: ^Parser, message: string) {
-	err := ParseError{
-		loc     = LexerLoc(cur_offset(p)),
+	bump_append(&p.errors, ParseError{
+		start   = cur_offset(p),
+		end     = cur_raw_end(p),
 		message = message,
-	}
-	bump_append(&p.errors, err)
+	})
 	if p.profile_enabled {
 		p.profile.errors_reported += 1
 	}
 }
 
-// report_error_at is like report_error but at an explicit source offset.
+// report_error_at reports at an explicit single-point offset (start == end).
+// Used by call sites that already have a known offset (e.g. saved from a
+// prior token boundary) but no matching end — a future pass can widen
+// these by passing a real span via report_error_span.
 report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
-	bump_append(&p.errors, ParseError{loc = loc, message = message})
+	bump_append(&p.errors, ParseError{start = u32(loc), end = u32(loc), message = message})
+}
+
+// report_error_span is the explicit-span variant. Prefer this whenever a
+// caller has both ends of the offending range.
+report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: string) {
+	bump_append(&p.errors, ParseError{start = start, end = end, message = message})
 }
 
 enable_profiling :: proc(p: ^Parser) {
@@ -1350,7 +1370,7 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 		for !is_token(p, .EOF) && int(cur_offset(p)) == start_offset {
 			if stuck_count == 0 {
 				already_reported := len(p.errors) > 0 &&
-					p.errors[len(p.errors)-1].loc == LexerLoc(cur_offset(p))
+					p.errors[len(p.errors)-1].start == cur_offset(p)
 				// Closing tokens (`)`, `]`) can appear as orphans during error
 				// recovery without being syntax errors in themselves. Only
 				// report for tokens that genuinely cannot appear at statement
@@ -1641,7 +1661,8 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// entries from p.pending_cover_inits.
 	for off in p.pending_cover_inits {
 		bump_append(&p.errors, ParseError{
-			loc     = LexerLoc(off),
+			start   = off,
+			end     = off,
 			message = "Invalid shorthand property initializer",
 		})
 	}
@@ -1650,7 +1671,8 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// promoted to ObjectPattern by expr_to_pattern. Report them.
 	for off in p.pending_proto_dups {
 		bump_append(&p.errors, ParseError{
-			loc     = LexerLoc(off),
+			start   = off,
+			end     = off,
 			message = "Redefinition of __proto__ property",
 		})
 	}
@@ -1675,7 +1697,8 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
 		for lex_err in p.lexer.lexer_errors {
 			err := ParseError{
-				loc     = LexerLoc(lex_err.offset),
+				start   = lex_err.offset,
+				end     = lex_err.offset,
 				message = lex_err.message,
 			}
 			bump_append(&p.errors, err)
@@ -4639,7 +4662,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			// Report unexpected token if not already covered by a prior error
 			// at this position (same logic as parse_program_item recovery).
 			already := len(p.errors) > 0 &&
-			           p.errors[len(p.errors)-1].loc == LexerLoc(cur_offset(p))
+			           p.errors[len(p.errors)-1].start == cur_offset(p)
 			is_closer := p.cur_type == .RParen || p.cur_type == .RBracket
 			if !already && !is_closer {
 				msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
@@ -9172,7 +9195,8 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 		for spec in export.specifiers {
 			if strlit, is_str := spec.local.(^StringLiteral); is_str && strlit != nil {
 				err := ParseError{
-					loc = LexerLoc(strlit.loc.start),
+					start   = strlit.loc.start,
+					end     = strlit.loc.end,
 					message = "A string literal cannot be used as an exported binding without `from`",
 				}
 				bump_append(&p.errors, err)
@@ -9186,7 +9210,7 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 				}
 				if local_name != "" && !module_names[local_name] {
 					msg := fmt.tprintf("Export '%s' is not defined in the module", local_name)
-					err := ParseError{loc = LexerLoc(local_loc), message = msg}
+					err := ParseError{start = local_loc, end = local_loc, message = msg}
 					bump_append(&p.errors, err)
 				}
 			}
@@ -9325,7 +9349,7 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 // other diagnostics merge into.
 scope_emit :: #force_inline proc(p: ^Parser, at: u32, message: string) {
 	if p == nil { return }
-	bump_append(&p.errors, ParseError{loc = LexerLoc(at), message = message})
+	bump_append(&p.errors, ParseError{start = at, end = at, message = message})
 }
 
 scope_add :: proc(p: ^Parser, lex, vars: ^ScopeMap, name: string, at: u32, kind: ScopeBindingKind) {
@@ -17321,7 +17345,7 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 		for prev in attributes {
 			if prev.key.name == key.name {
 				msg := fmt.tprintf("Duplicate import attribute key '%s'", key.name)
-				bump_append(&p.errors, ParseError{loc = LexerLoc(attr_loc.start), message = msg})
+				bump_append(&p.errors, ParseError{start = attr_loc.start, end = attr_loc.end, message = msg})
 				break
 			}
 		}

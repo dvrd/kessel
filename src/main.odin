@@ -485,7 +485,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 			line: u32 = 0
 			col:  u32 = 0
 			if job.parser.lexer != nil {
-				line, col = offset_to_line_col(job.parser.lexer.line_offsets, u32(err.loc))
+				line, col = offset_to_line_col(job.parser.lexer.line_offsets, err.start)
 			}
 			fmt.printf("  Line %d, Column %d: %s\n", line, col, err.message)
 		}

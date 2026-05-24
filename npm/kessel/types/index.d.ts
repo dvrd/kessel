@@ -25,9 +25,7 @@ export interface ParseError {
    */
   filename: string;
   /**
-   * Byte offset into the source where the error was reported. The parser
-   * tracks errors as single-point locations, so `start` and `end` are
-   * currently the same value.
+   * Byte offset into the source where the error span starts.
    *
    * Computed in UTF-8 bytes by the Odin parser. For source containing
    * characters outside the Basic Multilingual Plane, this may differ
@@ -35,8 +33,12 @@ export interface ParseError {
    */
   start: number;
   /**
-   * End offset of the error span. Equals `start` until token-aware
-   * spans land in a future release.
+   * Byte offset where the error span ends (exclusive). For errors
+   * reported at the current token, `end` is the byte after the last
+   * character of that token; renderers can underline `[start, end)` to
+   * highlight the entire offending range instead of a single caret.
+   * For diagnostics reported at a known single point (some legacy call
+   * sites and lexer-side errors), `end === start`.
    */
   end: number;
   /** 1-based line number derived from `start`. */

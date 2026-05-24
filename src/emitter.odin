@@ -500,11 +500,15 @@ emit_errors :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 			emit_raw(e, "\"span\": {\n")
 			emit_indent(e, indent + 5)
 			emit_raw(e, "\"start\": ")
-			emit_u32(e, to_utf16(e, u32(err.loc)))
+			emit_u32(e, to_utf16(e, err.start))
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 5)
 			emit_raw(e, "\"end\": ")
-			emit_u32(e, to_utf16(e, u32(err.loc) + 1))
+			// Fall back to start+1 for single-point reports (start == end) so
+			// the rustc-style label always has a one-character minimum width;
+			// otherwise use the true token-aware span.
+			err_end := err.end if err.end > err.start else err.start + 1
+			emit_u32(e, to_utf16(e, err_end))
 			emit_raw(e, "\n")
 			emit_indent(e, indent + 4)
 			emit_raw(e, "}\n")
@@ -525,12 +529,12 @@ emit_errors :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 			emit_str(e, err.message)
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 2)
-			line, col := offset_to_line_col(p.lexer.line_offsets, u32(err.loc))
+			line, col := offset_to_line_col(p.lexer.line_offsets, err.start)
 			emit_printf(e, "\"line\": %d,\n", line)
 			emit_indent(e, indent + 2)
 			emit_printf(e, "\"column\": %d,\n", col)
 			emit_indent(e, indent + 2)
-			emit_printf(e, "\"offset\": %d\n", int(err.loc))
+			emit_printf(e, "\"offset\": %d\n", int(err.start))
 			emit_indent(e, indent + 1)
 			if i < len(p.errors) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
 		}

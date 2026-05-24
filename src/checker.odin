@@ -404,7 +404,8 @@ checker_run_for_job :: proc(job: ^ParseJob) {
 @(private="file")
 ck_report :: proc(c: ^Checker, loc_offset: u32, message: string) {
 	bump_append(&c.errors, ParseError{
-		loc     = LexerLoc(loc_offset),
+		start   = loc_offset,
+		end     = loc_offset,
 		message = message,
 	})
 }
@@ -418,7 +419,7 @@ ck_report :: proc(c: ^Checker, loc_offset: u32, message: string) {
 // `--ast-only` mode where no checker is constructed.
 checker_append_error :: proc(c: ^Checker, loc: LexerLoc, message: string) {
 	if c == nil { return }
-	bump_append(&c.errors, ParseError{loc = loc, message = message})
+	bump_append(&c.errors, ParseError{start = u32(loc), end = u32(loc), message = message})
 }
 
 // label_is_iteration_target — does `stmt` (the body of a LabeledStatement)

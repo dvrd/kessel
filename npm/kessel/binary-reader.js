@@ -109,7 +109,7 @@ function decode(buffer, source) {
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          must be 2
+  //   4  version          must be 3
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -117,7 +117,7 @@ function decode(buffer, source) {
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version !== 2) throw new Error('Unsupported binary AST version: ' + version);
+  if (version !== 3) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
@@ -132,11 +132,11 @@ function decode(buffer, source) {
   const MAX_DEPTH = 512;
   const program = readNode();
 
-  // Decode errors section, if present. Each error is laid out inline:
-  //   u32 loc, u32 msg_len, msg_len bytes (UTF-8). No padding.
-  // `start` and `end` both point at `loc` for now — the Odin parser
-  // currently tracks errors as single-point locations; token-aware
-  // spans are future work.
+  // Decode errors section, if present. Each error is laid out inline
+  // (format version 3): u32 start, u32 end, u32 msg_len, msg_len bytes
+  // (UTF-8). No padding. Both offsets are byte indices into source;
+  // start == end for single-point diagnostics, start < end for
+  // token-aware spans.
   const errors = [];
   if (errorCount > 0 && errorsOff > 0) {
     const u8 = buffer instanceof Uint8Array
@@ -145,11 +145,12 @@ function decode(buffer, source) {
     const decoder = new TextDecoder();
     let eoff = errorsOff;
     for (let i = 0; i < errorCount; i++) {
-      const loc = dv.getUint32(eoff, true); eoff += 4;
+      const start = dv.getUint32(eoff, true); eoff += 4;
+      const end   = dv.getUint32(eoff, true); eoff += 4;
       const msgLen = dv.getUint32(eoff, true); eoff += 4;
       const message = decoder.decode(u8.subarray(eoff, eoff + msgLen));
       eoff += msgLen;
-      errors.push({ message, start: loc, end: loc });
+      errors.push({ message, start, end });
     }
   }
 

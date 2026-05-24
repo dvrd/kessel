@@ -158,7 +158,7 @@ BinValType :: enum u8 {
 //
 //   v1: [header 16B] [nodes] [string table]
 //   v2: [header 24B] [nodes] [errors] [string table]
-BINARY_FORMAT_VERSION :: u32(2)
+BINARY_FORMAT_VERSION :: u32(3)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
@@ -1196,13 +1196,20 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 // bin_emit_program and before bin_emit_finalize so the section lands
 // between the node stream and the string table.
 //
-// Layout per error: u32 loc, u32 msg_len, msg_len bytes (no padding).
-// `loc` is a byte offset into source; `msg` is UTF-8.
+// Layout per error: u32 start, u32 end, u32 msg_len, msg_len bytes
+// (no padding). Both offsets are UTF-8 byte indices into source.
+// `start == end` for single-point reports; `start < end` for spans
+// covering an offending token. `msg` is UTF-8.
+//
+// Format version 3 widened from {u32 loc, u32 msg_len, ...} to add the
+// explicit `end` so renderers can underline the full token instead of
+// printing a single caret. JS decoder bumped to match in lockstep.
 bin_emit_errors :: proc(be: ^BinaryEmitter, errors: []ParseError) {
 	be.errors_off = u32(be.pos)
 	be.error_count = u32(len(errors))
 	for err in errors {
-		bw_u32(be, u32(err.loc))
+		bw_u32(be, err.start)
+		bw_u32(be, err.end)
 		msg_bytes := transmute([]u8)err.message
 		bw_u32(be, u32(len(msg_bytes)))
 		be_ensure(be, len(msg_bytes))
