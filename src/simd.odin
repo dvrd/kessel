@@ -16,6 +16,21 @@ import "core:mem"
 // SIMD vector type aliases for clarity
 Vec16 :: simd.u8x16   // 16 bytes vector
 
+// Unaligned 16-byte SIMD load. The source bytes we scan come from caller-
+// owned buffers (mmap'd files, JS `Buffer.from` ArrayBuffers, runtime arena
+// slices) with no alignment guarantee at byte-offset granularity. The
+// natural Odin idiom `(cast(^Vec16)&src[off])^` is a typed pointer
+// dereference — LLVM applies the type's alignment (16) and lowers it to
+// MOVAPS / MOVDQA on x86_64. MOVAPS on an unaligned address raises #GP
+// → SIGSEGV. NEON on ARM64 tolerates unaligned loads silently, which is
+// why this bug was invisible on Apple Silicon. Using
+// `intrinsics.unaligned_load` forces LLVM to emit MOVDQU / MOVUPS on
+// x86_64 (single-µop on every CPU since Nehalem; no measurable overhead
+// on aligned addresses). NEON emits the same `ldr q0, [Xn]` either way.
+load_u8x16_unaligned :: #force_inline proc "contextless" (ptr: rawptr) -> Vec16 {
+	return intrinsics.unaligned_load((^Vec16)(ptr))
+}
+
 
 // Find first quote or backslash — returns (position, is_quote)
 // If returns len(data), neither was found in the scanned range.
@@ -28,7 +43,7 @@ simd_find_string_end :: proc(data: []u8, quote: u8) -> (pos: int, found_quote: b
 		saw_nl := false
 		ptr := 0
 		for ptr + 16 <= len(data) {
-			chunk := (cast(^Vec16)&data[ptr])^
+			chunk := load_u8x16_unaligned(&data[ptr])
 			is_q := simd.lanes_eq(chunk, q_vec)
 			is_b := simd.lanes_eq(chunk, b_vec)
 			is_nl := simd.lanes_eq(chunk, nl_vec) | simd.lanes_eq(chunk, cr_vec)
@@ -133,7 +148,7 @@ simd_scan_id_cont :: #force_inline proc(src: []u8, start: int) -> (end: int, hit
 		back:  Vec16 = '\\'
 		ones:  simd.u8x16 = 0xFF
 		for off + 16 <= src_len {
-			chunk := (cast(^Vec16)&src[off])^
+			chunk := load_u8x16_unaligned(&src[off])
 			// simd.lanes_* return #simd[16]u8 (= Vec16) directly in current
 			// Odin; older versions needed a transmute. odin -vet flags the
 			// no-op transmute, so we drop them.
@@ -216,7 +231,7 @@ simd_skip_ascii_ws_run :: proc(src: []u8, start: int) -> int {
 		tab_vec: Vec16 = 0x09
 		ones:    simd.u8x16 = 0xFF
 		for off + 16 <= src_len {
-			chunk := (cast(^Vec16)&src[off])^
+			chunk := load_u8x16_unaligned(&src[off])
 			is_sp := simd.lanes_eq(chunk, sp_vec)
 			is_tb := simd.lanes_eq(chunk, tab_vec)
 			is_ws := is_sp | is_tb
@@ -266,7 +281,7 @@ simd_skip_line_comment :: proc(src: []u8, start: int) -> (end: int, had_nl: bool
 	ctrl_thresh: Vec16 = 0x20
 
 	for off + 16 <= src_len {
-		chunk := (cast(^Vec16)&src[off])^
+		chunk := load_u8x16_unaligned(&src[off])
 		cmp := simd.lanes_lt(chunk, ctrl_thresh)
 		any_ctrl := intrinsics.simd_reduce_or(cmp)
 		if any_ctrl != 0 {
@@ -341,8 +356,8 @@ simd_skip_block_comment :: proc(src: []u8, start: int) -> (end: int, had_nl: boo
 
 	// Process 15 bytes at a time (need 1 byte lookahead for */)
 	for off + 16 < src_len {
-		chunk := (cast(^Vec16)&src[off])^
-		next_chunk := (cast(^Vec16)&src[off + 1])^
+		chunk := load_u8x16_unaligned(&src[off])
+		next_chunk := load_u8x16_unaligned(&src[off + 1])
 
 		star_cmp  := simd.lanes_eq(chunk, star_vec)
 		slash_cmp := simd.lanes_eq(next_chunk, slash_vec)
@@ -472,7 +487,7 @@ simd_find_module_pre_scan_candidate :: #force_inline proc(src: []u8, start: int)
 		i_v:     Vec16 = 'i'
 		e_v:     Vec16 = 'e'
 		for off + 16 <= n {
-			chunk := (cast(^Vec16)&src[off])^
+			chunk := load_u8x16_unaligned(&src[off])
 			hits :=
 				simd.lanes_eq(chunk, slash_v) |
 				simd.lanes_eq(chunk, sq_v)    |
@@ -520,7 +535,7 @@ simd_has_multibyte :: proc(source: []u8) -> bool {
 	high_bit: Vec16 = 0x80
 	off := 0
 	for off + 16 <= len(source) {
-		chunk := (cast(^Vec16)&source[off])^
+		chunk := load_u8x16_unaligned(&source[off])
 		test := simd.lanes_ge(chunk, high_bit)
 		if intrinsics.simd_reduce_or(test) != 0 {
 			return true
@@ -561,7 +576,7 @@ simd_build_utf16_offsets :: proc(source: []u8, alloc: mem.Allocator) -> []u32 {
 	// linear fill. Only multi-byte chunks fall back to character-stepping.
 	v_high: Vec16 = 0x80
 	for i + 16 <= len(source) {
-		chunk := (cast(^Vec16)&source[i])^
+		chunk := load_u8x16_unaligned(&source[i])
 		test := simd.lanes_ge(chunk, v_high)
 		if intrinsics.simd_reduce_or(test) == 0 {
 			// All ASCII: fast fill — table[i+k] = utf16_pos + k.
