@@ -3,6 +3,26 @@ name: Release
 on:
   push:
     branches: [main]
+    # Skip releases triggered by commits that only touch paths which can't
+    # change the published artifacts. A commit that touches *any* file
+    # outside this list still fires the workflow normally, so mixed
+    # commits (e.g. parser fix + test fixture) keep releasing.
+    #
+    # Not ignored on purpose:
+    #   - src/**, npm/**, Taskfile.yml      — affect the shipped binary or JS
+    #   - .github/workflows/release.yml     — changes here should be tested
+    #                                         via a real release
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'tests/**'
+      - 'bench/**'
+      - 'scripts/xcheck.sh'
+      - '.github/workflows/ci.yml'
+      - '.gitignore'
+  # Manual escape hatch — force a release for docs-only commits, or rerun
+  # a release that was skipped by paths-ignore.
+  workflow_dispatch:
 
 # Only one release at a time. New pushes wait for the current release to finish.
 concurrency:
