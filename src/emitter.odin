@@ -520,10 +520,24 @@ emit_errors :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 			if i < len(p.errors) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
 		}
 	} else {
-		// Kessel legacy shape: { message, line, column, offset } - default.
+		// Kessel shape: { code?, severity?, message, line, column, offset }.
+		// `code` and `severity` are only emitted when non-zero, so legacy
+		// consumers that read only { message, line, column, offset } stay
+		// byte-compatible until they opt in. Codes are stable identifiers
+		// of the form "K####" — see `src/diagnostic.odin`.
 		for err, i in p.errors {
 			emit_indent(e, indent + 1)
 			emit_raw(e, "{\n")
+			if err.code != .None {
+				emit_indent(e, indent + 2)
+				emit_raw(e, "\"code\": ")
+				emit_str(e, error_code_string(err.code))
+				emit_raw(e, ",\n")
+				emit_indent(e, indent + 2)
+				emit_raw(e, "\"severity\": ")
+				emit_str(e, severity_string(err.severity))
+				emit_raw(e, ",\n")
+			}
 			emit_indent(e, indent + 2)
 			emit_raw(e, "\"message\": ")
 			emit_str(e, err.message)

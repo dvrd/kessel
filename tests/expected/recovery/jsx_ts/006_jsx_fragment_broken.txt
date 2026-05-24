@@ -127,7 +127,9 @@
   ],
   "errors": [
     {
-      "message": "Expected >, got =>",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '>', got '=>'",
       "line": 2,
       "column": 26,
       "offset": 89
@@ -135,8 +137,8 @@
   ]
 }
 Parse errors (1):
-  Line 2, Column 26: Expected >, got =>
+  Line 2, Column 26: Expected '>', got '=>'
 
 --- Statistics ---
-Arena: used=38160B reserved=16777216B ratio=0%
+Arena: used=38112B reserved=16777216B ratio=0%
 Parse errors: 1

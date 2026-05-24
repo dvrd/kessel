@@ -514,10 +514,19 @@ ParserProfile :: struct {
 // helpers below do the right thing. Token-aware spans (start < end)
 // come from report_error_span and from the parser's primary report_error
 // which now reads both ends off the current FastToken.
+//
+// `code` and `severity` were added in the Phase 1 diagnostics work.
+// Both default to their zero value (`.None` / `.Error`) so the 600+
+// pre-existing call sites that don't yet pass a code still compile and
+// behave identically to before. Migration is opt-in: new sites use the
+// `_coded` variants of the report helpers below, and we sweep batches
+// of legacy sites in follow-up commits (see `src/diagnostic.odin`).
 ParseError :: struct {
-	start:   u32,
-	end:     u32,
-	message: string,
+	start:    u32,
+	end:      u32,
+	message:  string,
+	code:     ErrorCode,   // .None for legacy / un-migrated call sites
+	severity: Severity,    // .Error is the zero value
 }
 
 // String interner for identifier deduplication (lazy init)
@@ -1135,6 +1144,41 @@ report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: st
 	bump_append(&p.errors, ParseError{start = start, end = end, message = message})
 }
 
+// report_error_coded is the code-carrying variant of `report_error`.
+// Spans the current token (same as `report_error`) and attaches both
+// a stable `ErrorCode` and the severity from the message table. The
+// `message` argument is the FINAL wording shown to the user — callers
+// that want the canonical wording read it from `error_info(code).default_message`;
+// callers that quote source text build a richer string here and still
+// pass the code so tooling can group / suppress / look it up.
+report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
+	info := error_info(code)
+	bump_append(&p.errors, ParseError{
+		start    = cur_offset(p),
+		end      = cur_raw_end(p),
+		message  = message,
+		code     = code,
+		severity = info.severity,
+	})
+	if p.profile_enabled {
+		p.profile.errors_reported += 1
+	}
+}
+
+// report_error_coded_span is the explicit-span + code variant. Use this
+// when both ends of the offending range are known (e.g. a saved token
+// span from before a recovery rollback) and a stable code applies.
+report_error_coded_span :: #force_inline proc(p: ^Parser, code: ErrorCode, start, end: u32, message: string) {
+	info := error_info(code)
+	bump_append(&p.errors, ParseError{
+		start    = start,
+		end      = end,
+		message  = message,
+		code     = code,
+		severity = info.severity,
+	})
+}
+
 enable_profiling :: proc(p: ^Parser) {
 	if p == nil {
 		return
@@ -1156,11 +1200,19 @@ get_bump_stats :: proc(p: ^Parser) -> (used: int, capacity: int, overflow_count:
 	return p.node_pool.offset, p.node_pool.capacity, p.node_pool.overflow_count
 }
 
-// Expect a specific token type
+// Expect a specific token type. Phase 3: emits a coded
+// K2002_ExpectedToken diagnostic and uses source-aware token formatting
+// for the "got" side, so a missing `}` before `foo` now reads
+// `Expected '}', got identifier 'foo'` instead of the previous
+// `Expected }, got identifier`.
 expect_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	if p.cur_type != t {
-		msg := fmt.tprintf("Expected %v, got %v", get_token_name(t), get_token_name(p.cur_type))
-		report_error(p, msg)
+		msg := fmt.tprintf(
+			"Expected %s, got %s",
+			format_expected_token(t),
+			format_actual_token(p),
+		)
+		report_error_coded(p, .K2002_ExpectedToken, msg)
 		return false
 	}
 	skip_token(p)
@@ -1250,8 +1302,12 @@ expect_close_paren_or_recover :: #force_inline proc(p: ^Parser) -> bool {
 	if allow_ts_mode(p) && !p.ctx.strict_mode && p.cur_type == .LBrace {
 		return true
 	}
-	msg := fmt.tprintf("Expected %v, got %v", get_token_name(.RParen), get_token_name(p.cur_type))
-	report_error(p, msg)
+	msg := fmt.tprintf(
+		"Expected %s, got %s",
+		format_expected_token(.RParen),
+		format_actual_token(p),
+	)
+	report_error_coded(p, .K2002_ExpectedToken, msg)
 	return false
 }
 
@@ -18852,7 +18908,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		for !is_token(p, .RBracket) && !is_token(p, .EOF) {
 			// Reject empty tuple element positions: `[number,,]`.
 			if is_token(p, .Comma) {
-				report_error(p, "Expected tuple element type, got ','")
+				report_error_coded(p, .K2003_ExpectedTypeElement, "Expected tuple element type, got ','")
 				eat(p)
 				continue
 			}
@@ -19662,7 +19718,7 @@ parse_ts_type_arguments :: proc(p: ^Parser) -> ^TSTypeParameterInstantiation {
 		// Reject empty type argument positions: `Foo<a,,b>` — the `,`
 		// after `a` means a type must follow before the next `,` or `>`.
 		if is_token(p, .Comma) {
-			report_error(p, "Expected type argument, got ','")
+			report_error_coded(p, .K2003_ExpectedTypeElement, "Expected type argument, got ','")
 			eat(p)
 			continue
 		}
@@ -20310,7 +20366,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 	for !is_token(p, .RAngle) && !is_token(p, .EOF) {
 		// Reject empty type parameter positions: `<,T>` or `<,>`.
 		if is_token(p, .Comma) {
-			report_error(p, "Expected type parameter name, got ','")
+			report_error_coded(p, .K2003_ExpectedTypeElement, "Expected type parameter name, got ','")
 			eat(p)
 			continue
 		}

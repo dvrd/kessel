@@ -55,7 +55,9 @@
   ],
   "errors": [
     {
-      "message": "Expected ], got ;",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected ']', got ';'",
       "line": 2,
       "column": 24,
       "offset": 67
@@ -75,10 +77,10 @@
   ]
 }
 Parse errors (3):
-  Line 2, Column 24: Expected ], got ;
+  Line 2, Column 24: Expected ']', got ';'
   Line 2, Column 24: Expected initializer expression after '='
   Line 3, Column 1: Missing initializer in 'const' declaration
 
 --- Statistics ---
-Arena: used=8576B reserved=16777216B ratio=0%
+Arena: used=37760B reserved=16777216B ratio=0%
 Parse errors: 3

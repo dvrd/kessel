@@ -77,13 +77,17 @@
       "offset": 88
     },
     {
-      "message": "Expected }, got number",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '}', got numeric literal '1'",
       "line": 4,
       "column": 12,
       "offset": 88
     },
     {
-      "message": "Expected ), got number",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected ')', got numeric literal '1'",
       "line": 4,
       "column": 12,
       "offset": 88
@@ -98,10 +102,10 @@
 }
 Parse errors (4):
   Line 4, Column 12: Reserved word 'return' is not a valid binding identifier
-  Line 4, Column 12: Expected }, got number
-  Line 4, Column 12: Expected ), got number
+  Line 4, Column 12: Expected '}', got numeric literal '1'
+  Line 4, Column 12: Expected ')', got numeric literal '1'
   Line 6, Column 1: Unexpected '}' — unmatched closing brace
 
 --- Statistics ---
-Arena: used=9888B reserved=16777216B ratio=0%
+Arena: used=39936B reserved=16777216B ratio=0%
 Parse errors: 4

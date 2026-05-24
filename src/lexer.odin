@@ -200,9 +200,15 @@ Lexer :: struct {
 // source byte where the bad construct starts; `message` is a short,
 // spec-tied description that matches the existing parser-side error
 // phrasing (so grepping tests for the diagnostic text stays consistent).
+//
+// `code` was added in the Phase 1 diagnostics work. It defaults to
+// `.None` so the 60+ existing literal-construction sites in this file
+// keep compiling unchanged. A follow-up batch migrates them to the
+// K1xxx code range.
 LexerError :: struct {
 	offset:  u32,
 	message: string,
+	code:    ErrorCode,   // .None for legacy / un-migrated lexer errors
 }
 
 // Build line offset table in a single pre-pass

@@ -83,12 +83,20 @@ load_misc :: proc(project_root: string, allocator: runtime.Allocator) -> []Fixtu
 // basename is `pass` or `fail`. Returns true on `fail`, false on `pass`,
 // false on neither (defensive default — every fixture under
 // `tests/coverage/misc/` is reachable through one of the two buckets).
+//
+// Memory note: `filepath.dir` is `os.dir` which returns a SLICE of the
+// input string — not a heap allocation. Calling `delete` on its result
+// crashes the heap (`pointer being freed was not allocated`). This
+// resolver walks the path by sliding an offset into the original input
+// string, allocating nothing and deleting nothing, which is also faster
+// than the clone-per-level approach.
 @(private="file")
 resolve_misc_should_fail :: proc(path: string, allocator: runtime.Allocator) -> bool {
+	// Start at the directory containing `path`. `filepath.dir` returns
+	// a slice into `path`, so `cur` aliases the caller's string and we
+	// must NOT free it.
 	cur := filepath.dir(path)
-	defer delete(cur)
 
-	// `filepath.dir` returns "." or "/" once we walk past the root.
 	for cur != "." && cur != "/" && cur != "" {
 		base := filepath.base(cur)
 		switch base {
@@ -97,7 +105,6 @@ resolve_misc_should_fail :: proc(path: string, allocator: runtime.Allocator) -> 
 		}
 		parent := filepath.dir(cur)
 		if parent == cur { break }
-		delete(cur)
 		cur = parent
 	}
 	return false

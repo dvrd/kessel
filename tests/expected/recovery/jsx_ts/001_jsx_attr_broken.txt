@@ -126,13 +126,17 @@
       "offset": 80
     },
     {
-      "message": "Expected }, got *",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '}', got '*'",
       "line": 2,
       "column": 28,
       "offset": 80
     },
     {
-      "message": "Expected >, got *",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '>', got '*'",
       "line": 2,
       "column": 28,
       "offset": 80
@@ -141,9 +145,9 @@
 }
 Parse errors (3):
   Line 2, Column 28: Expected expression after operator
-  Line 2, Column 28: Expected }, got *
-  Line 2, Column 28: Expected >, got *
+  Line 2, Column 28: Expected '}', got '*'
+  Line 2, Column 28: Expected '>', got '*'
 
 --- Statistics ---
-Arena: used=38096B reserved=16777216B ratio=0%
+Arena: used=38048B reserved=16777216B ratio=0%
 Parse errors: 3

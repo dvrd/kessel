@@ -49,40 +49,40 @@ tests/coverage/misc/fail/early_errors/strict_mode/017_labeled_function_declarati
 tests/coverage/misc/fail/early_errors/strict_mode/018_escaped_strict_reserved.js:10:5: Keyword 'let' must not contain escaped characters
 tests/coverage/misc/fail/early_errors/strict_mode/019_for_var_init_in_strict.js:7:6: for-in loop variable declaration may not have an initializer
 tests/coverage/misc/fail/export-equal-with-normal-export.ts:1:1: An export assignment cannot be used in a module with other exported elements.
-tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected >, got !
+tests/coverage/misc/fail/html-comment-in-module.mjs:1:2: Expected '>', got '!'
 tests/coverage/misc/fail/html-comment-with-esm.js:1:1: HTML comments are not allowed in modules
-tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ], got const
-tests/coverage/misc/fail/imbalanced-call-expr.js:2:1: Expected ), got const
-tests/coverage/misc/fail/imbalanced-enum-expr.ts:4:1: Expected }, got const
-tests/coverage/misc/fail/imbalanced-export-expr.js:3:1: Expected }, got const
-tests/coverage/misc/fail/imbalanced-import-decl-attr.js:1:44: Expected }, got ;
-tests/coverage/misc/fail/imbalanced-import-decl.js:1:15: Expected }, got string
-tests/coverage/misc/fail/imbalanced-index-signature-decl.ts:2:15: Expected ], got :
-tests/coverage/misc/fail/imbalanced-new-expr.js:2:1: Expected ), got const
-tests/coverage/misc/fail/imbalanced-object-expr.js:2:1: Expected }, got const
-tests/coverage/misc/fail/imbalanced-parenthesized-expr.js:1:30: Expected ), got ;
-tests/coverage/misc/fail/imbalanced-tuple-type.ts:3:1: Expected ], got const
-tests/coverage/misc/fail/import-defer-without-from.js:1:14: Expected from, got string
+tests/coverage/misc/fail/imbalanced-array-expr.js:2:1: Expected ']', got 'const'
+tests/coverage/misc/fail/imbalanced-call-expr.js:2:1: Expected ')', got 'const'
+tests/coverage/misc/fail/imbalanced-enum-expr.ts:4:1: Expected '}', got 'const'
+tests/coverage/misc/fail/imbalanced-export-expr.js:3:1: Expected '}', got 'const'
+tests/coverage/misc/fail/imbalanced-import-decl-attr.js:1:44: Expected '}', got ';'
+tests/coverage/misc/fail/imbalanced-import-decl.js:1:15: Expected '}', got string literal
+tests/coverage/misc/fail/imbalanced-index-signature-decl.ts:2:15: Expected ']', got ':'
+tests/coverage/misc/fail/imbalanced-new-expr.js:2:1: Expected ')', got 'const'
+tests/coverage/misc/fail/imbalanced-object-expr.js:2:1: Expected '}', got 'const'
+tests/coverage/misc/fail/imbalanced-parenthesized-expr.js:1:30: Expected ')', got ';'
+tests/coverage/misc/fail/imbalanced-tuple-type.ts:3:1: Expected ']', got 'const'
+tests/coverage/misc/fail/import-defer-without-from.js:1:14: Expected 'from', got string literal
 tests/coverage/misc/fail/import-equals-this.ts:2:12: Expected identifier in import-equals module reference
-tests/coverage/misc/fail/import-from-str.js:1:13: Expected from, got string
-tests/coverage/misc/fail/import-source-non-from.js:1:19: Expected from, got identifier
-tests/coverage/misc/fail/import-source-without-from.js:1:15: Expected from, got string
+tests/coverage/misc/fail/import-from-str.js:1:13: Expected 'from', got string literal
+tests/coverage/misc/fail/import-source-non-from.js:1:19: Expected 'from', got identifier 'bar'
+tests/coverage/misc/fail/import-source-without-from.js:1:15: Expected 'from', got string literal
 tests/coverage/misc/fail/import-type-mixed-empty.ts:3:18: A type-only import cannot combine default and named bindings
 tests/coverage/misc/fail/import-type-mixed-star.ts:3:16: A type-only import cannot combine default and named bindings
 tests/coverage/misc/fail/import-type-source-not-string.ts:3:25: String literal expected in import type
-tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected from, got string
-tests/coverage/misc/fail/import-without-from.js:1:16: Expected from, got string
-tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected >, got ;
+tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected 'from', got string literal
+tests/coverage/misc/fail/import-without-from.js:1:16: Expected 'from', got string literal
+tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected '>', got ';'
 tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'.
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:1: Function implementation name must be 'foo'.
 tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:7:3: Duplicate identifier 'b'.
 tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation.
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
-tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected :, got EOF
-tests/coverage/misc/fail/missing-conditional-alternative.js:2:1: Expected :, got EOF
+tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected ':', got end of input
+tests/coverage/misc/fail/missing-conditional-alternative.js:2:1: Expected ':', got end of input
 tests/coverage/misc/fail/negative/001_unterminated_string.js:2:11: Unterminated string literal
-tests/coverage/misc/fail/negative/002_missing_closing_paren.js:2:7: Expected ), got {
+tests/coverage/misc/fail/negative/002_missing_closing_paren.js:2:7: Expected ')', got '{'
 tests/coverage/misc/fail/negative/003_missing_closing_brace.js:4:1: Expected '}' at end of function body
 tests/coverage/misc/fail/negative/004_invalid_token.js:2:12: Decorators can only be applied to class expressions
 tests/coverage/misc/fail/negative/005_duplicate_else.js:2:19: Unexpected 'else' without matching 'if'
@@ -169,28 +169,28 @@ tests/coverage/misc/fail/negative/regex_literals/003_bad_group.js:2:11: Untermin
 tests/coverage/misc/fail/negative/regex_literals/004_duplicate_flags.js:2:11: Unterminated regular expression
 tests/coverage/misc/fail/negative/regex_literals/005_invalid_unicode_escape.js:2:11: Unterminated regular expression
 tests/coverage/misc/fail/negative/regex_literals/006_trailing_backslash.js:2:11: Unterminated regular expression
-tests/coverage/misc/fail/negative/truncation/001_array_eof.js:2:23: Expected ], got ;
+tests/coverage/misc/fail/negative/truncation/001_array_eof.js:2:23: Expected ']', got ';'
 tests/coverage/misc/fail/negative/truncation/002_object_eof.js:2:27: Unexpected ';' in object literal
-tests/coverage/misc/fail/negative/truncation/003_function_params_eof.js:3:1: Expected ), got EOF
+tests/coverage/misc/fail/negative/truncation/003_function_params_eof.js:3:1: Expected ')', got end of input
 tests/coverage/misc/fail/negative/truncation/004_function_body_eof.js:4:1: Expected '}' at end of function body
 tests/coverage/misc/fail/negative/truncation/005_class_body_eof.js:6:1: Expected '}' at end of class body
-tests/coverage/misc/fail/negative/truncation/006_call_args_eof.js:3:1: Expected ), got EOF
-tests/coverage/misc/fail/negative/truncation/007_member_chain_eof.js:3:1: Expected ], got EOF
+tests/coverage/misc/fail/negative/truncation/006_call_args_eof.js:3:1: Expected ')', got end of input
+tests/coverage/misc/fail/negative/truncation/007_member_chain_eof.js:3:1: Expected ']', got end of input
 tests/coverage/misc/fail/negative/truncation/008_optional_chain_eof.js:3:1: Unexpected token after ?.
 tests/coverage/misc/fail/negative/truncation/009_template_substitution_eof.js:2:28: Expected template literal continuation
-tests/coverage/misc/fail/negative/truncation/010_jsx_tag_eof.js:3:1: Expected >, got EOF
+tests/coverage/misc/fail/negative/truncation/010_jsx_tag_eof.js:3:1: Expected '>', got end of input
 tests/coverage/misc/fail/oxc-10159.js:1:38: Identifier 'b' has already been declared
 tests/coverage/misc/fail/oxc-10638.js:2:1: Unexpected reserved word 'in'
 tests/coverage/misc/fail/oxc-10639.js:1:1: Unexpected token '<<'
 tests/coverage/misc/fail/oxc-10977.ts:1:9: Expected type after ':'
 tests/coverage/misc/fail/oxc-11453.js:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 tests/coverage/misc/fail/oxc-11472.js:1:7: Decorators may not appear after 'export' or 'export default' if they also appear before 'export'
-tests/coverage/misc/fail/oxc-11484.ts:2:1: Expected from, got EOF
+tests/coverage/misc/fail/oxc-11484.ts:2:1: Expected 'from', got end of input
 tests/coverage/misc/fail/oxc-11485.js:2:10: Expected binding pattern
 tests/coverage/misc/fail/oxc-11485.ts:2:10: Decorators are not valid here.
 tests/coverage/misc/fail/oxc-11487.cjs:1:13: 'await' cannot be used as an async arrow parameter
 tests/coverage/misc/fail/oxc-11487.mjs:1:13: 'await' cannot be used as an async arrow parameter
-tests/coverage/misc/fail/oxc-11532.js:1:15: Expected from, got {
+tests/coverage/misc/fail/oxc-11532.js:1:15: Expected 'from', got '{'
 tests/coverage/misc/fail/oxc-11538.js:1:20: Expected template literal continuation
 tests/coverage/misc/fail/oxc-11592-1.ts:1:11: Expected semicolon
 tests/coverage/misc/fail/oxc-11592-2.ts:1:11: Expected semicolon
@@ -240,7 +240,7 @@ tests/coverage/misc/fail/oxc-13617-3.ts:1:26: Type argument list cannot be empty
 tests/coverage/misc/fail/oxc-13617-4.ts:1:16: Type argument list cannot be empty
 tests/coverage/misc/fail/oxc-14013.ts:2:20: Abstract property cannot have an initializer.
 tests/coverage/misc/fail/oxc-14014.ts:3:1: Class field cannot be named 'constructor'
-tests/coverage/misc/fail/oxc-14944.ts:1:25: Expected {, got ;
+tests/coverage/misc/fail/oxc-14944.ts:1:25: Expected '{', got ';'
 tests/coverage/misc/fail/oxc-16077.ts:1:33: A parameter property may not be declared using a binding pattern
 tests/coverage/misc/fail/oxc-169.js:2:1: Expected expression after operator
 tests/coverage/misc/fail/oxc-18231.mjs:2:10: 'f' has already been declared
@@ -252,9 +252,9 @@ tests/coverage/misc/fail/oxc-2253.ts:1:8: Expected '=', ',', or ';' after variab
 tests/coverage/misc/fail/oxc-232.js:2:1: Empty parenthesized expression
 tests/coverage/misc/fail/oxc-2394.ts:20:22: Expected 'with' in import type options
 tests/coverage/misc/fail/oxc-3528.jsx:1:25: Expected corresponding JSX closing tag for 'Apple'.
-tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected }, got identifier
+tests/coverage/misc/fail/oxc-3948.ts:2:14: Expected '}', got identifier 'foo'
 tests/coverage/misc/fail/oxc-4111-1.js:1:19: Type assertions can only be used in TypeScript files.
-tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected (, got identifier
+tests/coverage/misc/fail/oxc-4212-1.ts:1:17: Expected '(', got identifier 'enum'
 tests/coverage/misc/fail/oxc-4449-1.ts:1:16: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-4449-2.ts:1:14: Computed property names are not allowed in enums.
 tests/coverage/misc/fail/oxc-4449-3.ts:1:10: An enum member cannot have a numeric name.
@@ -265,7 +265,7 @@ tests/coverage/misc/fail/oxc-5036.js:2:11: Label 'Test' has already been declare
 tests/coverage/misc/fail/oxc-5177.ts:5:1: An 'accessor' property cannot be declared optional.
 tests/coverage/misc/fail/oxc-5355.jsx:1:14: Identifiers in JSX cannot contain hyphens
 tests/coverage/misc/fail/oxc-5955-1.ts:1:8: Expected '=', ',', or ';' after variable binding
-tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected }, got ?
+tests/coverage/misc/fail/oxc-5955-2.ts:3:8: Expected '}', got '?'
 tests/coverage/misc/fail/oxc-5955-3.ts:2:18: An index signature must have a type annotation.
 tests/coverage/misc/fail/oxc-7582.js:4:9: Private field '#x' must be declared in an enclosing class
 tests/coverage/misc/fail/oxc-9497.js:2:10: Unexpected token after ?.

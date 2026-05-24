@@ -167,8 +167,10 @@ is_typescript_dts :: proc(opts: BabelOptions) -> bool {
 //
 // `dir` is the directory CONTAINING the input file (we read sibling files).
 determine_should_fail :: proc(input_path: string, opts: BabelOptions, allocator: runtime.Allocator) -> bool {
+	// `filepath.dir` is `os.dir` — returns a SLICE of `input_path`, NOT
+	// a heap allocation. Do NOT delete it; doing so frees a slice into
+	// the caller's string and crashes the heap.
 	dir := filepath.dir(input_path)
-	defer delete(dir)
 
 	// Step 1 — sibling output.json (or output.extended.json).
 	for name in ([?]string{"output.json", "output.extended.json"}) {
@@ -214,6 +216,12 @@ read_babel_options_chain :: proc(dir: string, allocator: runtime.Allocator) -> B
 	plugins_locked := false   // once we've taken plugins from a level, ignore deeper levels
 	suite_has_options := false
 
+	// `cur` slides up through ancestor directories using the slice-based
+	// `filepath.dir` (which returns a slice into its input). On the first
+	// iteration `cur` aliases the caller's `dir`; on later iterations it
+	// aliases the previous `cur`. Nothing here is heap-allocated by us,
+	// so nothing needs freeing — the previous code's `defer delete(parent)`
+	// crashed the heap when `parent` was such a borrowed slice.
 	cur := dir
 	for level in 0 ..< 3 {
 		opts_path, jerr := filepath.join({cur, "options.json"}, allocator)
@@ -227,9 +235,8 @@ read_babel_options_chain :: proc(dir: string, allocator: runtime.Allocator) -> B
 			_ = ok
 		}
 		parent := filepath.dir(cur)
-		defer delete(parent)
 		if parent == cur { break }
-		cur = strings.clone(parent, allocator)
+		cur = parent
 	}
 
 	out.plugins = plugins_acc[:]
@@ -401,8 +408,9 @@ load_babel :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixtu
 	out := make([dynamic]Fixture, 0, len(files), allocator)
 
 	for f in files {
+		// `filepath.dir` is `os.dir` — returns a SLICE of `f.abs`, not a
+		// heap allocation. Do NOT delete it; doing so corrupts the heap.
 		dir := filepath.dir(f.abs)
-		defer delete(dir)
 
 		opts := read_babel_options_chain(dir, allocator)
 

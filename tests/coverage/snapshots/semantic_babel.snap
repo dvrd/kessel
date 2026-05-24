@@ -7,7 +7,7 @@ Negative Passed: 1702/1702 (100.00%)
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.1-sloppy-labeled-functions-if-body/input.js:2:1: Function declarations are not allowed in a single-statement context
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/3.4-var-redeclaration-catch-binding/input.js:2:24: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/annex-b/enabled/invalid-assignment-target-type/input.js:3:15: Invalid destructuring assignment target
-babel/packages/babel-parser/test/fixtures/core/categorized/for-missing-semicolons/input.js:3:3: Expected ;, got identifier
+babel/packages/babel-parser/test/fixtures/core/categorized/for-missing-semicolons/input.js:3:3: Expected ';', got identifier 'a'
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-1/input.js:1:9: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-2/input.js:1:3: Invalid parenthesized assignment pattern.
 babel/packages/babel-parser/test/fixtures/core/categorized/invalid-assignment-pattern-3/input.js:1:3: Invalid parenthesized assignment pattern.
@@ -42,7 +42,7 @@ babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-eight/i
 babel/packages/babel-parser/test/fixtures/core/escape-template/non-octal-nine/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/core/legacy-octal/legacy-octal-after-use-strict-function/input.js:3:3: Legacy octal literals are not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/core/legacy-octal/legacy-octal-after-use-strict/input.js:1:15: Legacy octal literals are not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/core/object/invalid-escape-get/input.js:1:13: Expected }, got identifier
+babel/packages/babel-parser/test/fixtures/core/object/invalid-escape-get/input.js:1:13: Expected '}', got identifier 'x'
 babel/packages/babel-parser/test/fixtures/core/object/invalid-getter-param/input.js:1:8: Getter must not have any formal parameters
 babel/packages/babel-parser/test/fixtures/core/object/invalid-setter-no-param/input.js:1:8: Setter must have exactly one formal parameter
 babel/packages/babel-parser/test/fixtures/core/object/invalid-setter-two-params/input.js:1:8: Setter must have exactly one formal parameter
@@ -118,11 +118,11 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/371/input.js:1:4: I
 babel/packages/babel-parser/test/fixtures/core/uncategorised/372/input.js:1:4: Invalid left-hand side expression in prefix operation
 babel/packages/babel-parser/test/fixtures/core/uncategorised/373/input.js:1:4: Invalid left-hand side expression in prefix operation
 babel/packages/babel-parser/test/fixtures/core/uncategorised/374/input.js:1:16: Invalid left-hand side in for-in loop
-babel/packages/babel-parser/test/fixtures/core/uncategorised/375/input.js:1:2: Expected ], got EOF
-babel/packages/babel-parser/test/fixtures/core/uncategorised/376/input.js:1:3: Expected ], got EOF
-babel/packages/babel-parser/test/fixtures/core/uncategorised/377/input.js:1:6: Expected }, got EOF
-babel/packages/babel-parser/test/fixtures/core/uncategorised/378/input.js:2:1: Expected }, got EOF
-babel/packages/babel-parser/test/fixtures/core/uncategorised/379/input.js:1:11: Expected }, got EOF
+babel/packages/babel-parser/test/fixtures/core/uncategorised/375/input.js:1:2: Expected ']', got end of input
+babel/packages/babel-parser/test/fixtures/core/uncategorised/376/input.js:1:3: Expected ']', got end of input
+babel/packages/babel-parser/test/fixtures/core/uncategorised/377/input.js:1:6: Expected '}', got end of input
+babel/packages/babel-parser/test/fixtures/core/uncategorised/378/input.js:2:1: Expected '}', got end of input
+babel/packages/babel-parser/test/fixtures/core/uncategorised/379/input.js:1:11: Expected '}', got end of input
 babel/packages/babel-parser/test/fixtures/core/uncategorised/380/input.js:2:2: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/core/uncategorised/381/input.js:1:9: Unterminated string literal
 babel/packages/babel-parser/test/fixtures/core/uncategorised/382/input.js:1:5: 'if' is a reserved word and cannot be used as a binding name
@@ -133,11 +133,11 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/386/input.js:4:2: E
 babel/packages/babel-parser/test/fixtures/core/uncategorised/387/input.js:4:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/core/uncategorised/388/input.js:1:7: Expected semicolon
 babel/packages/babel-parser/test/fixtures/core/uncategorised/389/input.js:1:7: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/390/input.js:1:11: Expected ), got if
+babel/packages/babel-parser/test/fixtures/core/uncategorised/390/input.js:1:11: Expected ')', got 'if'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/391/input.js:1:10: Expected binding pattern
-babel/packages/babel-parser/test/fixtures/core/uncategorised/392/input.js:1:13: Expected }, got {
-babel/packages/babel-parser/test/fixtures/core/uncategorised/393/input.js:1:17: Expected }, got {
-babel/packages/babel-parser/test/fixtures/core/uncategorised/394/input.js:1:14: Expected }, got {
+babel/packages/babel-parser/test/fixtures/core/uncategorised/392/input.js:1:13: Expected '}', got '{'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/393/input.js:1:17: Expected '}', got '{'
+babel/packages/babel-parser/test/fixtures/core/uncategorised/394/input.js:1:14: Expected '}', got '{'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/395/input.js:1:15: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/core/uncategorised/396/input.js:1:19: A rest parameter must be last in a parameter list
 babel/packages/babel-parser/test/fixtures/core/uncategorised/397/input.js:1:12: 'if' is a reserved word and cannot be used as a binding name
@@ -149,7 +149,7 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/402/input.js:1:10: 
 babel/packages/babel-parser/test/fixtures/core/uncategorised/403/input.js:1:10: Function declaration requires a name
 babel/packages/babel-parser/test/fixtures/core/uncategorised/404/input.js:1:10: Function declaration requires a name
 babel/packages/babel-parser/test/fixtures/core/uncategorised/405/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/406/input.js:1:3: Expected (, got .
+babel/packages/babel-parser/test/fixtures/core/uncategorised/406/input.js:1:3: Expected '(', got '.'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/407/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/core/uncategorised/408/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/core/uncategorised/409/input.js:1:1: 'break' must be inside a loop or switch
@@ -159,12 +159,12 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/412/input.js:1:1: '
 babel/packages/babel-parser/test/fixtures/core/uncategorised/413/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/core/uncategorised/414/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/core/uncategorised/415/input.js:1:6: Only a single declaration is allowed in a for-in loop
-babel/packages/babel-parser/test/fixtures/core/uncategorised/416/input.js:1:15: Expected ;, got )
+babel/packages/babel-parser/test/fixtures/core/uncategorised/416/input.js:1:15: Expected ';', got ')'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/417/input.js:1:15: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/418/input.js:1:12: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/419/input.js:1:10: Expected statement after 'if' condition
 babel/packages/babel-parser/test/fixtures/core/uncategorised/420/input.js:1:25: Expected statement after 'else'
-babel/packages/babel-parser/test/fixtures/core/uncategorised/421/input.js:1:3: Expected while, got EOF
+babel/packages/babel-parser/test/fixtures/core/uncategorised/421/input.js:1:3: Expected 'while', got end of input
 babel/packages/babel-parser/test/fixtures/core/uncategorised/422/input.js:1:13: Expected statement after 'while' condition
 babel/packages/babel-parser/test/fixtures/core/uncategorised/423/input.js:1:8: Expected statement after for head
 babel/packages/babel-parser/test/fixtures/core/uncategorised/424/input.js:1:8: Expected statement after 'with' object
@@ -201,7 +201,7 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/454/input.js:1:7: '
 babel/packages/babel-parser/test/fixtures/core/uncategorised/455/input.js:1:1: 'break' must be inside a loop or switch
 babel/packages/babel-parser/test/fixtures/core/uncategorised/456/input.js:1:1: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/core/uncategorised/457/input.js:1:23: 'continue' must be inside a loop
-babel/packages/babel-parser/test/fixtures/core/uncategorised/458/input.js:1:10: Expected while, got *
+babel/packages/babel-parser/test/fixtures/core/uncategorised/458/input.js:1:10: Expected 'while', got '*'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/459/input.js:1:22: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/460/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/461/input.js:1:40: Undefined label 'x'
@@ -286,11 +286,11 @@ babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens-ob
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/inner-parens/input.js:1:12: Invalid parenthesized assignment pattern.
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-arrow-before-in/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-parens-binary-argument/input.js:2:1: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-parens-class-heritage/input.js:1:20: Expected {, got =>
+babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-parens-class-heritage/input.js:1:20: Expected '{', got '=>'
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-parens-unary-argument/input.js:1:28: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-rest-in-params/input.js:5:8: Rest parameter must be last in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-single-binding-binary-argument/input.js:2:1: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-single-binding-class-heritage/input.js:1:19: Expected {, got =>
+babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-single-binding-class-heritage/input.js:1:19: Expected '{', got '=>'
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/invalid-single-binding-unary-argument/input.js:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-binary-left/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-callee/input.js:1:9: Expected semicolon
@@ -298,28 +298,28 @@ babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-for-in-init-
 babel/packages/babel-parser/test/fixtures/es2015/arrow-functions/no-ternary-test/input.js:1:10: Arrow function cannot be used as an unparenthesized operand
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-in-object-method/input.js:4:14: 'super' property access is only valid inside a method
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/direct-super-outside-constructor/input.js:2:14: 'super' call is only allowed in the constructor of a derived class
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-identifier/input.js:2:11: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-string/input.js:2:13: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-get-identifier/input.js:2:9: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-get-string/input.js:2:11: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-identifier/input.js:2:11: Expected '(', got identifier 'a'
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-async-string/input.js:2:13: Expected '(', got identifier 'a'
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-get-identifier/input.js:2:9: Expected '(', got identifier 'a'
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-computed-get-string/input.js:2:11: Expected '(', got identifier 'a'
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-duplicate-method-params/input.js:2:5: Duplicate parameter name 'a' in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-literal-async/input.js:2:11: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-literal-get/input.js:2:9: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-literal-async/input.js:2:11: Expected '(', got identifier 'a'
+babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-literal-get/input.js:2:9: Expected '(', got identifier 'a'
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-static-generator-prototype/input.js:3:2: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-static-prototype/input.js:3:2: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/disallow-super-call-after-new/input.js:2:28: 'new super()' is not allowed
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/getter-signature/input.js:2:7: Getter must not have any formal parameters
 babel/packages/babel-parser/test/fixtures/es2015/class-methods/malformed-super-expression/input.js:3:5: 'super' can only be used with function calls or in property accesses
 babel/packages/babel-parser/test/fixtures/es2015/class/extends-strict/input.js:2:3: 'with' statements are not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-get/input.js:1:20: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-set/input.js:1:20: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-static/input.js:1:23: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-get/input.js:1:20: Expected '(', got identifier 'x'
+babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-set/input.js:1:20: Expected '(', got identifier 'x'
+babel/packages/babel-parser/test/fixtures/es2015/class/invalid-escape-static/input.js:1:23: Expected '(', got identifier 'y'
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-module/input.js:1:9: 'arguments' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-arguments-strict/input.js:2:9: 'arguments' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-eval/input.js:1:17: Binding identifier 'eval' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/binding-this/input.js:1:12: Reserved word 'this' is not a valid binding identifier
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/error-operator-for-default/input.js:1:14: Invalid destructuring assignment target
-babel/packages/babel-parser/test/fixtures/es2015/destructuring/invalid-object-method/input.js:1:12: Expected }, got (
+babel/packages/babel-parser/test/fixtures/es2015/destructuring/invalid-object-method/input.js:1:12: Expected '}', got '('
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/parenthesized-lhs-array/input.js:1:7: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/es2015/destructuring/parenthesized-lhs-object/input.js:1:7: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/es2015/duplicate-proto/in-new-expression/input.js:1:25: Redefinition of __proto__ property
@@ -333,7 +333,7 @@ babel/packages/babel-parser/test/fixtures/es2015/for-in/var-arraybindingpattern-
 babel/packages/babel-parser/test/fixtures/es2015/for-in/var-objectbindingpattern-initializer/input.js:1:6: for-in loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/es2015/for-of/bare-initializer/input.js:2:15: Invalid left-hand side in for-of loop
 babel/packages/babel-parser/test/fixtures/es2015/for-of/invalid-escape-of/input.js:1:8: Keywords cannot contain escape characters
-babel/packages/babel-parser/test/fixtures/es2015/for-of/invalid-expr/input.js:1:16: Expected ), got ,
+babel/packages/babel-parser/test/fixtures/es2015/for-of/invalid-expr/input.js:1:16: Expected ')', got ','
 babel/packages/babel-parser/test/fixtures/es2015/for-of/invalid-let-as-identifier/input.js:1:17: The left-hand side of a for-of loop may not start with 'let'
 babel/packages/babel-parser/test/fixtures/es2015/generators/invalid-escape-yield/input.js:1:17: Keyword 'yield' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/es2015/generators/invalid-hanging/input.js:2:1: Async / generator function declaration cannot appear in a single-statement context
@@ -395,10 +395,10 @@ babel/packages/babel-parser/test/fixtures/es2015/modules/export-default-variable
 babel/packages/babel-parser/test/fixtures/es2015/modules/export-default-variable-declaration3/input.js:1:16: 'export default' cannot be followed by a variable declaration
 babel/packages/babel-parser/test/fixtures/es2015/modules/import-invalid-keyword-typeof/input.js:1:17: 'typeof' is a reserved word and cannot be used as an import binding
 babel/packages/babel-parser/test/fixtures/es2015/modules/import-invalid-keyword/input.js:1:19: 'debugger' is a reserved word and cannot be used as an import binding
-babel/packages/babel-parser/test/fixtures/es2015/modules/invalid-escape-export-as/input.js:1:12: Expected }, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/modules/invalid-escape-import-from/input.js:1:10: Expected from, got identifier
-babel/packages/babel-parser/test/fixtures/es2015/modules/invalid-xml-comment-in-module/input.js:1:2: Expected >, got !
-babel/packages/babel-parser/test/fixtures/es2015/object/async-method-linebreak/input.js:3:5: Expected }, got identifier
+babel/packages/babel-parser/test/fixtures/es2015/modules/invalid-escape-export-as/input.js:1:12: Expected '}', got identifier 'as'
+babel/packages/babel-parser/test/fixtures/es2015/modules/invalid-escape-import-from/input.js:1:10: Expected 'from', got identifier 'from'
+babel/packages/babel-parser/test/fixtures/es2015/modules/invalid-xml-comment-in-module/input.js:1:2: Expected '>', got '!'
+babel/packages/babel-parser/test/fixtures/es2015/object/async-method-linebreak/input.js:3:5: Expected '}', got identifier 'foo'
 babel/packages/babel-parser/test/fixtures/es2015/object/disallow-duplicate-method-params/input.js:2:5: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/object/invalid-accessor-generator/input.js:2:18: An accessor cannot be a generator
 babel/packages/babel-parser/test/fixtures/es2015/object/invalid-property-initializer-1/input.js:3:3: Invalid shorthand property initializer
@@ -461,8 +461,8 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/233/input.js:1:21
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/234/input.js:1:21: Binding identifier 'arguments' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/235/input.js:1:6: for-in loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/236/input.js:1:6: for-of loop variable declaration may not have an initializer
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/237/input.js:1:11: Expected from, got EOF
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/238/input.js:1:20: Expected from, got EOF
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/237/input.js:1:11: Expected 'from', got end of input
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/238/input.js:1:20: Expected 'from', got end of input
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/239/input.js:1:17: Expected string literal module specifier
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/242/input.js:1:16: Assignment to 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/243/input.js:1:25: Arrow parameter 'eval' is not allowed in strict mode
@@ -475,20 +475,20 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/249/input.js:1:22
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/250/input.js:1:4: Empty parenthesized expression
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/251/input.js:1:11: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/252/input.js:1:15: Expected identifier in arrow function parameters
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/255/input.js:1:10: Expected ], got ,
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/255/input.js:1:10: Expected ']', got ','
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/260/input.js:1:31: 'yield' expression is only allowed in a generator body
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/261/input.js:1:18: Generator/async shorthand property not allowed
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/263/input.js:1:7: Expected {, got default
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/263/input.js:1:7: Expected '{', got 'default'
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/264/input.js:1:1: Unexpected token '`test'
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/265/input.js:1:9: Expected (, got template
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/265/input.js:1:9: Expected '(', got template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/266/input.js:1:19: Expected template literal continuation
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/267/input.js:1:12: Expected template literal continuation
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/268/input.js:1:14: Expected {, got number
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/273/input.js:1:10: Expected ], got if
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/268/input.js:1:14: Expected '{', got numeric literal '1'
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/273/input.js:1:10: Expected ']', got 'if'
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/275/input.js:1:13: Numeric / string property name requires a value
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/276/input.js:1:7: Numeric / string property name requires a value
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/277/input.js:1:19: A rest parameter must be last in a parameter list
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/278/input.js:1:20: Expected ), got =
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/278/input.js:1:20: Expected ')', got '='
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/280/input.js:1:15: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/281/input.js:1:15: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/283/input.js:1:16: Rest parameter must be last in arrow function parameters
@@ -515,9 +515,9 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/332/input.js:1:19
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/334/input.js:1:5: Binding identifier 'eval' not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/335/input.js:1:19: 'yield' is reserved as a binding name inside a generator
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/339/input.js:1:6: Invalid escape sequence in template literal
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/340/input.js:1:16: Expected {, got number
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/341/input.js:1:20: Expected {, got number
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/342/input.js:1:23: Expected {, got identifier
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/340/input.js:1:16: Expected '{', got numeric literal '42'
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/341/input.js:1:20: Expected '{', got numeric literal '42'
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/342/input.js:1:23: Expected '{', got identifier 'v'
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/344/input.js:1:1: 'super' can only be used with function calls or in property accesses
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/345/input.js:1:15: Getter must not have any formal parameters
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/346/input.js:1:15: Setter must have exactly one formal parameter
@@ -547,9 +547,9 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/387/input.js:2:1:
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/388/input.js:1:16: Function declaration requires a name
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/389/input.js:2:1: Unexpected token
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/390/input.js:2:1: Unexpected token
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/392/input.js:1:18: Expected }, got :
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/392/input.js:1:18: Expected '}', got ':'
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/395/input.js:1:14: Member expression cannot be used as a binding target
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/84/input.js:1:9: Expected from, got EOF
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/84/input.js:1:9: Expected 'from', got end of input
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/96/input.js:1:8: Unexpected reserved word 'default'
 babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-function-declaration-inside-generator/input.js:2:12: 'yield' cannot be used as a function name in generator context
 babel/packages/babel-parser/test/fixtures/es2015/yield/function-name-generator-expression/input.js:1:12: 'yield' cannot be used as the name of a generator function expression
@@ -641,13 +641,13 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-pa
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/export-async/input.js:2:1: Unexpected token
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/export-invalid/input.js:1:35: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-await-with-object-exp-in-function/input.js:2:3: await outside of async function
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-class-method/input.js:1:22: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-obj-method/input.js:1:15: Expected }, got identifier
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-static-class-method/input.js:1:29: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-class-method/input.js:1:22: Expected '(', got identifier 'x'
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-obj-method/input.js:1:15: Expected '}', got identifier 'x'
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-static-class-method/input.js:1:29: Expected '(', got identifier 'x'
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-await/input.js:1:21: Keyword 'await' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-export-async-function/input.js:1:1: 'export' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-export-dflt-async-function/input.js:1:16: 'async' keyword must not contain Unicode escape sequences
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-arrow-list/input.js:1:13: Expected ), got identifier
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-arrow-list/input.js:1:13: Expected ')', got identifier 'x'
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-arrow/input.js:1:1: 'async' keyword must not contain Unicode escape sequences
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-function-list/input.js:1:2: 'async' keyword must not contain Unicode escape sequences
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-sequence-function/input.js:1:1: 'async' keyword must not contain Unicode escape sequences
@@ -892,7 +892,7 @@ babel/packages/babel-parser/test/fixtures/es2021/numeric-separator/invalid-unico
 babel/packages/babel-parser/test/fixtures/es2021/numeric-separator/template-with-invalid-numeric-separator-in-code-point/input.js:1:19: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2022/class-private-methods/asi-failure-generator/input.js:3:4: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 babel/packages/babel-parser/test/fixtures/es2022/class-private-methods/failure-name-constructor/input.js:4:1: Class private member name cannot be '#constructor'
-babel/packages/babel-parser/test/fixtures/es2022/class-private-methods/failure-spaces/input.js:2:6: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/es2022/class-private-methods/failure-spaces/input.js:2:6: Expected '(', got identifier 'wrongSpaces'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-field-instance-field/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-field-instance-get/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/instance-field-instance-method/input.js:3:3: Duplicate private name '#x'
@@ -954,20 +954,20 @@ babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-static-method/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-names-duplicated/static-set-static-set/input.js:3:3: Duplicate private name '#x'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/asi-failure-generator/input.js:3:9: Expected semicolon or line terminator after class field
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/asi-failure-inline/input.js:2:6: Expected (, got private_identifier
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-computed/input.js:3:4: Expected (, got [
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/asi-failure-inline/input.js:2:6: Expected '(', got identifier '#y'
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-computed/input.js:3:4: Expected '(', got '['
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-optional-private-property/input.js:4:5: Private fields cannot be deleted
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-delete-private-property/input.js:4:5: Private fields cannot be deleted
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-name-constructor/input.js:4:1: Class private member name cannot be '#constructor'
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-numeric-literal/input.js:2:4: Expected (, got number
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-numeric-start-identifier/input.js:2:4: Expected (, got number
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-numeric-literal/input.js:2:4: Expected '(', got numeric literal '2'
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-numeric-start-identifier/input.js:2:4: Expected '(', got numeric literal '2'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-shorthand/input.js:4:12: Private identifier can only appear as the LHS of an 'in' expression or as a class member
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-spaces/input.js:2:6: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-string-literal/input.js:2:4: Expected (, got string
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-method/input.js:2:11: Expected }, got private_identifier
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property-with-assignment/input.js:4:5: Expected }, got private_identifier
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property/input.js:2:11: Expected }, got private_identifier
-babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-ts-type-literal/input.js:2:3: Expected }, got private_identifier
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-spaces/input.js:2:6: Expected '(', got identifier 'wrongSpaces'
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/failure-string-literal/input.js:2:4: Expected '(', got string literal
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-method/input.js:2:11: Expected '}', got identifier '#x'
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property-with-assignment/input.js:4:5: Expected '}', got identifier '#x'
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-object-property/input.js:2:11: Expected '}', got identifier '#x'
+babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/invalid-ts-type-literal/input.js:2:3: Expected '}', got identifier '#p'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-call/input.js:4:19: 'super' call is only allowed in the constructor of a derived class
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/super-private-member-access/input.js:5:13: Private fields cannot be accessed through 'super'
 babel/packages/babel-parser/test/fixtures/es2022/class-private-properties/undeclared-nested/input.js:4:20: Private field '#priv' must be declared in an enclosing class
@@ -977,7 +977,7 @@ babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments-in-n
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/arguments/input.js:3:11: 'arguments' cannot appear in a class field initializer
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-computed/input.js:3:10: Expected semicolon or line terminator after class field
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-generator/input.js:3:9: Expected semicolon or line terminator after class field
-babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-inline/input.js:2:5: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/es2022/class-properties/asi-failure-inline/input.js:2:5: Expected '(', got identifier 'y'
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/await-in-computed-property-in-params-of-async-arrow/input.js:1:21: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/new-target-invalid/input.js:1:19: 'new.target' is only allowed inside functions
 babel/packages/babel-parser/test/fixtures/es2022/class-properties/no-ctor-2/input.js:3:3: Class field cannot be named 'constructor'
@@ -1019,23 +1019,23 @@ babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/for-awai
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/top-level/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2024/regexp-unicode-sets/uv-error/input.js:1:4: Regular expression flags 'u' and 'v' are mutually exclusive
 babel/packages/babel-parser/test/fixtures/es2024/regexp-unicode-sets/vu-error/input.js:1:4: Regular expression flags 'u' and 'v' are mutually exclusive
-babel/packages/babel-parser/test/fixtures/es2025/import-attributes/import-with-call-expression/input.js:2:6: Expected {, got (
+babel/packages/babel-parser/test/fixtures/es2025/import-attributes/import-with-call-expression/input.js:2:6: Expected '{', got '('
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/incorrect-arity/input.js:1:8: 'import()' requires a specifier
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-export-without-from/input.js:2:16: Expected semicolon after export declaration
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-spread-element-import-call/input.js:1:22: '...' is not allowed in 'import()' call
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-export-with-repeated-type/input.js:1:64: Duplicate import attribute key 'type'
-babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-export-without-attributes-identifier/input.js:1:29: Expected {, got ;
+babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-export-without-attributes-identifier/input.js:1:29: Expected '{', got ';'
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-with-repeated-type-string/input.js:1:51: Duplicate import attribute key 'type'
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-with-repeated-type/input.js:1:49: Duplicate import attribute key 'type'
-babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-without-attributes-identifier/input.js:1:16: Expected {, got ;
-babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-with-entry-no-colon/input.js:1:25: Expected :, got ,
+babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-syntax-without-attributes-identifier/input.js:1:16: Expected '{', got ';'
+babel/packages/babel-parser/test/fixtures/es2025/import-attributes/invalid-with-entry-no-colon/input.js:1:25: Expected ':', got ','
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/valid-syntax-export-with-invalid-value/input.js:1:63: Only string literals are allowed as import attribute values
 babel/packages/babel-parser/test/fixtures/es2025/import-attributes/valid-syntax-with-invalid-value/input.js:1:55: Only string literals are allowed as import attribute values
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-duplicate-using-bindings/input.js:3:5: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-export-await-using/input.js:2:1: Using declarations cannot be exported directly
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-export-default-await-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-for-of-await-linebreak-using/input.js:2:8: Line terminator not permitted between 'await' and 'using'
-babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-for-of-await-using-linebreak/input.js:3:5: Expected ;, got identifier
+babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-for-of-await-using-linebreak/input.js:3:5: Expected ';', got identifier 'basic'
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-in-single-statement-context-async/input.js:3:3: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-in-single-statement-context-sync/input.js:3:3: Lexical declaration cannot appear in a single-statement context
 babel/packages/babel-parser/test/fixtures/es2026/async-explicit-resource-management/invalid-module-bare-case-await-using-binding/input.js:6:5: 'await using' declaration is not allowed directly inside a switch case clause
@@ -1053,10 +1053,10 @@ babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/di
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-duplicate-using-bindings/input.js:2:3: Identifier 'f' has already been declared
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-default-using/input.js:1:16: 'export default' cannot be followed by a using declaration
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-export-using/input.js:2:1: Using declarations cannot be exported directly
-babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-await-using-binding-of-of/input.mjs:1:24: Expected ), got of
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-await-using-binding-of-of/input.mjs:1:24: Expected ')', got 'of'
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-in/input.js:1:19: 'using' declaration is not allowed in a for-in loop
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-of-in/input.js:1:15: Unexpected reserved word 'in'
-babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-of-of/input.js:1:18: Expected ), got of
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-binding-of-of/input.js:1:18: Expected ')', got 'of'
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-of-equal-equal/input.js:1:22: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-for-using-of-no-initializer/input.js:1:14: Using declarations must have an initializer
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-in-single-statement-context/input.js:3:3: Lexical declaration cannot appear in a single-statement context
@@ -1067,7 +1067,7 @@ babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/in
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-script-top-level-using-binding/input.js:1:7: 'using' declaration is not allowed at the top level of a script
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-await-module/input.js:2:9: 'await' is reserved as a binding name in this context
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-let/input.js:2:3: 'let' is disallowed as a lexically bound name
-babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-pattern-for-lhs/input.js:2:14: Expected ;, got {
+babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-binding-pattern-for-lhs/input.js:2:14: Expected ';', got '{'
 babel/packages/babel-parser/test/fixtures/es2026/explicit-resource-management/invalid-using-no-initializer/input.js:3:1: Missing initializer in 'using' declaration
 babel/packages/babel-parser/test/fixtures/esprima/declaration-function/dupe-param/input.js:1:1: Duplicate parameter name 'x' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-array-binding-pattern/invalid-dup-param/input.js:1:1: Duplicate parameter name 'b' in strict mode
@@ -1075,7 +1075,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-array-binding-pattern/i
 babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-1/input.js:2:1: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-2/input.js:2:1: Duplicate parameter name 'a' in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/dupe-param-3/input.js:2:1: Duplicate parameter name 'a' in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/with-default-catch-param-fail/input.js:1:20: Expected ), got =
+babel/packages/babel-parser/test/fixtures/esprima/es2015-array-pattern/with-default-catch-param-fail/input.js:1:20: Expected ')', got '='
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/arrow-rest-forgetting-comma/input.js:2:1: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/arrow-with-multiple-rest/input.js:2:1: Rest parameter must be last in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/es2015-arrow-function/complex-rest-in-arrow-not-allowed/input.js:1:1: Duplicate parameter name 'a' in strict mode
@@ -1096,8 +1096,8 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-destructuring-assignmen
 babel/packages/babel-parser/test/fixtures/esprima/es2015-destructuring-assignment-object-pattern/invalid-pattern-with-method/input.js:1:11: Invalid destructuring assignment target
 babel/packages/babel-parser/test/fixtures/esprima/es2015-destructuring-assignment/invalid-cover-grammar/input.js:1:22: Invalid shorthand property initializer
 babel/packages/babel-parser/test/fixtures/esprima/es2015-destructuring-assignment/invalid-group-assignment/input.js:1:6: Invalid left-hand side in assignment
-babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-batch-missing-from-clause/input.js:2:1: Expected from, got EOF
-babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-batch-token/input.js:1:10: Expected from, got +
+babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-batch-missing-from-clause/input.js:2:1: Expected 'from', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-batch-token/input.js:1:10: Expected 'from', got '+'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-default-equal/input.js:1:16: Unexpected token '='
 babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-default-token/input.js:1:18: Expected semicolon after export declaration
 babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-default/input.js:1:21: Unexpected token following export default expression
@@ -1123,19 +1123,19 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_expr
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_id_smp/input.js:1:5: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_lone_surrogate/input.js:1:1: Unexpected token '\uD800'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-identifier/invalid_var_await/input.js:1:1: 'export' is only valid in module code
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-after-named-after-default/input.js:1:18: Expected from, got ,
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-after-named/input.js:1:13: Expected from, got ,
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-missing-module-specifier/input.js:2:1: Expected from, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-after-named-after-default/input.js:1:18: Expected 'from', got ','
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-after-named/input.js:1:13: Expected 'from', got ','
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-missing-module-specifier/input.js:2:1: Expected 'from', got end of input
 babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default-module-specifier/input.js:1:17: Expected string literal module specifier
 babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-default/input.js:1:8: Unexpected reserved word 'default'
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-missing-comma/input.js:1:12: Expected from, got {
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-missing-module-specifier/input.js:2:1: Expected from, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-missing-comma/input.js:1:12: Expected 'from', got '{'
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-missing-module-specifier/input.js:2:1: Expected 'from', got end of input
 babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-module-specifier/input.js:1:19: Expected string literal module specifier
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-named-after-named/input.js:1:13: Expected from, got ,
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-named-after-namespace/input.js:1:16: Expected from, got ,
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-named-as-missing-from/input.js:2:1: Expected from, got EOF
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-namespace-after-named/input.js:1:13: Expected from, got ,
-babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-namespace-missing-as/input.js:1:10: Expected as, got from
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-named-after-named/input.js:1:13: Expected 'from', got ','
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-named-after-namespace/input.js:1:16: Expected 'from', got ','
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-named-as-missing-from/input.js:2:1: Expected 'from', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-namespace-after-named/input.js:1:13: Expected 'from', got ','
+babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-namespace-missing-as/input.js:1:10: Expected 'as', got 'from'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-import-declaration/invalid-import-specifiers/input.js:1:13: Expected import specifier after comma
 babel/packages/babel-parser/test/fixtures/esprima/es2015-lexical-declaration/invalid_complex_binding_without_init/input.js:2:1: Missing initializer in destructuring declaration
 babel/packages/babel-parser/test/fixtures/esprima/es2015-lexical-declaration/invalid_const_forin/input.js:1:6: for-in loop variable declaration may not have an initializer
@@ -1149,16 +1149,16 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/inva
 babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-literal-identifier/input.js:1:23: Redefinition of __proto__ property
 babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-literals/input.js:1:23: Redefinition of __proto__ property
 babel/packages/babel-parser/test/fixtures/esprima/es2015-object-initialiser/invalid-proto-setter-literal-identifier/input.js:1:43: Redefinition of __proto__ property
-babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-call-dot-dot/input.js:1:3: Expected ), got .
+babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-call-dot-dot/input.js:1:3: Expected ')', got '.'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-call-dots/input.js:1:6: Expected expression after '...'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-call-spreads/input.js:1:12: Spread argument cannot contain another spread element
-babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-new-dot-dot/input.js:1:7: Expected ), got .
+babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-new-dot-dot/input.js:1:7: Expected ')', got '.'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-new-dots/input.js:1:10: Expected expression after '...'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-spread-element/invalid-new-spreads/input.js:1:16: Spread argument cannot contain another spread element
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_access/input.js:3:10: 'super' can only be used with function calls or in property accesses
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_id/input.js:2:17: 'super' can only be used with function calls or in property accesses
 babel/packages/babel-parser/test/fixtures/esprima/es2015-super-property/invalid_super_not_inside_function/input.js:1:14: 'super' call is only allowed in the constructor of a derived class
-babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/after-switch/input.js:1:9: Expected (, got template
+babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/after-switch/input.js:1:9: Expected '(', got template literal
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-escape/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-octal-literal/input.js:1:6: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/esprima/es2015-template-literals/invalid-strict-octal-literal/input.js:1:20: Invalid escape sequence in template literal
@@ -1264,11 +1264,11 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0053/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0054/input.js:2:1: Invalid left-hand side expression in prefix operation
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0055/input.js:2:1: Invalid left-hand side expression in prefix operation
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0056/input.js:1:16: Invalid left-hand side in for-in loop
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0057/input.js:2:1: Expected ], got EOF
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0058/input.js:2:1: Expected ], got EOF
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0059/input.js:2:1: Expected }, got EOF
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0060/input.js:2:1: Expected }, got EOF
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0061/input.js:2:1: Expected }, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0057/input.js:2:1: Expected ']', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0058/input.js:2:1: Expected ']', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0059/input.js:2:1: Expected '}', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0060/input.js:2:1: Expected '}', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0061/input.js:2:1: Expected '}', got end of input
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0062/input.js:3:1: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0063/input.js:1:9: Unterminated string literal
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0064/input.js:1:5: 'if' is a reserved word and cannot be used as a binding name
@@ -1280,17 +1280,17 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0069/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0070/input.js:3:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0071/input.js:1:7: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0072/input.js:1:7: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0073/input.js:1:11: Expected ), got if
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0073/input.js:1:11: Expected ')', got 'if'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0074/input.js:1:10: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0075/input.js:1:8: Setter must have exactly one formal parameter
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0076/input.js:1:13: Expected }, got {
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0077/input.js:1:17: Expected }, got {
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0078/input.js:1:14: Expected }, got {
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0080/input.js:1:5: Expected ], got ,
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0081/input.js:1:8: Expected ], got ,
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0082/input.js:1:3: Expected }, got (
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0083/input.js:1:6: Expected }, got {
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0084/input.js:2:1: Expected }, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0076/input.js:1:13: Expected '}', got '{'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0077/input.js:1:17: Expected '}', got '{'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0078/input.js:1:14: Expected '}', got '{'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0080/input.js:1:5: Expected ']', got ','
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0081/input.js:1:8: Expected ']', got ','
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0082/input.js:1:3: Expected '}', got '('
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0083/input.js:1:6: Expected '}', got '{'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0084/input.js:2:1: Expected '}', got end of input
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0087/input.js:1:16: Assignment to 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0088/input.js:2:1: Arrow parameter 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0089/input.js:2:1: Arrow parameter 'arguments' is not allowed in strict mode
@@ -1306,10 +1306,10 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0098/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0099/input.js:2:1: Expected identifier in arrow function parameters
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0100/input.js:2:1: Arrow parameter 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0101/input.js:1:2: Parameter name 'eval' is not allowed in strict mode
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0102/input.js:1:8: Expected }, got /
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0102/input.js:1:8: Expected '}', got '/'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0103/input.js:1:10: Numeric / string property name requires a value
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0112/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0113/input.js:1:3: Expected (, got .
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0113/input.js:1:3: Expected '(', got '.'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0114/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0115/input.js:1:3: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0116/input.js:1:1: 'break' must be inside a loop or switch
@@ -1320,18 +1320,18 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0120/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0121/input.js:1:6: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0122/input.js:2:1: Expected expression after throw
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0123/input.js:1:6: Only a single declaration is allowed in a for-in loop
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0124/input.js:1:15: Expected ;, got )
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0124/input.js:1:15: Expected ';', got ')'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0125/input.js:1:15: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0126/input.js:1:12: Invalid left-hand side in for-in loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0127/input.js:2:1: Expected statement after 'if' condition
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0128/input.js:2:1: Expected statement after 'else'
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0129/input.js:2:1: Expected while, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0129/input.js:2:1: Expected 'while', got end of input
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0130/input.js:2:1: Expected statement after 'while' condition
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0131/input.js:2:1: Expected statement after for head
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0132/input.js:2:1: Expected statement after 'with' object
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0133/input.js:2:1: Try statement must have catch or finally clause
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0134/input.js:1:15: Expected binding pattern
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0135/input.js:1:21: Expected ), got (
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0135/input.js:1:21: Expected ')', got '('
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0136/input.js:1:15: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0137/input.js:1:1: Unexpected token '\u203F'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0138/input.js:2:1: Missing initializer in 'const' declaration
@@ -1373,7 +1373,7 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0171/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0172/input.js:1:1: 'break' must be inside a loop or switch
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0173/input.js:1:1: 'continue' must be inside a loop
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0174/input.js:1:23: 'continue' must be inside a loop
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0175/input.js:1:10: Expected while, got *
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0175/input.js:1:10: Expected 'while', got '*'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0176/input.js:1:22: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0177/input.js:1:25: Undefined label 'x'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0178/input.js:1:40: Undefined label 'x'
@@ -1453,23 +1453,23 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0255/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0256/input.js:2:1: Expected '}' at end of function body
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0257/input.js:1:17: Expected semicolon
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0258/input.js:1:19: A rest parameter must be last in a parameter list
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0260/input.js:1:17: Expected ), got =
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0261/input.js:2:1: Expected {, got EOF
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0262/input.js:2:1: Expected {, got EOF
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0263/input.js:1:6: Expected {, got ;
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0264/input.js:1:19: Expected {, got +
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0265/input.js:2:1: Expected {, got EOF
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0260/input.js:1:17: Expected ')', got '='
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0261/input.js:2:1: Expected '{', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0262/input.js:2:1: Expected '{', got end of input
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0263/input.js:1:6: Expected '{', got ';'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0264/input.js:1:19: Expected '{', got '+'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0265/input.js:2:1: Expected '{', got end of input
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0266/input.js:2:1: Expected '}' at end of class body
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0267/input.js:1:8: Expected {, got ;
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0268/input.js:1:11: Expected (, got :
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0267/input.js:1:8: Expected '{', got ';'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0268/input.js:1:11: Expected '(', got ':'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0269/input.js:1:15: Expected method or property name
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0270/input.js:2:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0271/input.js:2:1: Classes may not have a static member named 'prototype'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0272/input.js:1:25: Class constructor cannot be a getter
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0273/input.js:1:25: Class constructor cannot be a setter
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0274/input.js:2:1: Multiple constructor implementations are not allowed.
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0275/input.js:1:12: Expected (, got UNKNOWN
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0276/input.js:1:24: Expected (, got UNKNOWN
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0275/input.js:1:12: Expected '(', got 'UNKNOWN'
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0276/input.js:1:24: Expected '(', got 'UNKNOWN'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0277/input.js:1:12: 'enum' is a reserved word and cannot be used as a binding identifier
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0278/input.js:1:18: 'static' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/esprima/rest-parameter/invalid-setter-rest/input.js:1:13: Setter parameter cannot be a rest element
@@ -1494,22 +1494,22 @@ babel/packages/babel-parser/test/fixtures/placeholders/_errors/no-plugin/input.j
 babel/packages/babel-parser/test/fixtures/tokens/template-string/invalid-octal/input.js:1:5: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/tokens/template-string/invalid-unicode-escape-codepoint/input.js:1:8: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-arrow-function-after-binary-operator/input.ts:2:1: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-rest-optional-parameter/input.ts:1:14: Expected ), got ?
+babel/packages/babel-parser/test/fixtures/typescript/arrow-function/async-rest-optional-parameter/input.ts:1:14: Expected ')', got '?'
 babel/packages/babel-parser/test/fixtures/typescript/arrow-function/generic-tsx/input.ts:4:1: Unexpected token. Did you mean `{'>'}` or `&gt;`?
-babel/packages/babel-parser/test/fixtures/typescript/arrow-function/invalid-class-implements/input.ts:1:22: Expected {, got =>
+babel/packages/babel-parser/test/fixtures/typescript/arrow-function/invalid-class-implements/input.ts:1:22: Expected '{', got '=>'
 babel/packages/babel-parser/test/fixtures/typescript/assert-predicate/invalid-escaped-asserts-keyword/input.ts:1:63: An implementation cannot be declared in ambient contexts
 babel/packages/babel-parser/test/fixtures/typescript/assign/invalid-TSTypeParameterInstantiation/input.ts:15:31: Expected expression after operator
 babel/packages/babel-parser/test/fixtures/typescript/assign/invalid/input.ts:1:9: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/typescript/assign/parenthesized-object-assign/input.ts:1:6: Invalid left-hand side in assignment
 babel/packages/babel-parser/test/fixtures/typescript/async-call/with-optional-parameter/input.ts:1:9: Expected expression after '?' in conditional expression
-babel/packages/babel-parser/test/fixtures/typescript/cast/arrow-async-parameter-as/input.ts:1:10: Expected ), got as
+babel/packages/babel-parser/test/fixtures/typescript/cast/arrow-async-parameter-as/input.ts:1:10: Expected ')', got 'as'
 babel/packages/babel-parser/test/fixtures/typescript/cast/arrow-async-parameter-assertion/input.ts:1:8: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/typescript/cast/arrow-parameter-as/input.ts:1:15: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/typescript/cast/arrow-parameter-assertion/input.ts:1:14: Invalid expression for arrow function parameters
 babel/packages/babel-parser/test/fixtures/typescript/cast/destructuring-assignent-rest-invalid/input.ts:1:21: Invalid rest operator's argument
-babel/packages/babel-parser/test/fixtures/typescript/cast/invalid/input.ts:1:3: Expected ), got :
+babel/packages/babel-parser/test/fixtures/typescript/cast/invalid/input.ts:1:3: Expected ')', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/cast/null-assertion-invalid-arrow-param/input.ts:1:10: Invalid expression for arrow function parameters
-babel/packages/babel-parser/test/fixtures/typescript/cast/parameter-typecast/input.ts:1:7: Expected ), got :
+babel/packages/babel-parser/test/fixtures/typescript/cast/parameter-typecast/input.ts:1:7: Expected ')', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-1/input.ts:4:1: Abstract methods can only appear within an abstract class.
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-2/input.ts:6:3: Abstract methods can only appear within an abstract class.
 babel/packages/babel-parser/test/fixtures/typescript/class/abstract-method-in-non-abstract-class-3/input.ts:1:52: Abstract methods can only appear within an abstract class.
@@ -1528,8 +1528,8 @@ babel/packages/babel-parser/test/fixtures/typescript/class/declare-initializer/i
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-method/input.ts:2:17: 'declare' modifier cannot be used here.
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-new-line-abstract/input.ts:1:9: Line terminator not permitted between 'abstract' and 'class'
 babel/packages/babel-parser/test/fixtures/typescript/class/declare-readonly-field-initializer-w-annotation/input.ts:3:31: Initializers are not allowed in ambient contexts.
-babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-1/input.ts:2:26: Expected (, got identifier
-babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-2/input.ts:2:33: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-1/input.ts:2:26: Expected '(', got identifier 'foo'
+babel/packages/babel-parser/test/fixtures/typescript/class/duplicate-modifier-2/input.ts:2:33: Expected '(', got identifier 'foo'
 babel/packages/babel-parser/test/fixtures/typescript/class/duplicates-accessibility/input.ts:2:10: Accessibility modifier already seen.
 babel/packages/babel-parser/test/fixtures/typescript/class/empty-type-parameters/input.ts:1:9: Type parameter list cannot be empty
 babel/packages/babel-parser/test/fixtures/typescript/class/extends-empty/input.ts:1:23: Expected interface name after 'extends'
@@ -1543,14 +1543,14 @@ babel/packages/babel-parser/test/fixtures/typescript/class/modifier-name-paramet
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-index-signatures/input.ts:4:11: 'private' modifier cannot appear on an index signature.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-invalid-order/input.ts:21:17: 'public' modifier must precede 'static' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/modifiers-override-errors/input.ts:2:23: 'override' modifier cannot appear on a constructor declaration
-babel/packages/babel-parser/test/fixtures/typescript/class/optional-async-error/input.js:3:10: Expected (, got ?
+babel/packages/babel-parser/test/fixtures/typescript/class/optional-async-error/input.js:3:10: Expected '(', got '?'
 babel/packages/babel-parser/test/fixtures/typescript/class/optional-generator-method-with-invalid-modifiers/input.ts:2:18: Method 'd' cannot have an implementation because it is marked abstract.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-abstract/input.ts:4:1: 'abstract' modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-private/input.ts:2:11: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-protected/input.ts:2:13: An accessibility modifier cannot be used with a private identifier.
 babel/packages/babel-parser/test/fixtures/typescript/class/private-fields-modifier-public/input.ts:2:10: An accessibility modifier cannot be used with a private identifier.
-babel/packages/babel-parser/test/fixtures/typescript/class/property-optional-definite-assignment-not-allowed/input.ts:2:4: Expected (, got ?
-babel/packages/babel-parser/test/fixtures/typescript/class/protected-static/input.ts:3:10: Expected (, got identifier
+babel/packages/babel-parser/test/fixtures/typescript/class/property-optional-definite-assignment-not-allowed/input.ts:2:4: Expected '(', got '?'
+babel/packages/babel-parser/test/fixtures/typescript/class/protected-static/input.ts:3:10: Expected '(', got identifier 'a'
 babel/packages/babel-parser/test/fixtures/typescript/const/invalid-initializer-ambient-context/input.ts:2:35: 'enum' is a reserved word
 babel/packages/babel-parser/test/fixtures/typescript/const/no-initializer/input.ts:2:1: Missing initializer in 'const' declaration
 babel/packages/babel-parser/test/fixtures/typescript/const/reserved-word/input.ts:1:16: Missing initializer in 'const' declaration
@@ -1595,13 +1595,13 @@ babel/packages/babel-parser/test/fixtures/typescript/interface/get-set-invalid-t
 babel/packages/babel-parser/test/fixtures/typescript/interface/get-set-type-parameters/input.ts:2:10: An accessor cannot have type parameters
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-abstract-interface/input.ts:1:10: Expected semicolon
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-extends/input.ts:2:27: Expected interface name after 'extends'
-babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-get-properties/input.ts:2:10: Expected (, got :
+babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-get-properties/input.ts:2:10: Expected '(', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-method/input.ts:2:3: 'private' modifier cannot appear on a type member.
 babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-modifiers-property/input.ts:2:3: 'private' modifier cannot appear on a type member.
-babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-set-properties/input.ts:2:10: Expected (, got :
+babel/packages/babel-parser/test/fixtures/typescript/interface/invalid-set-properties/input.ts:2:10: Expected '(', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line-error/input.ts:1:1: 'interface' is a reserved identifier in strict mode
 babel/packages/babel-parser/test/fixtures/typescript/interface/new-line/input.ts:1:1: 'interface' is a reserved identifier in strict mode
-babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected }, got =
+babel/packages/babel-parser/test/fixtures/typescript/interface/property-initializer/input.ts:1:25: Expected '}', got '='
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-assignment/input.ts:2:3: An export assignment cannot be used in a namespace.
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-default/input.ts:3:3: Export declarations are not permitted in a namespace.
 babel/packages/babel-parser/test/fixtures/typescript/module-namespace/invalid-body-declare-export-from/input.ts:2:3: Export declarations are not permitted in a namespace.
@@ -1650,13 +1650,13 @@ babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-stati
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-override-01/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-override-01/invalid-static-block-with-modifier-abstract/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-override-02/input.ts:2:19: Expected method or property name
-babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-static/input.ts:2:17: Expected (, got {
+babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-block-with-modifier-static/input.ts:2:17: Expected '(', got '{'
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifer-declare-01/input.ts:2:18: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifer-declare-02/input.ts:2:18: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-01/input.ts:2:19: 'static' modifier must precede 'readonly' modifier.
 babel/packages/babel-parser/test/fixtures/typescript/static-blocks/invalid-static-blocks-with-modifier-readonly-02/input.ts:2:19: Expected method or property name
 babel/packages/babel-parser/test/fixtures/typescript/tsx/anonymous-function-generator-invalid/input.ts:1:23: Expected type parameter name, got ','
-babel/packages/babel-parser/test/fixtures/typescript/tsx/cast-invalid/input.tsx:3:22: Expected ], got :
+babel/packages/babel-parser/test/fixtures/typescript/tsx/cast-invalid/input.tsx:3:22: Expected ']', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/tsx/invalid-gt-arrow-like/input.ts:1:10: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 babel/packages/babel-parser/test/fixtures/typescript/type-alias/declare-new-line/input.ts:1:9: Line terminator not permitted after 'type'
 babel/packages/babel-parser/test/fixtures/typescript/type-arguments/call-optional-chain-invalid/input.ts:1:12: Expected '(' after type arguments in optional call
@@ -1679,33 +1679,33 @@ babel/packages/babel-parser/test/fixtures/typescript/type-only-import-export-spe
 babel/packages/babel-parser/test/fixtures/typescript/type-only-import-export-specifiers/import-invalid-type-named-keywords/input.ts:1:18: 'if' is a reserved word and cannot be used as an import binding
 babel/packages/babel-parser/test/fixtures/typescript/type-only-import-export-specifiers/import-invalid-type-only-as-as-keyword/input.ts:1:24: 'if' is a reserved word and cannot be used as an import binding
 babel/packages/babel-parser/test/fixtures/typescript/type-only-import-export-specifiers/import-invalid-type-only-as-string/input.ts:1:22: Import binding name cannot be a string literal
-babel/packages/babel-parser/test/fixtures/typescript/types-arrow-function/invalid-incomplete-array-like/input.ts:2:1: Expected ], got EOF
-babel/packages/babel-parser/test/fixtures/typescript/types-arrow-function/invalid-incomplete-object-like/input.ts:2:1: Expected }, got EOF
+babel/packages/babel-parser/test/fixtures/typescript/types-arrow-function/invalid-incomplete-array-like/input.ts:2:1: Expected ']', got end of input
+babel/packages/babel-parser/test/fixtures/typescript/types-arrow-function/invalid-incomplete-object-like/input.ts:2:1: Expected '}', got end of input
 babel/packages/babel-parser/test/fixtures/typescript/types/import-type-declaration-error/input.ts:1:25: A type-only import cannot combine default and named bindings
 babel/packages/babel-parser/test/fixtures/typescript/types/import-type-dynamic-errors/input.ts:3:18: String literal expected in import type
 babel/packages/babel-parser/test/fixtures/typescript/types/import-type-escaped-error/input.ts:1:8: Keyword 'type' must not contain escaped characters
 babel/packages/babel-parser/test/fixtures/typescript/types/intrinsic-keyword-error/input.ts:1:21: Indexed access is not allowed on 'intrinsic' keyword type
-babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-dynamic-with-jsx-options/input.ts:1:34: Expected ), got <
+babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-dynamic-with-jsx-options/input.ts:1:34: Expected ')', got '<'
 babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-options-escaped-with/input.ts:1:36: Expected 'with' in import type options
 babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-options-string-with/input.ts:1:36: Expected 'with' in import type options
-babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-options-trailing-comma/input.ts:1:60: Expected ), got ,
+babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-options-trailing-comma/input.ts:1:60: Expected ')', got ','
 babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-options-with-computed-properties/input.ts:1:44: Import attributes keys must be identifier or string literal
 babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-options-with-spread-element/input.ts:1:58: Spread elements are not allowed in import type options
 babel/packages/babel-parser/test/fixtures/typescript/types/invalid-import-type-trailing-comma/input.ts:1:34: Expected '{' after ',' in import type options
 babel/packages/babel-parser/test/fixtures/typescript/types/literal-string-3/input.ts:1:19: Expected template middle / tail token in template literal type
 babel/packages/babel-parser/test/fixtures/typescript/types/mapped-as-invalid/input.ts:1:33: Expected type after 'as' in mapped type
-babel/packages/babel-parser/test/fixtures/typescript/types/no-annotation-in-destructuring/input.ts:1:7: Expected ], got :
-babel/packages/babel-parser/test/fixtures/typescript/types/no-optional-in-destructuring-in-params/input.ts:1:14: Expected ], got :
-babel/packages/babel-parser/test/fixtures/typescript/types/no-optional-in-destructuring/input.ts:1:7: Expected ], got :
+babel/packages/babel-parser/test/fixtures/typescript/types/no-annotation-in-destructuring/input.ts:1:7: Expected ']', got ':'
+babel/packages/babel-parser/test/fixtures/typescript/types/no-optional-in-destructuring-in-params/input.ts:1:14: Expected ']', got ':'
+babel/packages/babel-parser/test/fixtures/typescript/types/no-optional-in-destructuring/input.ts:1:7: Expected ']', got ':'
 babel/packages/babel-parser/test/fixtures/typescript/types/read-only-1/input.ts:1:27: 'readonly' type modifier is only permitted on array and tuple literal types
 babel/packages/babel-parser/test/fixtures/typescript/types/read-only-2/input.ts:1:22: 'readonly' type modifier is only permitted on array and tuple literal types
 babel/packages/babel-parser/test/fixtures/typescript/types/read-only-3/input.ts:1:38: 'readonly' type modifier is only permitted on array and tuple literal types
 babel/packages/babel-parser/test/fixtures/typescript/types/read-only-4/input.ts:1:34: 'readonly' type modifier is only permitted on array and tuple literal types
-babel/packages/babel-parser/test/fixtures/typescript/types/tuple-invalid-label-1/input.ts:1:14: Expected ], got :
-babel/packages/babel-parser/test/fixtures/typescript/types/tuple-invalid-label-2/input.ts:1:15: Expected ], got :
-babel/packages/babel-parser/test/fixtures/typescript/types/tuple-labeled-invalid-optional/input.ts:1:15: Expected ], got ?
+babel/packages/babel-parser/test/fixtures/typescript/types/tuple-invalid-label-1/input.ts:1:14: Expected ']', got ':'
+babel/packages/babel-parser/test/fixtures/typescript/types/tuple-invalid-label-2/input.ts:1:15: Expected ']', got ':'
+babel/packages/babel-parser/test/fixtures/typescript/types/tuple-labeled-invalid-optional/input.ts:1:15: Expected ']', got '?'
 babel/packages/babel-parser/test/fixtures/typescript/types/tuple-optional-invalid/input.ts:1:24: A required tuple element cannot follow an optional element
 babel/packages/babel-parser/test/fixtures/typescript/types/tuple-required-after-labeled-optional/input.ts:1:22: A required tuple element cannot follow an optional element
 babel/packages/babel-parser/test/fixtures/typescript/types/variance-annotations-with-jsx/input.tsx:2:15: Arrow function cannot be used as an unparenthesized operand
-babel/packages/babel-parser/test/fixtures/typescript/types/variance-annotations/input.ts:95:17: Expected >, got identifier
+babel/packages/babel-parser/test/fixtures/typescript/types/variance-annotations/input.ts:95:17: Expected '>', got identifier 'T'
 babel/packages/babel-parser/test/fixtures/typescript/variable-declarator/definite-assignment-not-allowed/input.ts:1:7: Expected '=', ',', or ';' after variable binding

@@ -53,7 +53,9 @@
   ],
   "errors": [
     {
-      "message": "Expected ), got const",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected ')', got 'const'",
       "line": 3,
       "column": 1,
       "offset": 74
@@ -61,8 +63,8 @@
   ]
 }
 Parse errors (1):
-  Line 3, Column 1: Expected ), got const
+  Line 3, Column 1: Expected ')', got 'const'
 
 --- Statistics ---
-Arena: used=8320B reserved=16777216B ratio=0%
+Arena: used=37664B reserved=16777216B ratio=0%
 Parse errors: 1

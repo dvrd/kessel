@@ -32,8 +32,9 @@ load_estree :: proc(vendor_root: string, allocator: runtime.Allocator) -> []Fixt
 
 	for f in files {
 		// Parent-dir basename: `pass` or `fail`.
+		// `filepath.dir` is `os.dir` — returns a SLICE of `f.abs`, NOT a
+		// heap allocation. Do NOT delete it; doing so corrupts the heap.
 		dir := filepath.dir(f.abs)
-		defer delete(dir)
 		bucket := filepath.base(dir)
 
 		should_fail := bucket == "fail"

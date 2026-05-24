@@ -57,7 +57,9 @@
   ],
   "errors": [
     {
-      "message": "Expected }, got identifier",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '}', got identifier 'b'",
       "line": 2,
       "column": 12,
       "offset": 64
@@ -77,10 +79,10 @@
   ]
 }
 Parse errors (3):
-  Line 2, Column 12: Expected }, got identifier
+  Line 2, Column 12: Expected '}', got identifier 'b'
   Line 2, Column 14: Unexpected '}' — unmatched closing brace
   Line 2, Column 21: Expected semicolon
 
 --- Statistics ---
-Arena: used=38472B reserved=16777216B ratio=0%
+Arena: used=37696B reserved=16777216B ratio=0%
 Parse errors: 3

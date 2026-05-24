@@ -74,19 +74,25 @@
       "offset": 100
     },
     {
-      "message": "Expected <, got EOF",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '<', got end of input",
       "line": 3,
       "column": 1,
       "offset": 100
     },
     {
-      "message": "Expected /, got EOF",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '/', got end of input",
       "line": 3,
       "column": 1,
       "offset": 100
     },
     {
-      "message": "Expected >, got EOF",
+      "code": "K2002",
+      "severity": "error",
+      "message": "Expected '>', got end of input",
       "line": 3,
       "column": 1,
       "offset": 100
@@ -95,10 +101,10 @@
 }
 Parse errors (4):
   Line 3, Column 1: Unexpected token. Did you mean `{'>'}` or `&gt;`?
-  Line 3, Column 1: Expected <, got EOF
-  Line 3, Column 1: Expected /, got EOF
-  Line 3, Column 1: Expected >, got EOF
+  Line 3, Column 1: Expected '<', got end of input
+  Line 3, Column 1: Expected '/', got end of input
+  Line 3, Column 1: Expected '>', got end of input
 
 --- Statistics ---
-Arena: used=37712B reserved=16777216B ratio=0%
+Arena: used=37888B reserved=16777216B ratio=0%
 Parse errors: 4
