@@ -109,7 +109,7 @@ function decode(buffer, source) {
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          must be 3
+  //   4  version          3 or 4
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -117,7 +117,7 @@ function decode(buffer, source) {
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version !== 3) throw new Error('Unsupported binary AST version: ' + version);
+  if (version !== 3 && version !== 4) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
@@ -132,11 +132,12 @@ function decode(buffer, source) {
   const MAX_DEPTH = 512;
   const program = readNode();
 
-  // Decode errors section, if present. Each error is laid out inline
-  // (format version 3): u32 start, u32 end, u32 msg_len, msg_len bytes
-  // (UTF-8). No padding. Both offsets are byte indices into source;
-  // start == end for single-point diagnostics, start < end for
-  // token-aware spans.
+  // Decode errors section, if present. Layout depends on `version`:
+  //   v3: u32 start, u32 end, u32 msg_len, msg_len bytes (UTF-8). 12B fixed.
+  //   v4: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
+  //       msg_len bytes (UTF-8). 16B fixed.
+  // `code` of 0 means 'no stable code' (legacy / un-migrated site).
+  // Severity: 0 = 'error', 1 = 'warning'.
   const errors = [];
   if (errorCount > 0 && errorsOff > 0) {
     const u8 = buffer instanceof Uint8Array
@@ -147,10 +148,24 @@ function decode(buffer, source) {
     for (let i = 0; i < errorCount; i++) {
       const start = dv.getUint32(eoff, true); eoff += 4;
       const end   = dv.getUint32(eoff, true); eoff += 4;
+      let code = 0;
+      let severity = 'error';
+      if (version >= 4) {
+        const codeNum = dv.getUint16(eoff, true); eoff += 2;
+        const sevNum  = dv.getUint8(eoff);        eoff += 1;
+        eoff += 1; // _pad
+        code = codeNum;
+        severity = sevNum === 1 ? 'warning' : 'error';
+      }
       const msgLen = dv.getUint32(eoff, true); eoff += 4;
       const message = decoder.decode(u8.subarray(eoff, eoff + msgLen));
       eoff += msgLen;
-      errors.push({ message, start, end });
+      const entry = { message, start, end };
+      if (code !== 0) {
+        entry.code = 'K' + String(code).padStart(4, '0');
+        entry.severity = severity;
+      }
+      errors.push(entry);
     }
   }
 

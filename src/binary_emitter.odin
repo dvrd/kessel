@@ -157,8 +157,11 @@ BinValType :: enum u8 {
 // the JS decoder (npm/kessel/binary-reader.js) hard-checks this.
 //
 //   v1: [header 16B] [nodes] [string table]
-//   v2: [header 24B] [nodes] [errors] [string table]
-BINARY_FORMAT_VERSION :: u32(3)
+//   v2: [header 24B] [nodes] [errors{start,end,msg_len,msg}] [strings]
+//   v3: same on-wire shape; explicit `end` per error (was implicit start+1)
+//   v4: [header 24B] [nodes] [errors{start,end,code:u16,sev:u8,_pad:u8,msg_len,msg}] [strings]
+//       errors gained a stable K-code and severity for FFI consumers.
+BINARY_FORMAT_VERSION :: u32(4)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
@@ -205,6 +208,15 @@ bw_u8 :: #force_inline proc(be: ^BinaryEmitter, v: u8) {
 	be_ensure(be, 1)
 	be.buf[be.pos] = v
 	be.pos += 1
+}
+
+@(private="file")
+bw_u16 :: #force_inline proc(be: ^BinaryEmitter, v: u16) {
+	be_ensure(be, 2)
+	p := be.pos
+	be.buf[p]   = u8(v)
+	be.buf[p+1] = u8(v >> 8)
+	be.pos = p + 2
 }
 
 @(private="file")
@@ -1196,20 +1208,32 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 // bin_emit_program and before bin_emit_finalize so the section lands
 // between the node stream and the string table.
 //
-// Layout per error: u32 start, u32 end, u32 msg_len, msg_len bytes
-// (no padding). Both offsets are UTF-8 byte indices into source.
-// `start == end` for single-point reports; `start < end` for spans
-// covering an offending token. `msg` is UTF-8.
+// Layout per error (v4):
+//   u32 start         — byte offset, inclusive
+//   u32 end           — byte offset, exclusive (== start for point reports)
+//   u16 code          — ErrorCode numeric value (0 = .None / legacy)
+//   u8  severity      — Severity numeric value (0 = .Error, 1 = .Warning)
+//   u8  _pad          — reserved, must be 0
+//   u32 msg_len       — UTF-8 byte length
+//   u8  msg[msg_len]  — UTF-8 message, no NUL terminator
 //
-// Format version 3 widened from {u32 loc, u32 msg_len, ...} to add the
-// explicit `end` so renderers can underline the full token instead of
-// printing a single caret. JS decoder bumped to match in lockstep.
+// Total fixed prefix: 16 bytes per error; followed by the variable
+// message bytes. No alignment padding between consecutive entries.
+//
+// Format-version history:
+//   v3 → v4: added {code:u16, severity:u8, _pad:u8} after `end`. The
+//   JS decoder (npm/kessel/binary-reader.js) hard-checks the version
+//   header and decodes the new fields. Bump in lockstep — mismatched
+//   versions throw at decode time, not at parse time.
 bin_emit_errors :: proc(be: ^BinaryEmitter, errors: []ParseError) {
 	be.errors_off = u32(be.pos)
 	be.error_count = u32(len(errors))
 	for err in errors {
 		bw_u32(be, err.start)
 		bw_u32(be, err.end)
+		bw_u16(be, u16(err.code))
+		bw_u8(be, u8(err.severity))
+		bw_u8(be, 0)  // _pad
 		msg_bytes := transmute([]u8)err.message
 		bw_u32(be, u32(len(msg_bytes)))
 		be_ensure(be, len(msg_bytes))

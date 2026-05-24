@@ -530,6 +530,9 @@ parse_file_binary :: proc(file_path: string, cli: CliConfig) {
 	defer binary_emitter_destroy(&be, context.allocator)
 
 	bin_emit_program(&be, job.program)
+	if len(job.parser.errors) > 0 {
+		bin_emit_errors(&be, job.parser.errors[:])
+	}
 	bin_emit_finalize(&be)
 
 	os.write(os.stdout, be.buf[:be.pos])
