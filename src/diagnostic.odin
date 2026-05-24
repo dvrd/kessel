@@ -55,6 +55,17 @@ ErrorCode :: enum u16 {
 	K3013_ForAwaitContextRestricted               = 3013,
 	K3014_AwaitUsingContextRestricted             = 3014,
 	K3015_KeywordContainsEscape                   = 3015,
+
+	// Module syntax (§16, §13.3.12 — import / export / import.meta
+	// / dynamic import / import attributes).
+	K3020_ImportExportNameOrBinding               = 3020,
+	K3021_ExportDefaultRestrictions               = 3021,
+	K3022_ModuleSyntaxInScript                    = 3022,
+	K3023_ImportMetaOrDynamicImportInvalid        = 3023,
+	K3024_ImportAttributeInvalid                  = 3024,
+
+	// K4xxx — TypeScript parser-level rules.
+	K4010_TypeOnlyImportExportInvalid             = 4010,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -154,6 +165,75 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 			default_message = "keyword must not contain Unicode escape sequences",
 			hint            = "write the keyword using its raw characters — escapes turn it into an identifier",
 			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K3020 — import / export name or binding is invalid: numeric or
+	//   bigint literal in name position, unpaired surrogates in a
+	//   string-form name, or reserved word as a local exported binding
+	//   without an `as` clause.
+	case .K3020_ImportExportNameOrBinding:
+		return ErrorInfo{
+			default_message = "import or export name / binding is not valid here",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3021 — `export default` and `using` / `await using` exports have
+	//   specific restrictions: cannot default-export a variable
+	//   declaration; cannot directly export a `using` declaration.
+	case .K3021_ExportDefaultRestrictions:
+		return ErrorInfo{
+			default_message = "this declaration cannot follow 'export default'",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3022 — module-only syntax (`import.meta`, top-level `await`) used
+	//   in script source. The source must be a Module — mark the file
+	//   `.mjs`, use `import` / `export`, or set `"type": "module"`.
+	case .K3022_ModuleSyntaxInScript:
+		return ErrorInfo{
+			default_message = "this syntax is only valid in module code",
+			hint            = "make the source a Module — add an `import` / `export`, rename to `.mjs`, or set `\"type\": \"module\"`",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3023 — `import.meta` and dynamic `import()` restrictions:
+	//   `import.meta` property name must be a raw identifier; dynamic
+	//   `import()` cannot be invoked with `new` and cannot take `...spread`.
+	case .K3023_ImportMetaOrDynamicImportInvalid:
+		return ErrorInfo{
+			default_message = "invalid use of 'import.meta' or dynamic 'import()'",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3024 — import attribute (`with { key: value }`) restrictions:
+	//   numeric / bigint literal as a key; spread element inside the
+	//   attribute block.
+	case .K3024_ImportAttributeInvalid:
+		return ErrorInfo{
+			default_message = "invalid form in an import attribute block",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K4010 — TypeScript type-only import / export restrictions:
+	//   `type` modifier on an already-type-only specifier; combining
+	//   default and named bindings in a type-only import.
+	case .K4010_TypeOnlyImportExportInvalid:
+		return ErrorInfo{
+			default_message = "invalid form in a type-only import or export",
+			hint            = "",
+			ts_code         = "TS1363",
 			severity        = .Error,
 		}
 	}

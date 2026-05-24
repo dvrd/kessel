@@ -10494,7 +10494,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 					}
 				}
 				if type_is_modifier {
-					report_error(p, "The 'type' modifier cannot be used in a type-only import")
+					report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only import")
 				}
 			}
 			spec := parse_import_specifier(p)
@@ -10581,7 +10581,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		// Check for comma followed by named imports
 		if match_token(p, .Comma) {
 			if decl.import_kind == .Type {
-				report_error(p, "A type-only import cannot combine default and named bindings")
+				report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "A type-only import cannot combine default and named bindings")
 			}
 			if is_token(p, .From) {
 				report_error(p, "Expected import specifier after comma")
@@ -10605,7 +10605,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 							}
 						}
 						if is_mod {
-							report_error(p, "The 'type' modifier cannot be used in a type-only import")
+							report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only import")
 						}
 					}
 					spec2 := parse_import_specifier(p)
@@ -10913,7 +10913,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 		current := snap_current(p)
 		val := current.literal.(string) or_else ""
 		if string_has_unpaired_surrogate(val) {
-			report_error(p, "Import name string must not contain unpaired surrogates")
+			report_error_coded(p, .K3020_ImportExportNameOrBinding, "Import name string must not contain unpaired surrogates")
 		}
 		imported = Identifier{loc = loc_from_token(&current), name = val}
 		is_string_import = true
@@ -10921,7 +10921,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	} else if is_token(p, .Number) || is_token(p, .BigInt) {
 		// Numeric / BigInt literals can't be ImportedBinding names.
 		// `import { 0n as foo }` is a SyntaxError.
-		report_error(p, "Unexpected token: numeric / bigint literal cannot be an import name")
+		report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an import name")
 		current := snap_current(p)
 		imported = Identifier{loc = loc_from_token(&current), name = current.value}
 		eat(p)
@@ -10943,11 +10943,11 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	}
 	if match_token(p, .As) {
 		if is_token(p, .String) {
-			report_error(p, "Import binding name cannot be a string literal")
+			report_error_coded(p, .K3020_ImportExportNameOrBinding, "Import binding name cannot be a string literal")
 		}
 		// Numeric / BigInt literals can't be ImportedBinding names.
 		if is_token(p, .Number) || is_token(p, .BigInt) {
-			report_error(p, "Unexpected token: numeric / bigint literal cannot be an import binding name")
+			report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an import binding name")
 			current := snap_current(p)
 			local = Identifier{loc = loc_from_token(&current), name = current.value}
 			eat(p)
@@ -10990,7 +10990,8 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	// §16.2.2 — ImportedBinding `eval` / `arguments` early error.
 	// Module code is always strict, so eval/arguments are forbidden.
 	if is_eval_or_arguments(local.name) {
-		report_error(p, fmt.tprintf("'%s' cannot be used as an import binding name", local.name))
+		report_error_coded(p, .K3020_ImportExportNameOrBinding,
+			fmt.tprintf("'%s' cannot be used as an import binding name", local.name))
 	}
 	// Strict-mode reserved words as import binding name. Module code is
 	// always strict; explicit strict-mode script imports are also covered.
@@ -11088,7 +11089,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// part of the declaration; the span includes it. TS-only syntax.
 	if is_token(p, .Assign) {
 		if !allow_ts_mode(p) {
-			report_error(p, "'export =' is only allowed in TypeScript files")
+			report_error_coded(p, .K4010_TypeOnlyImportExportInvalid,
+				"'export =' is only allowed in TypeScript files")
 		}
 		// In explicit script mode, export-equals is module-level syntax.
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
@@ -11230,7 +11232,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// `export await using x = ...` are SyntaxErrors. Using
 		// declarations must use the named-export form: `export { x }`.
 		if v != nil && (v.kind == .Using || v.kind == .AwaitUsing) {
-			report_error(p, "Using declarations cannot be exported directly")
+			report_error_coded(p, .K3021_ExportDefaultRestrictions, "Using declarations cannot be exported directly")
 		}
 	case ^ClassDeclaration:
 		decl_union^ = v
@@ -11382,7 +11384,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// are NOT allowed after `export default`.
 		if p.cur_type == .Const || p.cur_type == .Var ||
 		   (p.cur_type == .Let && !cur_has_newline(p)) {
-			report_error(p, "'export default' cannot be followed by a variable declaration")
+			report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a variable declaration")
 		}
 		// `using` / `await using` may also appear as a plain expression
 		// here — `using` is a contextual keyword, so `export default using;`
@@ -11392,13 +11394,13 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		// declaration form from expression form, instead of guessing from
 		// the immediate next token only. Mirrors babel + OXC.
 		if is_token(p, .Using) && using_starts_decl(p) {
-			report_error(p, "'export default' cannot be followed by a using declaration")
+			report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a using declaration")
 		}
 		ensure_nxt(p)
 		if is_token(p, .Await) && p.lexer.nxt.kind == .Using &&
 		   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 &&
 		   await_using_starts_decl(p) {
-			report_error(p, "'export default' cannot be followed by a using declaration")
+			report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a using declaration")
 		}
 		expr := parse_assignment_expression(p)
 		if expr != nil {
@@ -11455,7 +11457,7 @@ parse_export_all :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind) 
 			current := snap_current(p)
 			val := current.literal.(string) or_else ""
 			if string_has_unpaired_surrogate(val) {
-				report_error(p, "Export name string must not contain unpaired surrogates")
+				report_error_coded(p, .K3020_ImportExportNameOrBinding, "Export name string must not contain unpaired surrogates")
 			}
 			name_loc := loc_from_token(&current)
 			exported = IdentifierName{loc = name_loc, name = val}
@@ -11577,7 +11579,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 				}
 			}
 			if export_kind == .Type && type_is_modifier_export {
-				report_error(p, "The 'type' modifier cannot be used in a type-only export")
+				report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only export")
 			}
 			if nxt_is_name && nxt != .As {
 				eat(p) // consume `type`
@@ -11623,14 +11625,14 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 				str_lit.raw = current.value
 				// §16.2.3 - ModuleExportName : StringLiteral must be well-formed Unicode.
 				if string_has_unpaired_surrogate(str_lit.value) {
-					report_error(p, "Export name string must not contain unpaired surrogates")
+					report_error_coded(p, .K3020_ImportExportNameOrBinding, "Export name string must not contain unpaired surrogates")
 				}
 				eat(p)
 				return str_lit
 			}
 			// Numeric / BigInt literals are not valid export names.
 			if is_token(p, .Number) || is_token(p, .BigInt) {
-				report_error(p, "Unexpected token: numeric / bigint literal cannot be an export name")
+				report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an export name")
 				current := snap_current(p)
 				eat(p)
 				return IdentifierName{loc = loc_from_token(&current), name = current.value}
@@ -11700,7 +11702,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			case IdentifierName: exported_name = n.name
 			}
 			if local_name == exported_name && local_name == "default" {
-				report_error(p, "A reserved word 'default' cannot be used as a local exported binding without 'as'")
+				report_error_coded(p, .K3020_ImportExportNameOrBinding, "Reserved word 'default' cannot be used as a local exported binding without 'as'")
 			}
 		}
 	}
@@ -12529,7 +12531,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// `--source-type=script` it's a SyntaxError.
 		if !p.ctx.in_function {
 			if st, have := p.force_source_type.(SourceType); have && st == .Script {
-				report_error(p, "Top-level 'await' is only valid in module code")
+				report_error_coded(p, .K3022_ModuleSyntaxInScript, "Top-level 'await' is only valid in module code")
 			}
 		}
 		// ECMA-262 §15.8.1 / §15.9.1 / §15.6.1 - "It is a Syntax Error if
@@ -13393,7 +13395,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				span_bytes := p.lexer.source_bytes[meta_name.loc.start:meta_name.loc.end]
 				for b in span_bytes {
 					if b == '\\' {
-						report_error(p, "'import.meta' property name must not contain Unicode escape sequences")
+						report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "'import.meta' property name must not contain Unicode escape sequences")
 						break
 					}
 				}
@@ -13420,7 +13422,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// `import.meta` is Module syntax. In script sourceType it's a
 			// SyntaxError per ECMA-262 §13.3.12.
 			if st, have := p.force_source_type.(SourceType); have && st == .Script {
-				report_error(p, "'import.meta' is only valid in module code")
+				report_error_coded(p, .K3022_ModuleSyntaxInScript, "'import.meta' is only valid in module code")
 			}
 			// Collect ESM import.meta record
 			esm_import_meta := ESMImportMeta{
@@ -15170,7 +15172,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 	if is_token(p, .Import) && p.lexer != nil {
   ensure_nxt(p)
 		if p.lexer.nxt.kind == .LParen {
-			report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+			report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "Dynamic 'import()' cannot be invoked with 'new'")
 		} else if p.lexer.nxt.kind == .Dot {
 			// Source-byte lookahead past the `.` to see whether the
 			// property name is the legal `meta` MetaProperty or one of
@@ -15188,7 +15190,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			           src[dot_off]   == 'm' && src[dot_off+1] == 'e' &&
 			           src[dot_off+2] == 't' && src[dot_off+3] == 'a'
 			if !is_meta {
-				report_error(p, "Dynamic 'import()' cannot be invoked with 'new'")
+				report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "Dynamic 'import()' cannot be invoked with 'new'")
 			}
 		}
 	}
@@ -17323,7 +17325,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	// AssignmentExpression directly, not Arguments, so the rest-element
 	// production never reaches it.
 	if is_token(p, .Dot3) {
-		report_error(p, "'...' is not allowed in 'import()' call")
+		report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "'...' is not allowed in 'import()' call")
 		eat(p) // consume ... and keep parsing so recovery stays reasonable
 	}
 
@@ -17348,7 +17350,7 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 	if match_token(p, .Comma) {
 		if !is_token(p, .RParen) {
 			if is_token(p, .Dot3) {
-				report_error(p, "'...' is not allowed in 'import()' call")
+				report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "'...' is not allowed in 'import()' call")
 				eat(p)
 			}
 			options = parse_assignment_expression(p)
@@ -19375,7 +19377,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 					eat(p) // consume inner {
 					for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 						if is_token(p, .Dot3) {
-							report_error(p, "Spread elements are not allowed in import type options")
+							report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
 						}
 						if is_token(p, .LBracket) {
 							report_error(p, "Import attributes keys must be identifier or string literal")
@@ -19383,7 +19385,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 						// Validate the key: must be Identifier, String, or keyword-as-name.
 						// Numeric / BigInt literals as keys are invalid here.
 						if is_token(p, .Number) || is_token(p, .BigInt) {
-							report_error(p, "Unexpected token: numeric / bigint literal cannot be an import attribute key")
+							report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
 						}
 						eat(p) // consume key
 						if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {

@@ -1101,7 +1101,7 @@ babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/inva
 babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-default-equal/input.js:1:16: Unexpected token '='
 babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-default-token/input.js:1:18: Expected semicolon after export declaration
 babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-default/input.js:1:21: Unexpected token following export default expression
-babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-named-default/input.js:2:1: A reserved word 'default' cannot be used as a local exported binding without 'as'
+babel/packages/babel-parser/test/fixtures/esprima/es2015-export-declaration/invalid-export-named-default/input.js:2:1: Reserved word 'default' cannot be used as a local exported binding without 'as'
 babel/packages/babel-parser/test/fixtures/esprima/es2015-for-of/invalid-const-init/input.js:1:6: for-of loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/esprima/es2015-for-of/invalid-let-init/input.js:1:6: for-of loop variable declaration may not have an initializer
 babel/packages/babel-parser/test/fixtures/esprima/es2015-for-of/invalid-lhs-init/input.js:1:14: Invalid left-hand side in for-of loop

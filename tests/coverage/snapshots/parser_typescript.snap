@@ -81,7 +81,7 @@ typescript/tests/cases/compiler/awaitLiteralValues.ts:2:5: 'await' is only allow
 typescript/tests/cases/compiler/badArrayIndex.ts:1:22: Expected initializer expression after '='
 typescript/tests/cases/compiler/badArraySyntax.ts:6:16: Expected expression after 'new'
 typescript/tests/cases/compiler/bases.ts:7:15: Expected semicolon
-typescript/tests/cases/compiler/bigintArbirtraryIdentifier.ts::badExport.ts:1:17: Unexpected token: numeric / bigint literal cannot be an export name
+typescript/tests/cases/compiler/bigintArbirtraryIdentifier.ts::badExport.ts:1:17: Numeric or bigint literal cannot be an export name
 typescript/tests/cases/compiler/bigintPropertyName.ts::g.ts:2:5: Expected '}', got bigint literal '2n'
 typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement1.ts:1:1: 'break' must be inside a loop or switch
 typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement2.ts:3:5: 'break' must be inside a loop or switch
@@ -448,13 +448,13 @@ typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash2.ts:3:44: Reserved 
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash3.ts:4:13: Reserved word 'return' is not a valid binding identifier
 typescript/tests/cases/compiler/parse1.ts:4:1: Expected identifier after '.'
 typescript/tests/cases/compiler/parse2.ts:3:1: Expected ')', got '}'
-typescript/tests/cases/compiler/parseAssertEntriesError.ts::/index.ts:2:30: Unexpected token: numeric / bigint literal cannot be an import attribute key
+typescript/tests/cases/compiler/parseAssertEntriesError.ts::/index.ts:2:30: Numeric or bigint literal cannot be an import attribute key
 typescript/tests/cases/compiler/parseBigInt.ts:59:28: Expected semicolon
 typescript/tests/cases/compiler/parseCommaSeparatedNewlineNew.ts:2:4: Expected expression after 'new'
 typescript/tests/cases/compiler/parseErrorDoubleCommaInCall.ts:2:10: Property assignment expected
 typescript/tests/cases/compiler/parseErrorInHeritageClause1.ts:1:19: Expected '{', got invalid token
 typescript/tests/cases/compiler/parseErrorIncorrectReturnToken.ts:2:17: Unexpected token in TS object type
-typescript/tests/cases/compiler/parseImportAttributesError.ts::/index.ts:2:30: Unexpected token: numeric / bigint literal cannot be an import attribute key
+typescript/tests/cases/compiler/parseImportAttributesError.ts::/index.ts:2:30: Numeric or bigint literal cannot be an import attribute key
 typescript/tests/cases/compiler/parseInvalidNames.ts:1:11: Expected semicolon
 typescript/tests/cases/compiler/parseInvalidNonNullableTypes.ts:1:36: '!' at the end of a type is not valid TypeScript syntax.
 typescript/tests/cases/compiler/parseInvalidNullableTypes.ts:1:30: '?' at the start of a type is not valid TypeScript syntax.
