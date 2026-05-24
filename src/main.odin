@@ -473,21 +473,33 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	}
 	os.write(os.stdout, e.buf[:e.pos])
 
-	// Parse-error diagnostics on stderr. Bypass the emitter (which writes
-	// to its buffer, already flushed to stdout above). Print to stdout via
-	// fmt.printf so they appear on subsequent lines as intended.
+	// Parse-error diagnostics. Two render modes:
+	//   * default — one line per error: `Line N, Column M: msg`. Stable
+	//     machine-friendly output; what pipelines have always parsed.
+	//   * --pretty — rustc-style block per error with source snippet,
+	//     caret, code, and hint. Opt-in for human consumption.
 	if len(job.parser.errors) > 0 {
 		if job.parser.lexer != nil && job.parser.lexer.num_lines == 0 {
 			build_line_table(job.parser.lexer)
 		}
-		fmt.printf("Parse errors (%d):\n", len(job.parser.errors))
-		for err in job.parser.errors {
-			line: u32 = 0
-			col:  u32 = 0
-			if job.parser.lexer != nil {
-				line, col = offset_to_line_col(job.parser.lexer.line_offsets, err.start)
+		if cli.pretty_diagnostics && job.parser.lexer != nil {
+			fmt.eprintln()
+			render_pretty_diagnostics(
+				job.parser.lexer.source,
+				file_path,
+				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+				job.parser.errors[:],
+			)
+		} else {
+			fmt.printf("Parse errors (%d):\n", len(job.parser.errors))
+			for err in job.parser.errors {
+				line: u32 = 0
+				col:  u32 = 0
+				if job.parser.lexer != nil {
+					line, col = offset_to_line_col(job.parser.lexer.line_offsets, err.start)
+				}
+				fmt.printf("  Line %d, Column %d: %s\n", line, col, err.message)
 			}
-			fmt.printf("  Line %d, Column %d: %s\n", line, col, err.message)
 		}
 	}
 

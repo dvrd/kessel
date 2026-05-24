@@ -73,6 +73,9 @@ CliConfig :: struct {
 	// migration). Kept here as a documented field so the CLI flag
 	// continues to be accepted and the migration path is visible.
 	show_semantic_errors: bool,         // --show-semantic-errors
+
+	// Diagnostic rendering
+	pretty_diagnostics:   bool,         // --pretty
 }
 
 // Build a CliConfig with the documented defaults.
@@ -131,6 +134,15 @@ cli_try_parse_flag :: proc(cfg: ^CliConfig, args: []string, i: ^int) -> bool {
 		return true
 	case arg == "--preserve-parens":
 		cfg.preserve_parens = true
+		i^ += 1
+		return true
+	case arg == "--pretty":
+		// Opt-in human-readable diagnostic rendering. When set,
+		// errors print rustc-style with a source snippet, a caret,
+		// and the K#### code. Default off so the existing
+		// `Line N, Column M: ...` summary stays the machine-friendly
+		// default for pipelines. See `render_pretty_diagnostics`.
+		cfg.pretty_diagnostics = true
 		i^ += 1
 		return true
 	case arg == "--show-semantic-errors":

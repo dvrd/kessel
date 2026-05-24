@@ -7210,7 +7210,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			for d in decl.declarations {
 				if _, have := d.init.(^Expression); !have {
 					msg := fmt.tprintf("Missing initializer in '%s' declaration", kind_name)
-					report_error(p, msg)
+					report_error_coded(p, .K2070_RequiredFormOrBinding, msg)
 				}
 			}
 		}

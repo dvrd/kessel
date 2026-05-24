@@ -71,6 +71,8 @@
       "offset": 71
     },
     {
+      "code": "K2070",
+      "severity": "error",
       "message": "Missing initializer in 'const' declaration",
       "line": 3,
       "column": 1,
