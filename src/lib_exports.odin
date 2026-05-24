@@ -79,8 +79,30 @@ kessel_parse_binary :: proc "c" (
 		return nil, 0
 	}
 	defer parse_job_close(&job)
-	dbg("running parse job")
-	parse_job_run(&job)
+	dbg("running parse job (manual)")
+
+	// Inline parse_job_run with checkpoints so we can find the x86_64 segfault.
+	source_str := string(job.source.data)
+	dbg("init_lexer")
+	init_lexer(&job.lexer, source_str, job.arena_alloc, job.lex_source_type)
+	dbg("init_parser")
+	init_parser(&job.parser, &job.lexer, job.arena_alloc, job.lang, job.source_is_dts)
+
+	if st, ok := job.config.source_type_override.?; ok {
+		job.parser.force_source_type = st
+	} else if job.config.strict_source_type {
+		job.parser.force_source_type = .Script
+	}
+	job.parser.force_strict     = job.config.force_strict
+	job.parser.preserve_parens  = job.config.preserve_parens
+	job.parser.ast_only         = job.config.ast_only
+	job.lexer.skip_regex_validation = job.config.ast_only
+	job.parser.is_commonjs      = job.is_commonjs
+	job.parser.is_node_ts_module = false
+	job.parser.disallow_ambiguous_jsx_like = job.config.disallow_ambiguous_jsx_like
+
+	dbg("parse_program")
+	job.program = parse_program(&job.parser, job.initial_source_type)
 	dbg(fmt.tprintf("parse done, errors=%d", len(job.parser.errors)))
 
 	// Emit binary. Errors are written between the node stream and the
