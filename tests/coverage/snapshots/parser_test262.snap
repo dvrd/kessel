@@ -993,7 +993,7 @@ test262/test/language/expressions/async-generator/early-errors-expression-formal
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield-expr.js:17:27: 'yield' expression is not allowed in formal parameters of a generator
 test262/test/language/expressions/async-generator/early-errors-expression-formals-contains-yield.js:18:18: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/async-generator/early-errors-expression-label-name-await.js:23:3: 'await' cannot be used as a label identifier in an async function
-test262/test/language/expressions/async-generator/early-errors-expression-label-name-yield.js:25:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/async-generator/early-errors-expression-label-name-yield.js:25:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/async-generator/early-errors-expression-not-simple-assignment-target.js:17:24: Cannot assign to this expression
 test262/test/language/expressions/async-generator/early-errors-expression-yield-as-function-binding-identifier.js:17:18: 'yield' cannot be used as the name of a generator function expression
 test262/test/language/expressions/async-generator/early-errors-expression-yield-star-after-newline.js:19:3: Unexpected token '*'
@@ -1015,7 +1015,7 @@ test262/test/language/expressions/async-generator/named-yield-as-binding-identif
 test262/test/language/expressions/async-generator/named-yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/named-yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/async-generator/named-yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/async-generator/named-yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/async-generator/named-yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/async-generator/named-yield-identifier-spread-strict.js:36:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/async-generator/named-yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/async-generator/object-destructuring-param-strict-body.js:110:4: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1026,7 +1026,7 @@ test262/test/language/expressions/async-generator/yield-as-binding-identifier.js
 test262/test/language/expressions/async-generator/yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/async-generator/yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/async-generator/yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/async-generator/yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/async-generator/yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/async-generator/yield-identifier-spread-strict.js:36:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/async-generator/yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/await/await-BindingIdentifier-nested.js:17:12: 'await' cannot be used as a function name in module / async context
@@ -1050,7 +1050,7 @@ test262/test/language/expressions/class/async-gen-method-static/yield-as-binding
 test262/test/language/expressions/class/async-gen-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/async-gen-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/async-gen-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/async-gen-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/async-gen-method-static/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method-static/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method/array-destructuring-param-strict-body.js:134:16: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1070,7 +1070,7 @@ test262/test/language/expressions/class/async-gen-method/yield-as-binding-identi
 test262/test/language/expressions/class/async-gen-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/async-gen-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/async-gen-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/async-gen-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/async-gen-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/async-gen-method/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-gen-method/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/async-method-static/array-destructuring-param-strict-body.js:132:22: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1262,7 +1262,7 @@ test262/test/language/expressions/class/elements/async-gen-private-method-static
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-gen-private-method-static/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-gen-private-method/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
@@ -1276,7 +1276,7 @@ test262/test/language/expressions/class/elements/async-gen-private-method/yield-
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/async-gen-private-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-gen-private-method/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/async-private-method-static/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
@@ -1311,7 +1311,7 @@ test262/test/language/expressions/class/elements/gen-private-method-static/yield
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/gen-private-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method-static/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
@@ -1319,7 +1319,7 @@ test262/test/language/expressions/class/elements/gen-private-method/yield-as-bin
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/elements/gen-private-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/gen-private-method/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/elements/literal-name-init-err-contains-arguments.js:33:7: 'arguments' cannot appear in a class field initializer
@@ -1610,7 +1610,7 @@ test262/test/language/expressions/class/gen-method-static/yield-as-binding-ident
 test262/test/language/expressions/class/gen-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/gen-method-static/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method-static/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method/array-destructuring-param-strict-body.js:155:10: Illegal 'use strict' directive in function with non-simple parameter list
@@ -1624,7 +1624,7 @@ test262/test/language/expressions/class/gen-method/yield-as-binding-identifier.j
 test262/test/language/expressions/class/gen-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/class/gen-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/class/gen-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/class/gen-method/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/gen-method/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/class/getter-param-dflt.js:23:16: Getter must not have any formal parameters
@@ -2065,7 +2065,7 @@ test262/test/language/expressions/generators/named-yield-as-binding-identifier.j
 test262/test/language/expressions/generators/named-yield-as-identifier-reference-escaped.js:28:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/named-yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/generators/named-yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/generators/named-yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/generators/named-yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/generators/named-yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/generators/named-yield-identifier-strict.js:26:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/generators/object-destructuring-param-strict-body.js:131:4: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2079,7 +2079,7 @@ test262/test/language/expressions/generators/yield-as-generator-expression-bindi
 test262/test/language/expressions/generators/yield-as-identifier-reference-escaped.js:28:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/generators/yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/generators/yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/generators/yield-as-logical-or-expression.js:18:9: 'yield' expression cannot be used as an operand of a conditional or binary operator
 test262/test/language/expressions/generators/yield-as-parameter.js:17:19: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/generators/yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode
@@ -2172,7 +2172,7 @@ test262/test/language/expressions/object/identifier-shorthand-package-invalid-st
 test262/test/language/expressions/object/identifier-shorthand-private-invalid-strict-mode.js:31:5: 'private' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-protected-invalid-strict-mode.js:31:5: 'protected' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-public-invalid-strict-mode.js:31:5: 'public' is a reserved identifier in strict mode
-test262/test/language/expressions/object/identifier-shorthand-static-init-await-invalid.js:23:14: 'await' is not allowed as a shorthand property identifier
+test262/test/language/expressions/object/identifier-shorthand-static-init-await-invalid.js:23:14: 'await' cannot be used as a shorthand property identifier
 test262/test/language/expressions/object/identifier-shorthand-static-invalid-strict-mode.js:31:5: 'static' is a reserved identifier in strict mode
 test262/test/language/expressions/object/identifier-shorthand-yield-invalid-strict-mode.js:32:3: 'yield' is reserved as a binding name inside a generator
 test262/test/language/expressions/object/method-definition/async-await-as-binding-identifier-escaped.js:30:9: 'await' is reserved as a binding name in this context
@@ -2199,7 +2199,7 @@ test262/test/language/expressions/object/method-definition/async-gen-yield-as-bi
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference-escaped.js:29:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/object/method-definition/async-gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-spread-strict.js:35:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/async-gen-yield-identifier-strict.js:27:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/async-meth-array-destructuring-param-strict-body.js:108:16: Illegal 'use strict' directive in function with non-simple parameter list
@@ -2239,7 +2239,7 @@ test262/test/language/expressions/object/method-definition/gen-yield-as-binding-
 test262/test/language/expressions/object/method-definition/gen-yield-as-identifier-reference-escaped.js:29:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/expressions/object/method-definition/gen-yield-as-identifier-reference.js:29:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier-escaped.js:29:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/expressions/object/method-definition/gen-yield-as-label-identifier.js:29:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/expressions/object/method-definition/gen-yield-identifier-spread-strict.js:35:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/gen-yield-identifier-strict.js:27:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/expressions/object/method-definition/generator-param-id-yield.js:19:11: 'yield' is reserved as a binding name inside a generator
@@ -3044,10 +3044,10 @@ test262/test/language/module-code/privatename-not-valid-earlyerr-module-8.js:20:
 test262/test/language/module-code/top-level-await/early-errors-await-not-simple-assignment-target.js:17:11: Cannot assign to this expression
 test262/test/language/module-code/top-level-await/new-await.js:17:5: Cannot use 'await' as an identifier in module / async context
 test262/test/language/module-code/top-level-await/no-operand.js:17:6: 'await' expression requires an operand
-test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-body.js:38:17: await outside of async function
-test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-params.js:38:17: await outside of async function
-test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-expr-body.js:29:3: await outside of async function
-test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-expr-params.js:28:18: await outside of async function
+test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-body.js:38:17: 'await' is only allowed within async functions and at the top levels of modules
+test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-declaration-params.js:38:17: 'await' is only allowed within async functions and at the top levels of modules
+test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-expr-body.js:29:3: 'await' is only allowed within async functions and at the top levels of modules
+test262/test/language/module-code/top-level-await/syntax/early-does-not-propagate-to-fn-expr-params.js:28:18: 'await' is only allowed within async functions and at the top levels of modules
 test262/test/language/module-code/top-level-await/syntax/early-no-escaped-await.js:25:12: Expected semicolon
 test262/test/language/punctuators/S7.7_A2_T1.js:17:1: Unexpected token '\u007B'
 test262/test/language/punctuators/S7.7_A2_T10.js:17:2: Expected semicolon
@@ -3130,7 +3130,7 @@ test262/test/language/statements/async-generator/yield-as-binding-identifier.js:
 test262/test/language/statements/async-generator/yield-as-identifier-reference-escaped.js:30:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/async-generator/yield-as-identifier-reference.js:30:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/async-generator/yield-as-label-identifier-escaped.js:30:3: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/async-generator/yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/async-generator/yield-as-label-identifier.js:30:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/async-generator/yield-identifier-spread-strict.js:36:15: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/async-generator/yield-identifier-strict.js:28:11: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/await-using/redeclaration-error-from-within-strict-mode-function-await-using.js:16:59: Identifier 'f' has already been declared
@@ -3202,7 +3202,7 @@ test262/test/language/statements/class/async-gen-method-static/yield-as-binding-
 test262/test/language/statements/class/async-gen-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/async-gen-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/async-gen-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/async-gen-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/async-gen-method-static/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method-static/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method/array-destructuring-param-strict-body.js:133:16: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3222,7 +3222,7 @@ test262/test/language/statements/class/async-gen-method/yield-as-binding-identif
 test262/test/language/statements/class/async-gen-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/async-gen-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/async-gen-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/async-gen-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/async-gen-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/async-gen-method/yield-identifier-spread-strict.js:41:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-gen-method/yield-identifier-strict.js:33:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/async-meth-escaped-async.js:25:16: Expected '(', got identifier 'm'
@@ -3431,7 +3431,7 @@ test262/test/language/statements/class/elements/async-gen-private-method-static/
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/async-gen-private-method-static/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-gen-private-method-static/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-gen-private-method/await-as-binding-identifier-escaped.js:35:9: 'await' is reserved as a binding name in this context
@@ -3445,7 +3445,7 @@ test262/test/language/statements/class/elements/async-gen-private-method/yield-a
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-identifier-reference-escaped.js:35:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-identifier-reference.js:35:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/async-gen-private-method/yield-as-label-identifier-escaped.js:35:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/elements/async-gen-private-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/async-gen-private-method/yield-as-label-identifier.js:35:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/elements/async-gen-private-method/yield-identifier-spread-strict.js:42:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-gen-private-method/yield-identifier-strict.js:34:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/async-private-method-static/await-as-binding-identifier-escaped.js:36:9: 'await' is reserved as a binding name in this context
@@ -3480,7 +3480,7 @@ test262/test/language/statements/class/elements/gen-private-method-static/yield-
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/gen-private-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/elements/gen-private-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/gen-private-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/elements/gen-private-method-static/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method-static/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method/yield-as-binding-identifier-escaped.js:34:9: Keyword 'yield' must not contain escaped characters
@@ -3488,7 +3488,7 @@ test262/test/language/statements/class/elements/gen-private-method/yield-as-bind
 test262/test/language/statements/class/elements/gen-private-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/elements/gen-private-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/elements/gen-private-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/elements/gen-private-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/elements/gen-private-method/yield-identifier-spread-strict.js:41:21: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/gen-private-method/yield-identifier-strict.js:33:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/elements/literal-name-init-err-contains-arguments.js:33:7: 'arguments' cannot appear in a class field initializer
@@ -3787,7 +3787,7 @@ test262/test/language/statements/class/gen-method-static/yield-as-binding-identi
 test262/test/language/statements/class/gen-method-static/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method-static/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/gen-method-static/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/gen-method-static/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/gen-method-static/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method-static/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method/array-destructuring-param-strict-body.js:153:10: Illegal 'use strict' directive in function with non-simple parameter list
@@ -3801,7 +3801,7 @@ test262/test/language/statements/class/gen-method/yield-as-binding-identifier.js
 test262/test/language/statements/class/gen-method/yield-as-identifier-reference-escaped.js:34:10: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/class/gen-method/yield-as-identifier-reference.js:34:15: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/class/gen-method/yield-as-label-identifier-escaped.js:34:5: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/class/gen-method/yield-as-label-identifier.js:34:10: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/class/gen-method/yield-identifier-spread-strict.js:40:17: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/gen-method/yield-identifier-strict.js:32:13: 'yield' is a reserved identifier in strict mode
 test262/test/language/statements/class/getter-param-dflt.js:23:15: Getter must not have any formal parameters
@@ -4278,7 +4278,7 @@ test262/test/language/statements/generators/yield-as-binding-identifier.js:28:7:
 test262/test/language/statements/generators/yield-as-identifier-reference-escaped.js:28:8: Keyword 'yield' must not contain escaped characters
 test262/test/language/statements/generators/yield-as-identifier-reference.js:28:13: 'yield' expression cannot be the operand of a unary operator
 test262/test/language/statements/generators/yield-as-label-identifier-escaped.js:28:3: Keyword 'yield' must not contain escaped characters
-test262/test/language/statements/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier inside a generator function
+test262/test/language/statements/generators/yield-as-label-identifier.js:28:8: 'yield' cannot be used as a label identifier in a generator function
 test262/test/language/statements/generators/yield-as-logical-or-expression.js:18:9: 'yield' expression cannot be used as an operand of a conditional or binary operator
 test262/test/language/statements/generators/yield-as-parameter.js:17:13: 'yield' is reserved as a binding name inside a generator
 test262/test/language/statements/generators/yield-identifier-spread-strict.js:34:15: 'yield' is a reserved identifier in strict mode

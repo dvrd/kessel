@@ -410,6 +410,23 @@ ck_report :: proc(c: ^Checker, loc_offset: u32, message: string) {
 	})
 }
 
+// ck_report_coded — code-carrying variant for the Phase 4+ migration.
+// Like `ck_report` it emits a point span (start == end) because most
+// checker sites only have a single offset; widening to real spans is a
+// separate sweep. The diagnostic gets the severity from the message
+// table so warnings (when we introduce them) reach the right channel.
+@(private="file")
+ck_report_coded :: proc(c: ^Checker, loc_offset: u32, code: ErrorCode, message: string) {
+	info := error_info(code)
+	bump_append(&c.errors, ParseError{
+		start    = loc_offset,
+		end      = loc_offset,
+		message  = message,
+		code     = code,
+		severity = info.severity,
+	})
+}
+
 // checker_append_error — package-level helper for code outside
 // checker.odin that needs to write a diagnostic into the checker's
 // error list. Used by parser.odin's scope-analysis machinery
@@ -759,7 +776,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// even within a module). Use function_depth to check: at module
 		// top-level, function_depth is 0.
 		if v.await && !ctx.in_async && !(ctx.source_type == .Module && ctx.function_depth == 0) {
-			ck_report(c, u32(v.loc.start),
+			ck_report_coded(c, u32(v.loc.start), .K3013_ForAwaitContextRestricted,
 				"'for await' is only valid in async functions or at the top level of a module")
 		}
 		ck_check_for_in_of_head(c, ctx, v.left_expr, v.left_decl, false)
@@ -3890,11 +3907,13 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e == nil { return }
 		// §15.7.5 — ClassStaticBlockBody Contains await is a SyntaxError.
 		if ctx.in_class_static_block {
-			ck_report(c, u32(e.loc.start), "'await' is not allowed in a class static block")
+			ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted,
+				"'await' is not allowed in a class static block")
 		}
 		// §15.7.10 — class field initializers are not async.
 		if ctx.in_field_init {
-			ck_report(c, u32(e.loc.start), "'await' is not allowed in a class field initializer")
+			ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted,
+				"'await' is not allowed in a class field initializer")
 		}
 		// §15.6.1 / arrow-cover: AwaitExpression in formal-parameter
 		// position is forbidden. Same arrow-vs-regular message split as
@@ -3903,7 +3922,8 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			if ctx.params_is_arrow {
 				ck_report(c, u32(e.loc.start), "Await expression is not allowed in arrow function parameters")
 			} else {
-				ck_report(c, u32(e.loc.start), "'await' expression is not allowed in formal parameters of an async function")
+				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted,
+					"'await' expression is not allowed in formal parameters of an async function")
 			}
 		}
 		ck_walk_expr(c, ctx, e.argument)
@@ -3917,7 +3937,8 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			if ctx.params_is_arrow {
 				ck_report(c, u32(e.loc.start), "Yield expression is not allowed in arrow function parameters")
 			} else {
-				ck_report(c, u32(e.loc.start), "'yield' expression is not allowed in formal parameters of a generator")
+				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted,
+					"'yield' expression is not allowed in formal parameters of a generator")
 			}
 		}
 		if a, have := e.argument.(^Expression); have && a != nil { ck_walk_expr(c, ctx, a) }
@@ -5705,7 +5726,8 @@ ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpres
 		return
 	}
 	if name == "await" && (ctx.in_async || ctx.source_type == .Module || ctx.in_class_static_block) {
-		ck_report(c, loc, "'await' cannot be used as a class name in module / async / static-block context")
+		ck_report_coded(c, loc, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as a class name in module / async / static-block context")
 	}
 }
 
@@ -5746,10 +5768,12 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 		ck_report(c, loc, "'enum' is a reserved identifier")
 	}
 	if name == "await" && (ctx.in_async || ctx.source_type == .Module || ctx.in_class_static_block) {
-		ck_report(c, loc, "'await' cannot be used as an arrow parameter in module / async / static-block context")
+		ck_report_coded(c, loc, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as an arrow parameter in module / async / static-block context")
 	}
 	if name == "yield" && (ctx.in_generator || ctx.strict_mode) {
-		ck_report(c, loc, "'yield' cannot be used as an arrow parameter in generator / strict context")
+		ck_report_coded(c, loc, .K3010_AwaitYieldAsBindingName,
+			"'yield' cannot be used as an arrow parameter in generator / strict context")
 	}
 }
 
@@ -6164,7 +6188,7 @@ ck_check_using_at_script_top :: proc(c: ^Checker, ctx: ^CheckerContext, program:
 			ck_report(c, u32(decl.loc.start),
 				"'using' declaration is not allowed at the top level of a script")
 		case .AwaitUsing:
-			ck_report(c, u32(decl.loc.start),
+			ck_report_coded(c, u32(decl.loc.start), .K3014_AwaitUsingContextRestricted,
 				"'await using' declaration is not allowed at the top level of a script")
 		case .Var, .Let, .Const:
 			// not a using-decl

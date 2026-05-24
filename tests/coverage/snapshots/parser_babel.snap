@@ -624,23 +624,23 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/36/input.js:1:1
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/4/input.js:1:12: Generator/async shorthand property not allowed
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/5/input.js:1:13: Object property modifier requires a method definition
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/6/input.js:1:15: Arrow function must be parenthesized before call
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/9/input.js:1:25: await outside of async function
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/allow-await-outside-function-throw/input.js:2:10: await outside of async function
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/9/input.js:1:25: 'await' is only allowed within async functions and at the top levels of modules
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/allow-await-outside-function-throw/input.js:2:10: 'await' is only allowed within async functions and at the top levels of modules
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/async-await-as-arrow-binding-identifier/input.js:1:13: 'await' cannot be used as an async arrow parameter
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/async-function-and-non-bmp-character/input.js:1:7: Expected semicolon
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-async-function-expression-name/input.js:1:17: 'await' cannot be used as the name of an async function expression
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-binding-inside-arrow-params-inside-async-arrow-params/input.js:1:21: 'await' is not allowed as a shorthand property identifier
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-binding-inside-arrow-params-inside-async-arrow-params/input.js:1:21: 'await' cannot be used as a shorthand property identifier
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-function-declaration-name-inside-async-function/input.js:2:12: 'await' cannot be used as a function name in module / async context
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arguments-of-async-call-inside-parameters-of-async-arrow-function/input.js:2:24: 'await' expression is not allowed in formal parameters of an async function
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arrow-expression-disallowed/input.js:1:9: await outside of async function
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-arrow-expression-disallowed/input.js:1:9: 'await' is only allowed within async functions and at the top levels of modules
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-async-arrow-function/input.js:1:12: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-arrow-function/input.js:2:8: 'await' is not allowed in arrow function parameters
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-async-arrow-function/input.js:2:14: 'await' expression is not allowed in formal parameters of an async function
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-function/input.js:2:20: await outside of async function
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters-of-nested-function/input.js:2:20: 'await' is only allowed within async functions and at the top levels of modules
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/await-inside-parameters/input.js:1:23: 'await' expression is not allowed in formal parameters of an async function
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/export-async/input.js:2:1: Unexpected token
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/export-invalid/input.js:1:35: Expected semicolon
-babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-await-with-object-exp-in-function/input.js:2:3: await outside of async function
+babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-await-with-object-exp-in-function/input.js:2:3: 'await' is only allowed within async functions and at the top levels of modules
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-class-method/input.js:1:22: Expected '(', got identifier 'x'
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-obj-method/input.js:1:15: Expected '}', got identifier 'x'
 babel/packages/babel-parser/test/fixtures/es2017/async-functions/invalid-escape-async-static-class-method/input.js:1:29: Expected '(', got identifier 'x'
@@ -664,7 +664,7 @@ babel/packages/babel-parser/test/fixtures/es2017/async-functions/params-invalid-
 babel/packages/babel-parser/test/fixtures/es2017/trailing-function-commas/5/input.js:1:5: Argument expression expected
 babel/packages/babel-parser/test/fixtures/es2017/trailing-function-commas/6/input.js:1:14: Expected binding pattern
 babel/packages/babel-parser/test/fixtures/es2017/trailing-function-commas/7/input.js:1:9: Parenthesized expressions may not have a trailing comma.
-babel/packages/babel-parser/test/fixtures/es2018/async-generators/for-await-async-context/input.js:2:13: 'for await' outside of async function
+babel/packages/babel-parser/test/fixtures/es2018/async-generators/for-await-async-context/input.js:2:13: 'for await' is only valid in async functions or at the top level of a module
 babel/packages/babel-parser/test/fixtures/es2018/async-generators/for-await-async-of-arrow-semicolon/input.js:3:1: 'await' can only be used in conjunction with 'for...of' statements
 babel/packages/babel-parser/test/fixtures/es2018/async-generators/for-await-async-of-arrow/input.js:2:32: Invalid left-hand side in for-of loop
 babel/packages/babel-parser/test/fixtures/es2018/async-generators/for-await-no-in/input.js:2:20: 'await' can only be used in conjunction with 'for...of' statements
@@ -1012,9 +1012,9 @@ babel/packages/babel-parser/test/fixtures/es2022/private-in/private-binary-expre
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-expression/input.js:4:5: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-parenthesized/input.js:4:6: Private identifier can only appear as the LHS of an 'in' expression or as a class member
 babel/packages/babel-parser/test/fixtures/es2022/private-in/private-in-without-field/input.js:3:5: Private field '#x' must be declared in an enclosing class
-babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-arrow/input.js:1:7: await outside of async function
-babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js:2:7: await outside of async function
-babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-function/input.js:2:3: await outside of async function
+babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-arrow/input.js:1:7: 'await' is only allowed within async functions and at the top levels of modules
+babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-class-property/input.js:2:7: 'await' is only allowed within async functions and at the top levels of modules
+babel/packages/babel-parser/test/fixtures/es2022/top-level-await-module/inside-function/input.js:2:3: 'await' is only allowed within async functions and at the top levels of modules
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/for-await/input.js:1:11: Top-level 'for await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2022/top-level-await-script/top-level/input.js:1:1: Top-level 'await' is only valid in module code
 babel/packages/babel-parser/test/fixtures/es2024/regexp-unicode-sets/uv-error/input.js:1:4: Regular expression flags 'u' and 'v' are mutually exclusive

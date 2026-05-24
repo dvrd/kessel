@@ -75,9 +75,9 @@ typescript/tests/cases/compiler/augmentedTypesFunction.ts:6:1: Duplicate functio
 typescript/tests/cases/compiler/augmentedTypesInterface.ts:26:6: Identifier 'i3' has already been declared
 typescript/tests/cases/compiler/augmentedTypesVar.ts:21:6: Identifier 'x5' has already been declared
 typescript/tests/cases/compiler/autoLift2.ts:5:17: Expected semicolon
-typescript/tests/cases/compiler/awaitInClassInAsyncFunction.ts:9:15: await outside of async function
-typescript/tests/cases/compiler/awaitInNonAsyncFunction.ts:4:13: 'for await' outside of async function
-typescript/tests/cases/compiler/awaitLiteralValues.ts:2:5: await outside of async function
+typescript/tests/cases/compiler/awaitInClassInAsyncFunction.ts:9:15: 'await' is only allowed within async functions and at the top levels of modules
+typescript/tests/cases/compiler/awaitInNonAsyncFunction.ts:4:13: 'for await' is only valid in async functions or at the top level of a module
+typescript/tests/cases/compiler/awaitLiteralValues.ts:2:5: 'await' is only allowed within async functions and at the top levels of modules
 typescript/tests/cases/compiler/badArrayIndex.ts:1:22: Expected initializer expression after '='
 typescript/tests/cases/compiler/badArraySyntax.ts:6:16: Expected expression after 'new'
 typescript/tests/cases/compiler/bases.ts:7:15: Expected semicolon
@@ -94,7 +94,7 @@ typescript/tests/cases/compiler/callOverloads3.ts:1:1: Function implementation i
 typescript/tests/cases/compiler/callOverloads4.ts:1:1: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/callOverloads5.ts:1:1: Function implementation is missing or not immediately following the declaration.
 typescript/tests/cases/compiler/cannotInvokeNewOnErrorExpression.ts:5:22: Expected expression after 'new'
-typescript/tests/cases/compiler/castOfYield.ts:4:21: Cannot use `yield` as an identifier in a generator context
+typescript/tests/cases/compiler/castOfYield.ts:4:21: 'yield' cannot be used as an identifier in a generator context
 typescript/tests/cases/compiler/catchClauseWithInitializer1.ts:3:10: Expected ')', got '='
 typescript/tests/cases/compiler/checkSuperCallBeforeThisAccessing9.ts:14:14: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/circularOptionalityRemoval.ts:5:55: A parameter cannot have a question mark and an initializer.
@@ -609,10 +609,10 @@ typescript/tests/cases/conformance/async/es5/asyncArrowFunction/asyncArrowFuncti
 typescript/tests/cases/conformance/async/es5/asyncClass_es5.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es5/asyncConstructor_es5.ts:2:20: Constructor can't be an async method
 typescript/tests/cases/conformance/async/es5/asyncEnum_es5.ts:1:7: Expected semicolon
-typescript/tests/cases/conformance/async/es5/asyncGetter_es5.ts:2:9: 'async' modifier cannot be used here.
+typescript/tests/cases/conformance/async/es5/asyncGetter_es5.ts:2:9: 'async' modifier cannot be used here
 typescript/tests/cases/conformance/async/es5/asyncInterface_es5.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es5/asyncModule_es5.ts:1:7: Expected semicolon
-typescript/tests/cases/conformance/async/es5/asyncSetter_es5.ts:2:9: 'async' modifier cannot be used here.
+typescript/tests/cases/conformance/async/es5/asyncSetter_es5.ts:2:9: 'async' modifier cannot be used here
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration10_es5.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration12_es5.ts:1:24: 'await' cannot be used as the name of an async function expression
 typescript/tests/cases/conformance/async/es5/functionDeclarations/asyncFunctionDeclaration5_es5.ts:1:20: 'await' is reserved as a binding name in this context
@@ -627,10 +627,10 @@ typescript/tests/cases/conformance/async/es6/asyncArrowFunction/asyncArrowFuncti
 typescript/tests/cases/conformance/async/es6/asyncClass_es6.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es6/asyncConstructor_es6.ts:2:20: Constructor can't be an async method
 typescript/tests/cases/conformance/async/es6/asyncEnum_es6.ts:1:7: Expected semicolon
-typescript/tests/cases/conformance/async/es6/asyncGetter_es6.ts:2:9: 'async' modifier cannot be used here.
+typescript/tests/cases/conformance/async/es6/asyncGetter_es6.ts:2:9: 'async' modifier cannot be used here
 typescript/tests/cases/conformance/async/es6/asyncInterface_es6.ts:1:7: Expected semicolon
 typescript/tests/cases/conformance/async/es6/asyncModule_es6.ts:1:7: Expected semicolon
-typescript/tests/cases/conformance/async/es6/asyncSetter_es6.ts:2:9: 'async' modifier cannot be used here.
+typescript/tests/cases/conformance/async/es6/asyncSetter_es6.ts:2:9: 'async' modifier cannot be used here
 typescript/tests/cases/conformance/async/es6/await_unaryExpression_es6_3.ts:2:15: Invalid left-hand side expression in prefix operation
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration10_es6.ts:1:24: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration12_es6.ts:1:24: 'await' cannot be used as the name of an async function expression
@@ -639,7 +639,7 @@ typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionD
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration7_es6.ts:3:26: 'await' expression is not allowed in formal parameters of an async function
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncFunctionDeclaration9_es6.ts:2:19: 'await' expression requires an operand
 typescript/tests/cases/conformance/async/es6/functionDeclarations/asyncOrYieldAsBindingIdentifier1.ts:14:9: 'await' is reserved as a binding name in this context
-typescript/tests/cases/conformance/classes/awaitAndYieldInProperty.ts:3:21: await outside of async function
+typescript/tests/cases/conformance/classes/awaitAndYieldInProperty.ts:3:21: 'await' is only allowed within async functions and at the top levels of modules
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractAccessor.ts:3:22: Method 'aa' cannot have an implementation because it is marked abstract.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts:3:2: 'abstract' modifier cannot appear on a constructor declaration.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractCrashedOnce.ts:8:5: Expected identifier after '.'
@@ -666,7 +666,7 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock16.t
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock19.ts:3:5: Decorators are not valid here.
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock20.ts:2:18: Expected '(', got '{'
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock22.ts:4:9: 'await' is reserved as a binding name in this context
-typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts:5:15: 'for await' loops cannot be used inside a class static block.
+typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock23.ts:5:15: 'for await' loops cannot be used inside a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock26.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts:7:13: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
@@ -777,7 +777,7 @@ typescript/tests/cases/conformance/dynamicImport/importCallExpressionInScriptCon
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionIncorrect1.ts::1.ts:2:1: Expected import source or specifier
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionIncorrect2.ts::1.ts:1:9: Unexpected import in expression context
 typescript/tests/cases/conformance/dynamicImport/importCallExpressionWithTypeArgument.ts::1.ts:2:10: Unexpected import in expression context
-typescript/tests/cases/conformance/enums/awaitAndYield.ts:3:15: await outside of async function
+typescript/tests/cases/conformance/enums/awaitAndYield.ts:3:15: 'await' is only allowed within async functions and at the top levels of modules
 typescript/tests/cases/conformance/enums/enumErrors.ts:2:6: Enum name cannot be 'any'
 typescript/tests/cases/conformance/es2018/invalidTaggedTemplateEscapeSequences.ts:8:81: Invalid escape sequence in template literal
 typescript/tests/cases/conformance/es2019/importMeta/importMeta.ts::assignmentTargets.ts:2:13: Cannot assign to this expression
@@ -1508,7 +1508,7 @@ typescript/tests/cases/conformance/salsa/constructorNameInAccessor.ts:2:20: Clas
 typescript/tests/cases/conformance/salsa/constructorNameInGenerator.ts:2:17: Class constructor cannot be a generator method
 typescript/tests/cases/conformance/salsa/plainJSBinderErrors.ts:3:7: 'await' is reserved as a binding name in this context
 typescript/tests/cases/conformance/salsa/plainJSGrammarErrors.ts:3:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
-typescript/tests/cases/conformance/salsa/plainJSGrammarErrors3.ts::/a.js:2:5: await outside of async function
+typescript/tests/cases/conformance/salsa/plainJSGrammarErrors3.ts::/a.js:2:5: 'await' is only allowed within async functions and at the top levels of modules
 typescript/tests/cases/conformance/salsa/plainJSGrammarErrors4.ts:5:14: Private field '#b' must be declared in an enclosing class
 typescript/tests/cases/conformance/salsa/plainJSRedeclare.ts:2:1: Identifier 'orbitol' has already been declared
 typescript/tests/cases/conformance/salsa/plainJSRedeclare2.ts:2:1: Identifier 'orbitol' has already been declared
@@ -1533,7 +1533,7 @@ typescript/tests/cases/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKey
 typescript/tests/cases/conformance/scanner/ecmascript5/scannerUnicodeEscapeInKeyword2.ts::file1.ts:3:5: Keyword 'await' must not contain escaped characters
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.10.ts:6:1: Lexical declaration cannot appear in a single-statement context
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.11.ts:2:1: Using declarations cannot be exported directly
-typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.14.ts:3:21: 'await using' statements cannot be used inside a class static block.
+typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.14.ts:3:21: 'await using' statements cannot be used inside a class static block
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.16.ts:3:5: 'await using' declarations are not allowed in ambient contexts.
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.17.ts:4:9: 'await using' declaration is not allowed directly inside a switch case clause
 typescript/tests/cases/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarations.4.ts:2:21: Cannot assign to this expression

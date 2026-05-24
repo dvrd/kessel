@@ -33,16 +33,28 @@ Severity :: enum u8 {
 // The numeric ranges are:
 //   K1xxx (1000–1999): lexer
 //   K2xxx (2000–2999): parser — syntax / structural
-//   K3xxx (3000–3999): early errors (ECMA-262 §15-§17)
+//   K3xxx (3000–3999): early errors (ECMA-262 §15–§17)
 //   K4xxx (4000–4999): TypeScript parser-level (overload / ambient / modifier rules)
 //
 // `None` (zero) is the legacy sentinel for un-migrated call sites.
 ErrorCode :: enum u16 {
-	None                         = 0,
+	None                                          = 0,
 
 	// K2xxx — parser syntax
-	K2002_ExpectedToken          = 2002,  // "Expected X, got Y" — generic
-	K2003_ExpectedTypeElement    = 2003,  // empty tuple / type-arg / type-param slot
+	K2002_ExpectedToken                           = 2002,  // "Expected X, got Y" — generic
+	K2003_ExpectedTypeElement                     = 2003,  // empty tuple / type-arg / type-param slot
+
+	// K3xxx — ECMA-262 early errors. Phase 4 first slice covers the
+	// await/yield/async/generator family (§15.5 — AsyncFunction,
+	// AsyncGenerator, GeneratorDeclaration; §13.3.7.1 — IdentifierReference
+	// reserved-word rules; §14.7.1 — for-of restrictions; §12.7.2 —
+	// keywords-with-escapes).
+	K3010_AwaitYieldAsBindingName                 = 3010,
+	K3011_AwaitYieldExpressionContextRestricted   = 3011,
+	K3012_AsyncGeneratorMisplaced                 = 3012,
+	K3013_ForAwaitContextRestricted               = 3013,
+	K3014_AwaitUsingContextRestricted             = 3014,
+	K3015_KeywordContainsEscape                   = 3015,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -71,6 +83,76 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 		return ErrorInfo{
 			default_message = "Expected type element",
 			hint            = "remove the stray comma, or fill in the missing type",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// ------------------------------------------------------------------
+	// K3010 — `await` or `yield` used as a binding name where reserved.
+	//   Covers: identifier reference, label, function/class declaration
+	//   name, arrow parameter, shorthand-property identifier.
+	//   Spec: §13.3.7.1 IdentifierReference, §14.13 LabelledStatement.
+	case .K3010_AwaitYieldAsBindingName:
+		return ErrorInfo{
+			default_message = "'await' or 'yield' cannot be used as a binding name in this context",
+			hint            = "rename the binding; `await`/`yield` are reserved inside modules / async functions / generators",
+			ts_code         = "TS1100",
+			severity        = .Error,
+		}
+
+	// K3011 — `await` or `yield` expression in a position the spec disallows.
+	//   Covers: `await` in class static block / field initializer /
+	//   formal parameters / outside async; `yield` in formal parameters /
+	//   outside generator / as operand of unary / binary / conditional.
+	//   Spec: §14.8 (AwaitExpression), §15.5 (YieldExpression).
+	case .K3011_AwaitYieldExpressionContextRestricted:
+		return ErrorInfo{
+			default_message = "'await' or 'yield' expression is not allowed in this context",
+			hint            = "",
+			ts_code         = "TS1308",   // covers the most common case (await outside async)
+			severity        = .Error,
+		}
+
+	// K3012 — async / generator function / method / accessor / shorthand
+	//   placed in a position the spec does not permit (single-statement
+	//   context, labeled item, constructor, accessor body, etc.), or
+	//   `async` used as a for-of LHS or as a misplaced modifier.
+	case .K3012_AsyncGeneratorMisplaced:
+		return ErrorInfo{
+			default_message = "async or generator construct is not allowed in this position",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3013 — `for await ... of` in a context that disallows it (class
+	//   static block; outside an async function and outside module top-level).
+	case .K3013_ForAwaitContextRestricted:
+		return ErrorInfo{
+			default_message = "'for await' is not allowed in this context",
+			hint            = "`for await` is only valid in async functions or at the top level of a module",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3014 — `await using` restrictions: at script top-level (not module);
+	//   line-terminator between the `await` and `using` tokens (Stage-3
+	//   Explicit Resource Management).
+	case .K3014_AwaitUsingContextRestricted:
+		return ErrorInfo{
+			default_message = "'await using' is not allowed in this context",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3015 — a keyword token (`async`, `type`, ...) contained Unicode
+	//   escapes. Per §12.7.2 keywords are matched by raw lexeme; an
+	//   identifier that reduces to a reserved word via escapes is rejected.
+	case .K3015_KeywordContainsEscape:
+		return ErrorInfo{
+			default_message = "keyword must not contain Unicode escape sequences",
+			hint            = "write the keyword using its raw characters — escapes turn it into an identifier",
 			ts_code         = "",
 			severity        = .Error,
 		}

@@ -18,7 +18,7 @@ tests/coverage/misc/fail/early_errors/007_assign_to_eval_strict.js:4:1: Assignme
 tests/coverage/misc/fail/early_errors/008_return_outside_function.js:4:8: 'return' outside of function
 tests/coverage/misc/fail/early_errors/009_break_without_label.js:4:1: 'break' must be inside a loop or switch
 tests/coverage/misc/fail/early_errors/010_super_outside_method.js:3:1: 'super' property access is only valid inside a method
-tests/coverage/misc/fail/early_errors/011_await_outside_async.js:4:23: await outside of async function
+tests/coverage/misc/fail/early_errors/011_await_outside_async.js:4:23: 'await' is only allowed within async functions and at the top levels of modules
 tests/coverage/misc/fail/early_errors/012_unicode_escape_hex_too_big.js:3:14: Invalid \u{} escape: code point out of range [0..0x10FFFF]
 tests/coverage/misc/fail/early_errors/013_hex_escape_too_short.js:3:14: Invalid \x escape: expected 2 hex digits
 tests/coverage/misc/fail/early_errors/014_unicode_escape_too_short.js:3:14: Invalid \u escape: expected 4 hex digits
@@ -28,7 +28,7 @@ tests/coverage/misc/fail/early_errors/module_context/001_export_in_script.cjs:2:
 tests/coverage/misc/fail/early_errors/module_context/002_import_in_script.cjs:2:1: 'import' is only valid in module code
 tests/coverage/misc/fail/early_errors/module_context/003_top_level_await_in_script.cjs:2:1: Top-level 'await' is only valid in module code
 tests/coverage/misc/fail/early_errors/module_context/004_import_meta_in_script.cjs:2:29: 'import.meta' is only valid in module code
-tests/coverage/misc/fail/early_errors/module_context/005_await_in_module_non_async_function.js:3:12: await outside of async function
+tests/coverage/misc/fail/early_errors/module_context/005_await_in_module_non_async_function.js:3:12: 'await' is only allowed within async functions and at the top levels of modules
 tests/coverage/misc/fail/early_errors/strict_mode/001_reserved_implements.js:2:5: 'implements' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/002_reserved_interface.js:2:5: 'interface' is a reserved identifier in strict mode
 tests/coverage/misc/fail/early_errors/strict_mode/003_reserved_package.js:2:5: 'package' is a reserved identifier in strict mode
@@ -95,7 +95,7 @@ tests/coverage/misc/fail/negative/011_duplicate_default_in_switch.js:10:1: More 
 tests/coverage/misc/fail/negative/012_duplicate_label.js:5:9: Label 'outer' has already been declared
 tests/coverage/misc/fail/negative/013_break_unknown_label.js:6:8: Undefined label 'bar'
 tests/coverage/misc/fail/negative/014_duplicate_private_class_member.js:7:2: Duplicate private name '#x'
-tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' outside of async function
+tests/coverage/misc/fail/negative/015_for_await_outside_async.js:8:12: 'for await' is only valid in async functions or at the top level of a module
 tests/coverage/misc/fail/negative/016_let_as_lexical_name.js:6:1: 'let' is disallowed as a lexically bound name
 tests/coverage/misc/fail/negative/017_static_prototype_class_member.js:9:1: Classes may not have a static member named 'prototype'
 tests/coverage/misc/fail/negative/018_private_identifier_outside_class.js:6:9: Private identifier can only appear as the LHS of an 'in' expression or as a class member
@@ -273,5 +273,5 @@ tests/coverage/misc/fail/oxc-9525-1.js:1:4: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-2.js:1:5: Unexpected token after ?.
 tests/coverage/misc/fail/oxc-9525-3.js:3:1: Unexpected token after ?.
 tests/coverage/misc/fail/script-top-level-using.cjs:2:7: 'using' declaration is not allowed at the top level of a script
-tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs:4:17: 'for await' loops cannot be used inside a class static block.
+tests/coverage/misc/fail/semantic-for-await-in-block-in-static-block.mjs:4:17: 'for await' loops cannot be used inside a class static block
 tests/coverage/misc/fail/switch-invalid-clause.js:2:3: Expected 'case' or 'default' in switch

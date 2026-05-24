@@ -1867,7 +1867,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 		// Grammar notation: terminal symbol `async` must NOT have Unicode
 		// escapes. `\u0061sync function...` is a SyntaxError.
 		if cur_has_escape(p) {
-			report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
 			return parse_expression_or_labeled_statement(p)
 		}
 		next_after_async := peek_token(p)
@@ -2017,7 +2017,7 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 			if (nxt.type == .Function && !nxt.had_line_terminator) ||
 			   (nxt.type == .Identifier && !nxt.had_line_terminator) ||
 			   (nxt.type == .LParen && !nxt.had_line_terminator) {
-				report_error(p, "'async' keyword must not contain Unicode escape sequences")
+				report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
 			}
 		}
 		// TS contextual keywords: `type`, `interface`, `enum`, `declare` lex as Identifier
@@ -2334,7 +2334,8 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// `yield:` is parsed but the colon arrival is unexpected
 			// (the YieldExpression had no operand), still a parse error.
 			if p.ctx.in_generator {
-				report_error(p, "'yield' cannot be used as a label identifier inside a generator function")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+				"'yield' cannot be used as a label identifier in a generator function")
 			} else {
 				report_error(p, "Unexpected token ':'")
 			}
@@ -2419,7 +2420,8 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				case ^FunctionDeclaration:
 					if v != nil {
 						if v.async || v.generator {
-							report_error(p, "Async / generator function declaration cannot be a labeled item")
+							report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+								"Async / generator function declaration cannot be a labeled item")
 						}
 						// §14.13.1 — a plain FunctionDeclaration is a valid
 						// LabelledItem only under Annex B.3.3, which the spec
@@ -2499,7 +2501,8 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 	case ^FunctionDeclaration:
 		if v == nil { return }
 		if v.async || v.generator {
-			report_error(p, "Async / generator function declaration cannot appear in a single-statement context")
+			report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+				"Async / generator function declaration cannot appear in a single-statement context")
 		}
 		// Plain FunctionDeclaration in a single-statement context.
 		// Annex B.3.2 web-compat: a sloppy IfStatement consequent /
@@ -2712,23 +2715,27 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		// TS18038 — `for await` inside a class static block is always
 		// invalid, even when the block is nested inside an async function.
 		if p.ctx.in_static_block {
-			report_error(p, "'for await' loops cannot be used inside a class static block.")
+			report_error_coded(p, .K3013_ForAwaitContextRestricted,
+				"'for await' loops cannot be used inside a class static block")
 		} else if !p.ctx.in_async {
 			if p.ctx.in_function {
-				report_error(p, "'for await' outside of async function")
+				report_error_coded(p, .K3013_ForAwaitContextRestricted,
+					"'for await' is only valid in async functions or at the top level of a module")
 			} else if allow_ts_mode(p) {
 				// TS files: top-level `for await` is allowed — tsc and OXC
 				// defer module-detection concerns to the type checker.
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
 				// Explicitly forced Script mode - reject unconditionally.
-				report_error(p, "Top-level 'for await' is only valid in module code")
+				report_error_coded(p, .K3013_ForAwaitContextRestricted,
+					"Top-level 'for await' is only valid in module code")
 			} else if !have {
 				// Auto-detect: lazy pre-scan resolves whether the file is
 				// a module before deciding. On files without import/export,
 				// has_module_syntax stays false and we reject as Script.
 				ensure_module_syntax_resolved(p)
 				if !p.has_module_syntax {
-					report_error(p, "Top-level 'for await' is only valid in module code")
+					report_error_coded(p, .K3013_ForAwaitContextRestricted,
+						"Top-level 'for await' is only valid in module code")
 				}
 			}
 		}
@@ -2805,7 +2812,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 				cooked_is_of := cur_value_eq(p, "of")
 				lexer_restore(p, snap_u)
 				if cooked_is_of {
-					report_error(p, "Keywords cannot contain escape characters")
+					report_error_coded(p, .K3015_KeywordContainsEscape, "Keywords cannot contain escape characters")
 				}
 			}
 		}
@@ -2814,7 +2821,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	if is_token(p, .Await) && peek_token(p).type == .Using {
 		using_after_await := peek_token(p)
 		if using_after_await.had_line_terminator {
-			report_error(p, "Line terminator not permitted between 'await' and 'using'")
+			report_error_coded(p, .K3014_AwaitUsingContextRestricted,
+				"Line terminator not permitted between 'await' and 'using'")
 		}
 		await_using_for_decl = await_using_starts_decl(p)
 	}
@@ -2910,7 +2918,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// "of" and has_escape=true. OXC rejects as "Keywords cannot contain
 	// escape characters".
 	if p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "of") {
-		report_error(p, "Keywords cannot contain escape characters")
+		report_error_coded(p, .K3015_KeywordContainsEscape, "Keywords cannot contain escape characters")
 	}
 	// Now check if this is for-in, for-of, or regular for
 	if is_token(p, .In) || is_token(p, .Of) {
@@ -2986,7 +2994,8 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 						}
 					}
 					if !has_escape && !paren_wrapped {
-						report_error(p, "The left-hand side of a for-of loop may not be 'async'")
+						report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+							"The left-hand side of a for-of loop may not be 'async'")
 					}
 				}
 			}
@@ -3881,7 +3890,8 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// expression position. The Declaration form's binding is in the
 			// enclosing context.
 			if is_expr && async && current.value == "await" {
-				report_error(p, "'await' cannot be used as the name of an async function expression")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as the name of an async function expression")
 			}
 			// OXC catches `(function*yield(){})` and
 			// `var x = function*yield(){}` etc. as parser-level errors,
@@ -3891,7 +3901,8 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			// at the semantic checker via
 			// ck_check_binding_identifier_strict on the function name).
 			if is_expr && generator && current.value == "yield" && !p.in_export_default {
-				report_error(p, "'yield' cannot be used as the name of a generator function expression")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'yield' cannot be used as the name of a generator function expression")
 			}
 			// §15.7.1 — in strict mode, `yield` is a reserved word and
 			// cannot be used as a function name (either declaration or
@@ -3929,14 +3940,16 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 						else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
 					}
 					if await_reserved {
-						report_error(p, "'await' cannot be used as a function name in module / async context")
+						report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as a function name in module / async context")
 					}
 				}
 				// In generator context `yield` as a declaration name is a
 				// parser-level error (OXC catches it).
 				if current.value == "yield" {
 					if p.ctx.in_generator || p.ctx.in_generator_params {
-						report_error(p, "'yield' cannot be used as a function name in generator context")
+						report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'yield' cannot be used as a function name in generator context")
 					}
 					// Strict-mode yield-as-decl-name is enforced by the
 					// semantic checker.
@@ -4825,11 +4838,14 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		// module source-type fallback.
 		if current.value == "await" {
 			if await_is_reserved_here(p) {
-				report_error(p, "'await' cannot be used as a class name in module / async / static-block context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as a class name in module / async / static-block context")
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Module {
-				report_error(p, "'await' cannot be used as a class name in module context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as a class name in module context")
 			} else if p.in_module_top_level || p.has_module_syntax {
-				report_error(p, "'await' cannot be used as a class name in module context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as a class name in module context")
 			}
 		}
 		eat(p)
@@ -6161,7 +6177,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				kind = .Set
 			}
 			if is_async {
-				report_error(p, "'async' modifier cannot be used here.")
+				report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+					"'async' modifier cannot be used here")
 			}
 			eat(p) // consume get/set keyword
 		}
@@ -6271,7 +6288,8 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				report_error(p, "Constructor can't be an async method")
 			}
 			if is_generator {
-				report_error(p, "Class constructor cannot be a generator method")
+				report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+					"Class constructor cannot be a generator method")
 			}
 			if kind == .Get {
 				report_error(p, "Class constructor cannot be a getter")
@@ -7007,7 +7025,8 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	// TS18054 — `await using` inside a class static block is invalid.
 	// Static blocks run synchronously and `await` is not available.
 	if kind == .AwaitUsing && p.ctx.in_static_block {
-		report_error(p, "'await using' statements cannot be used inside a class static block.")
+		report_error_coded(p, .K3014_AwaitUsingContextRestricted,
+			"'await using' statements cannot be used inside a class static block")
 	}
 
 	// §14.3 — `using` / `await using` are not allowed at the top
@@ -7017,7 +7036,8 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 	if !p.ctx.in_function && p.block_depth == 0 && !in_for && !p.is_commonjs && (kind == .Using || kind == .AwaitUsing) {
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
 			if kind == .AwaitUsing {
-				report_error(p, "'await using' declaration is not allowed at the top level of a script")
+				report_error_coded(p, .K3014_AwaitUsingContextRestricted,
+					"'await using' declaration is not allowed at the top level of a script")
 			} else {
 				report_error(p, "'using' declaration is not allowed at the top level of a script")
 			}
@@ -10375,7 +10395,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
   ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
 		if nxt == .LBrace || nxt == .Mul {
-			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 			decl.import_kind = .Type
 			eat(p) // consume `type`
 		} else if nxt == .From || can_be_binding_identifier(nxt) {
@@ -10389,7 +10409,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
    ensure_nxt(p)
 			nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
 			if nxt_val != "from" {
-				if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+				if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 				decl.import_kind = .Type
 				eat(p) // consume `type`
 			} else {
@@ -10403,7 +10423,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				                 p.cur_type == .Assign
 				lexer_restore(p, snap_tf)
 				if third_is_from {
-					if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+					if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 					decl.import_kind = .Type
 					eat(p) // consume `type`
 				}
@@ -10730,7 +10750,8 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 			}
 		}
 		if await_reserved {
-			report_error(p, "Cannot use 'await' as an identifier in module code")
+			report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as an identifier in module code")
 		}
 	}
 	eat(p)  // consume id
@@ -10851,7 +10872,7 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
 		ensure_nxt(p)
 		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
-			report_error(p, "Keyword 'type' must not contain escaped characters")
+			report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters")
 		}
   ensure_nxt(p)
 		nxt := p.lexer.nxt.kind
@@ -11142,7 +11163,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		has_esc := cur_has_escape(p)
 		nxt := peek_token(p)
 		if nxt.type == .LBrace {
-			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
 				report_error_at(p, LexerLoc(start.start),
 					"Export declarations are not permitted in a namespace.")
@@ -11151,7 +11172,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 			return parse_export_named(p, start, .Type)
 		}
 		if nxt.type == .Mul {
-			if has_esc { report_error(p, "Keyword 'type' must not contain escaped characters") }
+			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
 				report_error_at(p, LexerLoc(start.start),
 					"Export declarations are not permitted in a namespace.")
@@ -11533,7 +11554,7 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
 			ensure_nxt(p)
 			if cur_has_escape(p) && p.lexer.nxt.kind == .As {
-				report_error(p, "Keyword 'type' must not contain escaped characters")
+				report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters")
 			}
    ensure_nxt(p)
 			nxt := p.lexer.nxt.kind
@@ -11907,7 +11928,8 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				// parser must return early here (return left below) to
 				// avoid building a malformed binary-expression AST that
 				// the post-parse semantic checker can't detect.
-				report_error(p, "'yield' expression cannot be used as an operand of a conditional or binary operator")
+				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+					"'yield' expression cannot be used as an operand of a conditional or binary operator")
 			}
 			// Return early for all operators EXCEPT comma (sequence) and
 			// assignment (target validation needed in parse_assignment_expr).
@@ -12188,7 +12210,8 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				// Structural parse error: see the LHS-form rationale
 				// above. YieldExpression has assignment-expression
 				// precedence and the binary-operator grammar rejects it.
-				report_error(p, "'yield' expression cannot be the right-hand side of a binary operator")
+				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+					"'yield' expression cannot be the right-hand side of a binary operator")
 			}
 		}
 
@@ -12337,7 +12360,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 			if !paren_wrapped {
-				report_error(p, "'yield' expression cannot be the operand of a unary operator")
+				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+					"'yield' expression cannot be the operand of a unary operator")
 			}
 		}
 		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
@@ -12460,12 +12484,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// §15.7.5 — `await` as AwaitExpression inside a class
 			// static block is a SyntaxError. The static block runs
 			// under [~Await], so `await expr` has no valid meaning.
-			report_error(p, "'await' is not allowed in a class static block")
+			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+				"'await' is not allowed in a class static block")
 		} else if p.ctx.in_ts_namespace {
 			// TS namespace body is not an async context. `await` is
 			// an identifier, not a keyword, even in module-mode files.
 			if yield_next_is_expression_argument(p) {
-				report_error(p, "'await' is only allowed within async functions and at the top levels of modules")
+				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+					"'await' is only allowed within async functions and at the top levels of modules")
 			}
 			break
 		} else if at_module_top && in_module_file {
@@ -12477,7 +12503,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			if !yield_next_is_expression_argument(p) {
 				break
 			}
-			report_error(p, "await outside of async function")
+			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+				"'await' is only allowed within async functions and at the top levels of modules")
 		} else {
 			// At top level in Script (or auto-detect with no module
 			// syntax yet seen). `await: 1;` (label), `await;` (bare
@@ -12495,7 +12522,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			ensure_nxt(p)
 		}
 		if p.ctx.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
-			report_error(p, "'await' cannot be used as a label identifier in an async function")
+			report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+				"'await' cannot be used as a label identifier in an async function")
 		}
 		// Top-level `await` is Module syntax. When the caller pinned
 		// `--source-type=script` it's a SyntaxError.
@@ -12514,7 +12542,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// parameters" early error: `p.ctx.in_async_params` is set by
 		// parse_function_params before calling parse_function_params.
 		if p.ctx.in_async_params {
-			report_error(p, "'await' expression is not allowed in formal parameters of an async function")
+			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+				"'await' expression is not allowed in formal parameters of an async function")
 		}
 		current := snap_current(p)
 		eat(p)
@@ -12587,7 +12616,8 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			return parse_yield_expr(p)
 		}
 		if yield_next_is_expression_argument(p) {
-			report_error(p, "'yield' expression is only allowed in a generator body")
+			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+				"'yield' expression is only allowed in a generator body")
 			return parse_yield_expr(p)
 		}
 		// Fall through - `yield` is parsed as IdentifierReference by
@@ -12613,7 +12643,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if cur_has_escape(p) && cur_value_eq(p, "async") {
 			nxt := peek_token(p)
 			if nxt.type == .Function && !nxt.had_line_terminator {
-				report_error(p, "'async' keyword must not contain Unicode escape sequences")
+				report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
 			}
 		}
 		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
@@ -13552,7 +13582,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// Escaped async: `\u0061sync function f(){}` is a SyntaxError
 			// because the `async` keyword must appear literally. Report and
 			// fall through to treat it as an identifier.
-			report_error(p, "'async' keyword must not contain Unicode escape sequences")
+			report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
 			eat(p)
 			ident, ident_e := new_expr(p, Identifier)
 			ident.loc = loc_from_token(&current)
@@ -13855,7 +13885,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		if current.has_escape && current.value == "async" {
 			nxt := peek_token(p)
 			if nxt.type == .Function && !nxt.had_line_terminator {
-				report_error(p, "'async' keyword must not contain Unicode escape sequences")
+				report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
 			}
 		}
 		eat(p)
@@ -14536,7 +14566,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Getter or setter: get x() { } or set x(v) { }
 		// After parsing key, expect ( for method body
 		if is_generator {
-			report_error(p, "An accessor cannot be a generator")
+			report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+				"An accessor cannot be a generator")
 		}
 		if is_getter {
 			kind = .Get
@@ -14793,7 +14824,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Shorthand property: { foo } means { foo: foo }
 		// Not valid for generators/getters/setters
 		if is_generator || is_async {
-			report_error(p, "Generator/async shorthand property not allowed")
+			report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+				"Generator/async shorthand property not allowed")
 			return nil
 		}
 		// §13.2.5.1 PropertyDefinition shorthand only accepts an
@@ -14822,7 +14854,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 					report_error(p, "'yield' is reserved as a binding name inside a generator")
 				}
 				if k != nil && k.name == "await" && await_is_reserved_here(p) {
-					report_error(p, "'await' is not allowed as a shorthand property identifier")
+					report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as a shorthand property identifier")
 				}
 				// §13.2.5.4 — ObjectLiteral PropertyDefinition shorthand
 				// IdentifierReference is a CoverInitializedName candidate;
@@ -14995,11 +15028,14 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		// §12.6.1.1 contextual `await` reservation.
 		if current.value == "await" {
 			if await_is_reserved_here(p) {
-				report_error(p, "'await' cannot be used as a class name in module / async / static-block context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as a class name in module / async / static-block context")
 			} else if st, have := p.force_source_type.(SourceType); have && st == .Module {
-				report_error(p, "'await' cannot be used as a class name in module context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as a class name in module context")
 			} else if p.in_module_top_level || p.has_module_syntax {
-				report_error(p, "'await' cannot be used as a class name in module context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as a class name in module context")
 			}
 		}
 		eat(p)
@@ -15378,7 +15414,8 @@ parse_yield_expr :: proc(p: ^Parser) -> ^Expression {
 	eat(p) // consume yield
 
 	if p.ctx.in_generator_params {
-		report_error(p, "'yield' expression is not allowed in formal parameters of a generator")
+		report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+			"'yield' expression is not allowed in formal parameters of a generator")
 	}
 
 	// ECMA-262 §15.5 Restricted Production: no LineTerminator between
@@ -15562,11 +15599,15 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 	#partial switch e in expr^ {
 	case ^YieldExpression:
 		if disallow_yield {
-			report_error_at(p, LexerLoc(e.loc.start), "'yield' is not allowed in arrow function parameters")
+			report_error_coded_span(p, .K3011_AwaitYieldExpressionContextRestricted,
+				u32(e.loc.start), u32(e.loc.start),
+				"'yield' is not allowed in arrow function parameters")
 		}
 	case ^AwaitExpression:
 		if disallow_await {
-			report_error_at(p, LexerLoc(e.loc.start), "'await' is not allowed in arrow function parameters")
+			report_error_coded_span(p, .K3011_AwaitYieldExpressionContextRestricted,
+				u32(e.loc.start), u32(e.loc.start),
+				"'await' is not allowed in arrow function parameters")
 		}
 	case ^SequenceExpression:
 		for inner in e.expressions {
@@ -16246,14 +16287,17 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 				report_error(p, "'enum' is a reserved identifier")
 			}
 			if e.name == "await" && (p.ctx.in_async || p.ctx.in_static_block) {
-				report_error(p, "'await' cannot be used as an arrow parameter in module / async / static-block context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'await' cannot be used as an arrow parameter in module / async / static-block context")
 			} else if e.name == "await" {
 				if st, have := p.force_source_type.(SourceType); have && st == .Module {
-					report_error(p, "'await' cannot be used as an arrow parameter in module / async / static-block context")
+					report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+						"'await' cannot be used as an arrow parameter in module / async / static-block context")
 				}
 			}
 			if e.name == "yield" && (p.ctx.in_generator || p.ctx.strict_mode) {
-				report_error(p, "'yield' cannot be used as an arrow parameter in generator / strict context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+					"'yield' cannot be used as an arrow parameter in generator / strict context")
 			}
 			ident := new_node(p, Identifier)
 			ident^ = e^
@@ -17017,7 +17061,8 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 	start := param.loc
 
 	if param.name == "await" {
-		report_error(p, "'await' cannot be used as an async arrow parameter")
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as an async arrow parameter")
 	}
 	if cur_has_newline(p) {
 		report_error(p, "Line terminator not permitted before '=>'")
@@ -19928,7 +19973,8 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 				if i >= 0 && src_bytes[i] == '>' { bare_yield = true }
 			}
 			if bare_yield {
-				report_error(p, "Cannot use `yield` as an identifier in a generator context")
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'yield' cannot be used as an identifier in a generator context")
 			}
 		}
 	}
