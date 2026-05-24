@@ -94,6 +94,17 @@ ErrorCode :: enum u16 {
 	K3052_UseStrictWithComplexParams              = 3052,
 	K3053_ReservedAsBindingIdentifier             = 3053,
 
+	// Expression / declaration shape rules (the long-tail batch).
+	K3060_SingleStatementContext                  = 3060,
+	K3061_ForLoopLHS                              = 3061,
+	K3062_OperatorPrecedenceParens                = 3062,
+	K3063_JSXInvalid                              = 3063,
+	K3064_LineTerminatorRestricted                = 3064,
+	K3065_TrailingCommaInvalid                    = 3065,
+	K3066_InvalidAssignmentOrBindingTarget        = 3066,
+	K3067_NewTargetOrTopLevelUsing                = 3067,
+	K3068_OptionalChainTaggedTemplate             = 3068,
+
 	// K4xxx — TypeScript parser-level rules.
 	K4010_TypeOnlyImportExportInvalid             = 4010,
 	K4020_ConstructorTSModifier                   = 4020,
@@ -116,6 +127,11 @@ ErrorCode :: enum u16 {
 	K4053_TSOnlyInJS                              = 4053,
 	K4054_EnumInvalid                             = 4054,
 	K4055_IndexSignatureForm                      = 4055,
+	K4060_AbstractMethodForm                      = 4060,
+	K4061_GetSetForm                              = 4061,
+	K4062_InstantiationExprForm                   = 4062,
+	K4063_OptionalAndInit                         = 4063,
+	K4064_DecoratorInvalid                        = 4064,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -678,6 +694,152 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	case .K3053_ReservedAsBindingIdentifier:
 		return ErrorInfo{
 			default_message = "reserved word is not a valid binding identifier",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3060 — declaration not allowed in a single-statement context
+	//   (the body of `if` / `else` / `for` / `while` / `with` / label).
+	case .K3060_SingleStatementContext:
+		return ErrorInfo{
+			default_message = "declaration is not allowed in a single-statement context",
+			hint            = "wrap the body in a block, e.g. `if (c) { let x = 1; }`",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3061 — invalid form on the LHS of a for-in / for-of: a `let`
+	//   token starts the LHS of a for-of loop (ambiguous with the
+	//   identifier `let`).
+	case .K3061_ForLoopLHS:
+		return ErrorInfo{
+			default_message = "invalid left-hand side of a for-in or for-of loop",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3062 — operator precedence requires explicit parentheses: arrow
+	//   function as unparenthesized operand; unary as left operand of
+	//   `**`; `??` mixed with `&&` / `||`.
+	case .K3062_OperatorPrecedenceParens:
+		return ErrorInfo{
+			default_message = "operator precedence requires explicit parentheses",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3063 — JSX-specific restrictions: hyphens in JSX identifiers;
+	//   comma operator in JSX expression.
+	case .K3063_JSXInvalid:
+		return ErrorInfo{
+			default_message = "invalid JSX construct",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3064 — line terminator not permitted in a restricted production
+	//   (§12.9): before `=>` in an arrow function; after `type` /
+	//   `module` contextual keywords.
+	case .K3064_LineTerminatorRestricted:
+		return ErrorInfo{
+			default_message = "line terminator not permitted in this position",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3065 — trailing comma not allowed: parenthesized expression;
+	//   import or export specifier list in some forms.
+	case .K3065_TrailingCommaInvalid:
+		return ErrorInfo{
+			default_message = "trailing comma not allowed here",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3066 — invalid assignment or binding target: member expression
+	//   as a binding pattern; parenthesized binding element; non-Reference
+	//   left-hand side of assignment.
+	case .K3066_InvalidAssignmentOrBindingTarget:
+		return ErrorInfo{
+			default_message = "invalid assignment or binding target",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3067 — `new.target` outside a function; `using` declaration at
+	//   script top-level. Both are scope-position restrictions, similar
+	//   to K3022 but for non-module-syntax constructs.
+	case .K3067_NewTargetOrTopLevelUsing:
+		return ErrorInfo{
+			default_message = "this construct is not allowed in this scope position",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K3068 — tagged template literal in an optional chain (§13.3.10).
+	case .K3068_OptionalChainTaggedTemplate:
+		return ErrorInfo{
+			default_message = "tagged template literals cannot appear in an optional chain",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4060 — TypeScript abstract member shape: method marked abstract
+	//   cannot have an implementation; abstract property cannot have
+	//   an initializer.
+	case .K4060_AbstractMethodForm:
+		return ErrorInfo{
+			default_message = "invalid abstract member form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4061 — TypeScript getter / setter shape: get accessor cannot
+	//   have parameters; set accessor cannot have initializer / optional
+	//   parameter / `this` parameter.
+	case .K4061_GetSetForm:
+		return ErrorInfo{
+			default_message = "invalid TypeScript get / set accessor form",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4062 — a TypeScript instantiation expression (`f<T>`) cannot be
+	//   followed by a property access.
+	case .K4062_InstantiationExprForm:
+		return ErrorInfo{
+			default_message = "an instantiation expression cannot be followed by a property access",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4063 — TypeScript parameter with both `?` (optional marker) and
+	//   an initializer; index signature parameter with `?`.
+	case .K4063_OptionalAndInit:
+		return ErrorInfo{
+			default_message = "parameter cannot be both optional and have an initializer",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K4064 — decorator misapplication: on `this` parameter; before-and-
+	//   after both sides of `export` on the same class declaration.
+	case .K4064_DecoratorInvalid:
+		return ErrorInfo{
+			default_message = "invalid decorator placement",
 			hint            = "",
 			ts_code         = "",
 			severity        = .Error,

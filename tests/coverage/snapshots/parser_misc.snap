@@ -238,7 +238,7 @@ tests/coverage/misc/fail/oxc-13617-1.ts:1:5: Expected expression after operator
 tests/coverage/misc/fail/oxc-13617-2.ts:1:9: Expected expression after operator
 tests/coverage/misc/fail/oxc-13617-3.ts:1:26: Type argument list cannot be empty
 tests/coverage/misc/fail/oxc-13617-4.ts:1:16: Type argument list cannot be empty
-tests/coverage/misc/fail/oxc-14013.ts:2:20: Abstract property cannot have an initializer.
+tests/coverage/misc/fail/oxc-14013.ts:2:20: Abstract property cannot have an initializer
 tests/coverage/misc/fail/oxc-14014.ts:3:1: Class field cannot be named 'constructor'
 tests/coverage/misc/fail/oxc-14944.ts:1:25: Expected '{', got ';'
 tests/coverage/misc/fail/oxc-16077.ts:1:33: A parameter property may not be declared using a binding pattern

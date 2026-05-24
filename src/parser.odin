@@ -2410,9 +2410,9 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 						// as labeled items; `let` is handled differently by
 						// OXC (ASI) so stays gated.
 						if v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
-							report_error(p, "Lexical declaration cannot appear in a single-statement context")
+							report_error_coded(p, .K3060_SingleStatementContext, "Lexical declaration cannot appear in a single-statement context")
 						} else if v.kind == .Let {
-							report_error(p, "Lexical declaration cannot be a labeled item")
+							report_error_coded(p, .K3060_SingleStatementContext, "Lexical declaration cannot be a labeled item")
 						}
 					}
 				case ^ClassDeclaration:
@@ -2515,7 +2515,7 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 		// The strict-mode case is the test262 cluster
 		// language/statements/if/if-decl-*-strict.js etc.
 		if !allow_plain_function {
-			report_error(p, "Function declarations are not allowed in a single-statement context")
+			report_error_coded(p, .K3060_SingleStatementContext, "Function declarations are not allowed in a single-statement context")
 		}
 	case ^TSInterfaceDeclaration:
 		if allow_ts_mode(p) {
@@ -3026,7 +3026,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 					}
 				}
 				if let_lhs {
-					report_error(p, "The left-hand side of a for-of loop may not start with 'let'")
+					report_error_coded(p, .K3061_ForLoopLHS, "The left-hand side of a for-of loop may not start with 'let'")
 				}
 			}
 			// §14.7.5.1 - the LHS expression must have a valid
@@ -4535,7 +4535,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	pattern: Pattern
 	if p.cur_type == .This && allow_ts_mode(p) {
 		if decorators_seen {
-			report_error(p, "Decorators cannot be applied to 'this' parameters.")
+			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators cannot be applied to 'this' parameters")
 		}
 		// TS `this` parameter: `function(this: T) {}` - specifies the
 		// type of `this` inside the function. Not a real runtime param.
@@ -4618,7 +4618,7 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 
 	// TS: a parameter cannot have both `?` and a default initializer.
 	if param_is_optional && param.default_val != nil {
-		report_error(p, "A parameter cannot have a question mark and an initializer.")
+		report_error_coded(p, .K4063_OptionalAndInit, "A parameter cannot have a question mark and an initializer")
 	}
 
 	param.loc.end = prev_end_offset(p)
@@ -6198,7 +6198,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		is_private = true
 		// Accessibility modifiers are not allowed on private (#) fields.
 		if accessibility != .None {
-			report_error(p, fmt.tprintf("An accessibility modifier cannot be used with a private identifier."))
+			report_error_coded(p, .K4021_PrivateNameWithModifier, "An accessibility modifier cannot be used with a private identifier")
 		}
 
 		// Create PrivateIdentifier (strip the # prefix)
@@ -6328,7 +6328,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				eat(p)            // `[`
 				eat(p)            // identifier
 				if match_token(p, .Question) {
-					report_error(p, "An index signature parameter cannot have a question mark.")
+					report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
 				}
 				expect_token(p, .Colon)
 				_ = parse_ts_type(p)
@@ -6494,7 +6494,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 					report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
 				}
 				if is_abstract {
-					report_error(p, "Abstract property cannot have an initializer.")
+					report_error_coded(p, .K4060_AbstractMethodForm, "Abstract property cannot have an initializer")
 				}
 				// §15.7.10 "arguments in field initializer": enforced by
 				// the semantic checker (ck_check_identifier_arguments),
@@ -6753,9 +6753,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if is_abstract && kind != .Constructor {
 			name := class_element_prop_name(key)
 			if name != "" {
-				report_error(p, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract.", name))
+				report_error_coded(p, .K4060_AbstractMethodForm, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract", name))
 			} else {
-				report_error(p, "Method cannot have an implementation because it is marked abstract.")
+				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
 			}
 		}
 		// Parse body - set context flags
@@ -6816,9 +6816,9 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		if is_abstract && len(body.body) > 0 {
 			name := class_element_prop_name(key)
 			if name != "" {
-				report_error(p, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract.", name))
+				report_error_coded(p, .K4060_AbstractMethodForm, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract", name))
 			} else {
-				report_error(p, "Method cannot have an implementation because it is marked abstract.")
+				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
 			}
 		}
 	}
@@ -7039,7 +7039,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 				report_error_coded(p, .K3014_AwaitUsingContextRestricted,
 					"'await using' declaration is not allowed at the top level of a script")
 			} else {
-				report_error(p, "'using' declaration is not allowed at the top level of a script")
+				report_error_coded(p, .K3067_NewTargetOrTopLevelUsing, "'using' declaration is not allowed at the top level of a script")
 			}
 		} else if !p.has_module_syntax {
 			// Auto-detect: if no module syntax is present, treat as Script.
@@ -7539,11 +7539,13 @@ enforce_accessor_param_shape :: proc(
 	// permits it via SingleNameBinding's Initializer_opt; do not flag.
 	if allow_ts_mode(p) {
 		if _, has_default := param.default_val.(^Expression); has_default {
-			report_error_at(p, param_loc, "A 'set' accessor cannot have an initializer.")
+			report_error_coded_span(p, .K4061_GetSetForm, u32(param_loc), u32(param_loc),
+				"A 'set' accessor cannot have an initializer")
 		}
 		// TS1051 — set accessor parameter cannot be optional.
 		if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
-			report_error_at(p, param_loc, "A 'set' accessor cannot have an optional parameter.")
+			report_error_coded_span(p, .K4061_GetSetForm, u32(param_loc), u32(param_loc),
+				"A 'set' accessor cannot have an optional parameter")
 		}
 	}
 }
@@ -12059,7 +12061,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// callers must write `(() => {}) || x` to promote it through a
 			// ParenthesizedExpression. Parameter parens in `() => {}` do not count.
 			if left != p.last_paren_expr && int(op_prec) >= int(Precedence.Conditional) {
-				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
 			}
 		}
 
@@ -12151,7 +12153,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 					}
 				}
 				if !paren_wrapped {
-					report_error(p, "Unparenthesized unary expression cannot appear as the left operand of '**'")
+					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Unparenthesized unary expression cannot appear as the left operand of '**'")
 				}
 			}
 		}
@@ -12188,7 +12190,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				}
 			}
 			if !paren_wrapped {
-				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
 			}
 		}
 
@@ -12239,7 +12241,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 					}
 				}
 				if !paren_ok {
-					report_error(p, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
+					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
 				}
 			}
 			if le, ok := right.(^LogicalExpression); ok &&
@@ -12256,7 +12258,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 					}
 				}
 				if !paren_ok {
-					report_error(p, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
+					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
 				}
 			}
 		} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
@@ -12274,7 +12276,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 					}
 				}
 				if !paren_ok {
-					report_error(p, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
+					report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
 				}
 			}
 			// Mirror check for the RIGHT operand: `0 || 0 ?? true` parses
@@ -12296,7 +12298,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 					}
 				}
 				if !paren_ok {
-					report_error(p, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
+					report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
 				}
 			}
 		}
@@ -12381,7 +12383,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				}
 			}
 			if !paren_wrapped {
-				report_error(p, "Arrow function cannot be used as an unparenthesized operand")
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
 			}
 		}
 		unary, unary_e := new_expr(p, UnaryExpression)
@@ -12764,7 +12766,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 		#partial switch p.cur_type {
 		case .Dot:
 			if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
-				report_error(p, "An instantiation expression cannot be followed by a property access.")
+				report_error_coded(p, .K4062_InstantiationExprForm, "An instantiation expression cannot be followed by a property access")
 			}
 			eat(p)
 			// §13.3.1 - MemberExpression `.` IdentifierName | PrivateIdentifier.
@@ -12868,7 +12870,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			eat(p)
 			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) || is_token(p, .PrivateIdentifier) {
 				if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
-					report_error(p, "An instantiation expression cannot be followed by a property access.")
+					report_error_coded(p, .K4062_InstantiationExprForm, "An instantiation expression cannot be followed by a property access")
 				}
 				is_private_chain := is_token(p, .PrivateIdentifier)
 				prop := parse_identifier_name(p)
@@ -12905,7 +12907,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				expr = member_e
 			} else if is_token(p, .LBracket) {
 				if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
-					report_error(p, "An instantiation expression cannot be followed by a property access.")
+					report_error_coded(p, .K4062_InstantiationExprForm, "An instantiation expression cannot be followed by a property access")
 				}
 				eat(p)
 				// Same Expression-not-AssignmentExpression rule as the
@@ -12960,7 +12962,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			}
 		case .LBracket:
 			if _, is_inst := expr^.(^TSInstantiationExpression); is_inst {
-				report_error(p, "An instantiation expression cannot be followed by a property access.")
+				report_error_coded(p, .K4062_InstantiationExprForm, "An instantiation expression cannot be followed by a property access")
 			}
 			eat(p)
 			// Consume pending_paren_start the same way the `.Dot` case
@@ -13050,7 +13052,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// which the spec explicitly forbids. Once we're inside an
 			// optional chain (`is_chain`), any template tail is an error.
 			if is_chain {
-				report_error(p, "Tagged template literals cannot appear in an optional chain")
+				report_error_coded(p, .K3068_OptionalChainTaggedTemplate, "Tagged template literals cannot appear in an optional chain")
 			}
 			tagged, tagged_e := new_expr(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
@@ -14000,7 +14002,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			return nil
 		}
 		if paren_expr_had_trailing_comma && !is_token(p, .Arrow) {
-			report_error(p, "Parenthesized expressions may not have a trailing comma.")
+			report_error_coded(p, .K3065_TrailingCommaInvalid, "Parenthesized expressions may not have a trailing comma")
 		}
 		if _, is_spread_expr := expr.(^SpreadElement); is_spread_expr && !is_token(p, .Arrow) {
 			report_error_coded(p, .K3042_RestSpreadMisuse, "Expected `=>` after parenthesized rest parameter")
@@ -15151,7 +15153,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			// (the field runs as part of the constructor), class static blocks,
 			// and CommonJS files (the file is wrapped in a function).
 			if !p.ctx.in_non_arrow_function && !p.ctx.in_field_init && !p.ctx.in_static_block && !p.is_commonjs {
-				report_error(p, "'new.target' is only allowed inside functions")
+				report_error_coded(p, .K3067_NewTargetOrTopLevelUsing, "'new.target' is only allowed inside functions")
 			}
 			meta, meta_e := new_expr(p, MetaProperty)
 			meta.loc = start
@@ -15946,7 +15948,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// cases above). Top-level paren-around-identifier is OK.
 		if e == nil { return nil, false }
 		if p.ctx.in_nested_pattern_convert {
-			report_error(p, "Binding element cannot be parenthesized")
+			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Binding element cannot be parenthesized")
 		}
 		return expr_to_pattern(p, e.expression)
 	case ^TSNonNullExpression:
@@ -16061,7 +16063,7 @@ check_span_for_inner_parens :: proc(p: ^Parser, span_start, span_end: int, src: 
 				d := src[j]
 				if d == ' ' || d == '\t' || d == '\n' || d == '\r' { j += 1; continue }
 				if d == ')' {
-					report_error(p, "Binding element cannot be parenthesized")
+					report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Binding element cannot be parenthesized")
 				}
 				break
 			}
@@ -16543,7 +16545,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 
 	for param in params {
 		if pattern_contains_member_expression(param.pattern) {
-			report_error(p, "Member expression cannot be used as a binding target")
+			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Member expression cannot be used as a binding target")
 		}
 	}
 
@@ -16915,7 +16917,7 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// destructure-conversion path only kicks in for `=` operator.
 	is_destructure := op == .Assign
 	if left != nil && !is_valid_assignment_target(left, is_destructure) {
-		report_error(p, "Cannot assign to this expression")
+		report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Cannot assign to this expression")
 	}
 	// Walk destructuring patterns to reject parenthesized non-targets
 	// inside array/object pattern elements.
@@ -17069,7 +17071,7 @@ parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression
 			"'await' cannot be used as an async arrow parameter")
 	}
 	if cur_has_newline(p) {
-		report_error(p, "Line terminator not permitted before '=>'")
+		report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted before '=>'")
 	}
 	eat(p) // consume =>
 
@@ -17191,7 +17193,7 @@ parse_async_arrow_with_parens :: proc(p: ^Parser, async_tok: TokenSnap) -> ^Expr
 		return nil
 	}
 	if cur_has_newline(p) {
-		report_error(p, "Line terminator not permitted before '=>'")
+		report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted before '=>'")
 	}
 	eat(p)
 
@@ -17359,13 +17361,13 @@ parse_dynamic_import_tail :: proc(p: ^Parser, start: Loc, phase: string) -> ^Exp
 			if match_token(p, .Comma) {
 				// Trailing comma after second argument — TS-only rejection.
 				if is_token(p, .RParen) && allow_ts_mode(p) {
-					report_error(p, "Trailing comma not allowed.")
+					report_error_coded(p, .K3065_TrailingCommaInvalid, "Trailing comma not allowed")
 				}
 			}
 		} else if allow_ts_mode(p) {
 			// TS1009 — trailing comma in import() is rejected in TS.
 			// The ES spec (§13.3.10) allows it but TSC/OXC don't.
-			report_error(p, "Trailing comma not allowed.")
+			report_error_coded(p, .K3065_TrailingCommaInvalid, "Trailing comma not allowed")
 		}
 	}
 
@@ -17686,7 +17688,7 @@ parse_decorated_class :: proc(p: ^Parser) -> ^Statement {
 			lexer_restore(p, snap)
 		}
 		if has_post_export_dec {
-			report_error(p, "Decorators may not appear after 'export' or 'export default' if they also appear before 'export'")
+			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators may not appear after 'export' or 'export default' if they also appear before 'export'")
 		}
 		stmt := parse_export_declaration(p)
 		if stmt != nil {
@@ -17850,13 +17852,13 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 		obj: JSXMemberObject = ident
 		// Hyphens are not allowed in JSX member expression identifiers.
 		if strings.contains(ident.name, "-") {
-			report_error(p, "Identifiers in JSX cannot contain hyphens")
+			report_error_coded(p, .K3063_JSXInvalid, "Identifiers in JSX cannot contain hyphens")
 		}
 		for is_token(p, .Dot) {
 			eat(p)
 			prop := parse_jsx_identifier(p)
 			if strings.contains(prop.name, "-") {
-				report_error(p, "Identifiers in JSX cannot contain hyphens")
+				report_error_coded(p, .K3063_JSXInvalid, "Identifiers in JSX cannot contain hyphens")
 			}
 			member := new_node(p, JSXMemberExpression)
 			member.loc = ident.loc; member.object = obj; member.property = prop
@@ -18032,7 +18034,7 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 					// TS18007: JSX expressions may not use the comma operator.
 					if expr != nil {
 						if _, is_seq := expr^.(^SequenceExpression); is_seq {
-							report_error(p, "JSX expressions may not use the comma operator.")
+							report_error_coded(p, .K3063_JSXInvalid, "JSX expressions may not use the comma operator")
 						}
 					}
 					container, container_e := new_expr(p, JSXExpressionContainer)
@@ -20336,7 +20338,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	}
 	// §15.3 - ArrowParameters [no LineTerminator here] =>
 	if cur_has_newline(p) {
-		report_error(p, "Line terminator not permitted before '=>'")
+		report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted before '=>'")
 	}
 	eat(p) // consume `=>`
 
@@ -21133,7 +21135,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			param_name_ident.name = param_name_tok.value
 			eat(p) // consume identifier
 			if match_token(p, .Question) {
-				report_error(p, "An index signature parameter cannot have a question mark.")
+				report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
 			}
 			colon_start := cur_loc(p)  // position of `:` before key type.
 			expect_token(p, .Colon)
@@ -21269,7 +21271,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		params := parse_ts_sig_params(p)
 		if accessor_kind == .Get {
 			if len(params) != 0 {
-				report_error(p, "A get accessor cannot have parameters")
+				report_error_coded(p, .K4061_GetSetForm, "A get accessor cannot have parameters")
 			}
 		} else {
 			if len(params) != 1 {
@@ -21277,13 +21279,13 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 			}
 			if len(params) == 1 {
 				if params[0].optional {
-					report_error(p, "A set accessor parameter cannot be optional")
+					report_error_coded(p, .K4061_GetSetForm, "A set accessor parameter cannot be optional")
 				}
 				if _, is_rest := params[0].pattern.(^RestElement); is_rest {
 					report_error_coded(p, .K4040_TSRestInvalid, "A set accessor parameter cannot be a rest parameter")
 				}
 				if id, is_id := params[0].pattern.(^Identifier); is_id && id.name == "this" {
-					report_error(p, "A set accessor cannot have a this parameter")
+					report_error_coded(p, .K4061_GetSetForm, "A set accessor cannot have a this parameter")
 				}
 			}
 		}
@@ -21504,7 +21506,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			// Newline between `type` and its name triggers ASI.
    ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error(p, "Line terminator not permitted after 'type'")
+				report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted after 'type'")
 			}
 			if is_next_token(p, .Identifier) {
 				stmt = parse_ts_type_alias_declaration(p)
@@ -21537,7 +21539,7 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 			// Newline between `module` and its name triggers ASI.
    ensure_nxt(p)
 			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error(p, "Line terminator not permitted after 'module'")
+				report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted after 'module'")
 			}
    ensure_nxt(p)
 			if is_next_token(p, .String) || is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
