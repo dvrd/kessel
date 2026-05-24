@@ -1,8 +1,6 @@
 # @dvrdlibs/kessel
 
-Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs via native shared library.
-
-**8% faster than OXC** at the npm boundary (measured on lodash.js).
+JavaScript / TypeScript / JSX / TSX parser. Emits ESTree-compatible ASTs via a native shared library bound through [koffi](https://koffi.dev). Synchronous, in-process — no subprocess, no JSON serialization.
 
 ## Install
 
@@ -10,9 +8,15 @@ Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs via native sha
 npm install @dvrdlibs/kessel
 ```
 
-On install, npm pulls only the platform-specific native binary that matches
-your host (one of `darwin-arm64`, `darwin-x64`, `linux-arm64`, `linux-x64`,
-`win32-x64`). The other four sub-packages stay untouched on the registry.
+The install pulls only the platform-specific native binary that matches your host. The other sub-packages stay on the registry, unfetched.
+
+| Sub-package | Platform | Binary |
+|---|---|---|
+| `@dvrdlibs/kessel-darwin-arm64` | macOS, Apple Silicon | `libkessel.dylib` |
+| `@dvrdlibs/kessel-darwin-x64`   | macOS, Intel         | `libkessel.dylib` |
+| `@dvrdlibs/kessel-linux-arm64`  | Linux, aarch64       | `libkessel.so`    |
+| `@dvrdlibs/kessel-linux-x64`    | Linux, x86_64        | `libkessel.so`    |
+| `@dvrdlibs/kessel-win32-x64`    | Windows, x86_64      | `libkessel.dll`   |
 
 ## Usage
 
@@ -52,19 +56,19 @@ function parseSync(
 
 ## Performance
 
-| File | kessel | oxc-parser | acorn | @babel/parser |
-|---|---|---|---|---|
-| lodash.js (531KB) | **3.6ms** | 3.9ms | 5.3ms | 8.1ms |
-| jquery.js (279KB) | **3.9ms** | 3.8ms | 5.6ms | 7.4ms |
+Measured with 50 iterations, min time, Node.js v25, Apple M1 Max:
 
-Measured with 50 iterations, min time, Node.js v25, Apple M1 Max.
+| File | Size | Parse time |
+|---|---|---|
+| lodash.js  | 531 KB | 3.6 ms |
+| jquery.js  | 279 KB | 3.9 ms |
 
 ## How it works
 
 1. Source → native shared library (`libkessel`) via [koffi](https://koffi.dev) FFI
-2. Parser produces AST in arena memory (zero allocations during parse)
-3. Binary emitter writes compact AST buffer (7× smaller than JSON)
-4. JS reader decodes buffer into ESTree objects via DataView (11× faster than JSON.parse)
+2. Parser produces the AST in arena memory (no allocations during parse)
+3. A compact binary emitter writes the AST into a single buffer
+4. JS reader decodes the buffer into ESTree objects via `DataView`
 
 No process spawn. No JSON serialization. One function call.
 
