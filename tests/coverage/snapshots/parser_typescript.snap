@@ -5,32 +5,32 @@ AST Parsed     : 10773/10773 (100.00%)
 Positive Passed: 10773/10773 (100.00%)
 Negative Passed: 1629/1629 (100.00%)
 typescript/tests/cases/compiler/ArrowFunctionExpression1.ts:1:26: 'public' modifier cannot appear on a parameter
-typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/ClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/ClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
 typescript/tests/cases/compiler/ClassDeclaration13.ts:4:2: Function implementation name must be 'foo'.
-typescript/tests/cases/compiler/ClassDeclaration14.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/ClassDeclaration14.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/ClassDeclaration15.ts:4:2: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/ClassDeclaration21.ts:4:2: Function implementation name must be '0'.
 typescript/tests/cases/compiler/ClassDeclaration22.ts:4:2: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/ClassDeclaration24.ts:1:7: Class name cannot be 'any'
-typescript/tests/cases/compiler/ClassDeclaration25.ts:6:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/ClassDeclaration25.ts:6:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/ClassDeclaration26.ts:2:18: Expected '(', got 'var'
-typescript/tests/cases/compiler/ClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/ClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/ClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration
+typescript/tests/cases/compiler/ClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/ClassDeclarationWithInvalidConstOnPropertyDeclaration.ts:2:16: Expected '(', got identifier 'H'
 typescript/tests/cases/compiler/ExportAssignment7.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/ExportAssignment8.ts:1:1: An export assignment cannot be used in a module with other exported elements.
-typescript/tests/cases/compiler/FunctionDeclaration3.ts:1:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/FunctionDeclaration3.ts:1:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/FunctionDeclaration4.ts:2:1: Function implementation name must be 'foo'.
-typescript/tests/cases/compiler/FunctionDeclaration7.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/FunctionDeclaration7.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/InterfaceDeclaration8.ts:1:11: Interface name cannot be 'string'
 typescript/tests/cases/compiler/MemberAccessorDeclaration15.ts:2:28: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/ParameterList13.ts:2:10: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/ParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/compiler/ParameterList5.ts:1:23: Expected ')', got identifier 'B'
 typescript/tests/cases/compiler/ParameterList6.ts:2:26: Expected ')', got identifier 'A'
-typescript/tests/cases/compiler/ParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
-typescript/tests/cases/compiler/ParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/ParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor
+typescript/tests/cases/compiler/ParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor
 typescript/tests/cases/compiler/TransportStream.ts:1:2: Expected semicolon
 typescript/tests/cases/compiler/abstractPropertyNegative.ts:18:1: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/compiler/accessorBodyInTypeContext.ts:2:15: Unexpected token in TS object type
@@ -63,7 +63,7 @@ typescript/tests/cases/compiler/asiAbstract.ts:6:1: Abstract methods can only ap
 typescript/tests/cases/compiler/asiReturn.ts:2:7: 'return' outside of function
 typescript/tests/cases/compiler/assertInWrapSomeTypeParameter.ts:2:26: Expected '>', got '('
 typescript/tests/cases/compiler/assignToInvalidLHS.ts:4:15: Cannot assign to this expression
-typescript/tests/cases/compiler/assignmentCompatFunctionsWithOptionalArgs.ts:1:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/assignmentCompatFunctionsWithOptionalArgs.ts:1:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/assignmentToInstantiationExpression.ts:2:16: Expected expression after operator
 typescript/tests/cases/compiler/assignmentToParenthesizedExpression1.ts:2:7: Invalid left-hand side in assignment
 typescript/tests/cases/compiler/augmentedTypesClass.ts:7:6: Identifier 'c4' has already been declared
@@ -88,11 +88,11 @@ typescript/tests/cases/compiler/breakNotInIterationOrSwitchStatement2.ts:3:5: 'b
 typescript/tests/cases/compiler/breakTarget5.ts:5:13: Undefined label 'target'
 typescript/tests/cases/compiler/breakTarget6.ts:2:9: Undefined label 'target'
 typescript/tests/cases/compiler/callExpressionWithMissingTypeArgument1.ts:1:12: Empty parenthesized expression
-typescript/tests/cases/compiler/callOverloads1.ts:9:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/callOverloads1.ts:9:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/callOverloads2.ts:11:1: Function implementation name must be 'Foo'.
-typescript/tests/cases/compiler/callOverloads3.ts:1:1: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/callOverloads4.ts:1:1: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/callOverloads5.ts:1:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/callOverloads3.ts:1:1: Function implementation is missing or not immediately following the declaration
+typescript/tests/cases/compiler/callOverloads4.ts:1:1: Function implementation is missing or not immediately following the declaration
+typescript/tests/cases/compiler/callOverloads5.ts:1:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/cannotInvokeNewOnErrorExpression.ts:5:22: Expected expression after 'new'
 typescript/tests/cases/compiler/castOfYield.ts:4:21: 'yield' cannot be used as an identifier in a generator context
 typescript/tests/cases/compiler/catchClauseWithInitializer1.ts:3:10: Expected ')', got '='
@@ -105,7 +105,7 @@ typescript/tests/cases/compiler/classFieldsBrokenConstructorEmitNoCrash1.ts:4:1:
 typescript/tests/cases/compiler/classHeritageWithTrailingSeparator.ts:2:18: Expected '{', got ','
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier.ts:2:12: Expected method or property name
 typescript/tests/cases/compiler/classMemberWithMissingIdentifier2.ts:2:12: Expected method or property name
-typescript/tests/cases/compiler/classOverloadForFunction2.ts:1:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/classOverloadForFunction2.ts:1:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/classUpdateTests.ts:43:23: 'super' call is only allowed in the constructor of a derived class
 typescript/tests/cases/compiler/classWithDuplicateIdentifier.ts:3:5: Duplicate identifier 'a'.
 typescript/tests/cases/compiler/classWithEmptyTypeParameter.ts:1:9: Type parameter list cannot be empty
@@ -134,12 +134,12 @@ typescript/tests/cases/compiler/constructorArgsErrors4.ts:2:26: Accessibility mo
 typescript/tests/cases/compiler/constructorArgsErrors5.ts:2:18: 'export' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/compiler/constructorOverloads1.ts:7:5: Duplicate constructor implementations are not allowed
 typescript/tests/cases/compiler/constructorOverloads6.ts:4:25: An implementation cannot be declared in ambient contexts
-typescript/tests/cases/compiler/constructorOverloads7.ts:22:1: Overload signatures must all be ambient or non-ambient.
+typescript/tests/cases/compiler/constructorOverloads7.ts:22:1: Overload signatures must all be ambient or non-ambient
 typescript/tests/cases/compiler/constructorOverloads8.ts:3:5: Duplicate constructor implementations are not allowed
 typescript/tests/cases/compiler/constructorStaticParamName.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorStaticParamNameErrors.ts:4:18: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/constructorWithIncompleteTypeAnnotation.ts:11:13: 'module(...)' in import-equals is not supported; use 'require(...)' instead
-typescript/tests/cases/compiler/contextualTyping.ts:189:1: Overload signatures must all be ambient or non-ambient.
+typescript/tests/cases/compiler/contextualTyping.ts:189:1: Overload signatures must all be ambient or non-ambient
 typescript/tests/cases/compiler/continueNotInIterationStatement1.ts:1:1: 'continue' must be inside a loop
 typescript/tests/cases/compiler/continueNotInIterationStatement2.ts:3:5: 'continue' must be inside a loop
 typescript/tests/cases/compiler/continueNotInIterationStatement3.ts:3:5: 'continue' must be inside a loop
@@ -147,14 +147,14 @@ typescript/tests/cases/compiler/continueTarget1.ts:2:12: 'continue' must target 
 typescript/tests/cases/compiler/continueTarget5.ts:5:16: Undefined label 'target'
 typescript/tests/cases/compiler/continueTarget6.ts:2:12: Undefined label 'target'
 typescript/tests/cases/compiler/controlFlowFunctionLikeCircular1.ts::controlFlowFunctionLikeCircular_1.ts:3:1: Missing initializer in 'const' declaration
-typescript/tests/cases/compiler/crashOnMethodSignatures.ts:2:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/crashOnMethodSignatures.ts:2:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/createArray.ts:1:19: Expected expression after 'new'
 typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFile.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/compiler/declFileWithErrorsInInputDeclarationFileWithOut.ts::declFile.d.ts:2:5: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/compiler/declarationEmitDestructuring2.ts:3:1: Duplicate parameter name 'a' with non-simple parameter list
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties.ts:2:43: A parameter property may not be declared using a binding pattern
 typescript/tests/cases/compiler/declarationEmitDestructuringParameterProperties2.ts:2:43: A parameter property may not be declared using a binding pattern
-typescript/tests/cases/compiler/declarationEmitDestructuringWithOptionalBindingParameters.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature.
+typescript/tests/cases/compiler/declarationEmitDestructuringWithOptionalBindingParameters.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature
 typescript/tests/cases/compiler/declarationEmitInterfaceWithNonEntityNameExpressionHeritage.ts:2:25: Expected interface name after 'extends'
 typescript/tests/cases/compiler/declarationEmitInvalidExport.ts:5:1: Unexpected '}' — unmatched closing brace
 typescript/tests/cases/compiler/declarationEmitNestedBindingPattern.ts:3:36: A parameter property may not be declared using a binding pattern
@@ -164,11 +164,11 @@ typescript/tests/cases/compiler/declareAlreadySeen.ts:2:13: Expected semicolon
 typescript/tests/cases/compiler/decoratorInJsFile.ts:3:10: Expected ')', got ':'
 typescript/tests/cases/compiler/decoratorInJsFile1.ts:3:10: Expected ')', got ':'
 typescript/tests/cases/compiler/decrementAndIncrementOperators.ts:4:5: Invalid left-hand side expression in postfix operation
-typescript/tests/cases/compiler/defaultArgsInOverloads.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/compiler/defaultArgsInOverloads.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation
 typescript/tests/cases/compiler/defaultKeywordWithoutExport1.ts:4:1: Expected class after decorator
 typescript/tests/cases/compiler/defaultKeywordWithoutExport2.ts:1:1: Unexpected reserved word 'default'
-typescript/tests/cases/compiler/defaultValueInConstructorOverload1.ts:2:17: A parameter initializer is only allowed in a function or constructor implementation.
-typescript/tests/cases/compiler/defaultValueInFunctionOverload1.ts:1:14: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/compiler/defaultValueInConstructorOverload1.ts:2:17: A parameter initializer is only allowed in a function or constructor implementation
+typescript/tests/cases/compiler/defaultValueInFunctionOverload1.ts:1:14: A parameter initializer is only allowed in a function or constructor implementation
 typescript/tests/cases/compiler/deleteOperator1.ts:2:18: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/compiler/deleteOperatorInStrictMode.ts:3:1: Deleting an unqualified identifier is not allowed in strict mode
 typescript/tests/cases/compiler/destructionAssignmentError.ts:6:10: Unexpected token '='
@@ -214,7 +214,7 @@ typescript/tests/cases/compiler/errorRecoveryWithDotFollowedByNamespaceKeyword.t
 typescript/tests/cases/compiler/errorSpanForUnclosedJsxTag.tsx:11:23: Expected '<', got end of input
 typescript/tests/cases/compiler/es5-oldStyleOctalLiteralInEnums.ts:2:8: Legacy octal literals are not allowed in strict mode
 typescript/tests/cases/compiler/es5ExportEquals.ts:1:1: An export assignment cannot be used in a module with other exported elements.
-typescript/tests/cases/compiler/es5ModuleInternalNamedImports.ts:22:5: Export declarations are not permitted in a namespace.
+typescript/tests/cases/compiler/es5ModuleInternalNamedImports.ts:22:5: Export declarations are not permitted in a namespace
 typescript/tests/cases/compiler/es6ClassTest.ts:25:48: A parameter cannot have a question mark and an initializer
 typescript/tests/cases/compiler/es6ClassTest9.ts:1:18: Expected '{', got '('
 typescript/tests/cases/compiler/es6ExportEquals.ts:1:1: An export assignment cannot be used in a module with other exported elements.
@@ -229,20 +229,20 @@ typescript/tests/cases/compiler/es6ImportNamedImportParsingError.ts::es6ImportNa
 typescript/tests/cases/compiler/es6ImportNamedImportWithExport.ts::client.ts:2:1: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
 typescript/tests/cases/compiler/es6ImportParseErrors.ts:1:8: Expected import source or specifier
 typescript/tests/cases/compiler/es6ImportWithoutFromClauseWithExport.ts::client.ts:1:24: Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.
-typescript/tests/cases/compiler/es6ModuleInternalNamedImports.ts:22:5: Export declarations are not permitted in a namespace.
-typescript/tests/cases/compiler/es6ModuleInternalNamedImports2.ts:24:5: Export declarations are not permitted in a namespace.
+typescript/tests/cases/compiler/es6ModuleInternalNamedImports.ts:22:5: Export declarations are not permitted in a namespace
+typescript/tests/cases/compiler/es6ModuleInternalNamedImports2.ts:24:5: Export declarations are not permitted in a namespace
 typescript/tests/cases/compiler/exportAlreadySeen.ts:2:12: 'export' modifier already seen
 typescript/tests/cases/compiler/exportAssignmentWithDeclareAndExportModifiers.ts:2:16: Expected semicolon
 typescript/tests/cases/compiler/exportAssignmentWithDeclareModifier.ts:2:9: Expected semicolon
 typescript/tests/cases/compiler/exportAssignmentWithExportModifier.ts:2:8: 'export' modifier already seen
 typescript/tests/cases/compiler/exportAssignmentWithExports.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/exportClassWithoutName.ts:1:8: A class declaration without the 'default' modifier must have a name.
-typescript/tests/cases/compiler/exportDeclarationInInternalModule.ts:13:5: Export declarations are not permitted in a namespace.
-typescript/tests/cases/compiler/exportDeclarationsInAmbientNamespaces2.ts:6:5: Export declarations are not permitted in a namespace.
+typescript/tests/cases/compiler/exportDeclarationInInternalModule.ts:13:5: Export declarations are not permitted in a namespace
+typescript/tests/cases/compiler/exportDeclarationsInAmbientNamespaces2.ts:6:5: Export declarations are not permitted in a namespace
 typescript/tests/cases/compiler/exportDeclareClass1.ts:2:21: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/exportDefaultAsyncFunction2.ts::a.ts:1:17: 'await' is reserved as a binding name in module code
-typescript/tests/cases/compiler/exportDefaultClassInNamespace.ts:2:5: Export declarations are not permitted in a namespace.
-typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts:2:5: Export declarations are not permitted in a namespace.
+typescript/tests/cases/compiler/exportDefaultClassInNamespace.ts:2:5: Export declarations are not permitted in a namespace
+typescript/tests/cases/compiler/exportDefaultFunctionInNamespace.ts:2:5: Export declarations are not permitted in a namespace
 typescript/tests/cases/compiler/exportEqualsClassRedeclarationError.ts:7:5: Duplicate identifier 'someProp'.
 typescript/tests/cases/compiler/exportInFunction.ts:2:16: Expected '}' at end of function body
 typescript/tests/cases/compiler/expressionTypeNodeShouldError.ts::base.d.ts:1:23: Expected '=', ',', or ';' after variable binding
@@ -255,7 +255,7 @@ typescript/tests/cases/compiler/externSemantics.ts:1:15: Initializers are not al
 typescript/tests/cases/compiler/externSyntax.ts:8:20: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/compiler/fatarrowfunctionsErrors.ts:2:21: Invalid expression for arrow function parameters
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgs.ts:57:14: Expected expression after '?' in conditional expression
-typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors1.ts:1:9: A required parameter cannot follow an optional parameter.
+typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors1.ts:1:9: A required parameter cannot follow an optional parameter
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors2.ts:1:31: Expected identifier in arrow function parameters
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors3.ts:1:5: Expected binding pattern
 typescript/tests/cases/compiler/fatarrowfunctionsOptionalArgsErrors4.ts:1:18: Expected expression after '?' in conditional expression
@@ -269,9 +269,9 @@ typescript/tests/cases/compiler/functionCall15.ts:1:1: Duplicate parameter name 
 typescript/tests/cases/compiler/functionExpressionInWithBlock.ts:2:2: 'with' statements are not allowed in strict mode
 typescript/tests/cases/compiler/functionOverloadImplementationOfWrongName.ts:3:1: Function implementation name must be 'foo'.
 typescript/tests/cases/compiler/functionOverloadImplementationOfWrongName2.ts:2:1: Function implementation name must be 'foo'.
-typescript/tests/cases/compiler/functionOverloads1.ts:1:1: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/functionOverloads3.ts:1:1: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/compiler/functionOverloadsOutOfOrder.ts:6:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/functionOverloads1.ts:1:1: Function implementation is missing or not immediately following the declaration
+typescript/tests/cases/compiler/functionOverloads3.ts:1:1: Function implementation is missing or not immediately following the declaration
+typescript/tests/cases/compiler/functionOverloadsOutOfOrder.ts:6:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/functionTypesLackingReturnTypes.ts:2:17: Expected '=>' in function type
 typescript/tests/cases/compiler/functionWithSameNameAsField.ts:3:5: Duplicate identifier 'total'.
 typescript/tests/cases/compiler/functionsMissingReturnStatementsAndExpressions.ts:153:5: Expected identifier after '.'
@@ -291,7 +291,7 @@ typescript/tests/cases/compiler/importDeclWithDeclareModifierInAmbientContext.ts
 typescript/tests/cases/compiler/importDeclWithExportModifierAndExportAssignment.ts:5:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/compiler/incompleteDottedExpressionAtEOF.ts:2:18: Expected identifier after '.'
 typescript/tests/cases/compiler/incompleteObjectLiteral1.ts:1:14: Unexpected ';' in object literal
-typescript/tests/cases/compiler/incorrectClassOverloadChain.ts:2:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/incorrectClassOverloadChain.ts:2:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/indexSignatureMustHaveTypeAnnotation.ts:4:16: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexSignatureTypeCheck.ts:14:9: An index signature parameter cannot have a question mark
 typescript/tests/cases/compiler/indexSignatureTypeCheck2.ts:10:9: An index signature parameter cannot have a question mark
@@ -301,7 +301,7 @@ typescript/tests/cases/compiler/indexSignatureWithTrailingComma.ts:2:17: Expecte
 typescript/tests/cases/compiler/indexSignatureWithoutTypeAnnotation1.ts:2:14: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexTypeCheck.ts:2:12: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexWithoutParamType.ts:1:10: An index signature must have a parameter
-typescript/tests/cases/compiler/indexer2A.ts:4:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/indexer2A.ts:4:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/indexerAsOptional.ts:3:10: An index signature parameter cannot have a question mark
 typescript/tests/cases/compiler/indexerConstraints2.ts:80:1: An index signature must have a type annotation
 typescript/tests/cases/compiler/indexerSignatureWithRestParam.ts:2:5: An index signature parameter cannot use a rest pattern
@@ -381,19 +381,19 @@ typescript/tests/cases/compiler/missingArgument1.ts:1:7: Argument expression exp
 typescript/tests/cases/compiler/missingCloseBrace.ts:8:6: Expected '}' at end of function body
 typescript/tests/cases/compiler/missingCloseBraceInObjectLiteral.ts:4:11: Expected '}', got end of input
 typescript/tests/cases/compiler/missingCloseBracketInArray.ts:1:48: Expected ']', got end of input
-typescript/tests/cases/compiler/missingFunctionImplementation.ts:2:3: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/missingFunctionImplementation.ts:2:3: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/missingRequiredDeclare.d.ts:1:9: Initializers are not allowed in ambient contexts
 typescript/tests/cases/compiler/misspelledNewMetaProperty.ts:1:19: Expected expression after 'new'
 typescript/tests/cases/compiler/modifierOnParameter1.ts:2:24: Expected ')', got identifier 'p'
 typescript/tests/cases/compiler/modifiersInObjectLiterals.ts:2:2: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/modifiersOnInterfaceIndexSignature1.ts:2:3: 'public' modifier cannot appear on an index signature
-typescript/tests/cases/compiler/moduleAugmentationGlobal7_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
-typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.
+typescript/tests/cases/compiler/moduleAugmentationGlobal7_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations
+typescript/tests/cases/compiler/moduleAugmentationGlobal8_1.ts:2:5: Augmentations for the global scope can only be directly nested in external modules or ambient module declarations
 typescript/tests/cases/compiler/moduleDuplicateIdentifiers.ts:24:14: Identifier 'Kettle' has already been declared
-typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:2:5: A namespace declaration is only allowed at the top level of a namespace or module.
-typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:2:5: A namespace declaration is only allowed at the top level of a namespace or module.
-typescript/tests/cases/compiler/moduleElementsInWrongContext3.ts:14:9: An export assignment cannot be used in a namespace.
-typescript/tests/cases/compiler/moduleKeywordDeprecated.ts::foo.ts:2:1: `module` declarations must have a string name. Use `namespace` instead.
+typescript/tests/cases/compiler/moduleElementsInWrongContext.ts:2:5: A namespace declaration is only allowed at the top level of a namespace or module
+typescript/tests/cases/compiler/moduleElementsInWrongContext2.ts:2:5: A namespace declaration is only allowed at the top level of a namespace or module
+typescript/tests/cases/compiler/moduleElementsInWrongContext3.ts:14:9: An export assignment cannot be used in a namespace
+typescript/tests/cases/compiler/moduleKeywordDeprecated.ts::foo.ts:2:1: `module` declarations must have a string name. Use `namespace` instead
 typescript/tests/cases/compiler/moduleKeywordRepeatError.ts:3:15: Expected semicolon
 typescript/tests/cases/compiler/modulePreserve4.ts::/main3.cjs:2:11: Expected 'from', got '='
 typescript/tests/cases/compiler/moduleProperty1.ts:9:5: 'private' is a reserved identifier in strict mode
@@ -401,7 +401,7 @@ typescript/tests/cases/compiler/multiLinePropertyAccessAndArrowFunctionIndent1.t
 typescript/tests/cases/compiler/multipleClassPropertyModifiers.ts:3:19: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/compiler/multipleClassPropertyModifiersErrors.ts:2:9: Accessibility modifier already seen
 typescript/tests/cases/compiler/multipleExportAssignments.ts:13:1: An export assignment cannot be used in a module with other exported elements.
-typescript/tests/cases/compiler/multipleExports.ts:9:5: Export declarations are not permitted in a namespace.
+typescript/tests/cases/compiler/multipleExports.ts:9:5: Export declarations are not permitted in a namespace
 typescript/tests/cases/compiler/multipleInheritance.ts:9:19: Expected '{', got ','
 typescript/tests/cases/compiler/nestedGlobalNamespaceInClass.ts:3:12: Expected '(', got identifier 'x'
 typescript/tests/cases/compiler/nestedUnaryExpressionHang.ts:1:34: Expected expression after unary operator
@@ -435,13 +435,13 @@ typescript/tests/cases/compiler/optionalParamArgsTest.ts:34:5: Duplicate identif
 typescript/tests/cases/compiler/optionalPropertiesSyntax.ts:11:7: Expected '}', got '?'
 typescript/tests/cases/compiler/optionalSetterParam.ts:3:20: A 'set' accessor cannot have an optional parameter
 typescript/tests/cases/compiler/overloadConsecutiveness.ts:3:14: Expected '{', got ','
-typescript/tests/cases/compiler/overloadModifiersMustAgree.ts:6:1: Overload signatures must all be ambient or non-ambient.
+typescript/tests/cases/compiler/overloadModifiersMustAgree.ts:6:1: Overload signatures must all be ambient or non-ambient
 typescript/tests/cases/compiler/overloadingStaticFunctionsInFunctions.ts:1:14: Expected '(', got '{'
 typescript/tests/cases/compiler/overloadsWithComputedNames.ts:8:1: Function implementation name must be 'B'.
 typescript/tests/cases/compiler/overloadsWithinClasses.ts:5:5: Duplicate identifier 'fnOverload'.
-typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor.
-typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts:3:24: Parameter properties are only allowed in the implementation constructor.
-typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts:3:24: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/compiler/paramPropertiesInSignatures.ts:2:21: Parameter properties are only allowed in the implementation constructor
+typescript/tests/cases/compiler/parameterPropertyInConstructor1.ts:3:24: Parameter properties are only allowed in the implementation constructor
+typescript/tests/cases/compiler/parameterPropertyInConstructor2.ts:3:24: Parameter properties are only allowed in the implementation constructor
 typescript/tests/cases/compiler/parameterPropertyOutsideConstructor.ts:2:17: Parameter property modifiers are only allowed in constructors
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash1.ts:3:28: Expected ')', got ':'
 typescript/tests/cases/compiler/parametersSyntaxErrorNoCrash2.ts:3:44: Reserved word 'return' is not a valid binding identifier
@@ -480,7 +480,7 @@ typescript/tests/cases/compiler/privateNameJsx.tsx:4:22: Expected JSX identifier
 typescript/tests/cases/compiler/propertyWrappedInTry.ts:3:9: Expected '(', got '{'
 typescript/tests/cases/compiler/reachabilityChecksNoCrash1.ts:1:54: Expected ')', got '!'
 typescript/tests/cases/compiler/readonlyInNonPropertyParameters.ts:3:27: Parameter property modifiers are only allowed in constructors
-typescript/tests/cases/compiler/recursiveTypeRelations.ts:8:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/recursiveTypeRelations.ts:8:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/redeclareParameterInCatchBlock.ts:4:5: Catch parameter 'e' cannot be redeclared with let/const in catch block
 typescript/tests/cases/compiler/regExpWithOpenBracketInCharClass.ts:4:5: Invalid unescaped character in v-mode character class
 typescript/tests/cases/compiler/regularExpressionAnnexB.ts:7:30: Invalid Unicode property escape: expected '{' after \p
@@ -511,7 +511,7 @@ typescript/tests/cases/compiler/sourceMapValidationStatements.ts:43:5: 'with' st
 typescript/tests/cases/compiler/spaceBeforeQuestionMarkInPropertyAssignment.ts:1:12: Expected '}', got '?'
 typescript/tests/cases/compiler/standaloneBreak.ts:1:1: 'break' must be inside a loop or switch
 typescript/tests/cases/compiler/staticAsIdentifier.ts:12:19: Expected '(', got identifier 'p'
-typescript/tests/cases/compiler/staticClassMemberError.ts:9:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/compiler/staticClassMemberError.ts:9:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/compiler/staticClassProps.ts:4:9: 'static' is a reserved identifier in strict mode
 typescript/tests/cases/compiler/staticModifierAlreadySeen.ts:2:19: Expected '(', got identifier 'foo'
 typescript/tests/cases/compiler/staticMustPrecedePublic.ts:2:19: 'public' modifier must precede 'static' modifier
@@ -551,7 +551,7 @@ typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions
 typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions4.ts:5:28: Expected template literal continuation
 typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions5.ts:5:30: Expected template literal continuation
 typescript/tests/cases/compiler/taggedTemplatesWithIncompleteTemplateExpressions6.ts:5:23: Expected template literal continuation
-typescript/tests/cases/compiler/targetTypeTest1.ts:19:1: Overload signatures must all be ambient or non-ambient.
+typescript/tests/cases/compiler/targetTypeTest1.ts:19:1: Overload signatures must all be ambient or non-ambient
 typescript/tests/cases/compiler/templateLiteralEscapeSequence.ts:3:5: Invalid escape sequence in template literal
 typescript/tests/cases/compiler/thisAssignmentInNamespaceDeclaration1.ts::a.js:1:11: Expected semicolon
 typescript/tests/cases/compiler/throwWithoutNewLine1.ts:1:6: Expected expression after throw
@@ -572,7 +572,7 @@ typescript/tests/cases/compiler/unicodeEscapesInNames02.ts::astralAsSurrogatePai
 typescript/tests/cases/compiler/unicodeIdentifierName2.ts:1:6: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/compiler/unparenthesizedConstructorTypeInUnionOrIntersection.ts:1:34: Constructor type must be parenthesized in union or intersection
 typescript/tests/cases/compiler/unparenthesizedFunctionTypeInUnionOrIntersection.ts:1:30: Function type must be parenthesized in union or intersection
-typescript/tests/cases/compiler/unreachableDeclarations.ts:84:2: A namespace declaration is only allowed at the top level of a namespace or module.
+typescript/tests/cases/compiler/unreachableDeclarations.ts:84:2: A namespace declaration is only allowed at the top level of a namespace or module
 typescript/tests/cases/compiler/unterminatedRegexAtEndOfSource1.ts:1:9: Unterminated regular expression
 typescript/tests/cases/compiler/unterminatedStringLiteralWithBackslash1.ts:1:1: Unexpected token '"\'
 typescript/tests/cases/compiler/unusedLocalsAndParameters.ts:83:14: Expected ';', got ')'
@@ -644,13 +644,13 @@ typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeywor
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractConstructor.ts:3:2: 'abstract' modifier cannot appear on a constructor declaration
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractCrashedOnce.ts:8:5: Expected identifier after '.'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractDeclarations.d.ts:2:28: An implementation cannot be declared in ambient contexts
-typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractInstantiations2.ts:46:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractInstantiations2.ts:46:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractManyKeywords.ts:3:1: Unexpected reserved word 'default'
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMergedDeclaration.ts:14:7: Identifier 'CC1' has already been declared
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodInNonAbstractClass.ts:5:1: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMethodWithImplementation.ts:2:20: Method 'foo' cannot have an implementation because it is marked abstract
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractMixedWithModifiers.ts:16:20: Expected '(', got identifier 'foo_g'
-typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractOverloads.ts:7:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractOverloads.ts:7:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractUsingAbstractMethods2.ts:5:1: Abstract methods can only appear within an abstract class.
 typescript/tests/cases/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractWithInterface.ts:1:10: Expected semicolon
 typescript/tests/cases/conformance/classes/classDeclarations/classBody/classBodyWithStatements.ts:2:9: Expected '(', got identifier 'x'
@@ -672,8 +672,8 @@ typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock6.ts
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock7.ts:3:9: 'await' is not allowed in a class static block
 typescript/tests/cases/conformance/classes/classStaticBlock/classStaticBlock8.ts:6:27: Undefined label 'label'
 typescript/tests/cases/conformance/classes/constructorDeclarations/classWithTwoConstructorDefinitions.ts:3:5: Duplicate constructor implementations are not allowed
-typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation.
-typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:2:23: 'readonly' parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/constructorOverloadsWithDefaultValues.ts:3:17: A parameter initializer is only allowed in a function or constructor implementation
+typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInAmbientClass.ts:2:23: 'readonly' parameter properties are only allowed in the implementation constructor
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyInConstructorParameters.ts:7:33: 'public' modifier must precede 'readonly' modifier
 typescript/tests/cases/conformance/classes/constructorDeclarations/constructorParameters/readonlyReadonly.ts:2:23: 'readonly' modifier can only appear on a property declaration
 typescript/tests/cases/conformance/classes/constructorDeclarations/superCalls/derivedClassConstructorWithoutSuperCall.ts:24:36: 'super' call is only allowed in the constructor of a derived class
@@ -733,7 +733,7 @@ typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessorsO
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessorDisallowedModifiers.ts:2:23: Expected '(', got identifier 'a'
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/canFollowGetSetKeyword.ts:7:6: Setter must have exactly one formal parameter
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/derivedUninitializedPropertyDeclaration.ts:15:17: 'declare' modifier cannot be used here
-typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionOverloadMixingStaticAndInstance.ts:2:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionOverloadMixingStaticAndInstance.ts:2:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndAccessorWithSameName.ts:3:5: Duplicate identifier 'x'.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndFunctionWithSameName.ts:3:5: Duplicate identifier 'x'.
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyNamedConstructor.ts:2:20: Class field cannot be named 'constructor'
@@ -827,11 +827,11 @@ typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBin
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES5iterable.ts:3:5: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES6.ts:3:5: Missing initializer in destructuring declaration
 typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers01.ts:1:13: Reserved word 'while' is not a valid binding identifier
-typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers02.ts:1:14: Identifier expected. 'while' is a reserved word that cannot be used here.
+typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers02.ts:1:14: Identifier expected. 'while' is a reserved word that cannot be used here
 typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers03.ts:1:15: Expected ':' after string property key in destructuring pattern
-typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers04.ts:1:16: Identifier expected. 'while' is a reserved word that cannot be used here.
-typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters1.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature.
-typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters2.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature.
+typescript/tests/cases/conformance/es6/destructuring/objectBindingPatternKeywordIdentifiers04.ts:1:16: Identifier expected. 'while' is a reserved word that cannot be used here
+typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters1.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature
+typescript/tests/cases/conformance/es6/destructuring/optionalBindingParameters2.ts:1:14: A binding pattern parameter cannot be optional in an implementation signature
 typescript/tests/cases/conformance/es6/destructuring/restElementWithInitializer1.ts:2:11: Rest element must be last in array pattern
 typescript/tests/cases/conformance/es6/destructuring/restElementWithInitializer2.ts:3:15: Rest element cannot have a default initializer
 typescript/tests/cases/conformance/es6/destructuring/restPropertyWithBindingPattern.ts:1:14: Rest property may not be a binding pattern
@@ -927,9 +927,9 @@ typescript/tests/cases/conformance/es6/yieldExpressions/YieldExpression8_es6.ts:
 typescript/tests/cases/conformance/es6/yieldExpressions/YieldStarExpression1_es6.ts:1:1: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/yieldExpressions/YieldStarExpression2_es6.ts:1:1: 'yield' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/es6/yieldExpressions/YieldStarExpression3_es6.ts:2:12: 'yield*' requires an operand
-typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext2.ts:2:5: Generators are not allowed in an ambient context.
-typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext4.d.ts:2:5: Generators are not allowed in an ambient context.
-typescript/tests/cases/conformance/es6/yieldExpressions/generatorOverloads2.ts:2:5: Generators are not allowed in an ambient context.
+typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext2.ts:2:5: Generators are not allowed in an ambient context
+typescript/tests/cases/conformance/es6/yieldExpressions/generatorInAmbientContext4.d.ts:2:5: Generators are not allowed in an ambient context
+typescript/tests/cases/conformance/es6/yieldExpressions/generatorOverloads2.ts:2:5: Generators are not allowed in an ambient context
 typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck32.ts:2:29: 'yield' expression is only allowed in a generator body
 typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck39.ts:7:13: 'yield' expression is only allowed in a generator body
 typescript/tests/cases/conformance/es6/yieldExpressions/generatorTypeCheck57.ts:3:13: 'yield' expression is only allowed in a generator body
@@ -1026,8 +1026,8 @@ typescript/tests/cases/conformance/externalModules/typeOnly/importSpecifiers_js.
 typescript/tests/cases/conformance/externalModules/umd-errors.ts::err3.d.ts:3:8: Expected semicolon
 typescript/tests/cases/conformance/externalModules/verbatimModuleSyntaxRestrictionsCJS.ts::/main2.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/functions/functionNameConflicts.ts:24:1: Function implementation name must be 'over'.
-typescript/tests/cases/conformance/functions/functionOverloadErrors.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation.
-typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:2:27: A required parameter cannot follow an optional parameter.
+typescript/tests/cases/conformance/functions/functionOverloadErrors.ts:2:14: A parameter initializer is only allowed in a function or constructor implementation
+typescript/tests/cases/conformance/functions/functionOverloadErrorsSyntax.ts:2:27: A required parameter cannot follow an optional parameter
 typescript/tests/cases/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts:1:1: Illegal 'use strict' directive in function with non-simple parameter list
 typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::3.ts:8:18: 'import()' requires a specifier
 typescript/tests/cases/conformance/importAssertion/importAssertion4.ts:1:34: Expected '{', got end of input
@@ -1091,8 +1091,8 @@ typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.cj
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts::index.js:3:8: 'export =' is only allowed in TypeScript files
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts::file.js:4:11: Expected 'from', got '='
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsSynchronousCallErrors.ts::index.js:3:12: Expected 'from', got '='
-typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts:5:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.
+typescript/tests/cases/conformance/node/nodeModulesDeclarationEmitWithPackageExports.ts::node_modules/inner/index.d.cts:5:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/node/nodeModulesForbidenSyntax.ts::index.cts:2:11: This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`
 typescript/tests/cases/conformance/node/nodeModulesImportAttributesTypeModeDeclarationEmitErrors.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts::/other.ts:3:22: Expected 'with' in import type options
 typescript/tests/cases/conformance/override/override11.ts:6:34: 'public' modifier must precede 'override' modifier
@@ -1126,24 +1126,24 @@ typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/p
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression2.ts:1:15: Arrow function cannot be used as an unparenthesized operand
 typescript/tests/cases/conformance/parser/ecmascript5/ArrowFunctionExpressions/parserArrowFunctionExpression3.ts:1:16: Arrow function cannot be used as an unparenthesized operand
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration1.ts:1:19: Expected '{', got 'extends'
-typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration10.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration11.ts:4:2: Function implementation name must be 'constructor'.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration13.ts:4:2: Function implementation name must be 'foo'.
-typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration14.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration14.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration15.ts:4:2: Function implementation name must be 'foo'.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration18.ts:4:25: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration2.ts:1:22: Expected '{', got identifier 'implements'
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration21.ts:4:2: Function implementation name must be '0'.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration22.ts:4:2: Function implementation name must be 'foo'.
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration24.ts:1:7: Class name cannot be 'any'
-typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration25.ts:6:5: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration25.ts:6:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration3.ts:1:22: Expected '{', got 'extends'
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration4.ts:1:32: Expected '{', got 'extends'
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration5.ts:1:32: Expected '{', got identifier 'implements'
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration6.ts:1:18: Expected '{', got ','
 typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration7.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
-typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration.
-typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration8.ts:2:3: Function implementation is missing or not immediately following the declaration
+typescript/tests/cases/conformance/parser/ecmascript5/ClassDeclarations/parserClassDeclaration9.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ComputedPropertyNames/parserES5ComputedPropertyName6.ts:2:7: Computed property names are not allowed in enums
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.ts:2:25: Type annotation cannot appear on a constructor declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration11.ts:2:15: Type parameter list cannot be empty
@@ -1157,7 +1157,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnu
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum5.ts:2:12: Expected '}', got ':'
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnum7.ts:2:3: An enum member cannot have a numeric name
 typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration2.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
-typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration4.ts:1:6: Identifier expected. 'void' is a reserved word that cannot be used here.
+typescript/tests/cases/conformance/parser/ecmascript5/EnumDeclarations/parserEnumDeclaration4.ts:1:6: Identifier expected. 'void' is a reserved word that cannot be used here
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic1.ts:3:15: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic10.ts:3:15: 'public' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/AccessibilityAfterStatic/parserAccessibilityAfterStatic6.ts:3:14: 'public' modifier must precede 'static' modifier
@@ -1231,10 +1231,10 @@ typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnterm
 typescript/tests/cases/conformance/parser/ecmascript5/ErrorRecovery/parserUnterminatedGeneric2.ts:2:34: Expected semicolon
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment3.ts:1:9: Expected expression after 'export ='
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment4.ts:1:10: Expected expression after 'export ='
-typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts:2:5: An export assignment cannot be used in a namespace.
+typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment5.ts:2:5: An export assignment cannot be used in a namespace
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment7.ts:1:1: An export assignment cannot be used in a module with other exported elements.
 typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment8.ts:1:1: An export assignment cannot be used in a module with other exported elements.
-typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment9.ts:2:3: Export declarations are not permitted in a namespace.
+typescript/tests/cases/conformance/parser/ecmascript5/ExportAssignments/parserExportAssignment9.ts:2:3: Export declarations are not permitted in a namespace
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parseIncompleteBinaryExpression1.ts:1:9: Expected initializer expression after '='
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserAssignmentExpression1.ts:1:9: Cannot assign to this expression
 typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserMemberAccessAfterPostfixExpression1.ts:1:4: Expected semicolon
@@ -1250,9 +1250,9 @@ typescript/tests/cases/conformance/parser/ecmascript5/Expressions/parserUnaryExp
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration1.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration2.d.ts:1:14: An implementation cannot be declared in ambient contexts
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration2.ts:1:24: An implementation cannot be declared in ambient contexts
-typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration3.ts:1:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration3.ts:1:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration4.ts:2:1: Function implementation name must be 'foo'.
-typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration7.ts:2:4: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/FunctionDeclarations/parserFunctionDeclaration7.ts:2:4: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/Fuzz/parser0_004152.ts:2:45: Expected ']', got ')'
 typescript/tests/cases/conformance/parser/ecmascript5/Generics/parserGreaterThanTokenAmbiguity11.ts:1:3: Cannot assign to this expression
 typescript/tests/cases/conformance/parser/ecmascript5/Generics/parserGreaterThanTokenAmbiguity12.ts:1:6: Expected expression after operator
@@ -1315,7 +1315,7 @@ typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations
 typescript/tests/cases/conformance/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration4.ts:2:10: Expected '(', got identifier 'Foo'
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken1.ts:1:5: Unexpected reserved word 'finally'
 typescript/tests/cases/conformance/parser/ecmascript5/MissingTokens/parserMissingToken2.ts:1:1: Unterminated regular expression
-typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration10.ts:1:1: Function implementation is missing or not immediately following the declaration.
+typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration10.ts:1:1: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration3.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration4.d.ts:2:3: A 'declare' modifier cannot be used in an already ambient context
 typescript/tests/cases/conformance/parser/ecmascript5/ModuleDeclarations/parserModuleDeclaration5.ts:3:5: A 'declare' modifier cannot be used in an already ambient context
@@ -1325,17 +1325,17 @@ typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParam
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList10.ts:2:15: Expected ')', got '='
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList11.ts:1:9: Expected expression after '?' in conditional expression
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList13.ts:2:17: Expected ')', got identifier 'x'
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList14.ts:2:7: A parameter initializer is only allowed in a function or constructor implementation.
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList15.ts:1:14: A parameter initializer is only allowed in a function or constructor implementation.
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts:2:8: A parameter initializer is only allowed in a function or constructor implementation.
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts:2:16: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList14.ts:2:7: A parameter initializer is only allowed in a function or constructor implementation
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList15.ts:1:14: A parameter initializer is only allowed in a function or constructor implementation
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList16.ts:2:8: A parameter initializer is only allowed in a function or constructor implementation
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList17.ts:2:16: A parameter initializer is only allowed in a function or constructor implementation
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList2.ts:2:10: A parameter cannot have a question mark and an initializer
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts:2:9: A required parameter cannot follow an optional parameter.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList3.ts:2:9: A required parameter cannot follow an optional parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList4.ts:1:20: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList5.ts:1:23: Expected ')', got identifier 'B'
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList6.ts:2:26: Expected ')', got identifier 'A'
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor.
-typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList7.ts:2:21: Parameter properties are only allowed in the implementation constructor
+typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList8.ts:2:21: Parameter properties are only allowed in the implementation constructor
 typescript/tests/cases/conformance/parser/ecmascript5/ParameterLists/parserParameterList9.ts:2:14: Expected ')', got '?'
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected1.ts:1:1: 'protected' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/Protected/Protected2.ts:1:1: 'protected' is a reserved identifier in strict mode
@@ -1397,12 +1397,12 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatemen
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel2.ts:4:3: Label 'target' has already been declared
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement1.ts:1:7: 'return' outside of function
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement2.ts:2:10: 'return' outside of function
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBlockStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBlockStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserBreakStatement1.d.ts:1:1: 'break' must be inside a loop or switch
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserContinueStatement1.d.ts:1:1: 'continue' must be inside a loop
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDebuggerStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDoStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDebuggerStatement1.d.ts:1:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserDoStatement1.d.ts:1:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement2.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement21.ts:1:13: 'for (var of of)' is ambiguous
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement3.ts:1:6: Only a single declaration is allowed in a for-of loop
@@ -1410,8 +1410,8 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfS
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement5.ts:1:6: The left-hand side of a 'for...of' statement cannot use a type annotation.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement6.ts:1:6: Only a single declaration is allowed in a for-of loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserES5ForOfStatement7.ts:1:6: Only a single declaration is allowed in a for-of loop
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserExpressionStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserExpressionStatement1.d.ts:1:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement2.ts:1:10: 'in' is a reserved word and cannot be used as a binding name
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement3.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement4.ts:1:6: for-in loop variable declaration may not have an initializer
@@ -1419,20 +1419,20 @@ typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStat
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement6.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement7.ts:1:6: Only a single declaration is allowed in a for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForInStatement8.ts:3:6: The left-hand side of a 'for...in' statement cannot be a destructuring pattern.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement4.ts:1:15: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement5.ts:1:12: The left-hand side of a 'for...in' statement cannot be a destructuring pattern.
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement6.ts:1:15: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement7.ts:1:19: Invalid left-hand side in for-in loop
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserForStatement8.ts:1:14: Invalid left-hand side in for-in loop
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserIfStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserLabeledStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserIfStatement1.d.ts:1:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserLabeledStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserReturnStatement1.d.ts:1:7: 'return' outside of function
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserSwitchStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserThrowStatement1.d.ts:1:1: Statements are not allowed in declaration files.
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserTryStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserSwitchStatement1.d.ts:1:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserThrowStatement1.d.ts:1:1: Statements are not allowed in declaration files
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserTryStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserVariableStatement1.d.ts:1:9: Initializers are not allowed in ambient contexts
-typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWhileStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWhileStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement1.d.ts:1:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/Statements/parserWithStatement2.ts:1:1: 'with' statements are not allowed in strict mode
 typescript/tests/cases/conformance/parser/ecmascript5/StrictMode/octalLiteralInStrictModeES3.ts:2:1: Legacy octal literals are not allowed in strict mode
@@ -1489,7 +1489,7 @@ typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/pars
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName38.ts:2:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName39.ts:3:6: 'public' is a reserved identifier in strict mode
 typescript/tests/cases/conformance/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName5.ts:1:11: 'public' is a reserved identifier in strict mode
-typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement1.d.ts:1:1: Statements are not allowed in declaration files.
+typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement1.d.ts:1:1: Statements are not allowed in declaration files
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement2.ts:1:13: Expected '=', ',', or ';' after variable binding
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement21.ts:1:13: 'for (var of of)' is ambiguous
 typescript/tests/cases/conformance/parser/ecmascript6/Iterators/parserForOfStatement22.ts:2:15: The left-hand side of a for-of loop may not be 'async'
@@ -1599,9 +1599,9 @@ typescript/tests/cases/conformance/types/namedTypes/interfaceWithPrivateMember.t
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignatureWithOptionalParameterAndInitializer.ts:3:28: A parameter cannot have a question mark and an initializer
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithAccessibilityModifiersOnParameters.ts:3:33: 'public' modifier cannot appear on a parameter
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithDuplicateParameters.ts:6:10: Duplicate parameter name 'x' in strict mode
-typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts:4:14: A parameter initializer is only allowed in a function or constructor implementation.
+typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers2.ts:4:14: A parameter initializer is only allowed in a function or constructor implementation
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters.ts:16:17: Expected ')', got identifier 'x'
-typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters2.ts:4:24: Parameter properties are only allowed in the implementation constructor.
+typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/constructSignatureWithAccessibilityModifiersOnParameters2.ts:4:24: Parameter properties are only allowed in the implementation constructor
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParameterWithoutAnnotationIsAnyArray.ts:5:15: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParametersOfNonArrayTypes.ts:5:21: A rest parameter must be last in a parameter list
 typescript/tests/cases/conformance/types/objectTypeLiteral/callSignatures/restParametersOfNonArrayTypes2.ts:9:24: A rest parameter must be last in a parameter list
@@ -1630,6 +1630,6 @@ typescript/tests/cases/conformance/types/typeAliases/typeAliasesDoNotMerge.ts:2:
 typescript/tests/cases/conformance/types/typeAliases/typeAliasesForObjectTypes.ts:11:6: Identifier 'T2' has already been declared
 typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instantiationExpressionErrors.ts:7:21: An instantiation expression cannot be followed by a property access
 typescript/tests/cases/conformance/types/typeParameters/typeArgumentLists/instantiationExpressions.ts:6:17: Expected expression after operator
-typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/typeParameterConstModifiers.ts:55:9: 'const' modifier can only appear on a type parameter of a function, method or class.
+typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/typeParameterConstModifiers.ts:55:9: 'const' modifier can only appear on a type parameter of a function, method or class
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotations.ts:95:17: Expected '>', got identifier 'T'
 typescript/tests/cases/conformance/types/typeParameters/typeParameterLists/varianceAnnotationsWithCircularlyReferencesError.ts:1:12: Identifier expected. 'in' is a reserved word that cannot be used here.

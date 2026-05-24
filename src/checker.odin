@@ -588,11 +588,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if lbl, have := v.label.(LabelIdentifier); have {
 			if entry, ok := label_in_scope(ctx, lbl.name); !ok {
 				_ = entry
-				ck_report(c, u32(v.loc.start), "Undefined label")
+				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
 			}
 		} else {
 			if ctx.iter_depth == 0 && ctx.switch_depth == 0 {
-				ck_report(c, u32(v.loc.start), "Illegal break statement: not in a loop or switch")
+				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal break statement: not in a loop or switch")
 			}
 		}
 
@@ -601,13 +601,13 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if lbl, have := v.label.(LabelIdentifier); have {
 			entry, ok := label_in_scope(ctx, lbl.name)
 			if !ok {
-				ck_report(c, u32(v.loc.start), "Undefined label")
+				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
 			} else if !entry.is_iteration {
-				ck_report(c, u32(v.loc.start), "Illegal continue statement: label does not target an iteration statement")
+				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal continue statement: label does not target an iteration statement")
 			}
 		} else {
 			if ctx.iter_depth == 0 {
-				ck_report(c, u32(v.loc.start), "Illegal continue statement: not in a loop")
+				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal continue statement: not in a loop")
 			}
 		}
 
@@ -895,7 +895,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// through `ck_walk_export_decl` and is not checked here.
 		// OXC: "A class name is required.".
 		if _, has_id := v.id.(BindingIdentifier); !has_id {
-			ck_report(c, u32(v.loc.start), "A class name is required.")
+			ck_report_coded(c, u32(v.loc.start), .K3030_ClassDeclarationStructure, "A class name is required")
 		}
 		ck_walk_class(c, ctx, &v.expr)
 
@@ -2137,7 +2137,7 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 		for s_idx, slot_pos in slot {
 			if slot_pos == 0 { continue }
 			if n_impl >= 2 && !impls_suppressed_by_generics && entries[s_idx].kind == .MethodImpl { continue }
-			ck_report(c, entries[s_idx].at, msg)
+			ck_report_coded(c, entries[s_idx].at, .K3037_DuplicateIdentifier, msg)
 		}
 	}
 }
@@ -3882,7 +3882,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// the YieldExpression case.
 		if ctx.in_params {
 			if ctx.params_is_arrow {
-				ck_report(c, u32(e.loc.start), "Await expression is not allowed in arrow function parameters")
+				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted, "Await expression is not allowed in arrow function parameters")
 			} else {
 				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted,
 					"'await' expression is not allowed in formal parameters of an async function")
@@ -3897,7 +3897,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// match the parser's existing arrow-vs-regular split.
 		if ctx.in_params {
 			if ctx.params_is_arrow {
-				ck_report(c, u32(e.loc.start), "Yield expression is not allowed in arrow function parameters")
+				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted, "Yield expression is not allowed in arrow function parameters")
 			} else {
 				ck_report_coded(c, u32(e.loc.start), .K3011_AwaitYieldExpressionContextRestricted,
 					"'yield' expression is not allowed in formal parameters of a generator")
@@ -3976,7 +3976,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// [[HomeObject]]-bearing context (class method / constructor /
 		// field init / static block, or object-literal method).
 		if e != nil && !ctx.in_method && !ctx.in_class_computed_key {
-			ck_report(c, u32(e.loc.start), "'super' is only allowed in class methods or object-literal methods")
+			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'super' is only allowed in class methods or object-literal methods")
 		}
 	// TS2331 — 'this' cannot be referenced in a module or namespace body.
 	// `this` at the top level of a namespace (not inside a function/method/
@@ -4200,7 +4200,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		for pr in fn.params {
 			if _, has := pr.default_val.(^Expression); has {
 				msg := fmt.tprintf("A parameter initializer is only allowed in a function or constructor implementation.")
-				ck_report(c, u32(pr.loc.start), msg)
+				ck_report_coded(c, u32(pr.loc.start), .K4022_ParameterPropertyOnlyInCtor, msg)
 			}
 		}
 	}
@@ -4234,7 +4234,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 						if ck_expr_has_identifier_ref(def, fwd_n, context.temp_allocator) {
 							msg := fmt.tprintf("Parameter '%s' cannot reference identifier '%s' declared after it.",
 								ck_pattern_display_name(pr.pattern), fwd_n)
-							ck_report(c, u32(pr.loc.start), msg)
+							ck_report_coded(c, u32(pr.loc.start), .K3038_ParameterInitReference, msg)
 							break  // one diagnostic per param is enough
 						}
 					}
@@ -4750,7 +4750,7 @@ ck_check_object_proto_dups :: proc(c: ^Checker, obj: ^ObjectExpression) {
 		if !property_is_literal_proto_init(prop) { continue }
 		if proto_seen {
 			err_off := loc_from_expr(prop.key).start
-			ck_report(c, u32(err_off), "Redefinition of __proto__ property")
+			ck_report_coded(c, u32(err_off), .K3036_ObjectLiteralDuplicate, "Redefinition of __proto__ property")
 		} else {
 			proto_seen = true
 		}
@@ -4960,7 +4960,7 @@ ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^Cla
 			constructor_seen = true
 		} else {
 			if constructor_seen {
-				ck_report(c, loc, "Duplicate constructor in class")
+				ck_report_coded(c, loc, .K4080_DuplicateImplementation, "Duplicate constructor in class")
 			} else {
 				constructor_seen = true
 			}
@@ -4985,7 +4985,7 @@ ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
 	if !is_member || me == nil { return }
 	if me.property == nil { return }
 	if _, is_private := me.property^.(^PrivateIdentifier); is_private {
-		ck_report(c, u32(e.loc.start), "Private fields cannot be deleted")
+		ck_report_coded(c, u32(e.loc.start), .K3032_PrivateNameInvalid, "Private fields cannot be deleted")
 	}
 }
 
@@ -5032,7 +5032,7 @@ ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^St
 	if str == nil { return }
 	if !ctx.strict_mode { return }
 	if !string_raw_has_forbidden_escape(str.raw) { return }
-	ck_report(c, u32(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+	ck_report_coded(c, u32(str.loc.start), .K3051_StrictModeProhibited, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 }
 
 // §12.9.3 — a LegacyOctalIntegerLiteral cannot form a BigInt;
@@ -5043,7 +5043,7 @@ ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^St
 ck_check_legacy_octal_bigint :: proc(c: ^Checker, big: ^BigIntLiteral) {
 	if big == nil { return }
 	if !is_legacy_zero_prefixed_integer(big.raw) { return }
-	ck_report(c, u32(big.loc.start), "Legacy octal literals cannot be BigInt")
+	ck_report_coded(c, u32(big.loc.start), .K1010_InvalidNumericLiteral, "Legacy octal literals cannot be BigInt")
 }
 
 // §12.9.6 — inside an UNTAGGED template literal, no quasi may contain a
@@ -5059,7 +5059,7 @@ ck_check_template_octal :: proc(c: ^Checker, ctx: ^CheckerContext, tmpl: ^Templa
 	if !ctx.strict_mode { return }
 	for q in tmpl.quasis {
 		if string_raw_has_forbidden_escape(q.raw) {
-			ck_report(c, u32(tmpl.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			ck_report_coded(c, u32(tmpl.loc.start), .K3051_StrictModeProhibited, "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 			return
 		}
 	}
@@ -5093,7 +5093,7 @@ ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 	}
 	for n in names {
 		if n == "let" {
-			ck_report(c, u32(decl.loc.start), "'let' is disallowed as a lexically bound name")
+			ck_report_coded(c, u32(decl.loc.start), .K3050_StrictModeReserved, "'let' is disallowed as a lexically bound name")
 			return // one diagnostic per declaration matches parser behaviour
 		}
 	}
@@ -5403,7 +5403,7 @@ ck_check_super_call :: proc(c: ^Checker, ctx: ^CheckerContext, call: ^CallExpres
 	if call == nil || call.callee == nil { return }
 	if _, is_super := call.callee^.(^Super); !is_super { return }
 	if ctx.in_derived_constructor { return }
-	ck_report(c, u32(call.loc.start), "'super' call is only allowed in the constructor of a derived class")
+	ck_report_coded(c, u32(call.loc.start), .K3033_SuperInvalidContext, "'super' call is only allowed in the constructor of a derived class")
 }
 
 // §13.3.12 / §15.2 — `new.target` is only valid inside a non-arrow
@@ -5426,7 +5426,7 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 	// so top-level `new.target` is legal there. Mirror the parser-side
 	// `p.is_commonjs` carve-out (parser.odin parse_meta_property).
 	if ctx.is_commonjs { return }
-	ck_report(c, u32(mp.loc.start), "'new.target' is only allowed inside functions")
+	ck_report_coded(c, u32(mp.loc.start), .K3067_NewTargetOrTopLevelUsing, "'new.target' is only allowed inside functions")
 }
 
 // §15.7.5 / §15.7.10 — `arguments` as IdentifierReference is forbidden
@@ -5449,11 +5449,11 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
 	if id == nil || id.name != "arguments" { return }
 	if ctx.in_class_static_block {
-		ck_report(c, u32(id.loc.start), "'arguments' is not allowed in a class static block")
+		ck_report_coded(c, u32(id.loc.start), .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
 		return
 	}
 	if ctx.in_field_init {
-		ck_report(c, u32(id.loc.start), "'arguments' cannot appear in a class field initializer")
+		ck_report_coded(c, u32(id.loc.start), .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
 	}
 }
 
@@ -5503,7 +5503,7 @@ ck_check_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^Functi
 	if fn == nil || fn.no_body { return }
 	if !fn_body_lifts_strict(fn.body) { return }
 	if params_are_simple(fn.params[:]) { return }
-	ck_report(c, u32(fn.loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	ck_report_coded(c, u32(fn.loc.start), .K3052_UseStrictWithComplexParams, "Illegal 'use strict' directive in function with non-simple parameter list")
 }
 
 // ck_check_arrow_strict_directive_with_nonsimple_params handles arrow
@@ -5525,7 +5525,7 @@ ck_check_arrow_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^
 	if !sok || str == nil { return }
 	if str.value != "use strict" { return }
 	if params_are_simple(fn.params[:]) { return }
-	ck_report(c, u32(fn.loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	ck_report_coded(c, u32(fn.loc.start), .K3052_UseStrictWithComplexParams, "Illegal 'use strict' directive in function with non-simple parameter list")
 }
 
 // ============================================================================
@@ -5573,13 +5573,13 @@ ck_check_import_export_position :: proc(
 	if ctx.source_type == .Script {
 		msg := "'export' is only valid in module code"
 		if is_import { msg = "'import' is only valid in module code" }
-		ck_report(c, u32(loc.start), msg)
+		ck_report_coded(c, u32(loc.start), .K3022_ModuleSyntaxInScript, msg)
 		return
 	}
 	if !was_top_level {
 		msg := "'export' declarations are only allowed at the top level of a module"
 		if is_import { msg = "'import' declarations are only allowed at the top level of a module" }
-		ck_report(c, u32(loc.start), msg)
+		ck_report_coded(c, u32(loc.start), .K3022_ModuleSyntaxInScript, msg)
 	}
 }
 
@@ -6059,7 +6059,7 @@ ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
 			if !ok { continue }
 			if !(local_name.name in names) {
 				msg := fmt.tprintf("Export '%s' is not defined in the module", local_name.name)
-				ck_report(c, u32(local_name.loc.start), msg)
+				ck_report_coded(c, u32(local_name.loc.start), .K3020_ImportExportNameOrBinding, msg)
 			}
 		}
 	}
@@ -6090,7 +6090,7 @@ ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 			// Multiple `export =` (no regular exports): report duplicates.
 			if assign_seen && !has_reg {
 				msg := "An export assignment cannot be used in a module with other exported elements."
-				ck_report(c, u32(v.loc.start), msg)
+				ck_report_coded(c, u32(v.loc.start), .K3021_ExportDefaultRestrictions, msg)
 			}
 			assign_seen = true
 			has_assign = true
@@ -6102,13 +6102,13 @@ ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
-			ck_report(c, u32(v.loc.start), msg)
+			ck_report_coded(c, u32(v.loc.start), .K3021_ExportDefaultRestrictions, msg)
 		case ^ExportDefaultDeclaration:
-			ck_report(c, u32(v.loc.start), msg)
+			ck_report_coded(c, u32(v.loc.start), .K3021_ExportDefaultRestrictions, msg)
 		case ^ExportAllDeclaration:
-			ck_report(c, u32(v.loc.start), msg)
+			ck_report_coded(c, u32(v.loc.start), .K3021_ExportDefaultRestrictions, msg)
 		case ^TSExportAssignment:
-			ck_report(c, u32(v.loc.start), msg)
+			ck_report_coded(c, u32(v.loc.start), .K3021_ExportDefaultRestrictions, msg)
 		}
 	}
 }
@@ -6352,7 +6352,7 @@ ck_check_for_head_body_shadow :: proc(c: ^Checker, decl: ^VariableDeclaration,
 			case:
 				msg = fmt.tprintf("'%s' is already declared in for-loop head", n)
 			}
-			ck_report(c, off, msg)
+			ck_report_coded(c, off, .K3037_DuplicateIdentifier, msg)
 		}
 	}
 }
@@ -6378,7 +6378,7 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 	for n in param_names {
 		if off, ok := scope_map_get(&body_lex, n); ok {
 			msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n)
-			ck_report(c, off, msg)
+			ck_report_coded(c, off, .K3037_DuplicateIdentifier, msg)
 		}
 		// Annex B §B.3.4 allows var redeclaration of a simple catch
 		// parameter in sloppy mode. For destructuring patterns, var
@@ -6395,7 +6395,7 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 		if (!is_ts && ctx.strict_mode) || !is_simple_id {
 			if off, ok := scope_map_get(&body_vars, n); ok {
 				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with 'var' in catch block", n)
-				ck_report(c, off, msg)
+				ck_report_coded(c, off, .K3037_DuplicateIdentifier, msg)
 			}
 		}
 	}
@@ -6425,7 +6425,7 @@ ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, bo
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
 			msg := fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n)
-			ck_report(c, off, msg)
+			ck_report_coded(c, off, .K3037_DuplicateIdentifier, msg)
 		}
 	}
 }
@@ -6570,7 +6570,7 @@ ck_check_unary_delete_local :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^Unary
 	ident, is_id := inner^.(^Identifier)
 	if !is_id || ident == nil { return }
 	msg := fmt.tprintf("Deleting local variable '%s' is not allowed in strict mode", ident.name)
-	ck_report(c, u32(e.loc.start), msg)
+	ck_report_coded(c, u32(e.loc.start), .K3051_StrictModeProhibited, msg)
 }
 
 // ck_check_catch_param_dups — §15.4.5 — names introduced by a catch
@@ -6727,7 +6727,7 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is
 		}
 
 		msg := fmt.tprintf("Duplicate private name '#%s' in class body", name)
-		ck_report(c, rec.last_dup_loc, msg)
+		ck_report_coded(c, rec.last_dup_loc, .K3032_PrivateNameInvalid, msg)
 	}
 }
 
@@ -6812,7 +6812,7 @@ ck_check_duplicate_param_names :: proc(c: ^Checker, fn_loc: u32,
 				} else {
 					msg = fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i])
 				}
-				ck_report(c, fn_loc, msg)
+				ck_report_coded(c, fn_loc, .K3037_DuplicateIdentifier, msg)
 				return // one diagnostic per call site, matching parser
 			}
 		}
@@ -6862,7 +6862,7 @@ ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBi
 			case .Generic:
 				msg = fmt.tprintf("'%s' cannot be used as a binding name in strict mode", v.name)
 			}
-			ck_report(c, u32(v.loc.start), msg)
+			ck_report_coded(c, u32(v.loc.start), .K3050_StrictModeReserved, msg)
 		} else if is_strict_reserved_simple_name(v.name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
 			ck_report_coded(c, u32(v.loc.start), .K3050_StrictModeReserved, msg)
@@ -6907,7 +6907,7 @@ ck_check_strict_eval_arguments_in_target :: proc(c: ^Checker, expr: ^Expression)
 		if e == nil { return }
 		if is_eval_or_arguments(e.name) {
 			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
-			ck_report(c, u32(e.loc.start), msg)
+			ck_report_coded(c, u32(e.loc.start), .K3050_StrictModeReserved, msg)
 		}
 	case ^ParenthesizedExpression:
 		if e != nil { ck_check_strict_eval_arguments_in_target(c, e.expression) }
@@ -6979,7 +6979,7 @@ ck_check_binding_identifier_strict :: proc(c: ^Checker, ctx: ^CheckerContext,
 		case .Generic:
 			msg = fmt.tprintf("'%s' cannot be used as a binding name in strict mode", name)
 		}
-		ck_report(c, off, msg)
+		ck_report_coded(c, off, .K3050_StrictModeReserved, msg)
 		return
 	}
 	if is_strict_reserved_simple_name(name) {
@@ -7072,7 +7072,7 @@ ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id
 ck_check_import_specifier_local :: proc(c: ^Checker, name: string, off: u32) {
 	if is_eval_or_arguments(name) {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", name)
-		ck_report(c, off, msg)
+		ck_report_coded(c, off, .K3020_ImportExportNameOrBinding, msg)
 	}
 }
 

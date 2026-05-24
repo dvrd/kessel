@@ -1446,7 +1446,7 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 				}
 				if !already_reported && !is_closer_orphan && !is_binary_invalid {
 					msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
-					report_error(p, msg)
+					report_error_coded(p, .K2040_UnexpectedToken, msg)
 				}
 			}
 			stuck_count += 1
@@ -1489,8 +1489,7 @@ report_dts_non_declaration :: proc(p: ^Parser, stmt: ^Statement) {
 	     ^IfStatement, ^SwitchStatement, ^ThrowStatement,
 	     ^TryStatement, ^WhileStatement, ^DoWhileStatement,
 	     ^ForStatement, ^ForInStatement, ^ForOfStatement:
-		report_error_at(p, LexerLoc(stmt_loc),
-			"Statements are not allowed in declaration files.")
+		report_error_coded_span(p, .K4050_AmbientContextRestriction, u32(stmt_loc), u32(stmt_loc), "Statements are not allowed in declaration files")
 	}
 }
 
@@ -1690,8 +1689,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// TS) the comments need a retroactive rejection. Anchor at the offset
 	// of the FIRST skipped HTML comment to match OXC's diagnostic location.
 	if program.type == .Module && p.lexer != nil && p.lexer.html_comment_skipped {
-		report_error_at(p, LexerLoc(p.lexer.html_comment_offset),
-			"HTML comments are not allowed in modules")
+		report_error_coded_span(p, .K2040_UnexpectedToken, u32(p.lexer.html_comment_offset), u32(p.lexer.html_comment_offset), "HTML comments are not allowed in modules")
 	}
 
 	// §16.2.2 ExportedBindings resolution: `export { foo };` (no `from`)
@@ -1797,8 +1795,7 @@ check_retroactive_strict_escapes :: proc(p: ^Parser, body: []^Statement) {
 		sl, is_str := expr^.(^StringLiteral)
 		if !is_str { continue }
 		if string_raw_has_forbidden_escape(sl.raw) {
-			report_error_at(p, LexerLoc(sl.loc.start),
-				"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(sl.loc.start), u32(sl.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 	}
 }
@@ -1838,8 +1835,7 @@ check_arrow_body_strict_prologue :: proc(p: ^Parser, body: []^Statement) {
 		if !is_str { break }
 		if i == use_strict_idx { continue } // skip the directive itself
 		if string_raw_has_forbidden_escape(sl.raw) {
-			report_error_at(p, LexerLoc(sl.loc.start),
-				"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(sl.loc.start), u32(sl.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 		}
 	}
 }
@@ -2201,7 +2197,7 @@ check_import_export_position :: proc(p: ^Parser, is_import: bool) {
 		if p.lang != .TS && p.lang != .TSX && !p.is_node_ts_module && !p.is_commonjs {
 			msg := "'export' is only valid in module code"
 			if is_import { msg = "'import' is only valid in module code" }
-			report_error(p, msg)
+			report_error_coded(p, .K3022_ModuleSyntaxInScript, msg)
 			return
 		}
 	}
@@ -2209,7 +2205,7 @@ check_import_export_position :: proc(p: ^Parser, is_import: bool) {
 	if p.in_module_top_level && (p.ctx.in_function || p.block_depth > 0) {
 		msg := "'export' declaration is only allowed at the top level of a module"
 		if is_import { msg = "'import' declaration is only allowed at the top level of a module" }
-		report_error(p, msg)
+		report_error_coded(p, .K3022_ModuleSyntaxInScript, msg)
 	}
 
 }
@@ -2295,13 +2291,13 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 	// regardless of what follows.
 	if is_keyword_not_expression_start(p.cur_type) {
 		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
-		report_error(p, msg)
+		report_error_coded(p, .K2040_UnexpectedToken, msg)
 	} else if is_keyword_with_operand(p.cur_type) && is_next_token(p, .Assign) {
 		// `delete = 1`, `new = 1`, `typeof = 1`, `void = 1` - the
 		// keyword is being used as an assignment target, not as the
 		// prefix operator it normally is.
 		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
-		report_error(p, msg)
+		report_error_coded(p, .K2040_UnexpectedToken, msg)
 	}
 
 	expr := parse_expression(p)
@@ -2370,7 +2366,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 					else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
 				}
 				if await_reserved {
-					report_error_at(p, LexerLoc(e.loc.start), "'await' cannot be used as a label identifier in module / async context")
+					report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(e.loc.start), u32(e.loc.start), "'await' cannot be used as a label identifier in module / async context")
 				}
 			}
 
@@ -2384,7 +2380,7 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 			// a SyntaxError. Scan from label_floor (function boundary).
 			for i := p.ctx.label_floor; i < len(p.label_stack); i += 1 {
 				if p.label_stack[i] == e.name {
-					report_error(p, fmt.tprintf("Label '%s' has already been declared", e.name))
+					report_error_coded(p, .K2060_DuplicateLabel, fmt.tprintf("Label '%s' has already been declared", e.name))
 					break
 				}
 			}
@@ -2502,8 +2498,8 @@ report_statement_only_position :: proc(p: ^Parser, stmt: ^Statement, allow_plain
 	case ^VariableDeclaration:
 		if v == nil { return }
 		if v.kind == .Let || v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
-			msg := "Lexical declaration cannot appear in a single-statement context"
-			report_error(p, msg)
+			report_error_coded(p, .K3060_SingleStatementContext,
+				"Lexical declaration cannot appear in a single-statement context")
 		}
 	case ^ClassDeclaration:
 		report_error_coded(p, .K3030_ClassDeclarationStructure, "Class declaration cannot appear in a single-statement context")
@@ -3448,7 +3444,7 @@ parse_break_statement :: proc(p: ^Parser) -> ^Statement {
 			report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(label_loc), u32(label_loc), msg)
 		}
 	} else if !p.ctx.in_loop && !p.ctx.in_switch && !p.ctx.in_ambient {
-		report_error_at(p, LexerLoc(start.start), "'break' must be inside a loop or switch")
+		report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(start.start), u32(start.start), "'break' must be inside a loop or switch")
 	}
 
 	// §14.9 - BreakStatement requires a `;` (or ASI).
@@ -3505,7 +3501,7 @@ parse_continue_statement :: proc(p: ^Parser) -> ^Statement {
 			report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(label_loc), u32(label_loc), msg)
 		}
 	} else if !p.ctx.in_loop && !p.ctx.in_ambient {
-		report_error_at(p, LexerLoc(start.start), "'continue' must be inside a loop")
+		report_error_coded_span(p, .K3055_LabelOrLoopControl, u32(start.start), u32(start.start), "'continue' must be inside a loop")
 	}
 
 	// §14.8 - ContinueStatement requires a `;` (or ASI).
@@ -4242,20 +4238,16 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if is_ts_no_body && allow_ts_mode(p) {
 		for pr in params {
 			if _, has := pr.default_val.(^Expression); has {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"A parameter initializer is only allowed in a function or constructor implementation.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "A parameter initializer is only allowed in a function or constructor implementation")
 			}
 			if pr.accessibility != .None {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"Parameter properties are only allowed in the implementation constructor.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "Parameter properties are only allowed in the implementation constructor")
 			}
 			if pr.readonly {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"'readonly' parameter properties are only allowed in the implementation constructor.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'readonly' parameter properties are only allowed in the implementation constructor")
 			}
 			if pr.override_ {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"'override' parameter properties are only allowed in the implementation constructor.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'override' parameter properties are only allowed in the implementation constructor")
 			}
 		}
 	}
@@ -4266,8 +4258,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if !is_ts_no_body && allow_ts_mode(p) {
 		for pr in params {
 			if pr.optional_destructuring {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"A binding pattern parameter cannot be optional in an implementation signature.")
+				report_error_coded_span(p, .K4063_OptionalAndInit, u32(pr.loc.start), u32(pr.loc.start), "A binding pattern parameter cannot be optional in an implementation signature")
 			}
 		}
 	}
@@ -4401,8 +4392,7 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 			if is_opt {
 				seen_optional = true
 			} else if seen_optional && param.default_val == nil {
-				report_error_at(p, LexerLoc(param.loc.start),
-					"A required parameter cannot follow an optional parameter.")
+				report_error_coded_span(p, .K4063_OptionalAndInit, u32(param.loc.start), u32(param.loc.start), "A required parameter cannot follow an optional parameter")
 			}
 		}
 	}
@@ -4742,7 +4732,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			is_closer := p.cur_type == .RParen || p.cur_type == .RBracket
 			if !already && !is_closer {
 				msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
-				report_error(p, msg)
+				report_error_coded(p, .K2040_UnexpectedToken, msg)
 			}
 			eat(p)
 		}
@@ -5259,7 +5249,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 		if chain_active {
 			if has_body {
 				if name != chain_name {
-					report_error(p, fmt.tprintf("Function implementation name must be '%s'.", chain_name))
+					report_error_coded(p, .K2070_RequiredFormOrBinding, fmt.tprintf("Function implementation name must be '%s'.", chain_name))
 				}
 				chain_active = false
 			} else {
@@ -5291,8 +5281,7 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 		val, have := elem.value.?; if !have || val == nil { continue }
 		fn, is_fn := val^.(^FunctionExpression); if !is_fn || fn == nil { continue }
 		if fn.body.loc.end > fn.body.loc.start { continue }
-		report_error_at(p, LexerLoc(elem.loc.start),
-			"Function implementation is missing or not immediately following the declaration.")
+		report_error_coded_span(p, .K4080_DuplicateImplementation, u32(elem.loc.start), u32(elem.loc.start), "Function implementation is missing or not immediately following the declaration")
 	}
 }
 
@@ -5371,14 +5360,14 @@ report_ts2309_export_assignment :: proc(p: ^Parser, body: []^Statement) {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
-			report_error_at(p, LexerLoc(v.loc.start), msg)
+			report_error_coded_span(p, .K3021_ExportDefaultRestrictions, u32(v.loc.start), u32(v.loc.start), msg)
 		case ^ExportDefaultDeclaration:
-			report_error_at(p, LexerLoc(v.loc.start), msg)
+			report_error_coded_span(p, .K3021_ExportDefaultRestrictions, u32(v.loc.start), u32(v.loc.start), msg)
 		case ^ExportAllDeclaration:
-			report_error_at(p, LexerLoc(v.loc.start), msg)
+			report_error_coded_span(p, .K3021_ExportDefaultRestrictions, u32(v.loc.start), u32(v.loc.start), msg)
 		case ^TSExportAssignment:
 			if has_regular || assign_count > 1 {
-				report_error_at(p, LexerLoc(v.loc.start), msg)
+				report_error_coded_span(p, .K3021_ExportDefaultRestrictions, u32(v.loc.start), u32(v.loc.start), msg)
 			}
 		}
 	}
@@ -5397,12 +5386,10 @@ report_ts_ambient_function_errors :: proc(p: ^Parser, body: []^Statement) {
 		case ^FunctionDeclaration:
 			if v != nil {
 				if v.generator {
-					report_error_at(p, LexerLoc(v.loc.start),
-						"Generators are not allowed in an ambient context.")
+					report_error_coded_span(p, .K4050_AmbientContextRestriction, u32(v.loc.start), u32(v.loc.start), "Generators are not allowed in an ambient context")
 				}
 				if v.async {
-					report_error_at(p, LexerLoc(v.loc.start),
-						"'async' modifier cannot be used in an ambient context.")
+					report_error_coded_span(p, .K4032_ModifierMisplaced, u32(v.loc.start), u32(v.loc.start), "'async' modifier cannot be used in an ambient context")
 				}
 			}
 		case ^ExportNamedDeclaration:
@@ -5411,12 +5398,10 @@ report_ts_ambient_function_errors :: proc(p: ^Parser, body: []^Statement) {
 				if decl_stmt, has := v.declaration.?; has && decl_stmt != nil {
 					if fn, ok := decl_stmt^.(^FunctionDeclaration); ok && fn != nil {
 						if fn.generator {
-							report_error_at(p, LexerLoc(fn.loc.start),
-								"Generators are not allowed in an ambient context.")
+							report_error_coded_span(p, .K4050_AmbientContextRestriction, u32(fn.loc.start), u32(fn.loc.start), "Generators are not allowed in an ambient context")
 						}
 						if fn.async {
-							report_error_at(p, LexerLoc(fn.loc.start),
-								"'async' modifier cannot be used in an ambient context.")
+							report_error_coded_span(p, .K4032_ModifierMisplaced, u32(fn.loc.start), u32(fn.loc.start), "'async' modifier cannot be used in an ambient context")
 						}
 					}
 				}
@@ -5444,8 +5429,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 		if !is_fn || fn == nil {
 			// Non-function statement breaks the chain.
 			if chain_active {
-				report_error_at(p, LexerLoc(chain_start_loc),
-					"Function implementation is missing or not immediately following the declaration.")
+				report_error_coded_span(p, .K4080_DuplicateImplementation, u32(chain_start_loc), u32(chain_start_loc), "Function implementation is missing or not immediately following the declaration")
 				chain_active = false
 			}
 			continue
@@ -5457,8 +5441,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 		if id, has_id := fn.expr.id.?; has_id { name = id.name }
 		if name == "" {
 			if chain_active {
-				report_error_at(p, LexerLoc(chain_start_loc),
-					"Function implementation is missing or not immediately following the declaration.")
+				report_error_coded_span(p, .K4080_DuplicateImplementation, u32(chain_start_loc), u32(chain_start_loc), "Function implementation is missing or not immediately following the declaration")
 				chain_active = false
 			}
 			continue
@@ -5477,8 +5460,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 				// Another signature.
 				if name != chain_name {
 					// Different name → flush old chain, start new.
-					report_error_at(p, LexerLoc(chain_start_loc),
-						"Function implementation is missing or not immediately following the declaration.")
+					report_error_coded_span(p, .K4080_DuplicateImplementation, u32(chain_start_loc), u32(chain_start_loc), "Function implementation is missing or not immediately following the declaration")
 					chain_name = name
 					chain_start_loc = fn.expr.loc.start
 				}
@@ -5495,8 +5477,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 	}
 	// End of body — flush any pending chain.
 	if chain_active {
-		report_error_at(p, LexerLoc(chain_start_loc),
-			"Function implementation is missing or not immediately following the declaration.")
+		report_error_coded_span(p, .K4080_DuplicateImplementation, u32(chain_start_loc), u32(chain_start_loc), "Function implementation is missing or not immediately following the declaration")
 	}
 
 	// TS2384 — overload signatures must all be ambient or non-ambient.
@@ -5526,8 +5507,7 @@ report_ts_function_overload_errors :: proc(p: ^Parser, body: []^Statement) {
 			if name2 == "" { continue }
 			entry := amb_seen[name2] or_else AmbState{}
 			if entry.has_ambient && entry.has_nonamb {
-				report_error_at(p, LexerLoc(fn2.expr.loc.start),
-					"Overload signatures must all be ambient or non-ambient.")
+				report_error_coded_span(p, .K4050_AmbientContextRestriction, u32(fn2.expr.loc.start), u32(fn2.expr.loc.start), "Overload signatures must all be ambient or non-ambient")
 				delete_key(&amb_seen, name2)
 			}
 		}
@@ -5934,13 +5914,13 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 		// overload signatures were skipped above and don't enter `seen`.
 		if dup {
 			msg := fmt.tprintf("Duplicate private name '#%s'", name)
-			report_error_at(p, LexerLoc(elem.loc.start), msg)
+			report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(elem.loc.start), u32(elem.loc.start), msg)
 		}
 		// §15.7.1 — static and instance elements cannot share the same
 		// private name.
 		if static_mismatch {
 			msg := fmt.tprintf("Duplicate private name '#%s'. Static and instance elements cannot share the same private name.", name)
-			report_error_at(p, LexerLoc(elem.loc.start), msg)
+			report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(elem.loc.start), u32(elem.loc.start), msg)
 		}
 	}
 }
@@ -6096,7 +6076,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		   third_type != .EOF {
 			eat(p)       // consume first `static` (field name)
 			eat(p)       // consume second `static` (would-be modifier)
-			report_error(p, fmt.tprintf("Expected `;` but found `%s`", cur_value(p)))
+			report_error_coded(p, .K2010_ExpectedSemicolon, fmt.tprintf("Expected `;` but found `%s`", cur_value(p)))
 		}
 	}
 
@@ -6852,16 +6832,13 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	if fn_expr.no_body && allow_ts_mode(p) {
 		for pr in params {
 			if _, has := pr.default_val.(^Expression); has {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"A parameter initializer is only allowed in a function or constructor implementation.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "A parameter initializer is only allowed in a function or constructor implementation")
 			}
 			if pr.accessibility != .None {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"Parameter properties are only allowed in the implementation constructor.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "Parameter properties are only allowed in the implementation constructor")
 			}
 			if pr.readonly {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"'readonly' parameter properties are only allowed in the implementation constructor.")
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'readonly' parameter properties are only allowed in the implementation constructor")
 			}
 		}
 	}
@@ -7152,7 +7129,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			}
 		}
 		if let_seen {
-			report_error_at(p, LexerLoc(decl.loc.start), "'let' is disallowed as a lexically bound name")
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(decl.loc.start), u32(decl.loc.start), "'let' is disallowed as a lexically bound name")
 		} else if dup_name != "" {
 			msg := fmt.tprintf("Identifier '%s' has already been declared", dup_name)
 			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(decl.loc.start), u32(decl.loc.start), msg)
@@ -7167,7 +7144,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			kn := "using"
 			if kind == .AwaitUsing { kn = "await using" }
 			msg := fmt.tprintf("'%s' declarations are not allowed in ambient contexts.", kn)
-			report_error(p, msg)
+			report_error_coded(p, .K4050_AmbientContextRestriction, msg)
 		}
 	}
 
@@ -7181,7 +7158,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 				kn := "using"
 				if kind == .AwaitUsing { kn = "await using" }
 				msg := fmt.tprintf("'%s' declaration requires a binding identifier", kn)
-				report_error(p, msg)
+				report_error_coded(p, .K2070_RequiredFormOrBinding, msg)
 			}
 		}
 		// §Explicit Resource Management placement: `using` / `await using`
@@ -7193,7 +7170,7 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			kn := "using"
 			if kind == .AwaitUsing { kn = "await using" }
 			msg := fmt.tprintf("'%s' declaration is not allowed directly inside a switch case clause", kn)
-			report_error(p, msg)
+			report_error_coded(p, .K3060_SingleStatementContext, msg)
 		}
 	}
 
@@ -7327,7 +7304,7 @@ report_strict_eval_arguments_in_target :: proc(p: ^Parser, expr: ^Expression) {
 		if e == nil { return }
 		if is_eval_or_arguments(e.name) {
 			msg := fmt.tprintf("Assignment to '%s' is not allowed in strict mode", e.name)
-			report_error_at(p, LexerLoc(e.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
 		}
 	case ^ParenthesizedExpression:
 		if e != nil { report_strict_eval_arguments_in_target(p, e.expression) }
@@ -7405,7 +7382,7 @@ walk_strict_param_binding :: proc(p: ^Parser, pat: Pattern) {
 		if v == nil { return }
 		if is_eval_or_arguments(v.name) {
 			msg := fmt.tprintf("Parameter name '%s' is not allowed in strict mode", v.name)
-			report_error_at(p, LexerLoc(v.loc.start), msg)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
 		} else if is_strict_reserved_binding_name(v.name) {
 			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
 			report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
@@ -7470,7 +7447,7 @@ check_ts_primitive_decl_name :: proc(p: ^Parser, kind: string, name: string, loc
 	if !allow_ts_mode(p) { return }
 	if is_ts_primitive_type_name(name) {
 		msg := fmt.tprintf("%s name cannot be '%s'", kind, name)
-		report_error_at(p, LexerLoc(loc.start), msg)
+		report_error_coded_span(p, .K3030_ClassDeclarationStructure, u32(loc.start), u32(loc.start), msg)
 	}
 }
 
@@ -8117,7 +8094,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	// tokens trip this branch.
 	if is_reserved_word_for_binding(p.cur_type) {
 		msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding name", cur_value(p))
-		report_error(p, msg)
+		report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
 		// Consume the keyword and return a placeholder identifier so the
 		// rest of the declarator (init expression) still parses, keeping
 		// error recovery tight. The identifier's name carries the raw
@@ -8233,7 +8210,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		id_has_escape := cur_has_escape(p)
 		if !id_has_escape && id_name == "enum" {
 			msg := fmt.tprintf("'%s' is a reserved word and cannot be used as a binding identifier", id_name)
-			report_error(p, msg)
+			report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
 		}
 		// §13.1.1 strict-mode `eval` / `arguments` and strict-reserved
 		// FutureReservedWords (lex-as-Identifier forms) as a
@@ -8255,7 +8232,7 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 			if is_eval_or_arguments(id_name) {
 				msg := fmt.tprintf("'%s' cannot be used as a binding name in strict mode", id_name)
-				report_error_at(p, LexerLoc(id_loc.start), msg)
+				report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_loc.start), u32(id_loc.start), msg)
 			} else if is_strict_reserved_name(id_name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id_name)
 				report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_loc.start), u32(id_loc.start), msg)
@@ -8434,17 +8411,14 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 				// Reserved words cannot appear as binding targets in
 				// destructuring patterns: `{ p: void }`, `{ p: null }` etc.
 				if is_reserved_word_for_binding(p.cur_type) {
-					msg := fmt.tprintf(
-						"Identifier expected. '%s' is a reserved word that cannot be used here.",
-						cur_value(p),
-					)
-					report_error(p, msg)
+					report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
+						fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur_value(p)))
 				}
 				// Strict-mode reserved words as object-pattern value binding.
 				if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 					if is_strict_reserved_binding_name(cur_value(p)) {
 						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-						report_error(p, msg)
+						report_error_coded(p, .K3050_StrictModeReserved, msg)
 					}
 				}
 				vl := cur_loc(p); vn := cur_value(p)
@@ -8733,11 +8707,8 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 				// Reserved words cannot be rest binding targets:
 				// `[ ...void ]`, `[ ...null ]` etc.
 				if is_reserved_word_for_binding(p.cur_type) {
-					msg := fmt.tprintf(
-						"Identifier expected. '%s' is a reserved word that cannot be used here.",
-						cur_value(p),
-					)
-					report_error(p, msg)
+					report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
+						fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur_value(p)))
 				}
 				arl := cur_loc(p); arn := cur_value(p)
 				eat(p)
@@ -8792,7 +8763,7 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
 				if is_strict_reserved_binding_name(cur_value(p)) {
 					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-					report_error(p, msg)
+					report_error_coded(p, .K3050_StrictModeReserved, msg)
 				}
 			}
 			eil := cur_loc(p); ein := cur_value(p)
@@ -9630,7 +9601,7 @@ check_params_vs_body_lex :: proc(p: ^Parser, params: []FunctionParameter, body: 
 	collect_body_lex_names(body, &body_lex, p.ctx.strict_mode)
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
-			report_error_at(p, LexerLoc(off), fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n))
+			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(off), u32(off), fmt.tprintf("Formal parameter '%s' cannot be redeclared with let/const in function body", n))
 		}
 	}
 }
@@ -9648,7 +9619,7 @@ check_catch_param_dups :: proc(p: ^Parser, param: Maybe(Pattern)) {
 	seen := scope_map_make(4)
 	for n in names {
 		if off, exists := scope_map_get(&seen, n); exists {
-			report_error_at(p, LexerLoc(off), fmt.tprintf("Identifier '%s' has already been declared in catch clause", n))
+			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(off), u32(off), fmt.tprintf("Identifier '%s' has already been declared in catch clause", n))
 		} else {
 			scope_map_set(&seen, n, 0)  // offset unused for duplicate check
 		}
@@ -9678,7 +9649,7 @@ check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: [
 	collect_body_lex_names(body, &body_lex, true)
 	for n in param_names {
 		if off, have := scope_map_get(&body_lex, n); have {
-			report_error_at(p, LexerLoc(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
+			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(off), u32(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
 		}
 	}
 
@@ -9970,11 +9941,9 @@ parser_check_dup_params :: proc(p: ^Parser, params: []FunctionParameter, fn_loc:
 		for j := 0; j < i; j += 1 {
 			if names[i] == names[j] {
 				if effective_strict {
-					report_error_at(p, LexerLoc(fn_loc),
-						fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i]))
+					report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(fn_loc), u32(fn_loc), fmt.tprintf("Duplicate parameter name '%s' in strict mode", names[i]))
 				} else {
-					report_error_at(p, LexerLoc(fn_loc),
-						fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i]))
+					report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(fn_loc), u32(fn_loc), fmt.tprintf("Duplicate parameter name '%s' with non-simple parameter list", names[i]))
 				}
 				return
 			}
@@ -10463,8 +10432,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	// module bodies (`declare module "m" { ... }`) where ES imports define
 	// the module's public API.
 	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
-		report_error_at(p, LexerLoc(start.start),
-			"Import declarations in a namespace cannot reference a module.")
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Import declarations in a namespace cannot reference a module")
 	}
 	// Flag module syntax now so it survives any error recovery below.
 	// (The save/restore at the top of this function ensures the flag
@@ -10680,7 +10648,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			lj := import_spec_local_name(decl.specifiers[j])
 			if li == lj {
 				msg := fmt.tprintf("Duplicate import binding '%s'", li)
-				report_error(p, msg)
+				report_error_coded(p, .K3037_DuplicateIdentifier, msg)
 				break
 			}
 		}
@@ -10735,8 +10703,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	// TS import-equals is module-level syntax. In explicit script mode,
 	// report an error (matches Babel/OXC behavior).
 	if st, have := p.force_source_type.(SourceType); have && st == .Script {
-		report_error_at(p, LexerLoc(start.start),
-			"'import' and 'export' may appear only with 'sourceType: module'.")
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "'import' and 'export' may appear only with 'sourceType: module'")
 	}
 
 	// TS1392: `import type X = Y.Z` is invalid (namespace alias can't
@@ -10857,8 +10824,7 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 	// `import type X = require("...")` is valid; namespace alias is not.
 	if type_alias_error {
 		if _, is_require := decl.module_reference.(^TSExternalModuleReference); !is_require {
-			report_error_at(p, LexerLoc(start.start),
-				"An import alias can not use 'import type'.")
+			report_error_coded_span(p, .K4010_TypeOnlyImportExportInvalid, u32(start.start), u32(start.start), "An import alias can not use 'import type'")
 		}
 	}
 
@@ -11063,8 +11029,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	if match_token(p, .Mul) {
 		// TS1233 — `export * from "m"` inside a namespace body is invalid.
 		if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
-			report_error_at(p, LexerLoc(start.start),
-				"Export declarations are not permitted in a namespace.")
+			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
 		}
 		return parse_export_all(p, start, .Value)
 	}
@@ -11085,11 +11050,9 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 				has_from = en.source != nil
 			}
 			if has_from {
-				report_error_at(p, LexerLoc(ns_export_named_start.start),
-					"Export declarations are not permitted in a namespace.")
+				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(ns_export_named_start.start), u32(ns_export_named_start.start), "Export declarations are not permitted in a namespace")
 			} else if !p.ctx.in_ambient {
-				report_error_at(p, LexerLoc(ns_export_named_start.start),
-					"Export declarations are not permitted in a namespace.")
+				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(ns_export_named_start.start), u32(ns_export_named_start.start), "Export declarations are not permitted in a namespace")
 			}
 		}
 		return result_named
@@ -11106,13 +11069,11 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		// In explicit script mode, export-equals is module-level syntax.
 		if st, have := p.force_source_type.(SourceType); have && st == .Script {
-			report_error_at(p, LexerLoc(start.start),
-				"'import' and 'export' may appear only with 'sourceType: module'.")
+			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "'import' and 'export' may appear only with 'sourceType: module'")
 		}
 		// TS1203 — export assignment inside a namespace body.
 		if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
-			report_error_at(p, LexerLoc(start.start),
-				"An export assignment cannot be used in a namespace.")
+			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "An export assignment cannot be used in a namespace")
 		}
 		eat(p) // consume `=`
 		expr := parse_assignment_expression(p)
@@ -11145,8 +11106,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		if nxt.type == .Identifier && nxt.value == "namespace" {
 			// TS1235 — `export as namespace` is only valid at top level.
 			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
-				report_error_at(p, LexerLoc(start.start),
-					"Global module exports may only appear at top level.")
+				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Global module exports may only appear at top level")
 			}
 			eat(p) // consume `as`
 			eat(p) // consume `namespace`
@@ -11179,8 +11139,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		if nxt.type == .LBrace {
 			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
-				report_error_at(p, LexerLoc(start.start),
-					"Export declarations are not permitted in a namespace.")
+				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
 			}
 			eat(p) // consume `type`
 			return parse_export_named(p, start, .Type)
@@ -11188,8 +11147,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		if nxt.type == .Mul {
 			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
 			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
-				report_error_at(p, LexerLoc(start.start),
-					"Export declarations are not permitted in a namespace.")
+				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
 			}
 			eat(p) // consume `type`
 			eat(p) // consume `*`
@@ -11302,8 +11260,7 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// TS1319 — `export default` inside a namespace is invalid.
 	// Exception: inside string-named module declarations (`declare module "m" { ... }`).
 	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
-		report_error_at(p, LexerLoc(start.start),
-			"Export declarations are not permitted in a namespace.")
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
 	}
 
 	// ExportDefaultDef is union { ^Declaration, ^Expression }. The old code
@@ -12413,7 +12370,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 			if me, is_member := delete_arg.(^MemberExpression); is_member && me != nil && me.property != nil {
 				if _, is_private := me.property^.(^PrivateIdentifier); is_private {
-					report_error_at(p, LexerLoc(unary.loc.start), "Private fields cannot be deleted")
+					report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(unary.loc.start), u32(unary.loc.start), "Private fields cannot be deleted")
 				}
 			}
 			// §13.5.1.1 — in strict mode, `delete IdentifierReference`
@@ -12444,7 +12401,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			//   language/expressions/postfix-decrement/    // (4 tests)
 			op := "++" if current.type == .PlusPlus else "--"
 			msg := fmt.tprintf("Unexpected token after prefix '%s'", op)
-			report_error(p, msg)
+			report_error_coded(p, .K2040_UnexpectedToken, msg)
 			return nil
 		}
 		update, update_e := new_expr(p, UpdateExpression)
@@ -12650,7 +12607,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		if p.ctx.strict_mode {
 			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(cur_value(p)) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-				report_error(p, msg)
+				report_error_coded(p, .K3050_StrictModeReserved, msg)
 			}
 		}
 		// Escaped `async` before `function` is SyntaxError (fast path).
@@ -13363,7 +13320,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	// inner expression on the floor and emitting no diagnostic.
 	if is_keyword_not_expression_start(current.type) {
 		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
-		report_error(p, msg)
+		report_error_coded(p, .K2040_UnexpectedToken, msg)
 		eat(p)
 		return nil
 	}
@@ -13417,7 +13374,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 			// SyntaxErrors.
 			if meta_name.name != "meta" {
 				msg := fmt.tprintf("The only valid meta property for import is import.meta (got 'import.%s')", meta_name.name)
-				report_error(p, msg)
+				report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, msg)
 			}
 			meta_prop, meta_prop_e := new_expr(p, MetaProperty)
 			meta_prop.loc = loc_from_token(&current)
@@ -14200,7 +14157,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				after := p.cur_type
 				lexer_restore(p, snap)
 				if after == .RAngle {
-					report_error_at(p, LexerLoc(cur_offset(p)), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.")
+					report_error_coded_span(p, .K4053_TSOnlyInJS, u32(cur_offset(p)), u32(cur_offset(p)), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`")
 				}
 			}
 			return parse_ts_lt_expression(p)
@@ -14882,7 +14839,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 				if k != nil && p.ctx.strict_mode {
 					if is_eval_or_arguments(k.name) {
 						msg := fmt.tprintf("'%s' cannot be used as a shorthand property identifier in strict mode", k.name)
-						report_error_at(p, LexerLoc(k.loc.start), msg)
+						report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
 					} else if is_strict_reserved_binding_name(k.name) {
 						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", k.name)
 						report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
@@ -15222,7 +15179,7 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 				else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
 			}
 			if await_reserved {
-				report_error_at(p, LexerLoc(callee_id.loc.start), "Cannot use 'await' as an identifier in module / async context")
+				report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(callee_id.loc.start), u32(callee_id.loc.start), "Cannot use 'await' as an identifier in module / async context")
 			}
 		}
 	}
@@ -15689,7 +15646,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		if p.ctx.strict_mode {
 			if is_eval_or_arguments(e.name) {
 				msg := fmt.tprintf("Binding identifier '%s' not allowed in strict mode", e.name)
-				report_error_at(p, LexerLoc(e.loc.start), msg)
+				report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
 			} else if is_strict_reserved_binding_name(e.name) {
 				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name)
 				report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
@@ -16281,7 +16238,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					case ^AssignmentExpression: is_simple_param = true
 					}
 					if is_simple_param {
-						report_error_at(p, LexerLoc(u32(i)), "Invalid parenthesized assignment pattern.")
+						report_error_coded_span(p, .K3066_InvalidAssignmentOrBindingTarget, u32(u32(i)), u32(u32(i)), "Invalid parenthesized assignment pattern")
 					}
 				}
 			}
@@ -16413,11 +16370,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 						// §15.3.1 strict-mode checks for multi-param arrow.
 						if p.ctx.strict_mode {
 							if is_eval_or_arguments(arg.name) {
-								report_error_at(p, LexerLoc(arg.loc.start),
-									fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
+								report_error_coded_span(p, .K3050_StrictModeReserved, u32(arg.loc.start), u32(arg.loc.start), fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
 							} else if is_strict_reserved_binding_name(arg.name) {
-								report_error_at(p, LexerLoc(arg.loc.start),
-									fmt.tprintf("'%s' is a reserved identifier in strict mode", arg.name))
+								report_error_coded_span(p, .K3050_StrictModeReserved, u32(arg.loc.start), u32(arg.loc.start), fmt.tprintf("'%s' is a reserved identifier in strict mode", arg.name))
 							}
 						}
 						param_ident := new_node(p, Identifier)
@@ -16531,7 +16486,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		     ^ArrayExpression, ^SpreadElement, ^SequenceExpression:
 			// These are valid arrow param forms, handled by the switch above.
 		case:
-			report_error(p, "Invalid expression for arrow function parameters")
+			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Invalid expression for arrow function parameters")
 		}
 	}
 	// if left is nil, params stays empty (empty parentheses case)
@@ -16828,7 +16783,7 @@ validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
 		expr_start := loc_from_expr(expr).start
 		for off in p.pending_paren_patterns {
 			if off == expr_start {
-				report_error_at(p, LexerLoc(off), "Invalid parenthesized assignment pattern.")
+				report_error_coded_span(p, .K3066_InvalidAssignmentOrBindingTarget, u32(off), u32(off), "Invalid parenthesized assignment pattern")
 				return
 			}
 		}
@@ -16845,7 +16800,7 @@ validate_pattern_element :: proc(p: ^Parser, expr: ^Expression) {
 			     ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
 				// These remain valid even when parenthesized at the pattern level.
 			case:
-				report_error_at(p, LexerLoc(e.loc.start), "Invalid parenthesized assignment pattern.")
+				report_error_coded_span(p, .K3066_InvalidAssignmentOrBindingTarget, u32(e.loc.start), u32(e.loc.start), "Invalid parenthesized assignment pattern")
 			}
 		}
 	case ^AssignmentExpression:
@@ -17050,13 +17005,11 @@ check_strict_string_escapes :: proc(p: ^Parser, raw: string, offset: u32) {
 		if raw[i] == '\\' && i + 1 < len(raw) - 1 {
 			next := raw[i + 1]
 			if next >= '1' && next <= '9' {
-				report_error_at(p, LexerLoc(offset + u32(i)),
-					"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(offset + u32(i)), u32(offset + u32(i)), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 				return
 			}
 			if next == '0' && i + 2 < len(raw) - 1 && raw[i + 2] >= '0' && raw[i + 2] <= '9' {
-				report_error_at(p, LexerLoc(offset + u32(i)),
-					"Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(offset + u32(i)), u32(offset + u32(i)), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
 				return
 			}
 			// Skip escaped character
@@ -17807,7 +17760,7 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	closing_name := closing != nil ? jsx_element_name_string(closing.name) : ""
 	if closing != nil && opening_name != closing_name &&
 	   len(opening_name) > 0 && len(closing_name) > 0 && len(p.errors) == 0 {
-		report_error(p, fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name))
+		report_error_coded(p, .K3063_JSXInvalid, fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name))
 	}
 	elem := new_node(p, JSXElement)
 	elem.loc = start
@@ -19999,7 +19952,7 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	node.loc.end = prev_end_offset(p)
 
 	if p.disallow_ambiguous_jsx_like {
-		report_error_at(p, LexerLoc(start.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead.")
+		report_error_coded_span(p, .K4053_TSOnlyInJS, u32(start.start), u32(start.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead")
 	}
 
 	return node_e
@@ -20017,7 +19970,7 @@ check_ts_ambiguous_jsx_like_arrow :: proc(p: ^Parser, expr: ^Expression) {
 	tp, has_tp := tp_opt.?
 	if !has_tp { return }
 	if len(tp.params) == 1 && tp.params[0].constraint == nil && !tp.trailing_comma {
-		report_error_at(p, LexerLoc(tp.loc.start), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`.")
+		report_error_coded_span(p, .K4053_TSOnlyInJS, u32(tp.loc.start), u32(tp.loc.start), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`")
 	}
 }
 
@@ -20394,8 +20347,7 @@ try_parse_ts_arrow_params :: proc(p: ^Parser, lparen_tok: TokenSnap) -> ^Express
 	if allow_ts_mode(p) {
 		for pr in params {
 			if pr.optional_destructuring {
-				report_error_at(p, LexerLoc(pr.loc.start),
-					"A binding pattern parameter cannot be optional in an implementation signature.")
+				report_error_coded_span(p, .K4063_OptionalAndInit, u32(pr.loc.start), u32(pr.loc.start), "A binding pattern parameter cannot be optional in an implementation signature")
 			}
 		}
 	}
@@ -20458,7 +20410,7 @@ parse_ts_type_parameters :: proc(p: ^Parser) -> ^TSTypeParameterDeclaration {
 		// `type T<in in>` — the second `in` is a keyword, not a name.
 		if is_reserved_word_for_binding(p.cur_type) {
 			msg := fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here.", cur_value(p))
-			report_error(p, msg)
+			report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
 		}
 		cur := snap_current(p)
 		name := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
@@ -21697,8 +21649,7 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	if tp, have := type_parameters.?; have && tp != nil {
 		for &param in tp.params {
 			if param.const_ {
-				report_error_at(p, LexerLoc(param.loc.start),
-					"'const' modifier can only appear on a type parameter of a function, method or class.")
+				report_error_coded_span(p, .K4032_ModifierMisplaced, u32(param.loc.start), u32(param.loc.start), "'const' modifier can only appear on a type parameter of a function, method or class")
 			}
 		}
 	}
@@ -21720,11 +21671,8 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 	eat(p)
 	cur := snap_current(p)
 	if !can_be_binding_identifier(p.cur_type) {
-		msg := fmt.tprintf(
-			"Identifier expected. '%s' is a reserved word that cannot be used here.",
-			cur.value,
-		)
-		report_error(p, msg)
+		report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
+			fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur.value))
 	}
 	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
 	check_strict_ts_decl_name(p, id.name, id.loc)
@@ -21887,8 +21835,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 			global_ok = true
 		}
 		if !global_ok {
-			report_error_at(p, LexerLoc(start.start),
-				"Augmentations for the global scope can only be directly nested in external modules or ambient module declarations.")
+			report_error_coded_span(p, .K4050_AmbientContextRestriction, u32(start.start), u32(start.start), "Augmentations for the global scope can only be directly nested in external modules or ambient module declarations")
 		}
 	}
 
@@ -21901,7 +21848,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 		if s != nil { bump_append(&stmts, s) }
 		else if int(cur_offset(p)) == prev_offset {
 			msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
-			report_error(p, msg)
+			report_error_coded(p, .K2040_UnexpectedToken, msg)
 			eat(p)
 		}
 	}
@@ -21931,8 +21878,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// function body, class body, etc. they're a SyntaxError.
 	// Valid positions: program top-level, or inside a namespace body.
 	if allow_ts_mode(p) && (p.block_depth > 0 || p.ctx.in_function) && !p.ctx.in_ts_namespace {
-		report_error_at(p, LexerLoc(start.start),
-			"A namespace declaration is only allowed at the top level of a namespace or module.")
+		report_error_coded_span(p, .K4051_TSDeclarationStructure, u32(start.start), u32(start.start), "A namespace declaration is only allowed at the top level of a namespace or module")
 	}
 	eat(p) // consume `namespace` or `module`
 
@@ -21948,8 +21894,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// `declare module M {}` is valid (standard ambient namespace syntax).
 	// Also exempt .d.ts files where everything is implicitly ambient.
 	if kind == .Module && !is_string_named && !p.ctx.in_ambient && !p.source_is_dts {
-		report_error_at(p, LexerLoc(start.start),
-			"`module` declarations must have a string name. Use `namespace` instead.")
+		report_error_coded_span(p, .K4051_TSDeclarationStructure, u32(start.start), u32(start.start), "`module` declarations must have a string name. Use `namespace` instead")
 	}
 	id_expr: ^Expression
 	if is_string_named {
@@ -22020,7 +21965,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 			if s != nil { bump_append(&stmts, s) }
 			else if int(cur_offset(p)) == prev_offset {
 				msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
-				report_error(p, msg)
+				report_error_coded(p, .K2040_UnexpectedToken, msg)
 				eat(p)
 			}
 		}
@@ -22092,7 +22037,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 			if s != nil { bump_append(&stmts, s) }
 			else if int(cur_offset(p)) == prev_offset {
 				msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
-				report_error(p, msg)
+				report_error_coded(p, .K2040_UnexpectedToken, msg)
 				eat(p)
 			}
 		}
