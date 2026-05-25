@@ -14,6 +14,35 @@ import type { Program } from 'estree';
 /** Language grammar used by the parser. */
 export type Lang = 'js' | 'jsx' | 'ts' | 'tsx';
 
+/**
+ * Diagnostic severity.
+ *
+ * Today every diagnostic kessel emits is `'error'`; `'warning'` is
+ * reserved for future opt-in lints (empty block, unreachable code,
+ * sketchy regex patterns, `with` outside strict mode). The substrate
+ * already supports it — see the `Severity` enum in `src/diagnostic.odin`.
+ */
+export type Severity = 'error' | 'warning';
+
+/**
+ * Stable, machine-readable identifier for a diagnostic, formatted
+ * `K####` with a zero-padded numeric body.
+ *
+ * Numeric ranges:
+ *  - `K1xxx` — lexer (invalid numeric literal, bad escape, etc.)
+ *  - `K2xxx` — parser syntax (expected token, unexpected token, etc.)
+ *  - `K3xxx` — ECMA-262 early errors (await/yield context, strict mode,
+ *              duplicate keys, etc.)
+ *  - `K4xxx` — TypeScript parser-level rules (modifier order, ambient
+ *              context, overload chains, etc.)
+ *
+ * Codes are stable across releases — once published, the numeric body
+ * never changes meaning. Tooling can safely match on them for
+ * suppression, grouping, or editor squigglies. See `docs/diagnostics.md`
+ * for the full catalogue.
+ */
+export type ErrorCode = `K${number}`;
+
 /** A parse-time diagnostic. */
 export interface ParseError {
   /** Human-readable error message. */
@@ -45,6 +74,25 @@ export interface ParseError {
   line: number;
   /** 1-based column number derived from `start`. */
   column: number;
+  /**
+   * Stable error code of the form `K####`. Present on every diagnostic
+   * produced by a migrated call site (the vast majority since the
+   * Phase 5 diagnostic rebuild). Absent on a handful of legacy /
+   * un-migrated sites — consumers should treat absence as `undefined`,
+   * not as a specific code.
+   *
+   * See {@link ErrorCode} for the numeric-range layout and
+   * `docs/diagnostics.md` for the full catalogue.
+   */
+  code?: ErrorCode;
+  /**
+   * Severity of the diagnostic. Present on every diagnostic that has
+   * a {@link code}; absent on the same legacy sites that omit `code`.
+   *
+   * Today every emitted diagnostic is `'error'`. `'warning'` is
+   * reserved for future opt-in lints — see {@link Severity}.
+   */
+  severity?: Severity;
 }
 
 /** Result envelope returned by {@link parseSync}. */
