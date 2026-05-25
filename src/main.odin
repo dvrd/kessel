@@ -294,6 +294,41 @@ main :: proc() {
 		}
 		run_server_mode(cli)
 
+	case "codegen":
+		if len(os.args) < 3 {
+			out_println("Error: codegen command requires a file path")
+			out_println("Usage: kessel codegen <file> [--minified]")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		cli := cli_config_default()
+		cg_file := ""
+		cg_minified := false
+		i := 2
+		for i < len(os.args) {
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
+			arg := os.args[i]
+			switch {
+			case arg == "--minified":
+				cg_minified = true
+				i += 1
+			case:
+				if cg_file == "" {
+					cg_file = arg
+					i += 1
+				} else {
+					fmt.eprintf("Error: unrecognised argument '%s' for `kessel codegen`\n", arg)
+					os.exit(2)
+				}
+			}
+		}
+		if cg_file == "" {
+			out_println("Error: codegen command requires a file path")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		codegen_file(cg_file, cli, cg_minified)
+
 	case "help", "-h", "--help":
 		print_usage()
 
@@ -327,6 +362,7 @@ print_usage :: proc() {
 	out_println("                                   Parallel parse, write JSON per file (default: tmp/ast/).")
 	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
 	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
+	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
 	out_println("  microbench parse <file> [--iterations N]   Parse benchmark (default 100).")
 	out_println("  microbench lex <file> [--iterations N]     Lex benchmark (default 100).")
@@ -522,6 +558,53 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	if len(job.parser.errors) > 0 && !cli.emit_json {
 		os.exit(1)
 	}
+}
+
+// ============================================================================
+// Codegen: parse and emit JS source from the AST
+// ============================================================================
+
+codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("error: could not read file: %s\n", file_path)
+		os.exit(1)
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+
+	// Refuse to emit codegen when the parse failed — the AST may be
+	// partial and the output would be misleading. Render diagnostics
+	// the same way `kessel parse` does and exit non-zero.
+	if len(job.parser.errors) > 0 {
+		if job.parser.lexer != nil && job.parser.lexer.num_lines == 0 {
+			build_line_table(job.parser.lexer)
+		}
+		if job.parser.lexer != nil {
+			render_pretty_diagnostics(
+				job.parser.lexer.source,
+				file_path,
+				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+				job.parser.errors[:],
+				cli.color,
+			)
+		}
+		os.exit(1)
+	}
+
+	cfg := CodegenConfig{minified = minified, indent = "  "}
+	cg: Codegen
+	codegen_init(&cg, cfg, len(job.source.data), context.allocator)
+	defer codegen_destroy(&cg, context.allocator)
+
+	codegen_program(&cg, job.program)
+
+	// Guarantee a trailing newline in pretty mode so shell redirection
+	// produces well-formed text files. Minified output is left as-is.
+	if !minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
+		cg_byte(&cg, '\n')
+	}
+	os.write(os.stdout, cg.buf[:cg.pos])
 }
 
 // ============================================================================
