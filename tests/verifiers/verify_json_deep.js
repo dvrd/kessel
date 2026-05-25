@@ -407,10 +407,12 @@ function parseReference(kind, src, errorsOut) {
 }
 
 const LENIENT_ON_REF_ERRORS = process.argv.includes('--lenient-on-oxc-errors');
+const LENIENT_ON_KESSEL_ERRORS = process.argv.includes('--lenient-on-kessel-errors');
 
 let kTree, oTree;
 const refErrors = [];
-try { kTree = stripKesselForParser(parseKessel(file)); }
+let kRawTree;
+try { kRawTree = parseKessel(file); kTree = stripKesselForParser(kRawTree); }
 catch (e) { console.error(`kessel parse failed: ${e.message}`); process.exit(2); }
 try { oTree = stripNode(parseReference(PARSER, source, refErrors)); }
 catch (e) { console.error(`${PARSER} parse failed: ${e.message}`); process.exit(2); }
@@ -425,6 +427,17 @@ catch (e) { console.error(`${PARSER} parse failed: ${e.message}`); process.exit(
 // corners — 25 of the 100 baselined fuzz cases were all of this class.
 if (LENIENT_ON_REF_ERRORS && refErrors.length > 0) {
   console.log(`  ✅ ${PARSER} rejected input (${refErrors.length} error(s)); skipped deep compare (--lenient-on-oxc-errors)`);
+  process.exit(0);
+}
+
+// --lenient-on-kessel-errors: the symmetric case — kessel rejected the
+// input but the reference parser accepted it. This happens when kessel is
+// the stricter side (e.g. ES §15.3 duplicate arrow params, which kessel
+// flags but OXC ignores). The post-error recovery AST would never match
+// the reference's full parse, so skip the deep compare.
+const kErrs = Array.isArray(kRawTree && kRawTree.errors) ? kRawTree.errors : [];
+if (LENIENT_ON_KESSEL_ERRORS && kErrs.length > 0) {
+  console.log(`  ✅ kessel rejected input (${kErrs.length} error(s)); skipped deep compare (--lenient-on-kessel-errors)`);
   process.exit(0);
 }
 

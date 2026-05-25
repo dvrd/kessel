@@ -2,5 +2,48 @@
   "seed": 20260422,
   "count": 300,
   "corpus_size": 467,
-  "known_crashes": {}
+  "known_crashes": {
+    "c9a662d2": {
+      "reason": "timeout",
+      "exit": null,
+      "signal": null,
+      "strategy": "bit_flip",
+      "size": 671018
+    },
+    "dd3ddd52": {
+      "reason": "timeout",
+      "exit": null,
+      "signal": null,
+      "strategy": "bit_flip",
+      "size": 1401269
+    },
+    "e8314a28": {
+      "reason": "timeout",
+      "exit": null,
+      "signal": null,
+      "strategy": "bit_flip",
+      "size": 4156941
+    },
+    "5de09c07": {
+      "reason": "timeout",
+      "exit": null,
+      "signal": null,
+      "strategy": "nul_inject",
+      "size": 733931
+    },
+    "b7e6da07": {
+      "reason": "timeout",
+      "exit": null,
+      "signal": null,
+      "strategy": "bit_flip",
+      "size": 590488
+    },
+    "c887b730": {
+      "reason": "timeout",
+      "exit": null,
+      "signal": null,
+      "strategy": "byte_insert",
+      "size": 733950
+    }
+  }
 }

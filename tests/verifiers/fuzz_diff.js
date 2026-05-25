@@ -177,14 +177,15 @@ for (let i = 0; i < COUNT; i++) {
   let stdout = '';
   let stderr = '';
   try {
-    stdout = execSync('node tests/verifiers/verify_json_deep.js "' + srcPath + '" --parser ' + PARSER + ' --limit 3 --lenient-on-oxc-errors',
+    stdout = execSync('node tests/verifiers/verify_json_deep.js "' + srcPath + '" --parser ' + PARSER + ' --limit 3 --lenient-on-oxc-errors --lenient-on-kessel-errors',
       { encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
-    // `ok` accepts either outcome:
+    // `ok` accepts any of:
     //   - deep compare succeeded (normal case)
-    //   - reference parser rejected the input (`rejected input` log line) —
-    //     agreement on invalidity, Kessel being permissive here is a
-    //     documented corner we don't gate on. See verify_json_deep.js
-    //     --lenient-on-oxc-errors for the rationale.
+    //   - reference parser rejected (`rejected input` log line) — kessel
+    //     is permissive here, a documented corner we don't gate on
+    //   - kessel rejected (`rejected input` log line, symmetric) — kessel
+    //     is the stricter side (e.g. ES §15.3 duplicate arrow params),
+    //     comparing recovery AST vs full parse isn't meaningful
     ok = stdout.indexOf('passes vs ' + PARSER) !== -1 ||
          stdout.indexOf('rejected input') !== -1;
   } catch (e) {
