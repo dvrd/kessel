@@ -145,26 +145,26 @@
     }
   ]
 }
-error[K2020]: Expected expression after operator
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/001_jsx_attr_broken.js:2:28
-   |
- 2 | const view = <Foo bar={1 + * 2}></Foo>;
-   |                            ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected expression after operator
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/001_jsx_attr_broken.js:2:28
+  [2m |[0m
+ [2m2 |[0m const view = <Foo bar={1 + * 2}></Foo>;
+  [2m |[0m                            [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
-error[K2002]: Expected '}', got '*'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/001_jsx_attr_broken.js:2:28
-   |
- 2 | const view = <Foo bar={1 + * 2}></Foo>;
-   |                            ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '}', got '*'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/001_jsx_attr_broken.js:2:28
+  [2m |[0m
+ [2m2 |[0m const view = <Foo bar={1 + * 2}></Foo>;
+  [2m |[0m                            [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2002]: Expected '>', got '*'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/001_jsx_attr_broken.js:2:28
-   |
- 2 | const view = <Foo bar={1 + * 2}></Foo>;
-   |                            ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '>', got '*'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/001_jsx_attr_broken.js:2:28
+  [2m |[0m
+ [2m2 |[0m const view = <Foo bar={1 + * 2}></Foo>;
+  [2m |[0m                            [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
 --- Statistics ---
 Arena: used=38048B reserved=16777216B ratio=0%

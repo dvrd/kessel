@@ -111,25 +111,25 @@
     }
   ]
 }
-error[K2020]: Expected expression after operator
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/001_if_missing_consequent.js:3:22
-   |
- 3 |   const broken = 1 + * 2;
-   |                      ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected expression after operator
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/001_if_missing_consequent.js:3:22
+  [2m |[0m
+ [2m3 |[0m   const broken = 1 + * 2;
+  [2m |[0m                      [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
-error[K2010]: Expected semicolon
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/001_if_missing_consequent.js:3:22
-   |
- 3 |   const broken = 1 + * 2;
-   |                      ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2010][0m: Expected semicolon
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/001_if_missing_consequent.js:3:22
+  [2m |[0m
+ [2m3 |[0m   const broken = 1 + * 2;
+  [2m |[0m                      [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2040]: Invalid statement in block
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/001_if_missing_consequent.js:3:22
-   |
- 3 |   const broken = 1 + * 2;
-   |                      ^
+[1;31merror[0m[1m[K2040][0m: Invalid statement in block
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/001_if_missing_consequent.js:3:22
+  [2m |[0m
+ [2m3 |[0m   const broken = 1 + * 2;
+  [2m |[0m                      [1;31m^[0m
 
 --- Statistics ---
 Arena: used=37824B reserved=16777216B ratio=0%

@@ -80,25 +80,25 @@
     }
   ]
 }
-error[K2002]: Expected ']', got ';'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:2:24
-   |
- 2 | const broken = object[1;
-   |                        ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected ']', got ';'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:2:24
+  [2m |[0m
+ [2m2 |[0m const broken = object[1;
+  [2m |[0m                        [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2020]: Expected initializer expression after '='
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:2:24
-   |
- 2 | const broken = object[1;
-   |                        ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected initializer expression after '='
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:2:24
+  [2m |[0m
+ [2m2 |[0m const broken = object[1;
+  [2m |[0m                        [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
-error[K2070]: Missing initializer in 'const' declaration
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:3:1
-   |
- 3 | const anchor_after_error = 1;
-   | ^^^^^
+[1;31merror[0m[1m[K2070][0m: Missing initializer in 'const' declaration
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:3:1
+  [2m |[0m
+ [2m3 |[0m const anchor_after_error = 1;
+  [2m |[0m [1;31m^^^^^[0m
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

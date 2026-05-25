@@ -89,12 +89,12 @@
     }
   ]
 }
-error[K2020]: Expected expression after operator
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/007_switch_discriminant_broken.js:2:13
-   |
- 2 | switch (x + ) {
-   |             ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected expression after operator
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/007_switch_discriminant_broken.js:2:13
+  [2m |[0m
+ [2m2 |[0m switch (x + ) {
+  [2m |[0m             [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
 --- Statistics ---
 Arena: used=38560B reserved=16777216B ratio=0%

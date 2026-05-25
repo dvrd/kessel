@@ -173,12 +173,12 @@
     }
   ]
 }
-error[K2020]: Expected initializer expression after '='
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/006_nested_loops_broken.js:4:16
-   |
- 4 |   for (let j = ; j < 10; j++) {
-   |                ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected initializer expression after '='
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/006_nested_loops_broken.js:4:16
+  [2m |[0m
+ [2m4 |[0m   for (let j = ; j < 10; j++) {
+  [2m |[0m                [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
 --- Statistics ---
 Arena: used=38048B reserved=16777216B ratio=0%

@@ -137,12 +137,12 @@
     }
   ]
 }
-error[K2002]: Expected ')', got '{'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/005_generic_param_broken.js:2:29
-   |
- 2 | function broken<T>(value: T {
-   |                             ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected ')', got '{'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/005_generic_param_broken.js:2:29
+  [2m |[0m
+ [2m2 |[0m function broken<T>(value: T {
+  [2m |[0m                             [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
 --- Statistics ---
 Arena: used=38336B reserved=16777216B ratio=0%

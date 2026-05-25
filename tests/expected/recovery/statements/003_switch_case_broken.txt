@@ -116,19 +116,19 @@
     }
   ]
 }
-error[K2020]: Expected expression after operator
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/003_switch_case_broken.js:4:24
-   |
- 4 |     const broken = 1 + * 2;
-   |                        ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected expression after operator
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/003_switch_case_broken.js:4:24
+  [2m |[0m
+ [2m4 |[0m     const broken = 1 + * 2;
+  [2m |[0m                        [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
-error[K2010]: Expected semicolon
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/003_switch_case_broken.js:4:24
-   |
- 4 |     const broken = 1 + * 2;
-   |                        ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2010][0m: Expected semicolon
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/003_switch_case_broken.js:4:24
+  [2m |[0m
+ [2m4 |[0m     const broken = 1 + * 2;
+  [2m |[0m                        [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
 --- Statistics ---
 Arena: used=38688B reserved=16777216B ratio=0%

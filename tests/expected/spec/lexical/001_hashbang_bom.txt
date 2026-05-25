@@ -71,11 +71,11 @@
     }
   ]
 }
-error[K1014]: Invalid character `!`
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/spec/lexical/001_hashbang_bom.js:1:5
-   |
- 1 | ﻿#!/usr/bin/env node
-   |     ^
+[1;31merror[0m[1m[K1014][0m: Invalid character `!`
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/spec/lexical/001_hashbang_bom.js:1:5
+  [2m |[0m
+ [2m1 |[0m ﻿#!/usr/bin/env node
+  [2m |[0m     [1;31m^[0m
 
 --- Statistics ---
 Arena: used=37600B reserved=16777216B ratio=0%

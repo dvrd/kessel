@@ -1,7 +1,6 @@
 package kessel
 
 import "core:fmt"
-import "core:os"
 import "core:strings"
 
 // ============================================================================
@@ -18,14 +17,15 @@ import "core:strings"
 //
 // Multiple diagnostics print as separate blocks separated by blank lines.
 //
-// Color: opt-in per `ColorMode`. .Auto reads NO_COLOR (https://no-color.org)
-// and checks `os.is_tty(os.stderr)`; .Always forces colors on; .Never
-// strips them. ANSI escape codes follow the conventional rustc / clang
-// palette: red+bold for `error`, yellow+bold for `warning`, bold for the
-// code, dim for the gutter / note prefix, no color on source text.
+// Color: caller-controlled via the `use_color` bool. Resolution of that
+// bool from KESSEL_COLOR + --color happens in src/cli_config.odin so the
+// renderer stays pure (no env / fd peeking inside the hot loop). ANSI
+// codes follow the rustc / clang palette: red+bold for `error`, yellow+bold
+// for `warning`, bold for the code, dim for the gutter / note prefix,
+// no color on source text.
 //
 // Writes to stderr so the JSON path (if any) on stdout stays clean.
-// Zero new dependencies — just `core:fmt`, `core:os`, `core:strings`.
+// Zero new dependencies — just `core:fmt` and `core:strings`.
 // ============================================================================
 
 // ANSI escape sequences. Kept inline (not constants) so a future caller
@@ -38,26 +38,6 @@ import "core:strings"
 @(private="file") ANSI_BLUE      :: "\x1b[34m"
 @(private="file") ANSI_BOLD_RED  :: "\x1b[1;31m"
 @(private="file") ANSI_BOLD_YELLOW :: "\x1b[1;33m"
-
-// Resolve ColorMode → bool. Uses TTY heuristic for .Auto, plus the
-// NO_COLOR convention. Caller computes this once per parse_file and
-// threads the bool into render_pretty_diagnostics so the renderer is
-// pure (no env / fd peeking inside the hot loop).
-should_use_color :: proc(mode: ColorMode) -> bool {
-	switch mode {
-	case .Always: return true
-	case .Never:  return false
-	case .Auto:
-		// NO_COLOR set (to any value, even empty) → off.
-		// See https://no-color.org for the convention.
-		if _, has := os.lookup_env("NO_COLOR", context.temp_allocator); has {
-			return false
-		}
-		// Terminal check — only color when stderr is a TTY.
-		return os.is_tty(os.stderr)
-	}
-	return false
-}
 
 // render_pretty_diagnostics writes a rustc-style block per diagnostic
 // to stderr. Caller passes the source bytes, the file path (for the

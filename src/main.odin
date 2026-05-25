@@ -338,8 +338,8 @@ print_usage :: proc() {
 	out_println("Diagnostic flags:")
 	out_println("  --json                          Print the AST as JSON on stdout (exits 0).")
 	out_println("  --stats                         Print arena + parse-error footer on stderr.")
-	out_println("  --color[=auto|always|never]     ANSI color control. Default auto (TTY + NO_COLOR).")
-	out_println("  --no-color                      Disable ANSI color (alias for --color=never).")
+	out_println("  --color=true|false              ANSI color in diagnostics. Default: true.")
+	out_println("                                   Env: KESSEL_COLOR=1|0. Flag overrides env.")
 	out_println("  --show-semantic-errors          Run the AST-walker semantic checker (pass 3).")
 	out_println("")
 	out_println("Examples:")
@@ -494,7 +494,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 				file_path,
 				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
 				job.parser.errors[:],
-				should_use_color(cli.color),
+				cli.color,
 			)
 		}
 	}

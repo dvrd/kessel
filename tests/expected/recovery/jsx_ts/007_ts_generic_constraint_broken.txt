@@ -155,11 +155,11 @@
     }
   ]
 }
-error[K2023]: Expected type after 'extends'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/007_ts_generic_constraint_broken.js:2:23
-   |
- 2 | function id<T extends >(x: T): T { return x; }
-   |                       ^
+[1;31merror[0m[1m[K2023][0m: Expected type after 'extends'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/007_ts_generic_constraint_broken.js:2:23
+  [2m |[0m
+ [2m2 |[0m function id<T extends >(x: T): T { return x; }
+  [2m |[0m                       [1;31m^[0m
 
 --- Statistics ---
 Arena: used=38336B reserved=16777216B ratio=0%

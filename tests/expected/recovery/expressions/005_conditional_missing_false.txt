@@ -94,12 +94,12 @@
     }
   ]
 }
-error[K2020]: Expected expression after operator
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/005_conditional_missing_false.js:2:33
-   |
- 2 | const broken = cond ? yes : 1 + * 2;
-   |                                 ^
-  = note: see TS1109
+[1;31merror[0m[1m[K2020][0m: Expected expression after operator
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/005_conditional_missing_false.js:2:33
+  [2m |[0m
+ [2m2 |[0m const broken = cond ? yes : 1 + * 2;
+  [2m |[0m                                 [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1109
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

@@ -74,11 +74,11 @@
     }
   ]
 }
-error[K2040]: Unexpected token after ?.
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/008_optional_chain_broken.js:3:21
-   |
- 3 | const broken = obj?.;
-   |                     ^
+[1;31merror[0m[1m[K2040][0m: Unexpected token after ?.
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/008_optional_chain_broken.js:3:21
+  [2m |[0m
+ [2m3 |[0m const broken = obj?.;
+  [2m |[0m                     [1;31m^[0m
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

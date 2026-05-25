@@ -93,26 +93,26 @@
     }
   ]
 }
-error[K2002]: Expected '<', got end of input
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
-   |
- 4 | 
-   | ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '<', got end of input
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
+  [2m |[0m
+ [2m4 |[0m 
+  [2m |[0m [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2002]: Expected '/', got end of input
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
-   |
- 4 | 
-   | ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '/', got end of input
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
+  [2m |[0m
+ [2m4 |[0m 
+  [2m |[0m [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2002]: Expected '>', got end of input
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
-   |
- 4 | 
-   | ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '>', got end of input
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
+  [2m |[0m
+ [2m4 |[0m 
+  [2m |[0m [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
 --- Statistics ---
 Arena: used=37888B reserved=16777216B ratio=0%

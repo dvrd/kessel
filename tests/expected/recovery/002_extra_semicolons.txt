@@ -242,11 +242,11 @@
     }
   ]
 }
-error[K2040]: Unexpected ';' in object literal
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/002_extra_semicolons.js:16:7
-   |
-16 |   a: 1;;;
-   |       ^
+[1;31merror[0m[1m[K2040][0m: Unexpected ';' in object literal
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/002_extra_semicolons.js:16:7
+  [2m |[0m
+[2m16 |[0m   a: 1;;;
+  [2m |[0m       [1;31m^[0m
 
 --- Statistics ---
 Arena: used=38496B reserved=16777216B ratio=0%

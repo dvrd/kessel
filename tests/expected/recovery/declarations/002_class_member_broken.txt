@@ -104,31 +104,31 @@
     }
   ]
 }
-error[K3053]: Reserved word 'return' is not a valid binding identifier
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:4:12
-   |
- 4 |     return 1;
-   |            ^
+[1;31merror[0m[1m[K3053][0m: Reserved word 'return' is not a valid binding identifier
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:4:12
+  [2m |[0m
+ [2m4 |[0m     return 1;
+  [2m |[0m            [1;31m^[0m
 
-error[K2002]: Expected '}', got numeric literal '1'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:4:12
-   |
- 4 |     return 1;
-   |            ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '}', got numeric literal '1'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:4:12
+  [2m |[0m
+ [2m4 |[0m     return 1;
+  [2m |[0m            [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2002]: Expected ')', got numeric literal '1'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:4:12
-   |
- 4 |     return 1;
-   |            ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected ')', got numeric literal '1'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:4:12
+  [2m |[0m
+ [2m4 |[0m     return 1;
+  [2m |[0m            [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2040]: Unexpected '}' — unmatched closing brace
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:6:1
-   |
- 6 | }
-   | ^
+[1;31merror[0m[1m[K2040][0m: Unexpected '}' — unmatched closing brace
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/002_class_member_broken.js:6:1
+  [2m |[0m
+ [2m6 |[0m }
+  [2m |[0m [1;31m^[0m
 
 --- Statistics ---
 Arena: used=39936B reserved=16777216B ratio=0%

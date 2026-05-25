@@ -82,25 +82,25 @@
     }
   ]
 }
-error[K2002]: Expected '}', got identifier 'b'
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:12
-   |
- 2 | import { a b } from './module.js';
-   |            ^
-  = note: see TS1005
+[1;31merror[0m[1m[K2002][0m: Expected '}', got identifier 'b'
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:12
+  [2m |[0m
+ [2m2 |[0m import { a b } from './module.js';
+  [2m |[0m            [1;31m^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
-error[K2040]: Unexpected '}' — unmatched closing brace
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:14
-   |
- 2 | import { a b } from './module.js';
-   |              ^
+[1;31merror[0m[1m[K2040][0m: Unexpected '}' — unmatched closing brace
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:14
+  [2m |[0m
+ [2m2 |[0m import { a b } from './module.js';
+  [2m |[0m              [1;31m^[0m
 
-error[K2010]: Expected semicolon
-  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:21
-   |
- 2 | import { a b } from './module.js';
-   |                     ^^^^^^^^^^^^^
-  = note: see TS1005
+[1;31merror[0m[1m[K2010][0m: Expected semicolon
+  [34m-->[0m /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:21
+  [2m |[0m
+ [2m2 |[0m import { a b } from './module.js';
+  [2m |[0m                     [1;31m^^^^^^^^^^^^^[0m
+  [34m=[0m [1mnote[0m: see TS1005
 
 --- Statistics ---
 Arena: used=37696B reserved=16777216B ratio=0%

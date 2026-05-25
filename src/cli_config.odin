@@ -84,31 +84,49 @@ CliConfig :: struct {
 	emit_json:            bool,         // --json — print AST as JSON to stdout
 	show_stats:           bool,         // --stats — print arena + error count to stderr
 
-	// Color mode for the pretty renderer. .Auto consults the TTY +
-	// NO_COLOR env var; .Always forces on; .Never forces off.
-	color:                ColorMode,    // --color=auto|always|never
-}
-
-// ColorMode controls ANSI color output in the pretty renderer.
-ColorMode :: enum u8 {
-	Auto   = 0,   // default — on when stderr is a TTY and NO_COLOR is unset
-	Always = 1,
-	Never  = 2,
+	// ANSI color in pretty diagnostics. Resolution order, highest wins:
+	//   1. --color=true | --color=false  (CLI flag, strictest priority)
+	//   2. KESSEL_COLOR=1 | KESSEL_COLOR=0  (env var)
+	//   3. default: true
+	// Invalid values at either level are a startup error — we do NOT
+	// silently fall back, because silent fallback hides typos.
+	color:                bool,         // resolved value, populated by cli_config_default
 }
 
 // Build a CliConfig with the documented defaults.
 //
 //   error_format = "kessel"  // legacy shape; --errors=oxc opts in
 //   ast_type     = .Auto     // emitter resolves from parse Lang
-//   color        = .Auto     // TTY + NO_COLOR drive the decision
+//   color        = true      // overridable by KESSEL_COLOR=0 or --color=false
+//
+// `color` is resolved from the KESSEL_COLOR env var at this layer so
+// every command starts with the env-aware value; --color= later in
+// cli_try_parse_flag overrides it.
 //
 // Every other field defaults to its zero value (false / nil).
 cli_config_default :: proc() -> CliConfig {
 	return CliConfig{
 		error_format = "kessel",
 		ast_type     = .Auto,
-		color        = .Auto,
+		color        = resolve_color_from_env(),
 	}
+}
+
+// resolve_color_from_env reads `KESSEL_COLOR` and returns the resolved
+// default. Accepts only "1" (on) or "0" (off). Empty / unset returns
+// the baseline default (`true`). Any other value is a startup error.
+@(private="file")
+resolve_color_from_env :: proc() -> bool {
+	val, has := os.lookup_env("KESSEL_COLOR", context.temp_allocator)
+	if !has || len(val) == 0 {
+		return true
+	}
+	switch val {
+	case "1": return true
+	case "0": return false
+	}
+	fmt.eprintf("error: KESSEL_COLOR=%s is not valid (use 1 or 0)\n", val)
+	os.exit(2)
 }
 
 // ============================================================================
@@ -170,26 +188,27 @@ cli_try_parse_flag :: proc(cfg: ^CliConfig, args: []string, i: ^int) -> bool {
 		cfg.show_stats = true
 		i^ += 1
 		return true
-	case arg == "--color":
-		cfg.color = .Always
-		i^ += 1
-		return true
-	case arg == "--no-color":
-		cfg.color = .Never
-		i^ += 1
-		return true
 	case strings.has_prefix(arg, "--color="):
+		// Strict boolean. Only `true` / `false` are accepted; anything
+		// else (including the legacy `auto`/`always`/`never` triplet)
+		// is rejected so a typo doesn't silently fall through to the
+		// wrong mode.
 		val := arg[8:]
 		switch val {
-		case "auto":   cfg.color = .Auto
-		case "always": cfg.color = .Always
-		case "never":  cfg.color = .Never
+		case "true":  cfg.color = true
+		case "false": cfg.color = false
 		case:
-			fmt.eprintf("error: --color=%s is not valid (use auto|always|never)\n", val)
+			fmt.eprintf("error: --color=%s is not valid (use true or false)\n", val)
 			os.exit(2)
 		}
 		i^ += 1
 		return true
+	case arg == "--color" || arg == "--no-color":
+		// Reject the legacy short forms explicitly so they don't get
+		// silently swallowed as positional filenames. The spec is
+		// `--color=true|false` — nothing else.
+		fmt.eprintf("error: %s is not valid (use --color=true or --color=false)\n", arg)
+		os.exit(2)
 	case arg == "--pretty":
 		// Backwards-compat alias — pretty diagnostics are now the
 		// default. Silently accept so existing scripts don't break.
