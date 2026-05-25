@@ -4,9 +4,9 @@ import "core:fmt"
 
 // ============================================================================
 // Diagnostic system — error codes, severity, and source-aware token
-// formatting helpers. Phase 1 of the error-quality work (see
-// `docs/diagnostics.md` once written, and the audit notes in commit
-// `feat(diagnostics): error codes + source-aware Expected/got messages`).
+// formatting helpers. See `docs/diagnostics.md` for the public reference
+// (code namespace, surfaces, CLI controls, wording style, and the
+// recipe contributors follow when adding a new code).
 //
 // Design goals (carried over from the audit):
 //   - One `ErrorCode` namespace covering lexer (K1xxx), parser (K2xxx),
