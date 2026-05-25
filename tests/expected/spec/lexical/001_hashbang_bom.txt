@@ -71,8 +71,11 @@
     }
   ]
 }
-Parse errors (1):
-  Line 1, Column 5: Invalid character `!`
+error[K1014]: Invalid character `!`
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/spec/lexical/001_hashbang_bom.js:1:5
+   |
+ 1 | ﻿#!/usr/bin/env node
+   |     ^
 
 --- Statistics ---
 Arena: used=37600B reserved=16777216B ratio=0%

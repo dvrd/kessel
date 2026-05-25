@@ -98,8 +98,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 24: Expected '>', got ';'
+error[K2002]: Expected '>', got ';'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/002_jsx_close_tag_broken.js:2:24
+   |
+ 2 | const view = <Foo></Bar;
+   |                        ^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=38048B reserved=16777216B ratio=0%

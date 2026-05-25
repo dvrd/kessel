@@ -100,8 +100,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 22: Expected ')', got '{'
+error[K2002]: Expected ')', got '{'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/001_function_params_broken.js:2:22
+   |
+ 2 | function broken(a, b {
+   |                      ^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=38112B reserved=16777216B ratio=0%

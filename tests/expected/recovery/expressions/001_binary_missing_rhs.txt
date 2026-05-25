@@ -69,8 +69,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 20: Expected expression after operator
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/001_binary_missing_rhs.js:2:20
+   |
+ 2 | const broken = 1 + ;
+   |                    ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

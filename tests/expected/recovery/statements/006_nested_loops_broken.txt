@@ -173,8 +173,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 4, Column 16: Expected initializer expression after '='
+error[K2020]: Expected initializer expression after '='
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/006_nested_loops_broken.js:4:16
+   |
+ 4 |   for (let j = ; j < 10; j++) {
+   |                ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=38048B reserved=16777216B ratio=0%

@@ -74,8 +74,11 @@
     }
   ]
 }
-Parse errors (1):
-  Line 3, Column 21: Unexpected token after ?.
+error[K2040]: Unexpected token after ?.
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/008_optional_chain_broken.js:3:21
+   |
+ 3 | const broken = obj?.;
+   |                     ^
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

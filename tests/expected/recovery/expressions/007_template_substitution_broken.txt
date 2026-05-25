@@ -97,8 +97,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 3, Column 30: Expected expression after operator
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/007_template_substitution_broken.js:3:30
+   |
+ 3 | const broken = `hello ${1 + } world`;
+   |                              ^^^^^^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=38024B reserved=16777216B ratio=0%

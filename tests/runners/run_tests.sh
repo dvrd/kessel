@@ -111,10 +111,16 @@ while IFS= read -r fixture; do
     # Default `kessel parse` is parser-only (matches OXC's parseSync).
     # Must-reject fixtures (early-error / negative) are owned by the
     # coverage harness now, so this runner never needs --show-semantic-errors.
+    #
+    # `--json` requests the AST + errors as JSON on stdout (the pre-2026-05
+    # default). The goldens under tests/expected/ all contain JSON, so the
+    # runner has to ask for it explicitly under the new CLI semantics.
+    # `--stats` reproduces the trailing Arena / Parse errors footer the
+    # goldens normalize past (see normalize_output above).
     if [[ -n "$lang_flag" ]]; then
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$lang_flag" "$fixture")
+        cmd=(timeout 10 "$KESSEL_BIN" parse --json --stats "$lang_flag" "$fixture")
     else
-        cmd=(timeout 10 "$KESSEL_BIN" parse "$fixture")
+        cmd=(timeout 10 "$KESSEL_BIN" parse --json --stats "$fixture")
     fi
     if ! "${cmd[@]}" >"$output_file" 2>&1; then
         exit_code=$?

@@ -80,10 +80,25 @@
     }
   ]
 }
-Parse errors (3):
-  Line 2, Column 24: Expected ']', got ';'
-  Line 2, Column 24: Expected initializer expression after '='
-  Line 3, Column 1: Missing initializer in 'const' declaration
+error[K2002]: Expected ']', got ';'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:2:24
+   |
+ 2 | const broken = object[1;
+   |                        ^
+  = note: see TS1005
+
+error[K2020]: Expected initializer expression after '='
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:2:24
+   |
+ 2 | const broken = object[1;
+   |                        ^
+  = note: see TS1109
+
+error[K2070]: Missing initializer in 'const' declaration
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/003_member_missing_property.js:3:1
+   |
+ 3 | const anchor_after_error = 1;
+   | ^^^^^
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

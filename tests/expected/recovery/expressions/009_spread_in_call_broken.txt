@@ -74,8 +74,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 11: Expected expression after '...'
+error[K2020]: Expected expression after '...'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/expressions/009_spread_in_call_broken.js:2:11
+   |
+ 2 | fn(1, ... , 2);
+   |           ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=37664B reserved=16777216B ratio=0%

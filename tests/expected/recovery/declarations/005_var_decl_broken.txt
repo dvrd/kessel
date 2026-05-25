@@ -87,9 +87,19 @@
     }
   ]
 }
-Parse errors (2):
-  Line 2, Column 20: Expected expression after operator
-  Line 2, Column 20: Expected semicolon
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/005_var_decl_broken.js:2:20
+   |
+ 2 | const broken = 1 + * 2;
+   |                    ^
+  = note: see TS1109
+
+error[K2010]: Expected semicolon
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/005_var_decl_broken.js:2:20
+   |
+ 2 | const broken = 1 + * 2;
+   |                    ^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=37760B reserved=16777216B ratio=0%

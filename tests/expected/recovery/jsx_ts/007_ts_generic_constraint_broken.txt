@@ -155,8 +155,11 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 23: Expected type after 'extends'
+error[K2023]: Expected type after 'extends'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/007_ts_generic_constraint_broken.js:2:23
+   |
+ 2 | function id<T extends >(x: T): T { return x; }
+   |                       ^
 
 --- Statistics ---
 Arena: used=38336B reserved=16777216B ratio=0%

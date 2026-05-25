@@ -111,8 +111,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 21: Expected expression after operator
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/002_for_header_broken.js:2:21
+   |
+ 2 | for (let i = 0; i < ; i++) {
+   |                     ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=37824B reserved=16777216B ratio=0%

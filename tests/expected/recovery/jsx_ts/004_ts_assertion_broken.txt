@@ -93,10 +93,26 @@
     }
   ]
 }
-Parse errors (3):
-  Line 4, Column 1: Expected '<', got end of input
-  Line 4, Column 1: Expected '/', got end of input
-  Line 4, Column 1: Expected '>', got end of input
+error[K2002]: Expected '<', got end of input
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
+   |
+ 4 | 
+   | ^
+  = note: see TS1005
+
+error[K2002]: Expected '/', got end of input
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
+   |
+ 4 | 
+   | ^
+  = note: see TS1005
+
+error[K2002]: Expected '>', got end of input
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/004_ts_assertion_broken.js:4:1
+   |
+ 4 | 
+   | ^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=37888B reserved=16777216B ratio=0%

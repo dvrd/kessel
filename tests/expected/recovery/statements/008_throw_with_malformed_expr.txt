@@ -62,8 +62,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 3, Column 1: Expected ')', got 'const'
+error[K2002]: Expected ')', got 'const'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/008_throw_with_malformed_expr.js:3:1
+   |
+ 3 | const anchor_after_error = 1;
+   | ^^^^^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=37664B reserved=16777216B ratio=0%

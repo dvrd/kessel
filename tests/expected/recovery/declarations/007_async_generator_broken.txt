@@ -120,8 +120,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 3, Column 18: Expected initializer expression after '='
+error[K2020]: Expected initializer expression after '='
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/007_async_generator_broken.js:3:18
+   |
+ 3 |   async *gen(x = ) {
+   |                  ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=38592B reserved=16777216B ratio=0%

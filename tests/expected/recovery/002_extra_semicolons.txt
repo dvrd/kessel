@@ -242,8 +242,11 @@
     }
   ]
 }
-Parse errors (1):
-  Line 16, Column 7: Unexpected ';' in object literal
+error[K2040]: Unexpected ';' in object literal
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/002_extra_semicolons.js:16:7
+   |
+16 |   a: 1;;;
+   |       ^
 
 --- Statistics ---
 Arena: used=38496B reserved=16777216B ratio=0%

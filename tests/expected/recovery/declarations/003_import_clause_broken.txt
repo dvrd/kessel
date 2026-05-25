@@ -82,10 +82,25 @@
     }
   ]
 }
-Parse errors (3):
-  Line 2, Column 12: Expected '}', got identifier 'b'
-  Line 2, Column 14: Unexpected '}' — unmatched closing brace
-  Line 2, Column 21: Expected semicolon
+error[K2002]: Expected '}', got identifier 'b'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:12
+   |
+ 2 | import { a b } from './module.js';
+   |            ^
+  = note: see TS1005
+
+error[K2040]: Unexpected '}' — unmatched closing brace
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:14
+   |
+ 2 | import { a b } from './module.js';
+   |              ^
+
+error[K2010]: Expected semicolon
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/declarations/003_import_clause_broken.js:2:21
+   |
+ 2 | import { a b } from './module.js';
+   |                     ^^^^^^^^^^^^^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=37696B reserved=16777216B ratio=0%

@@ -312,30 +312,41 @@ main :: proc() {
 } // when ODIN_BUILD_MODE != .Dynamic
 
 print_usage :: proc() {
-	out_println("Kessel - Fast JavaScript Parser")
+	out_println("Kessel — Fast JavaScript / TypeScript Parser")
 	out_println("")
 	out_println("Usage: kessel <command> [options]")
 	out_println("")
 	out_println("Commands:")
-	out_println("  parse <file> [--compact]        Parse and output AST as JSON to stdout")
+	out_println("  parse <file>                    Parse one file. Prints diagnostics on stderr.")
+	out_println("                                   Exits 1 if errors found, 0 otherwise.")
+	out_println("  parse <file> --json             Also print the AST as JSON to stdout.")
+	out_println("                                   In JSON mode kessel always exits 0; read")
+	out_println("                                   errors from the JSON `errors` array.")
+	out_println("  parse <file> --raw [--out-dir D]      Write single-file raw binary buffer.")
 	out_println("  parse <files...> [--out-dir D] [--workers N]")
-	out_println("      Parallel parse, write AST JSON per file (default: tmp/ast/)")
-	out_println("  parse <file> --raw [--out-dir D]  Write single-file raw buffer (binary)")
+	out_println("                                   Parallel parse, write JSON per file (default: tmp/ast/).")
 	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
-	out_println("      Parallel parse, write raw binary per file (default: tmp/raw/)")
-	out_println("  lex <file>                      Tokenize and output tokens as JSON")
-	out_println("  microbench parse <file> [--iterations N]  Parse benchmark (default 100)")
-	out_println("  microbench lex <file> [--iterations N]    Lex benchmark (default 100)")
-	out_println("  profile parse <file> [--iterations N]     Parser profile with stats (default 100)")
-	out_println("  profile lex <file> [--iterations N]       Lexer profile with stats (default 100)")
-	out_println("  help                            Show this help message")
-	out_println("  version                         Show version")
+	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
+	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
+	out_println("  microbench parse <file> [--iterations N]   Parse benchmark (default 100).")
+	out_println("  microbench lex <file> [--iterations N]     Lex benchmark (default 100).")
+	out_println("  profile parse <file> [--iterations N]      Parser profile with stats (default 100).")
+	out_println("  profile lex <file> [--iterations N]        Lexer profile with stats (default 100).")
+	out_println("  help                            Show this help message.")
+	out_println("  version                         Show version.")
+	out_println("")
+	out_println("Diagnostic flags:")
+	out_println("  --json                          Print the AST as JSON on stdout (exits 0).")
+	out_println("  --stats                         Print arena + parse-error footer on stderr.")
+	out_println("  --color[=auto|always|never]     ANSI color control. Default auto (TTY + NO_COLOR).")
+	out_println("  --no-color                      Disable ANSI color (alias for --color=never).")
+	out_println("  --show-semantic-errors          Run the AST-walker semantic checker (pass 3).")
 	out_println("")
 	out_println("Examples:")
-	out_println("  kessel parse app.js")
-	out_println("  kessel parse src/*.js --workers 4")
+	out_println("  kessel parse app.js                       Pretty diagnostics, exit 1 on error.")
+	out_println("  kessel parse app.js --json                JSON AST on stdout, exit 0 always.")
+	out_println("  kessel parse src/*.js --workers 4         Batch parse, write per-file JSON.")
 	out_println("  kessel microbench parse app.js --iterations 5000")
-	out_println("  kessel microbench lex app.js --iterations 2000")
 }
 
 // ============================================================================
@@ -411,8 +422,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	// see src/parse_job.odin).
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
-		out_printf("Error: Could not read file: %s\n", file_path)
-		flush_stdout_writer()
+		fmt.eprintf("error: could not read file: %s\n", file_path)
 		os.exit(1)
 	}
 	defer parse_job_close(&job)
@@ -442,6 +452,8 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	}
 
 	// Body of the JSON output: "{\n" + Program + [module record] + [errors] + "\n}\n".
+	// Build it unconditionally so emitter state is well-formed, but only
+	// flush to stdout when the user asked for it via --json.
 	emit_raw(&e, "{\n")
 	hb_info: Maybe(HashbangInfo)
 	if job.lexer.has_hashbang {
@@ -457,58 +469,59 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 
 	emit_raw(&e, "\n}\n")
 
-	// Single write to stdout for the JSON body first. Diagnostic lines
-	// (parse errors, stats) must follow the JSON on separate lines so
-	// downstream consumers can split on the first newline and JSON.parse
-	// the line without stripping error preambles.
-	//
-	// In --compact mode emit_raw strips every `\n` from its input, so the
-	// trailing `"\n}\n"` becomes a bare `}` and the parse-error preamble
-	// can run into it. Guarantee a terminator unconditionally: if the
-	// last emitted byte isn't already `\n`, append one before flushing.
-	if e.pos == 0 || e.buf[e.pos-1] != '\n' {
-		emit_reserve(&e, 1)
-		e.buf[e.pos] = '\n'
-		e.pos += 1
+	if cli.emit_json {
+		// Single write to stdout for the JSON body. --compact mode
+		// strips every `\n` so guarantee a trailing terminator.
+		if e.pos == 0 || e.buf[e.pos-1] != '\n' {
+			emit_reserve(&e, 1)
+			e.buf[e.pos] = '\n'
+			e.pos += 1
+		}
+		os.write(os.stdout, e.buf[:e.pos])
 	}
-	os.write(os.stdout, e.buf[:e.pos])
 
-	// Parse-error diagnostics. Two render modes:
-	//   * default — one line per error: `Line N, Column M: msg`. Stable
-	//     machine-friendly output; what pipelines have always parsed.
-	//   * --pretty — rustc-style block per error with source snippet,
-	//     caret, code, and hint. Opt-in for human consumption.
+	// Parse-error diagnostics on stderr. Always pretty (rustc-style with
+	// source snippet + caret + code + hint). The legacy one-line summary
+	// is gone; consumers that want machine-readable diagnostics should
+	// read them from the JSON `errors` array via --json.
 	if len(job.parser.errors) > 0 {
 		if job.parser.lexer != nil && job.parser.lexer.num_lines == 0 {
 			build_line_table(job.parser.lexer)
 		}
-		if cli.pretty_diagnostics && job.parser.lexer != nil {
-			fmt.eprintln()
+		if job.parser.lexer != nil {
 			render_pretty_diagnostics(
 				job.parser.lexer.source,
 				file_path,
 				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
 				job.parser.errors[:],
+				should_use_color(cli.color),
 			)
-		} else {
-			fmt.printf("Parse errors (%d):\n", len(job.parser.errors))
-			for err in job.parser.errors {
-				line: u32 = 0
-				col:  u32 = 0
-				if job.parser.lexer != nil {
-					line, col = offset_to_line_col(job.parser.lexer.line_offsets, err.start)
-				}
-				fmt.printf("  Line %d, Column %d: %s\n", line, col, err.message)
-			}
 		}
 	}
 
-	// Stats
-	arena := job.arena_ptr^
-	fmt.eprintf("\n--- Statistics ---\n")
-	ratio := (arena.total_used * 100) / arena.total_reserved
-	fmt.eprintf("Arena: used=%dB reserved=%dB ratio=%d%%\n", arena.total_used, arena.total_reserved, ratio)
-	fmt.eprintf("Parse errors: %d\n", len(job.parser.errors))
+	// Stats footer (opt-in via --stats). Useful for measuring memory
+	// pressure or scripting against the trailing summary line. Off by
+	// default to keep `kessel parse FILE` output clean.
+	if cli.show_stats {
+		arena := job.arena_ptr^
+		fmt.eprintf("\n--- Statistics ---\n")
+		ratio := (arena.total_used * 100) / arena.total_reserved
+		fmt.eprintf("Arena: used=%dB reserved=%dB ratio=%d%%\n", arena.total_used, arena.total_reserved, ratio)
+		fmt.eprintf("Parse errors: %d\n", len(job.parser.errors))
+	}
+
+	// Non-zero exit when the source had parse errors AND we're in human
+	// mode (no --json). Matches rustc / tsc / ruff / biome and lets
+	// shell scripts gate on `kessel parse foo.js && ...`.
+	//
+	// In --json mode we always exit 0 — the consumer reads errors from
+	// the JSON `errors` array on stdout and decides for itself. This
+	// keeps the JSON mode pipeline-stable: shell wrappers, the unit
+	// fixture runner, and editor integrations all assume `kessel parse
+	// --json file` produces JSON and exits 0 unless I/O fails.
+	if len(job.parser.errors) > 0 && !cli.emit_json {
+		os.exit(1)
+	}
 }
 
 // ============================================================================

@@ -136,8 +136,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 26: Expected '>', got '=>'
+error[K2002]: Expected '>', got '=>'
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/jsx_ts/006_jsx_fragment_broken.js:2:26
+   |
+ 2 | const broken = <><span id=></span></>;
+   |                          ^^
+  = note: see TS1005
 
 --- Statistics ---
 Arena: used=38112B reserved=16777216B ratio=0%

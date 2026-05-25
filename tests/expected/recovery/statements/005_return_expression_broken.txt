@@ -77,8 +77,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 3, Column 18: Expected expression after operator
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/005_return_expression_broken.js:3:18
+   |
+ 3 |   return value + ;
+   |                  ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=37728B reserved=16777216B ratio=0%

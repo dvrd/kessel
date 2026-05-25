@@ -74,20 +74,40 @@ CliConfig :: struct {
 	// continues to be accepted and the migration path is visible.
 	show_semantic_errors: bool,         // --show-semantic-errors
 
-	// Diagnostic rendering
-	pretty_diagnostics:   bool,         // --pretty
+	// Output / diagnostic surfaces.
+	//
+	// `kessel parse FILE` defaults to human-friendly rendering: pretty
+	// diagnostics on stderr, no AST on stdout. Tooling that wants the
+	// AST opts in with `--json`; tooling that wants the legacy stats
+	// footer opts in with `--stats`. This mirrors rustc / tsc / biome /
+	// ruff: human by default, machine when asked.
+	emit_json:            bool,         // --json — print AST as JSON to stdout
+	show_stats:           bool,         // --stats — print arena + error count to stderr
+
+	// Color mode for the pretty renderer. .Auto consults the TTY +
+	// NO_COLOR env var; .Always forces on; .Never forces off.
+	color:                ColorMode,    // --color=auto|always|never
+}
+
+// ColorMode controls ANSI color output in the pretty renderer.
+ColorMode :: enum u8 {
+	Auto   = 0,   // default — on when stderr is a TTY and NO_COLOR is unset
+	Always = 1,
+	Never  = 2,
 }
 
 // Build a CliConfig with the documented defaults.
 //
 //   error_format = "kessel"  // legacy shape; --errors=oxc opts in
 //   ast_type     = .Auto     // emitter resolves from parse Lang
+//   color        = .Auto     // TTY + NO_COLOR drive the decision
 //
 // Every other field defaults to its zero value (false / nil).
 cli_config_default :: proc() -> CliConfig {
 	return CliConfig{
 		error_format = "kessel",
 		ast_type     = .Auto,
+		color        = .Auto,
 	}
 }
 
@@ -136,13 +156,43 @@ cli_try_parse_flag :: proc(cfg: ^CliConfig, args: []string, i: ^int) -> bool {
 		cfg.preserve_parens = true
 		i^ += 1
 		return true
+	case arg == "--json":
+		// Print the JSON AST to stdout (the pre-2026-05 default).
+		// Without this flag, `kessel parse FILE` prints only pretty
+		// diagnostics on stderr — a clean human-facing default.
+		cfg.emit_json = true
+		i^ += 1
+		return true
+	case arg == "--stats":
+		// Print the per-parse arena / error-count block on stderr
+		// (the pre-2026-05 default). Useful when measuring memory
+		// pressure or scripting against the trailing summary line.
+		cfg.show_stats = true
+		i^ += 1
+		return true
+	case arg == "--color":
+		cfg.color = .Always
+		i^ += 1
+		return true
+	case arg == "--no-color":
+		cfg.color = .Never
+		i^ += 1
+		return true
+	case strings.has_prefix(arg, "--color="):
+		val := arg[8:]
+		switch val {
+		case "auto":   cfg.color = .Auto
+		case "always": cfg.color = .Always
+		case "never":  cfg.color = .Never
+		case:
+			fmt.eprintf("error: --color=%s is not valid (use auto|always|never)\n", val)
+			os.exit(2)
+		}
+		i^ += 1
+		return true
 	case arg == "--pretty":
-		// Opt-in human-readable diagnostic rendering. When set,
-		// errors print rustc-style with a source snippet, a caret,
-		// and the K#### code. Default off so the existing
-		// `Line N, Column M: ...` summary stays the machine-friendly
-		// default for pipelines. See `render_pretty_diagnostics`.
-		cfg.pretty_diagnostics = true
+		// Backwards-compat alias — pretty diagnostics are now the
+		// default. Silently accept so existing scripts don't break.
 		i^ += 1
 		return true
 	case arg == "--show-semantic-errors":

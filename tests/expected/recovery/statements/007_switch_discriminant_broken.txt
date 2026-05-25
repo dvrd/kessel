@@ -89,8 +89,12 @@
     }
   ]
 }
-Parse errors (1):
-  Line 2, Column 13: Expected expression after operator
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/007_switch_discriminant_broken.js:2:13
+   |
+ 2 | switch (x + ) {
+   |             ^
+  = note: see TS1109
 
 --- Statistics ---
 Arena: used=38560B reserved=16777216B ratio=0%

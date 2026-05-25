@@ -139,10 +139,25 @@
     }
   ]
 }
-Parse errors (3):
-  Line 5, Column 22: Expected expression after operator
-  Line 5, Column 22: Expected semicolon
-  Line 5, Column 22: Invalid statement in block
+error[K2020]: Expected expression after operator
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/004_try_catch_broken.js:5:22
+   |
+ 5 |   const broken = 1 + * 2;
+   |                      ^
+  = note: see TS1109
+
+error[K2010]: Expected semicolon
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/004_try_catch_broken.js:5:22
+   |
+ 5 |   const broken = 1 + * 2;
+   |                      ^
+  = note: see TS1005
+
+error[K2040]: Invalid statement in block
+  --> /Users/kakurega/dev/projects/kessel/tests/runners/../fixtures/recovery/statements/004_try_catch_broken.js:5:22
+   |
+ 5 |   const broken = 1 + * 2;
+   |                      ^
 
 --- Statistics ---
 Arena: used=37888B reserved=16777216B ratio=0%
