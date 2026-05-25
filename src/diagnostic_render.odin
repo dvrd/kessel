@@ -28,6 +28,40 @@ import "core:strings"
 // Zero new dependencies — just `core:fmt` and `core:strings`.
 // ============================================================================
 
+// Static buffer used for caret-padding / caret-bar runs. Sized to handle
+// any source-line offset we realistically render (single source line caps
+// at int max but typical worst-case is a minified bundle on one line —
+// 100KB+). A static 65536-byte buffer covers every real-world case in a
+// single write; longer runs fall back to a chunked loop that's still
+// O(n/CHUNK) eprintf calls instead of O(n).
+@(private="file") REPEAT_CHUNK_SIZE :: 4096
+@(private="file") repeat_space_chunk: [REPEAT_CHUNK_SIZE]byte = #partial { 0 = ' ' }
+@(private="file") repeat_caret_chunk: [REPEAT_CHUNK_SIZE]byte = #partial { 0 = '^' }
+@(private="file") repeat_chunks_initialized := false
+
+@(private="file")
+ensure_repeat_chunks :: proc() {
+	if repeat_chunks_initialized { return }
+	for i in 0..<REPEAT_CHUNK_SIZE {
+		repeat_space_chunk[i] = ' '
+		repeat_caret_chunk[i] = '^'
+	}
+	repeat_chunks_initialized = true
+}
+
+@(private="file")
+emit_repeated :: proc(b: byte, n: int) {
+	if n <= 0 { return }
+	ensure_repeat_chunks()
+	src: ^[REPEAT_CHUNK_SIZE]byte = b == '^' ? &repeat_caret_chunk : &repeat_space_chunk
+	remaining := n
+	for remaining > 0 {
+		k := min(remaining, REPEAT_CHUNK_SIZE)
+		fmt.eprint(string(src[:k]))
+		remaining -= k
+	}
+}
+
 // ANSI escape sequences. Kept inline (not constants) so a future caller
 // can build a different palette without restructuring the renderer.
 @(private="file") ANSI_RESET     :: "\x1b[0m"
@@ -161,9 +195,9 @@ render_snippet :: proc(
 		caret_pad := int(start_col) - 1
 		emit_gutter(gutter_w, "", use_color)
 		fmt.eprintf(" ")
-		for _ in 0..<caret_pad { fmt.eprintf(" ") }
+		emit_repeated(' ', caret_pad)
 		if use_color { fmt.eprintf("%s", ANSI_BOLD_RED) }
-		for _ in 0..<under_w   { fmt.eprintf("^") }
+		emit_repeated('^', under_w)
 		if use_color { fmt.eprintf("%s", ANSI_RESET) }
 		fmt.eprintf("\n")
 	} else {
@@ -174,9 +208,9 @@ render_snippet :: proc(
 		caret_pad := int(start_col) - 1
 		emit_gutter(gutter_w, "", use_color)
 		fmt.eprintf(" ")
-		for _ in 0..<caret_pad { fmt.eprintf(" ") }
+		emit_repeated(' ', caret_pad)
 		if use_color { fmt.eprintf("%s", ANSI_BOLD_RED) }
-		for _ in 0..<under_w   { fmt.eprintf("^") }
+		emit_repeated('^', under_w)
 		if use_color { fmt.eprintf("%s", ANSI_RESET) }
 		fmt.eprintf("\n")
 		if end_line > start_line + 1 {
@@ -187,8 +221,9 @@ render_snippet :: proc(
 		emit_gutter(gutter_w, "", use_color)
 		fmt.eprintf(" ")
 		if use_color { fmt.eprintf("%s", ANSI_BOLD_RED) }
-		for _ in 0..<(int(end_col) - 1) { fmt.eprintf("^") }
-		if int(end_col) <= 1 { fmt.eprintf("^") }
+		end_carets := int(end_col) - 1
+		if end_carets < 1 { end_carets = 1 }
+		emit_repeated('^', end_carets)
 		if use_color { fmt.eprintf("%s", ANSI_RESET) }
 		fmt.eprintf("\n")
 	}
@@ -229,15 +264,32 @@ render_source_line :: proc(source: string, line_offsets: []u32, line: u32, gutte
 
 	num_str := fmt.tprintf("%d", line)
 	pad := gutter_w - len(num_str)
-	for _ in 0..<pad { fmt.eprintf(" ") }
+	emit_repeated(' ', pad)
 	if use_color {
 		fmt.eprintf("%s%s |%s ", ANSI_DIM, num_str, ANSI_RESET)
 	} else {
 		fmt.eprintf("%s | ", num_str)
 	}
-	for ch in text {
-		if ch == '\t' { fmt.eprintf(" ") }
-		else          { fmt.eprintf("%c", ch) }
+	// Fast path: print the source slice in one write if it has no tabs
+	// (the common case). Tabs need rewriting to spaces, so they take a
+	// chunked path that still avoids the per-character syscall.
+	if strings.contains_rune(text, '\t') {
+		// Build a tab-rewritten copy in chunks so we don't allocate.
+		buf: [REPEAT_CHUNK_SIZE]byte
+		n := 0
+		for i in 0..<len(text) {
+			c := text[i]
+			if c == '\t' { c = ' ' }
+			buf[n] = c
+			n += 1
+			if n == REPEAT_CHUNK_SIZE {
+				fmt.eprint(string(buf[:n]))
+				n = 0
+			}
+		}
+		if n > 0 { fmt.eprint(string(buf[:n])) }
+	} else {
+		fmt.eprint(text)
 	}
 	fmt.eprintf("\n")
 }
