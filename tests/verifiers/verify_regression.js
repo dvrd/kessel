@@ -382,7 +382,7 @@ function assertNoUnknownOrUnimplemented(root) {
 }
 
 function parseKessel(file) {
-  const raw = execSync(`"${KESSEL}" parse "${file}" --compact`,
+  const raw = execSync(`"${KESSEL}" parse --json --compact "${file}"`,
                        { encoding: 'utf8', maxBuffer: 200*1024*1024 });
   return JSON.parse(raw.split('\n')[0]);
 }

@@ -358,7 +358,7 @@ function parseKessel(file) {
   // Acorn and Babel fold parentheses away (like Kessel's default), so the
   // flag is intentionally OXC-only here.
   const parensFlag = PARSER === 'oxc' ? ' --preserve-parens' : '';
-  const raw = execSync(`"${KESSEL}" parse${langFlag}${parensFlag} "${file}" --compact`,
+  const raw = execSync(`"${KESSEL}" parse --json --compact${langFlag}${parensFlag} "${file}"`,
                        { encoding: 'utf8', maxBuffer: 200 * 1024 * 1024 });
   // Kessel appends statistics to stderr; stdout first line is the JSON.
   return JSON.parse(raw.split('\n')[0]);

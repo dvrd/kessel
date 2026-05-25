@@ -21,7 +21,7 @@ function detectDialect(p) {
 }
 
 function parseKessel(file, lang) {
-  const args = ['parse'];
+  const args = ['parse', '--json'];
   if (lang && lang !== 'js') args.push('--lang=' + lang);
   args.push(file);
   const r = spawnSync(KESSEL, args, { timeout: 30000, maxBuffer: 16*1024*1024, encoding: 'utf8' });

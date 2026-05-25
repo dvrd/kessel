@@ -25,7 +25,7 @@ if (!fs.existsSync(oxcBin))    { console.error('missing', oxcBin);    process.ex
 // Collect strings we CAN see in the top-level tree. Strings inside truncated
 // subtrees are invisible here, but for the verifier's purpose (detecting
 // escape bugs) any one reachable literal is enough to see the bug shape.
-const kRaw = execSync(`${kesselBin} parse "${file}" --compact`, { encoding: 'utf8', maxBuffer: 500*1024*1024 });
+const kRaw = execSync(`${kesselBin} parse --json --compact "${file}"`, { encoding: 'utf8', maxBuffer: 500*1024*1024 });
 // `--compact` output: JSON on line 1, then any number of diagnostic/stat
 // lines. Take line 1 exactly — anything after it is not part of the JSON.
 // (Legacy `{ ... }` / `[ ... ]` placeholders removed; no longer strip them.)
