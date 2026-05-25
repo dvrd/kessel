@@ -154,12 +154,9 @@ gen_function_params_and_body :: proc(
 	if len(body.body) == 0 { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	for d in body.directives {
-		cg_byte(cg, '"')
-		cg_str(cg, d.value.value)
-		cg_str(cg, "\";")
-		cg_newline(cg)
-	}
+	// Directive prologue (e.g. "use strict") is already present at the
+	// front of body.body[] as an ExpressionStatement; emitting it from
+	// body.directives too would duplicate output. See codegen_program.
 	for i in 0..<len(body.body) {
 		gen_statement(cg, body.body[i]^)
 		cg_newline(cg)
@@ -204,19 +201,47 @@ gen_class_like :: proc(
 }
 
 gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
+	for d in el.decorators {
+		cg_byte(cg, '@')
+		gen_expression(cg, d.expression, PREC_CALL)
+		cg_newline(cg)
+	}
 	if el.static { cg_str(cg, "static ") }
+	if el.is_accessor { cg_str(cg, "accessor ") }
 	switch el.kind {
 	case .Method:
+		// ClassElementKind.Method covers both MethodDefinition AND
+		// PropertyDefinition: if the value is a FunctionExpression it's
+		// a method; otherwise it's a field initializer (`x = 1;` or `x;`).
+		// Mirrors the emitter's class-element dispatch.
+		raw_val, val_ok := el.value.?
+		fn: ^FunctionExpression
+		is_method := false
+		if val_ok {
+			if f, ok := raw_val.(^FunctionExpression); ok {
+				fn = f
+				is_method = true
+			}
+		}
+		if is_method {
+			if fn.async { cg_str(cg, "async ") }
+			if fn.generator { cg_byte(cg, '*') }
+		}
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
 		if el.computed { cg_byte(cg, ']') }
-		if val, ok := el.value.?; ok {
-			if fn, is_fn := val.(^FunctionExpression); is_fn {
-				gen_function_params_and_body(cg, fn.async, fn.generator, fn.params[:], fn.body, fn.no_body, fn.type_parameters, fn.return_type)
-				return
-			}
+		if is_method {
+			gen_function_params_and_body(cg, fn.async, fn.generator, fn.params[:], fn.body, fn.no_body, fn.type_parameters, fn.return_type)
+			return
 		}
-		cg_str(cg, "() {}")
+		// PropertyDefinition path. Optional initializer + terminating `;`.
+		if val_ok {
+			cg_space(cg)
+			cg_byte(cg, '=')
+			cg_space(cg)
+			gen_expression(cg, raw_val, PREC_ASSIGN)
+		}
+		cg_byte(cg, ';')
 	case .Get:
 		cg_str(cg, "get ")
 		if el.computed { cg_byte(cg, '[') }
@@ -251,8 +276,22 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		}
 		cg_str(cg, "() {}")
 	case .StaticBlock:
-		// Static-block static prefix already emitted above.
-		cg_str(cg, "{ /*static block*/ }")
+		// Parser stores the static block as a FunctionExpression with no
+		// params; body.body holds the statements. See parse_static_block.
+		cg_str(cg, "static ")
+		cg_byte(cg, '{')
+		if v, ok := el.value.?; ok {
+			if fn, is_fn := v.(^FunctionExpression); is_fn && len(fn.body.body) > 0 {
+				cg_newline(cg)
+				cg.depth += 1
+				for i in 0..<len(fn.body.body) {
+					gen_statement(cg, fn.body.body[i]^)
+					cg_newline(cg)
+				}
+				cg.depth -= 1
+			}
+		}
+		cg_byte(cg, '}')
 	}
 }
 

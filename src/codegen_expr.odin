@@ -122,11 +122,16 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		cg_space(cg)
 		gen_expression(cg, p.value, PREC_ASSIGN)
 	case .Method:
+		fn_for_prefix, _ := p.value.(^FunctionExpression)
+		if fn_for_prefix != nil {
+			if fn_for_prefix.async { cg_str(cg, "async ") }
+			if fn_for_prefix.generator { cg_byte(cg, '*') }
+		}
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
 		if p.computed { cg_byte(cg, ']') }
-		if fn, is_fn := p.value.(^FunctionExpression); is_fn {
-			gen_function_params_and_body(cg, fn.async, fn.generator, fn.params[:], fn.body, fn.no_body, fn.type_parameters, fn.return_type)
+		if fn_for_prefix != nil {
+			gen_function_params_and_body(cg, fn_for_prefix.async, fn_for_prefix.generator, fn_for_prefix.params[:], fn_for_prefix.body, fn_for_prefix.no_body, fn_for_prefix.type_parameters, fn_for_prefix.return_type)
 		}
 	case .Get:
 		cg_str(cg, "get ")
@@ -165,7 +170,17 @@ gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression) {
 	cg_str(cg, "=>")
 	cg_space(cg)
 	switch body in e.body {
-	case ^Expression:     gen_expression(cg, body, PREC_ASSIGN)
+	case ^Expression:
+		// `() => {foo: 1}` parses as a block with a labeled statement, not
+		// an object literal. Wrap ObjectExpression bodies in parens so the
+		// re-parse round-trips to the same Expression.
+		if _, is_obj := body^.(^ObjectExpression); is_obj {
+			cg_byte(cg, '(')
+			gen_expression(cg, body, PREC_ASSIGN)
+			cg_byte(cg, ')')
+		} else {
+			gen_expression(cg, body, PREC_ASSIGN)
+		}
 	case ^BlockStatement: gen_block_statement(cg, body)
 	}
 }
@@ -203,7 +218,17 @@ gen_call_expression :: proc(cg: ^Codegen, e: ^CallExpression) {
 
 gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
 	cg_str(cg, "new ")
-	gen_expression(cg, e.callee, PREC_CALL)
+	// The `new` callee grammar is MemberExpression | NewExpression — a
+	// CallExpression callee needs explicit parens, otherwise
+	// `new f()()` parses as `(new f)()` (call on the new), not the
+	// intended `new (f())()`.
+	if _, is_call := e.callee^.(^CallExpression); is_call {
+		cg_byte(cg, '(')
+		gen_expression(cg, e.callee, PREC_LOWEST)
+		cg_byte(cg, ')')
+	} else {
+		gen_expression(cg, e.callee, PREC_CALL)
+	}
 	cg_byte(cg, '(')
 	for i in 0..<len(e.arguments) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }

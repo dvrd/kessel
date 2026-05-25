@@ -191,16 +191,19 @@
           "start": 45,
           "end": 55,
           "computed": false,
+          "optional": true,
           "object": {
             "type": "MemberExpression",
             "start": 45,
             "end": 52,
             "computed": false,
+            "optional": true,
             "object": {
               "type": "MemberExpression",
               "start": 45,
               "end": 49,
               "computed": false,
+              "optional": true,
               "object": {
                 "type": "Identifier",
                 "start": 45,
@@ -225,5 +228,5 @@
 }
 
 --- Statistics ---
-Arena: used=6568B reserved=16777216B ratio=0%
+Arena: used=36160B reserved=16777216B ratio=0%
 Parse errors: 0

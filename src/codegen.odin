@@ -172,14 +172,9 @@ cg_hard_space :: #force_inline proc(cg: ^Codegen) {
 
 codegen_program :: proc(cg: ^Codegen, program: ^Program) {
 	if program == nil { return }
-	if len(program.directives) > 0 {
-		for d in program.directives {
-			cg_str(cg, "\"")
-			cg_str(cg, d.value.value)
-			cg_str(cg, "\";")
-			cg_newline(cg)
-		}
-	}
+	// Directive prologue (e.g. "use strict") lives in BOTH `program.directives`
+	// and as the leading ExpressionStatement of `program.body`. We emit only
+	// from body[] to avoid duplicate output.
 	for i in 0..<len(program.body) {
 		gen_statement(cg, program.body[i]^)
 		cg_newline(cg)

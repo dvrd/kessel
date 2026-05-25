@@ -597,6 +597,14 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
 	codegen_init(&cg, cfg, len(job.source.data), context.allocator)
 	defer codegen_destroy(&cg, context.allocator)
 
+	// Hashbang lives on the lexer (ES2023 Program.hashbang). Codegen must
+	// re-emit `#!...\n` at the very start before any other output — the
+	// hashbang production requires byte offset 0.
+	if job.lexer.has_hashbang {
+		cg_str(&cg, "#!")
+		cg_str(&cg, job.lexer.hashbang_value)
+		cg_newline(&cg)
+	}
 	codegen_program(&cg, job.program)
 
 	// Guarantee a trailing newline in pretty mode so shell redirection

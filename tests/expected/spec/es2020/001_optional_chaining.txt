@@ -111,16 +111,19 @@
               "start": 48,
               "end": 60,
               "computed": false,
+              "optional": true,
               "object": {
                 "type": "MemberExpression",
                 "start": 48,
                 "end": 57,
                 "computed": false,
+                "optional": true,
                 "object": {
                   "type": "MemberExpression",
                   "start": 48,
                   "end": 54,
                   "computed": false,
+                  "optional": true,
                   "object": {
                     "type": "Identifier",
                     "start": 48,
@@ -170,6 +173,7 @@
                 "start": 73,
                 "end": 84,
                 "computed": false,
+                "optional": true,
                 "object": {
                   "type": "Identifier",
                   "start": 73,
@@ -180,6 +184,7 @@
                   "start": 78,
                   "end": 84,
                   "name": "method"                }              },
+              "optional": true,
               "arguments": [
               ]            }          }        }
       ]    },
@@ -207,11 +212,13 @@
               "start": 102,
               "end": 115,
               "computed": true,
+              "optional": true,
               "object": {
                 "type": "MemberExpression",
                 "start": 102,
                 "end": 110,
                 "computed": false,
+                "optional": true,
                 "object": {
                   "type": "Identifier",
                   "start": 102,
@@ -233,5 +240,5 @@
 }
 
 --- Statistics ---
-Arena: used=7432B reserved=16777216B ratio=0%
+Arena: used=37760B reserved=16777216B ratio=0%
 Parse errors: 0

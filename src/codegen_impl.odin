@@ -20,8 +20,54 @@ package kessel
 // ============================================================================
 
 gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
-	gen_expression(cg, s.expression, PREC_LOWEST)
+	// An ExpressionStatement whose leftmost token is `function`, `class`,
+	// or `{` is ambiguous with FunctionDeclaration / ClassDeclaration /
+	// BlockStatement. Wrap in parens so the re-parse picks the
+	// Expression production.
+	if expression_needs_statement_paren(s.expression) {
+		cg_byte(cg, '(')
+		gen_expression(cg, s.expression, PREC_LOWEST)
+		cg_byte(cg, ')')
+	} else {
+		gen_expression(cg, s.expression, PREC_LOWEST)
+	}
 	cg_byte(cg, ';')
+}
+
+// True when the expression's first emitted token would be parsed as the
+// start of a non-Expression production if it appeared at statement start.
+// Walks leftmost descendants — the ambiguity propagates through call /
+// member / binary / sequence / etc. since those keep `function`/`class`/`{`
+// as the first token of the whole statement.
+expression_needs_statement_paren :: proc(expr: ^Expression) -> bool {
+	cur := expr
+	for cur != nil {
+		#partial switch e in cur^ {
+		case ^FunctionExpression:        return true
+		case ^ClassExpression:           return true
+		case ^ObjectExpression:          return true
+		case ^CallExpression:            cur = e.callee
+		case ^MemberExpression:          cur = e.object
+		case ^TaggedTemplateExpression:  cur = e.tag
+		case ^BinaryExpression:          cur = e.left
+		case ^LogicalExpression:         cur = e.left
+		case ^ConditionalExpression:     cur = e.test
+		case ^AssignmentExpression:      cur = e.left
+		case ^SequenceExpression:
+			if len(e.expressions) == 0 { return false }
+			cur = e.expressions[0]
+		case ^UpdateExpression:
+			if !e.prefix { cur = e.argument } else { return false }
+		case ^TSAsExpression:            cur = e.expression
+		case ^TSSatisfiesExpression:     cur = e.expression
+		case ^TSNonNullExpression:       cur = e.expression
+		case ^TSInstantiationExpression: cur = e.expression
+		case ^ChainExpression:           cur = e.expression
+		case:
+			return false
+		}
+	}
+	return false
 }
 
 gen_block_statement :: proc(cg: ^Codegen, s: ^BlockStatement) {
@@ -262,6 +308,11 @@ gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_sem
 }
 
 gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
+	for d in s.decorators {
+		cg_byte(cg, '@')
+		gen_expression(cg, d.expression, PREC_CALL)
+		cg_newline(cg)
+	}
 	name := ""
 	if id, ok := s.id.?; ok { name = id.name }
 	gen_class_like(cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements)
@@ -314,7 +365,26 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 	}
 	if !first { cg_str(cg, " from ") }
 	gen_string_quoted(cg, s.source.value)
+	gen_import_attributes(cg, s.attributes)
 	cg_byte(cg, ';')
+}
+
+// Emit `with { key: "value", ... }` import-attributes clause if any
+// attributes are present. ES2025 import attributes (was: import assertions).
+gen_import_attributes :: proc(cg: ^Codegen, attrs: [dynamic]ImportAttribute) {
+	if len(attrs) == 0 { return }
+	cg_str(cg, " with ")
+	cg_byte(cg, '{')
+	for i in 0..<len(attrs) {
+		if i > 0 { cg_byte(cg, ',') }
+		cg_space(cg)
+		cg_str(cg, attrs[i].key.name)
+		cg_byte(cg, ':')
+		cg_space(cg)
+		gen_string_quoted(cg, attrs[i].value.value)
+	}
+	cg_space(cg)
+	cg_byte(cg, '}')
 }
 
 // Emit either side of `export { local as exported }`. ExportSpecifierName is
@@ -357,6 +427,7 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 	if src, ok := s.source.?; ok {
 		cg_str(cg, " from ")
 		gen_string_quoted(cg, src.value)
+		gen_import_attributes(cg, s.attributes)
 	}
 	cg_byte(cg, ';')
 }
@@ -381,6 +452,7 @@ gen_export_all_declaration :: proc(cg: ^Codegen, s: ^ExportAllDeclaration) {
 	}
 	cg_str(cg, "from ")
 	gen_string_quoted(cg, s.source.value)
+	gen_import_attributes(cg, s.attributes)
 	cg_byte(cg, ';')
 }
 

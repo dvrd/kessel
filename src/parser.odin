@@ -12867,7 +12867,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 					member.property = ident_e
 				}
 				member.computed = false
-				member.optional = false // optional flag handled by ChainExpression wrapper
+				member.optional = true // ESTree: mark the `?.` site on the node it produced
 				member.loc.end = prev_end_offset(p)
 				expr = member_e
 			} else if is_token(p, .LBracket) {
@@ -12889,7 +12889,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				member.object = expr
 				member.property = prop
 				member.computed = true
-				member.optional = false // optional flag handled by ChainExpression wrapper
+				member.optional = true // ESTree: mark the `?.` site on the node it produced
 				member.loc.end = prev_end_offset(p)
 				expr = member_e
 			} else if is_token(p, .LParen) {
@@ -12898,7 +12898,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.loc = loc_from_expr(expr)
 				call.callee = expr
 				call.arguments = args
-				call.optional = false // optional flag handled by ChainExpression wrapper
+				call.optional = true // ESTree: mark the `?.` site on the node it produced
 				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else if is_open_angle_or_lshift(p) && (p.lang == .TS || p.lang == .TSX) {
@@ -12918,7 +12918,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				call.callee = expr
 				call.arguments = args
 				call.type_parameters = targs
-				call.optional = false // optional flag handled by ChainExpression wrapper
+				call.optional = true // ESTree: mark the `?.` site on the node it produced
 				call.loc.end = prev_end_offset(p)
 				expr = expression_from(p, call)
 			} else {

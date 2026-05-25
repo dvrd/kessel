@@ -34,11 +34,13 @@
                 "start": 483,
                 "end": 515,
                 "computed": false,
+                "optional": true,
                 "object": {
                   "type": "MemberExpression",
                   "start": 483,
                   "end": 512,
                   "computed": true,
+                  "optional": true,
                   "object": {
                     "type": "MemberExpression",
                     "start": 483,
@@ -53,16 +55,19 @@
                         "start": 483,
                         "end": 498,
                         "computed": false,
+                        "optional": true,
                         "object": {
                           "type": "MemberExpression",
                           "start": 483,
                           "end": 494,
                           "computed": true,
+                          "optional": true,
                           "object": {
                             "type": "MemberExpression",
                             "start": 483,
                             "end": 489,
                             "computed": false,
+                            "optional": true,
                             "object": {
                               "type": "Identifier",
                               "start": 483,
@@ -84,6 +89,7 @@
                           "start": 496,
                           "end": 498,
                           "name": "fn"                        }                      },
+                      "optional": true,
                       "arguments": [
                         {
                           "type": "Identifier",
@@ -147,6 +153,7 @@
                   "start": 543,
                   "end": 554,
                   "computed": false,
+                  "optional": true,
                   "object": {
                     "type": "Identifier",
                     "start": 543,
@@ -157,6 +164,7 @@
                     "start": 548,
                     "end": 554,
                     "name": "method"                  }                },
+                "optional": true,
                 "arguments": [
                 ]              }            },
             "right": {
@@ -195,21 +203,25 @@
                 "start": 581,
                 "end": 630,
                 "computed": false,
+                "optional": true,
                 "object": {
                   "type": "MemberExpression",
                   "start": 581,
                   "end": 620,
                   "computed": false,
+                  "optional": true,
                   "object": {
                     "type": "MemberExpression",
                     "start": 581,
                     "end": 607,
                     "computed": false,
+                    "optional": true,
                     "object": {
                       "type": "MemberExpression",
                       "start": 581,
                       "end": 595,
                       "computed": true,
+                      "optional": true,
                       "object": {
                         "type": "Identifier",
                         "start": 581,
@@ -297,5 +309,5 @@
 }
 
 --- Statistics ---
-Arena: used=15616B reserved=16777216B ratio=0%
+Arena: used=36704B reserved=16777216B ratio=0%
 Parse errors: 0
