@@ -111,6 +111,13 @@ tasks:
     cmds:
       - node tests/verifiers/verify_regression.js
 
+  test:codegen:
+    desc: "Codegen round-trip — parse → codegen → re-parse → AST equality across fixtures. Currently has known emitter bugs; not yet in `task test`."
+    deps: [build]
+    silent: true
+    cmds:
+      - node tests/verifiers/verify_codegen.js
+
   test:real:
     desc: "Parse all 467 real-world files, fail on any error or crash."
     deps: [build]
