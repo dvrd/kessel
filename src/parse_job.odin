@@ -121,6 +121,10 @@ ParseConfig :: struct {
 	// `<T>() => ...` generic arrows without trailing comma / extends).
 	// Babel option `disallowAmbiguousJSXLike`; also auto-enabled for .mts/.cts.
 	disallow_ambiguous_jsx_like: bool,
+
+	// Shared guardrails for malformed input. Zero-valued fields use the
+	// defaults from resource_budget.odin.
+	resource_budget: ParseResourceBudget,
 }
 
 // Snapshot a CliConfig into a ParseConfig. Called once per parse job
@@ -143,6 +147,7 @@ parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 		preserve_parens        = cli.preserve_parens,
 		ast_only               = false,
 		source_is_dts_override = nil,
+		resource_budget         = parse_resource_budget_default(),
 	}
 }
 
@@ -404,6 +409,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.force_strict     = job.config.force_strict
 	job.parser.preserve_parens  = job.config.preserve_parens
 	job.parser.ast_only         = job.config.ast_only
+	job.parser.resource_budget  = parse_resource_budget_normalize(job.config.resource_budget)
 	job.lexer.skip_regex_validation = job.config.ast_only
 	job.parser.is_commonjs      = job.is_commonjs
 	job.parser.is_node_ts_module = strings.has_suffix(job.source_path, ".cts") ||

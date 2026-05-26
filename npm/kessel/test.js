@@ -189,6 +189,63 @@ for (const src of alignmentCases) {
   }
 }
 
+// Rich parse options are threaded through kessel_parse_binary_v2.
+try {
+  const fast = parseSync('dup.js', 'let x; let x;');
+  const checked = parseSync('dup.js', 'let x; let x;', { mode: 'parse' });
+  if (fast.errors.length !== 0) {
+    console.error('FAIL: default npm mode should preserve fast ast-only behaviour');
+    failed++;
+  } else if (checked.errors.length === 0) {
+    console.error('FAIL: mode=parse did not enable parser duplicate-binding checks');
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (e) { console.error('CRASH: mode=parse option:', e.message); failed++; }
+
+try {
+  const auto = parseSync('module-ish.js', 'import x from "y";');
+  const script = parseSync('module-ish.js', 'import x from "y";', {
+    sourceType: 'script',
+    mode: 'parse',
+  });
+  if (auto.errors.length !== 0) {
+    console.error('FAIL: default sourceType should allow module auto-detection');
+    failed++;
+  } else if (script.errors.length === 0) {
+    console.error('FAIL: sourceType=script did not reject import declaration');
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (e) { console.error('CRASH: sourceType option:', e.message); failed++; }
+
+try {
+  const { program } = parseSync('paren.js', '(x);', { preserveParens: true });
+  const expr = program.body[0]?.expression;
+  if (expr?.type !== 'ParenthesizedExpression') {
+    console.error('FAIL: preserveParens did not emit ParenthesizedExpression:', expr && expr.type);
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (e) { console.error('CRASH: preserveParens option:', e.message); failed++; }
+
+try {
+  const { errors } = parseSync('inline.ts', 'if (x) {}', {
+    lang: 'ts',
+    sourceIsDts: true,
+    mode: 'parse',
+  });
+  if (errors.length === 0) {
+    console.error('FAIL: sourceIsDts=true did not apply declaration-file restrictions');
+    failed++;
+  } else {
+    passed++;
+  }
+} catch (e) { console.error('CRASH: sourceIsDts option:', e.message); failed++; }
+
 // parseAsync regression tests. Wrapped in an async IIFE so the existing
 // synchronous tests above keep their straightforward control flow; the
 // final tally + exit code waits for the IIFE to settle.

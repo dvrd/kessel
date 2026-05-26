@@ -14,6 +14,20 @@ import type { Program } from 'estree';
 /** Language grammar used by the parser. */
 export type Lang = 'js' | 'jsx' | 'ts' | 'tsx';
 
+/** Initial source type used by module/script-sensitive grammar. */
+export type SourceType = 'script' | 'module' | 'unambiguous';
+
+/**
+ * Parse depth exposed by the npm binding.
+ *
+ * - `'ast'` is the fast default and matches the historical npm path:
+ *   build the AST and return syntax diagnostics only.
+ * - `'parse'` enables parser-owned scope and early-error checks.
+ * - `'full'` also runs kessel's semantic checker and returns those
+ *   diagnostics in the same `errors` array.
+ */
+export type ParseMode = 'ast' | 'parse' | 'full';
+
 /**
  * Diagnostic severity.
  *
@@ -119,6 +133,30 @@ export interface ParseOptions {
    * - `.tsx`                  → `'tsx'`
    */
   lang?: Lang;
+  /**
+   * Force script or module parsing. The default `'unambiguous'` starts
+   * as script and lets the parser promote to module on module syntax.
+   */
+  sourceType?: SourceType;
+  /**
+   * Refuse automatic script-to-module promotion when `sourceType` is
+   * omitted or `'unambiguous'`.
+   */
+  strictSourceType?: boolean;
+  /** Start in strict mode regardless of a directive prologue. */
+  forceStrict?: boolean;
+  /** Preserve parenthesized expressions as explicit AST nodes. */
+  preserveParens?: boolean;
+  /** Select how much non-syntactic parser/checker work to run. */
+  mode?: ParseMode;
+  /** Alias for `mode: 'full'`; runs the semantic checker. */
+  showSemanticErrors?: boolean;
+  /** Override `.d.ts` detection for synthetic filenames. */
+  sourceIsDts?: boolean;
+  /** Override CommonJS detection for synthetic filenames. */
+  commonjs?: boolean;
+  /** Match Babel's `disallowAmbiguousJSXLike` parser option. */
+  disallowAmbiguousJSXLike?: boolean;
 }
 
 /**

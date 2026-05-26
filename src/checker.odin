@@ -169,8 +169,8 @@ CheckerContext :: struct {
 	// scope_skip — set true while walking the immediate body of an
 	// uncovered expression context (ArrayExpression elements,
 	// ObjectExpression property values / computed keys, the right
-	// operators). Suppresses scope_check_body in uncovered expression
-	// contexts (matches OXC). Read by `ck_run_scope_check`.
+	// operators). Kept for semantic walkers that must avoid treating
+	// uncovered expression fragments as statement scopes.
 	scope_skip:            bool,
 	// private_name_stack — stack of declared private-name sets, one
 	// per enclosing class. Pushed by ck_walk_class on entry, popped on
@@ -215,43 +215,29 @@ CheckerContext :: struct {
 Checker :: struct {
 	errors:    [dynamic]ParseError,
 	allocator: mem.Allocator,
-	// pending_parser — the active parser whose AST we're walking.
-	// Set by `checker_run_for_job`, cleared after. Used by
-	// `ck_run_scope_check` to call scope_check_body.
-	pending_parser: ^Parser,
-	// scope_lex / scope_vars — reusable ScopeMap pair backing every
-	// scope-check invocation. Cleared between bodies so each scope is
-	// verified independently. Cap of 16 covers ≈95% of real-world
-	// bodies without spilling into the hashmap path; larger scopes
-	// promote to spill on first overflow and the spill map is also
-	// retained across iterations via scope_map_clear. Mirrors the
-	// allocation pattern parser.odin's old `verify_scopes` used.
-	scope_lex:  ScopeMap,
-	scope_vars: ScopeMap,
+	source:        string,
+	source_is_dts: bool,
+	is_commonjs:   bool,
+	ast_only:      bool,
 }
 
 init_checker :: proc(alloc: mem.Allocator) -> Checker {
 	return Checker{
 		errors     = make([dynamic]ParseError, 0, 8, alloc),
 		allocator  = alloc,
-		scope_lex  = scope_map_make(16, alloc),
-		scope_vars = scope_map_make(16, alloc),
 	}
 }
 
 // ck_run_scope_check — §14.2.1 / §14.3.1.1 lex/var duplicate-binding
-// detection. Calls the parser-side scope_check_body against the
-// checker's reusable lex/var ScopeMap pair. Invoked from the checker's
-// AST walk at each scope-bearing entry point (BlockStatement,
-// SwitchStatement case-list, FunctionBody, Program body, etc.).
+// detection is parser-owned. The checker still reaches the same
+// scope-bearing AST locations for other semantic checks, but it must
+// not call back into parser.odin or emit duplicate binding diagnostics.
 @(private="file")
 ck_run_scope_check :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement, is_block_scope: bool) {
-	if ctx.scope_skip { return }
-	p := c.pending_parser
-	if p == nil || p.ast_only { return }
-	scope_map_clear(&c.scope_lex)
-	scope_map_clear(&c.scope_vars)
-	scope_check_body(p, body, is_block_scope, &c.scope_lex, &c.scope_vars)
+	_ = c
+	_ = ctx
+	_ = body
+	_ = is_block_scope
 }
 
 // check_program is the entry point for the semantic checker.
@@ -269,13 +255,8 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 	ctx.labels = make([dynamic]CheckerLabel, 0, 4, c.allocator)
 	ctx.private_name_stack = make([dynamic]map[string]bool, 0, 2, c.allocator)
 	ctx.lang   = lang
-	// .d.ts detection: pending_parser carries source_is_dts (set by
-	// parse_job from the source path suffix). Implies all top-level
-	// declarations are ambient.
-	if c.pending_parser != nil {
-		ctx.is_dts      = c.pending_parser.source_is_dts
-		ctx.is_commonjs = c.pending_parser.is_commonjs
-	}
+	ctx.is_dts      = c.source_is_dts
+	ctx.is_commonjs = c.is_commonjs
 	// §10.2.1 + §16.2.2 — strict-mode initialisation:
 	//   * Module code is always strict (§16.2.2).
 	//   * `--force-strict` (test262 onlyStrict) forces strict from byte 0.
@@ -382,14 +363,10 @@ fn_body_lifts_strict :: proc(body: FunctionBody) -> bool {
 checker_run_for_job :: proc(job: ^ParseJob) {
 	if job == nil || job.program == nil { return }
 	c := init_checker(job.arena_alloc)
-	// §14.2.1 / §14.3.1.1 — duplicate-binding scope analysis is folded
-	// into the AST walk. The checker holds a transient pointer to the
-	// parser for the lifetime of `check_program` so `ck_run_scope_check`
-	// can invoke the parser-side `scope_check_body` helper at each
-	// scope-bearing entry point. The pointer is cleared on exit so a
-	// stale reference can't leak across jobs.
-	c.pending_parser = &job.parser
-	defer c.pending_parser = nil
+	c.source        = job.lexer.source
+	c.source_is_dts = job.source_is_dts
+	c.is_commonjs   = job.is_commonjs
+	c.ast_only      = job.parser.ast_only
 	check_program(&c, job.program, job.lang, job.parser.force_strict)
 	if len(c.errors) == 0 { return }
 	for err in c.errors {
@@ -661,8 +638,8 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		case "let":    lbl_is_reserved = ctx.strict_mode
 		case "static": lbl_is_reserved = ctx.strict_mode
 		}
-		if lbl_is_reserved && c.pending_parser != nil && c.pending_parser.lexer != nil {
-			src := c.pending_parser.lexer.source
+		if lbl_is_reserved && len(c.source) > 0 {
+			src := c.source
 			lbl_start := int(v.label.loc.start)
 			lbl_end   := int(v.label.loc.end)
 			if lbl_start >= 0 && lbl_end > lbl_start && lbl_end <= len(src) {
@@ -794,33 +771,6 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		if v == nil { return }
 		ck_walk_expr(c, ctx, v.discriminant)
 		ck_check_switch_default_dups(c, v)
-		// §14.12.1 / §14.2.1 — switch-case-list block-scope lex/var
-		// clash detection. SwitchStatement.cases share a single
-		// LexicalEnvironment (the case-list is one Block per spec), so
-		// we flatten the consequents and run scope_check_body once.
-		// Allocate the flat slice in temp_allocator since it's not
-		// retained beyond this call.
-		if !ctx.scope_skip && c.pending_parser != nil && !c.pending_parser.ast_only {
-			total := 0
-			relevant := false
-			for sc in v.cases {
-				total += len(sc.consequent)
-				if !relevant && has_scope_relevant_stmt(sc.consequent[:]) {
-					relevant = true
-				}
-			}
-			if total > 0 && relevant {
-				flat := make([]^Statement, total, context.temp_allocator)
-				i := 0
-				for sc in v.cases {
-					for s in sc.consequent {
-						flat[i] = s
-						i += 1
-					}
-				}
-				ck_run_scope_check(c, ctx, flat, true)
-			}
-		}
 		ctx.switch_depth += 1
 		for sc in v.cases {
 			if t, have := sc.test.(^Expression); have && t != nil { ck_walk_expr(c, ctx, t) }
@@ -1124,7 +1074,7 @@ ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDe
 // and `const [x, x] = [1, 2];` are SyntaxErrors. NOT enforced for
 // `var` declarations (Annex B.3.4.4 web-compat). The cross-declaration
 // duplicate-name check (a let in one block clashing with a let in the
-// same block from a different statement) lives in scope_check_body.
+// same block from a different statement) is parser-owned.
 @(private="file")
 ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 	if decl == nil { return }

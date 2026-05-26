@@ -51,10 +51,27 @@ Override with the `lang` option:
 parseSync('file.js', source, { lang: 'tsx' });
 ```
 
+Request stricter parser/checker work with `mode`:
+
+```js
+parseSync('file.ts', source, { mode: 'full', sourceType: 'module' });
+```
+
 ### API
 
 ```ts
-type ParseOptions = { lang?: 'js' | 'jsx' | 'ts' | 'tsx' };
+type ParseOptions = {
+  lang?: 'js' | 'jsx' | 'ts' | 'tsx';
+  sourceType?: 'script' | 'module' | 'unambiguous';
+  strictSourceType?: boolean;
+  forceStrict?: boolean;
+  preserveParens?: boolean;
+  mode?: 'ast' | 'parse' | 'full';
+  showSemanticErrors?: boolean;
+  sourceIsDts?: boolean;
+  commonjs?: boolean;
+  disallowAmbiguousJSXLike?: boolean;
+};
 
 type ParseResult = {
   program: ESTree.Program;

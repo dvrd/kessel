@@ -66,12 +66,25 @@ const ParseResult = koffi.struct('KesselParseResult', {
 
 const _parse_binary = lib.func('kessel_parse_binary', ParseResult, ['void *', 'int32', 'int32']);
 const _free_result  = lib.func('kessel_free_result',  'void',       ['void *']);
+let _parse_binary_v2 = null;
+try {
+  _parse_binary_v2 = lib.func('kessel_parse_binary_v2', ParseResult, [
+    'void *', 'int32', 'void *', 'int32',
+    'int32', 'int32', 'int32', 'int32', 'int32', 'int32', 'int32',
+    'int32', 'int32', 'int32', 'int32',
+  ]);
+} catch (_) {
+  // Older development libraries expose only kessel_parse_binary. Keep a
+  // compatibility path so source checkouts fail soft until rebuilt.
+}
 
 // ---------------------------------------------------------------------------
 // Language detection
 // ---------------------------------------------------------------------------
 
 const LANG = { js: 0, jsx: 1, ts: 2, tsx: 3 };
+const SOURCE_TYPE = { unambiguous: -1, script: 0, module: 1 };
+const MODE = { ast: 0, parse: 1, full: 2 };
 
 function detectLang(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -85,6 +98,53 @@ function detectLang(filename) {
 
 function resolveLang(filename, opts) {
   return opts && opts.lang ? (LANG[opts.lang] ?? LANG.js) : detectLang(filename);
+}
+
+function resolveLangOverride(opts) {
+  if (!opts || opts.lang == null) return -1;
+  if (Object.prototype.hasOwnProperty.call(LANG, opts.lang)) return LANG[opts.lang];
+  throw new TypeError(`kessel: invalid lang option: ${opts.lang}`);
+}
+
+function resolveSourceType(opts) {
+  if (!opts || opts.sourceType == null) return -1;
+  if (Object.prototype.hasOwnProperty.call(SOURCE_TYPE, opts.sourceType)) {
+    return SOURCE_TYPE[opts.sourceType];
+  }
+  throw new TypeError(`kessel: invalid sourceType option: ${opts.sourceType}`);
+}
+
+function resolveMode(opts) {
+  if (!opts || opts.mode == null) return MODE.ast;
+  if (Object.prototype.hasOwnProperty.call(MODE, opts.mode)) return MODE[opts.mode];
+  throw new TypeError(`kessel: invalid mode option: ${opts.mode}`);
+}
+
+function boolOption(opts, name) {
+  return opts && opts[name] === true ? 1 : 0;
+}
+
+function maybeBoolOption(opts, name) {
+  if (!opts || opts[name] == null) return -1;
+  return opts[name] ? 1 : 0;
+}
+
+function resolveNativeOptions(opts) {
+  const mode = resolveMode(opts);
+  const showSemanticErrors = mode === MODE.full || boolOption(opts, 'showSemanticErrors') === 1;
+  return {
+    version: 1,
+    lang: resolveLangOverride(opts),
+    sourceType: resolveSourceType(opts),
+    strictSourceType: boolOption(opts, 'strictSourceType'),
+    forceStrict: boolOption(opts, 'forceStrict'),
+    preserveParens: boolOption(opts, 'preserveParens'),
+    astOnly: showSemanticErrors || mode !== MODE.ast ? 0 : 1,
+    showSemanticErrors: showSemanticErrors ? 1 : 0,
+    sourceIsDts: maybeBoolOption(opts, 'sourceIsDts'),
+    commonjs: maybeBoolOption(opts, 'commonjs'),
+    disallowAmbiguousJSXLike: boolOption(opts, 'disallowAmbiguousJSXLike'),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -102,12 +162,13 @@ function resolveLang(filename, opts) {
  * @param {string} source    Source code to parse.
  * @param {object} [opts]    Options:
  *   - lang: 'js' | 'jsx' | 'ts' | 'tsx'  (overrides filename detection)
+ *   - sourceType: 'script' | 'module' | 'unambiguous'
+ *   - mode: 'ast' | 'parse' | 'full'
  * @returns {{ program: object, errors: Array }}
  */
 function parseSync(filename, source, opts) {
-  const lang = resolveLang(filename, opts);
   const sourceBuf = Buffer.from(source, 'utf8');
-  const result = _parse_binary(sourceBuf, sourceBuf.length, lang);
+  const result = callParseBinary(sourceBuf, filename, opts);
   return finishParse(result, source, filename);
 }
 
@@ -134,7 +195,6 @@ function parseSync(filename, source, opts) {
  * @returns {Promise<{ program: object, errors: Array }>}
  */
 function parseAsync(filename, source, opts) {
-  const lang = resolveLang(filename, opts);
   const sourceBuf = Buffer.from(source, 'utf8');
   // koffi.func.async runs the FFI call on a libuv worker thread and
   // delivers the result via a Node-style callback. We wrap it as a
@@ -144,12 +204,64 @@ function parseAsync(filename, source, opts) {
   // thread — we can safely free back on the main thread after the
   // await without touching whatever worker thread did the parse.
   return new Promise(function (resolve, reject) {
-    _parse_binary.async(sourceBuf, sourceBuf.length, lang, function (err, result) {
+    callParseBinaryAsync(sourceBuf, filename, opts, function (err, result) {
       if (err) { reject(err); return; }
       try { resolve(finishParse(result, source, filename)); }
       catch (e) { reject(e); }
     });
   });
+}
+
+function callParseBinary(sourceBuf, filename, opts) {
+  if (!_parse_binary_v2) {
+    const lang = resolveLang(filename, opts);
+    return _parse_binary(sourceBuf, sourceBuf.length, lang);
+  }
+
+  const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
+  const native = resolveNativeOptions(opts);
+  return _parse_binary_v2(
+    sourceBuf, sourceBuf.length,
+    filenameBuf, filenameBuf.length,
+    native.version,
+    native.lang,
+    native.sourceType,
+    native.strictSourceType,
+    native.forceStrict,
+    native.preserveParens,
+    native.astOnly,
+    native.showSemanticErrors,
+    native.sourceIsDts,
+    native.commonjs,
+    native.disallowAmbiguousJSXLike
+  );
+}
+
+function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
+  if (!_parse_binary_v2) {
+    const lang = resolveLang(filename, opts);
+    _parse_binary.async(sourceBuf, sourceBuf.length, lang, callback);
+    return;
+  }
+
+  const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
+  const native = resolveNativeOptions(opts);
+  _parse_binary_v2.async(
+    sourceBuf, sourceBuf.length,
+    filenameBuf, filenameBuf.length,
+    native.version,
+    native.lang,
+    native.sourceType,
+    native.strictSourceType,
+    native.forceStrict,
+    native.preserveParens,
+    native.astOnly,
+    native.showSemanticErrors,
+    native.sourceIsDts,
+    native.commonjs,
+    native.disallowAmbiguousJSXLike,
+    callback
+  );
 }
 
 // Shared post-FFI pipeline: validate, copy out, free the handle, decode,

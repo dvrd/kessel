@@ -481,6 +481,11 @@ Parser :: struct {
 	// Optional instrumentation for parser profiling
 	profile_enabled: bool,
 	profile:         ParserProfile,
+
+	// Shared guardrails for malformed input. Kept out of the hot field
+	// prefix so the parser's allocation and token fields retain their
+	// cache-line layout.
+	resource_budget: ParseResourceBudget,
 }
 
 ParserProfile :: struct {
@@ -580,9 +585,6 @@ can_be_binding_identifier :: #force_inline proc(t: TokenType) -> bool {
 	}
 }
 
-// Maximum iterations for error recovery to prevent infinite loops
-MAX_ERROR_RECOVERY_ITERATIONS :: 10000
-
 // Initialize string interner - map allocated lazily on first intern() call
 init_interner :: proc(i: ^StringInterner, alloc: mem.Allocator, capacity_hint: int = 0) {
 	i.allocator = alloc
@@ -636,6 +638,7 @@ allow_ts_mode :: #force_inline proc(p: ^Parser) -> bool {
 init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang = .JSX, source_is_dts := false) {
 	p.allocator = alloc
 	p.source_len = len(lexer.source)
+	p.resource_budget = parse_resource_budget_default()
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 	p.pending_proto_dups = make([dynamic]u32, 0, 4, alloc)
@@ -1380,16 +1383,16 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 	#partial switch p.cur_type {
 	case .Else:
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected 'else' without matching 'if'")
-		eat(p)
+		recovery_eat(p)
 		if !is_token(p, .EOF) { _ = parse_statement_or_declaration(p) }
 		return
 	case .RBrace:
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '}' \u2014 unmatched closing brace")
-		eat(p)
+		recovery_eat(p)
 		return
 	case .Catch, .Finally:
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected 'catch' or 'finally' without matching 'try'")
-		eat(p)
+		recovery_eat(p)
 		if !is_token(p, .EOF) { _ = parse_statement_or_declaration(p) }
 		return
 	}
@@ -1425,49 +1428,27 @@ parse_program_item :: proc(p: ^Parser, body: ^[dynamic]^Statement, start_offset:
 		stuck_count := 0
 		for !is_token(p, .EOF) && int(cur_offset(p)) == start_offset {
 			if stuck_count == 0 {
-				already_reported := len(p.errors) > 0 &&
-					p.errors[len(p.errors)-1].start == cur_offset(p)
-				// Closing tokens (`)`, `]`) can appear as orphans during error
-				// recovery without being syntax errors in themselves. Only
-				// report for tokens that genuinely cannot appear at statement
-				// position and are not matching-closer artifacts.
-				// .Invalid tokens from non-ASCII bytes (e.g. U+FFFD in binary
-				// files) are also suppressed — the lexer already flagged the
-				// bytes; cascading "Unexpected token" per-byte is noise.
-				is_closer_orphan := p.cur_type == .RParen || p.cur_type == .RBracket
-				is_binary_invalid := false
-				if p.cur_type == .Invalid && p.lexer != nil &&
-				   int(p.lexer.cur.start) < len(p.lexer.source_bytes) {
-					b := p.lexer.source_bytes[p.lexer.cur.start]
-					// Non-ASCII bytes (U+FFFD etc.) or ASCII control chars
-					// (binary garbage). Exclude printable ASCII that lexes as
-					// Invalid (e.g. lone `\`) — those are real syntax errors.
-					is_binary_invalid = b >= 0x80 || (b < 0x20 && b != '\n' && b != '\r' && b != '\t')
-				}
-				if !already_reported && !is_closer_orphan && !is_binary_invalid {
-					msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
-					report_error_coded(p, .K2040_UnexpectedToken, msg)
-				}
+				recovery_report_unexpected_token_top_level(p)
 			}
 			stuck_count += 1
-			if stuck_count > 100 {
+			if stuck_count > PARSER_RECOVERY_STUCK_TOKEN_LIMIT {
 				// Emergency: force consume and break
-				eat(p)
+				recovery_eat(p)
 				break
 			}
 			// Try to skip to a safe token
-			if is_token(p, .Semi) || is_token(p, .RBrace) {
-				eat(p)
+			if recovery_is_statement_sync_token(p) {
+				recovery_eat(p)
 				break
 			}
-			eat(p)
+			recovery_eat(p)
 		}
 		return
 	}
 
 	// Error recovery: consume token to avoid infinite loop
 	if !is_token(p, .EOF) {
-		eat(p)
+		recovery_eat(p)
 	}
 }
 
@@ -1627,7 +1608,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 
 		if int(cur_offset(p)) == loop_start_offset {
 			no_progress_count += 1
-			if no_progress_count > MAX_ERROR_RECOVERY_ITERATIONS {
+			if no_progress_count > p.resource_budget.error_recovery_iterations {
 				report_error_coded(p, .K2080_ParserBudgetExceeded, "Maximum parsing iterations exceeded - possible infinite loop")
 				break
 			}
@@ -3182,7 +3163,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 		if !expect_token(p, .RParen) {
 			// Error recovery: skip to closing ) for malformed for-in/of
 			for !is_token(p, .RParen) && !is_token(p, .EOF) {
-				eat(p)
+				recovery_eat(p)
 			}
 			match_token(p, .RParen)
 		}
@@ -4040,7 +4021,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		// top-level parser, and the `return` inside fired the new top-level
 		// return diagnostic - a cascading false positive.
 		for !is_token(p, .LBrace) && !is_token(p, .Semi) && !is_token(p, .EOF) {
-			eat(p)
+			recovery_eat(p)
 		}
 	}
 
@@ -4727,14 +4708,8 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 		} else if int(cur_offset(p)) == prev_offset {
 			// Report unexpected token if not already covered by a prior error
 			// at this position (same logic as parse_program_item recovery).
-			already := len(p.errors) > 0 &&
-			           p.errors[len(p.errors)-1].start == cur_offset(p)
-			is_closer := p.cur_type == .RParen || p.cur_type == .RBracket
-			if !already && !is_closer {
-				msg := fmt.tprintf("Unexpected token '%s'", cur_value(p))
-				report_error_coded(p, .K2040_UnexpectedToken, msg)
-			}
-			eat(p)
+			recovery_report_unexpected_token(p)
+			recovery_eat(p)
 		}
 	}
 
@@ -5000,7 +4975,7 @@ parse_class_body :: proc(p: ^Parser) -> ClassBody {
 		} else if int(cur_offset(p)) == prev_offset {
 			// parse_class_element failed and didn't consume token - skip it to avoid infinite loop
 			report_error_coded(p, .K2040_UnexpectedToken, "Invalid class element")
-			eat(p)
+			recovery_eat(p)
 		}
 	}
 
@@ -13310,6 +13285,68 @@ parse_left_hand_side_expr :: proc(p: ^Parser) -> ^Expression {
 	return parse_lhs_tail(p, expr, true)
 }
 
+parse_primary_literal_expr :: #force_inline proc(p: ^Parser, current: ^TokenSnap) -> ^Expression {
+	#partial switch current.type {
+	case .Null:
+		eat(p)
+		nl, nl_e := new_expr(p, NullLiteral)
+		nl.loc = loc_from_token(current)
+		nl.loc.end = prev_end_offset(p)
+		return nl_e
+
+	case .True, .False:
+		eat(p)
+		bl := new_node(p, BooleanLiteral)
+		bl.loc = loc_from_token(current)
+		bl.value = current.type == .True
+		bl.loc.end = prev_end_offset(p)
+		return expression_from(p, bl)
+
+	case .Number:
+		eat(p)
+		num, num_e := new_expr(p, NumericLiteral)
+		num.loc = loc_from_token(current)
+		num.raw = current.value
+		if val, ok := current.literal.(f64); ok {
+			num.value = val
+		}
+		num.loc.end = prev_end_offset(p)
+		// ECMA-262 Annex B.1.1 + §12.9.3.5 — LegacyOctalIntegerLiteral
+		// (`0777`) and NonOctalDecimalIntegerLiteral (`078`) are
+		// SyntaxErrors in strict mode.
+		if p.ctx.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(num.loc.start), u32(num.loc.start), "Legacy octal literals are not allowed in strict mode")
+		}
+		return num_e
+
+	case .String:
+		eat(p)
+		str, str_e := new_expr(p, StringLiteral)
+		str.loc = loc_from_token(current)
+		str.raw = current.value
+		if val, ok := current.literal.(string); ok {
+			str.value = val
+		}
+		str.loc.end = prev_end_offset(p)
+		if p.ctx.strict_mode && string_raw_has_forbidden_escape(str.raw) {
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(str.loc.start), u32(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
+		}
+		return str_e
+
+	case .BigInt:
+		eat(p)
+		big, big_e := new_expr(p, BigIntLiteral)
+		big.loc = loc_from_token(current)
+		big.raw = current.value
+		big.value = current.value
+		big.loc.end = prev_end_offset(p)
+		return big_e
+
+	case:
+		return nil
+	}
+}
+
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	current := snap_current(p)
 
@@ -13472,70 +13509,8 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		super.loc.end = prev_end_offset(p)
 		return super_e
 
-	case .Null:
-		eat(p)
-		nl, nl_e := new_expr(p, NullLiteral)
-		nl.loc = loc_from_token(&current)
-		nl.loc.end = prev_end_offset(p)
-		return nl_e
-
-	case .True, .False:
-		eat(p)
-		bl := new_node(p, BooleanLiteral)
-		bl.loc = loc_from_token(&current)
-		bl.value = current.type == .True
-		bl.loc.end = prev_end_offset(p)
-		return expression_from(p, bl)
-
-	case .Number:
-		eat(p)
-		num, num_e := new_expr(p, NumericLiteral)
-		num.loc = loc_from_token(&current)
-		num.raw = current.value
-		if val, ok := current.literal.(f64); ok {
-			num.value = val
-		}
-		num.loc.end = prev_end_offset(p)
-		// ECMA-262 Annex B.1.1 + §12.9.3.5 — LegacyOctalIntegerLiteral
-		// (`0777`) and NonOctalDecimalIntegerLiteral (`078`) are
-		// SyntaxErrors in strict mode. Both share the shape:
-		// `0<digit>+` where the second char is a decimal digit (not
-		// `x`/`X`/`o`/`O`/`b`/`B`/`.`/`e`/`E`/`n`). Promoted from the
-		// semantic checker (ck_check_legacy_octal_number).
-		if p.ctx.strict_mode && is_legacy_zero_prefixed_integer(num.raw) {
-			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(num.loc.start), u32(num.loc.start), "Legacy octal literals are not allowed in strict mode")
-		}
-		return num_e
-
-	case .String:
-		eat(p)
-		str, str_e := new_expr(p, StringLiteral)
-		str.loc = loc_from_token(&current)
-		str.raw = current.value
-		if val, ok := current.literal.(string); ok {
-			str.value = val
-		}
-		str.loc.end = prev_end_offset(p)
-		// §12.9.4 — LegacyOctalEscapeSequence and \8 / \9 are forbidden
-		// in StringLiterals when strict-mode is in effect. Eager check
-		// for already-strict scope. Body-promoted (retroactive) strict
-		// for prologue strings stays on the semantic checker.
-		if p.ctx.strict_mode && string_raw_has_forbidden_escape(str.raw) {
-			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(str.loc.start), u32(str.loc.start), "Octal or \\8 / \\9 escape sequences are not allowed in strict mode")
-		}
-		return str_e
-
-	case .BigInt:
-		eat(p)
-		big, big_e := new_expr(p, BigIntLiteral)
-		big.loc = loc_from_token(&current)
-		big.raw = current.value
-		big.value = current.value  // Store as string
-		// §12.9.3 legacy-octal BigInt (`0123n`) is rejected by the lexer
-		// ("BigInt literal cannot use legacy octal / non-octal-decimal
-		// form") so the checker / parser don't need a second site.
-		big.loc.end = prev_end_offset(p)
-		return big_e
+	case .Null, .True, .False, .Number, .String, .BigInt:
+		return parse_primary_literal_expr(p, &current)
 
 	case .Async:
 		// async function expression or arrow function
@@ -14307,7 +14282,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		// Skip stray semicolons (error recovery)
 		for is_token(p, .Semi) {
-			eat(p)
+			recovery_eat(p)
 		}
 		if is_token(p, .RBrace) || is_token(p, .EOF) {
 			break
@@ -14329,7 +14304,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 			if is_token(p, .Semi) {
 				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected ';' in object literal")
 				for is_token(p, .Semi) {
-					eat(p)
+					recovery_eat(p)
 				}
 			} else {
 				break
@@ -14338,11 +14313,11 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 		// Double comma: `{x: 0,,}` - object literals don't allow elisions.
 		for is_token(p, .Comma) {
 			report_error_coded(p, .K2070_RequiredFormOrBinding, "Property assignment expected")
-			eat(p)
+			recovery_eat(p)
 		}
 		// Also skip stray semicolons after comma
 		for is_token(p, .Semi) {
-			eat(p)
+			recovery_eat(p)
 		}
 	}
 
@@ -21849,7 +21824,7 @@ parse_ts_global_declaration :: proc(p: ^Parser) -> ^Statement {
 		else if int(cur_offset(p)) == prev_offset {
 			msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
 			report_error_coded(p, .K2040_UnexpectedToken, msg)
-			eat(p)
+			recovery_eat(p)
 		}
 	}
 	expect_token(p, .RBrace)
@@ -21966,7 +21941,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 			else if int(cur_offset(p)) == prev_offset {
 				msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
 				report_error_coded(p, .K2040_UnexpectedToken, msg)
-				eat(p)
+				recovery_eat(p)
 			}
 		}
 		expect_token(p, .RBrace)
@@ -22038,7 +22013,7 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 			else if int(cur_offset(p)) == prev_offset {
 				msg := fmt.tprintf("Unexpected token '%s' in module body", cur_value(p))
 				report_error_coded(p, .K2040_UnexpectedToken, msg)
-				eat(p)
+				recovery_eat(p)
 			}
 		}
 		expect_token(p, .RBrace)

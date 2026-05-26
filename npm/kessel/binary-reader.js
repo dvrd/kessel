@@ -90,6 +90,10 @@ const TYPE_NAMES = [
 const VAR_KINDS = ['var', 'let', 'const', 'using', 'await using'];
 const PROP_KINDS = ['init', 'get', 'set'];
 const CLASS_ELEM_KINDS = ['method', 'get', 'set', 'constructor', 'method']; // StaticBlock mapped to method
+const RESOURCE_BUDGET = Object.freeze({
+  astDepth: 512,
+  binaryNodeArrayCount: 100000,
+});
 
 // Value type tags — must match BinValType in binary_emitter.odin.
 // VT_NODE and VT_NULL_NODE are above the BinNodeType range (0..99)
@@ -129,7 +133,6 @@ function decode(buffer, source) {
 
   // Read node stream
   let depth = 0;
-  const MAX_DEPTH = 512;
   const program = readNode();
 
   // Decode errors section, if present. Layout depends on `version`:
@@ -195,7 +198,7 @@ function decode(buffer, source) {
 
   function readNodeArray() {
     const count = readU32();
-    if (count > 100000 || off + count > strTableOff) throw new Error('readNodeArray: bogus count ' + count + ' at off ' + off);
+    if (count > RESOURCE_BUDGET.binaryNodeArrayCount || off + count > strTableOff) throw new Error('readNodeArray: bogus count ' + count + ' at off ' + off);
     const arr = new Array(count);
     for (let i = 0; i < count; i++) arr[i] = readNode();
     return arr;
@@ -203,7 +206,7 @@ function decode(buffer, source) {
 
   function readNodeOrNullArray() {
     const count = readU32();
-    if (count > 100000 || off + count > strTableOff) throw new Error('readNodeOrNullArray: bogus count ' + count + ' at off ' + off);
+    if (count > RESOURCE_BUDGET.binaryNodeArrayCount || off + count > strTableOff) throw new Error('readNodeOrNullArray: bogus count ' + count + ' at off ' + off);
     const arr = new Array(count);
     for (let i = 0; i < count; i++) arr[i] = readNodeOrNull();
     return arr;
@@ -211,7 +214,7 @@ function decode(buffer, source) {
 
   function readNode() {
     if (off >= strTableOff) return null;
-    if (++depth > MAX_DEPTH) throw new Error('readNode depth exceeded ' + MAX_DEPTH + ' at offset ' + off);
+    if (++depth > RESOURCE_BUDGET.astDepth) throw new Error('readNode depth exceeded ' + RESOURCE_BUDGET.astDepth + ' at offset ' + off);
     // Peek at the first byte. If it's a NullNode tag (0xFE), consume
     // just that one byte and return null — the emitter writes NullNode
     // in bare-node positions for nil/unknown AST nodes.
