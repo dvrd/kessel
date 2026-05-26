@@ -9,14 +9,14 @@
   },
   "files": {
     "bench/real_world/batch3/snabbdom.js": 2.291,
-    "bench/real_world/batch2/preact.js": 93.208,
-    "bench/real_world/lodash.js": 969.209,
-    "bench/real_world/jquery.js": 1206.167,
-    "bench/real_world/d3.js": 3620.625,
-    "bench/real_world/react.dev.js": 289.084,
-    "bench/real_world/react-dom.dev.js": 2799.209,
-    "bench/real_world/antd.js": 16999.75,
-    "bench/real_world/batch2/monaco.js": 25083.75,
-    "bench/real_world/typescript.js": 33494.667
+    "bench/real_world/batch2/preact.js": 90.333,
+    "bench/real_world/lodash.js": 944.667,
+    "bench/real_world/jquery.js": 1136.625,
+    "bench/real_world/d3.js": 3465.042,
+    "bench/real_world/react.dev.js": 275.416,
+    "bench/real_world/react-dom.dev.js": 2695.542,
+    "bench/real_world/antd.js": 16160.958,
+    "bench/real_world/batch2/monaco.js": 23941.292,
+    "bench/real_world/typescript.js": 31500.042
   }
 }
