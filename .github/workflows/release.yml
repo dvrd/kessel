@@ -236,6 +236,9 @@ jobs:
     if: needs.check.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
+      contents: read    # checkout the (private) repo — declaring any
+                        # permissions resets the rest to none, so this
+                        # must be explicit even though it's a default.
       id-token: write   # npm provenance attestation
     strategy:
       fail-fast: false
