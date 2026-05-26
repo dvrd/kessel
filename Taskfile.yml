@@ -200,8 +200,15 @@ tasks:
       - task: test:bench:regression
       - task: test:lexer-tokens
 
+  bench:oxc:verify:
+    desc: Verify the local OXC oracle checkout and npm parser version are pinned.
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_oxc_pin.js
+
   bench:oxc:build:
-    desc: Build OXC reference binary (Rust) used by diff-against-OXC verifiers.
+    desc: Build pinned OXC reference binary (Rust) used by diff-against-OXC verifiers.
+    deps: [bench:oxc:verify]
     dir: bench/oxc_compare
     cmds:
       - cargo build --release -q

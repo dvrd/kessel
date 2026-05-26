@@ -13,12 +13,14 @@ Tracked via a port of OXC's coverage harness (`tests/coverage/`) against the sta
 
 | Suite | Positive (parses valid input) | Negative (rejects invalid input) |
 |---|---|---|
-| test262 | **100.00%** (47 114 / 47 114) | 94.62% (4 341 / 4 588) |
-| Babel | **100.00%** (2 232 / 2 232) | 97.53% (1 660 / 1 702) |
-| TypeScript | **100.00%** (10 773 / 10 773) | 98.96% (1 612 / 1 629) |
+| test262 | **100.00%** (47 114 / 47 114) | **100.00%** (4 588 / 4 588) |
+| Babel | **100.00%** (2 232 / 2 232) | **100.00%** (1 702 / 1 702) |
+| TypeScript | **100.00%** (10 773 / 10 773) | **100.00%** (1 629 / 1 629) |
 | ESTree | **100.00%** (39 / 39) | — |
+| Misc | **100.00%** (84 / 84) | **100.00%** (273 / 273) |
 
-Kessel never fails on valid input. 100% positive across every suite.
+100% positive AND negative on every suite — kessel never fails on valid input
+and matches the reference parser on every invalid input in the corpora.
 
 ## Language Support
 
@@ -71,6 +73,10 @@ bin/kessel parse src/*.js --workers 8 --out-dir tmp/ast
 # Tokenize
 bin/kessel lex app.js
 
+# Codegen — emit JS source back from the AST (round-trip / minify)
+bin/kessel codegen app.js
+bin/kessel codegen app.js --minified
+
 # Benchmark
 bin/kessel microbench parse app.js --iterations 500
 bin/kessel microbench parse app.js --iterations 500 --ast-only
@@ -79,18 +85,28 @@ bin/kessel microbench parse app.js --iterations 500 --ast-only
 bin/kessel server --compact
 ```
 
+Errors are pretty-printed (rustc-style) by default with stable K-codes
+(`K1xxx` lexer, `K2xxx`/`K3xxx` parser, `K4xxx` TypeScript-specific). Pass
+`--json` for machine-readable output, or set `KESSEL_COLOR=0` /
+`--color=false` to disable ANSI color.
+
 ### Node.js
 
 ```js
-const { parseSync } = require('@dvrdlibs/kessel');
+const { parseSync, parseAsync } = require('@dvrdlibs/kessel');
 
 const { program, errors } = parseSync(
   'Counter.tsx',
   'export const Counter = ({ initial = 0 }: { initial?: number }) => <button>{initial}</button>;'
 );
+
+// Non-blocking: runs on the libuv worker pool, off the main event loop.
+const { program: p2, errors: e2 } = await parseAsync('app.ts', src);
 ```
 
-Full API and visitor helpers documented in [`npm/kessel/README.md`](npm/kessel/README.md).
+Each error carries a stable `code` (e.g. `K3010`) and `severity` field for
+programmatic handling. Full API and visitor helpers documented in
+[`npm/kessel/README.md`](npm/kessel/README.md).
 
 ### CLI Flags
 
@@ -106,6 +122,8 @@ Full API and visitor helpers documented in [`npm/kessel/README.md`](npm/kessel/R
 | `--ast-only` | Skip semantic checks (for benchmarking) |
 | `--ast-type=js\|ts\|auto` | Force ESTree shape (JS or TS fields) |
 | `--module-record` | Emit static import/export module record |
+| `--json` | Emit errors as JSON instead of the pretty renderer |
+| `--color=<bool>` | Force color on/off (overrides `KESSEL_COLOR` env) |
 
 ## Tests
 
@@ -120,12 +138,23 @@ task test:release             # Zero-tolerance pre-release chain (~3 min)
 | `task test:coverage` | 62K fixtures across test262/Babel/TS/ESTree/misc (24 Odin test procs) |
 | `task test:unit` | 291 positive-fixture golden-output tests |
 | `task test:regression` | 11 structural regression checks |
-| `task test:real` | 466 real-world JS files — no crashes, no unexpected errors |
+| `task test:real` | 467 real-world JS files — no crashes, no unexpected errors |
 | `task test:estree` | String-escape decoding parity vs reference parser |
 | `task test:fuzz` | 100 random valid programs, diff vs reference |
 | `task test:fuzz:invalid` | 300 mutated/invalid inputs — no crashes or hangs |
 | `task test:bench:regression` | 10 curated files vs baselines, fails on >5% regression |
 | `task test:conformance:report` | Print conformance summary from snap files |
+
+### OXC Oracle
+
+Diff, fuzz, and benchmark comparisons use a pinned OXC oracle. The Rust
+comparison binaries read the local checkout at `../oxc`, which must be at the
+full SHA recorded in `OXC_ORACLE.json`; `task bench:oxc:verify` checks this
+before rebuilding. The same manifest records the exact npm `oxc-parser`
+version expected by JS-side deep-diff and fuzz checks.
+
+The `commit:` header inside coverage snapshots is the vendored corpus
+reference for that suite, not the local OXC checkout pin.
 
 ## Architecture
 
@@ -154,11 +183,15 @@ Three-pass pipeline:
 | `src/checker.odin` | AST-walker semantic checker (pass 3) |
 | `src/emitter.odin` | ESTree JSON emitter with owned state |
 | `src/binary_emitter.odin` | Compact binary AST emitter (consumed by the npm package) |
+| `src/codegen*.odin` | AST → JS source emitter (incl. `--minified`) |
+| `src/diagnostic.odin` | K-code diagnostics model (codes + severity) |
+| `src/diagnostic_render.odin` | Pretty (rustc-style) error renderer |
 | `src/lexer.odin` | SIMD lexer, two-token lookahead |
 | `src/regex.odin` | ES2025 §22.2.1 regex pattern validator |
 | `src/ast.odin` | All AST struct/union definitions |
 | `src/raw_transfer.odin` | Zero-copy binary AST buffer wire format |
 | `src/main.odin` | CLI dispatch + worker pool + server mode |
+| `src/lib_exports.odin` | Shared-library exports for the npm FFI |
 | `src/napi.odin` | N-API addon (Darwin-only experimental) |
 | `src/simd.odin` | Cross-platform SIMD intrinsics |
 | `src/parse_job.odin` | Source → parsed Program deep module |
@@ -180,6 +213,17 @@ The npm package is published automatically on every push to `main` whose convent
 The pipeline (`.github/workflows/release.yml`) builds all five platform binaries, publishes the five `@dvrdlibs/kessel-<target>` sub-packages with Sigstore provenance, then publishes the main `@dvrdlibs/kessel` package with `optionalDependencies` pinned to the same version. If any sub-package fails to publish, the main package stays at its previous version and users are unaffected.
 
 Manual override: `gh workflow run Release --repo dvrd/kessel`.
+
+## Attribution
+
+Kessel uses [OXC](https://github.com/oxc-project/oxc) extensively as a
+reference implementation and comparison oracle. The conformance harness in
+`tests/coverage/` is a port of OXC's coverage tooling, and the regression,
+deep-diff, fuzz, and benchmark checks compare Kessel against pinned OXC parser
+artifacts.
+
+Kessel is an independent Odin implementation and does not depend on OXC at
+runtime. OXC is MIT-licensed; see the OXC project for its source and license.
 
 ## License
 

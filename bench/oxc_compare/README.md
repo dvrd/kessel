@@ -9,11 +9,18 @@ Two Rust binaries that wrap OXC for head-to-head comparison with Kessel:
 
 ```bash
 # From kessel repo root:
-git clone --depth 1 https://github.com/oxc-project/oxc.git ../oxc
-cd bench/oxc_compare
-cargo build --release
+git clone https://github.com/oxc-project/oxc.git ../oxc
+git -C ../oxc checkout "$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")"
+task bench:oxc:verify
+task bench:oxc:build
 # Binaries land in bench/oxc_compare/target/release/
 ```
+
+`OXC_ORACLE.json` is the source-of-truth pin for OXC references: the Rust
+checkout commit used by comparison binaries, and the npm `oxc-parser` version
+used by JS-side deep-diff/fuzz checks. Update it only as part of an
+intentional oracle refresh, then rebuild the binaries and review any snapshot,
+deep-diff, fuzz, or benchmark changes.
 
 ## Run
 

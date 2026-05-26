@@ -2,12 +2,13 @@
 members = ["cli", "microbench"]
 resolver = "2"
 
-# Path to a local OXC checkout. Override via env var OXC_PATH or edit below.
-# Run: OXC_PATH=/path/to/oxc cargo build --release
+# Path to the pinned local OXC checkout. Keep ../oxc at the commit recorded
+# in ../../OXC_ORACLE.json; `task bench:oxc:verify` checks this before
+# comparison builds.
 #
 # To set up:
-#   git clone --depth 1 https://github.com/oxc-project/oxc.git ../oxc
-#   Then update the paths below or set OXC_PATH.
+#   git clone https://github.com/oxc-project/oxc.git ../oxc
+#   git -C ../oxc checkout "$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")"
 [workspace.dependencies]
 oxc_allocator = { path = "../../../oxc/crates/oxc_allocator" }
 oxc_parser    = { path = "../../../oxc/crates/oxc_parser" }
