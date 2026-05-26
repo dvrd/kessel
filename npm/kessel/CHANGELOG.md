@@ -4,6 +4,46 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [Unreleased]
+
+### Added
+- feat(npm): expose `sourceType`, `strictSourceType`, `forceStrict`,
+  `preserveParens`, `mode` (`'ast' | 'parse' | 'full'`),
+  `showSemanticErrors`, `sourceIsDts`, `commonjs`, and
+  `disallowAmbiguousJSXLike` parse options through `parseSync` /
+  `parseAsync`. Native side adds a `kessel_parse_binary_v2` FFI export
+  that threads these options through `ParseConfig`; the original
+  `kessel_parse_binary` symbol is kept for backwards compatibility.
+- feat(npm): TypeScript declarations and README documentation cover
+  every new option, including JSDoc on the new `SourceType` and
+  `ParseMode` union types.
+
+### Changed
+- refactor(parser): centralize parser/binary-reader resource limits in
+  the new `src/resource_budget.odin`, and pull recovery helpers into
+  `src/recovery.odin`. `parse_primary_literal_expr` is extracted and
+  marked `#force_inline` for hot-path parity with the previous inline
+  branch. `resource_budget` is placed outside the hot `Parser` field
+  prefix.
+- refactor(checker): drop the transient parser pointer the checker
+  used to thread for scope checks; duplicate-binding scope checks are
+  now parser-owned, removing a lifetime coupling between the two
+  passes.
+
+### Tooling
+- chore(verifiers): `verify_codegen.js` now derives the parser dialect
+  from the fixture's directory (mirrors `verify_json_deep.js`), so
+  `.js` fixtures with TS/JSX content reach codegen instead of being
+  classified as `parse_errors_in_source`. Skip count drops from 78 to
+  36 and pass count rises from 213 to 232. The 23 remaining real
+  failures are pinned in `tests/baselines/codegen_known_failures.txt`
+  (almost all are TS-only constructs that today's codegen legitimately
+  erases when emitting JS).
+- chore(verifiers): rewrite the `verify_crashes_known.js` header to
+  reflect the current empty pinned list; the gate now reads as a
+  regression sentinel, with the Phase 3 fix history retained inline.
+
+
 ## [0.7.0] - 2026-05-26
 
 ### Added
