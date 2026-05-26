@@ -4,6 +4,42 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.7.0] - 2026-05-26
+
+### Added
+- feat(cli): kessel codegen <file> [--minified]
+- feat(codegen): scaffold AST → JS source emitter
+- feat(types): expose code and severity on the npm ParseError type
+- feat(cli): simplify color control — KESSEL_COLOR env + --color=<bool>
+- feat(cli): pretty diagnostics by default, --json opt-in, --color flag
+- feat(diagnostics): close to 100% — parser + checker + lexer fully coded
+- feat(diagnostics): finish checker migration — 56 more sites coded
+- feat(diagnostics): lexer + regex codes flow into ParseError
+- feat(diagnostics): binary format v4 — codes + severity over FFI
+- feat(diagnostics): --pretty renderer (rustc-style)
+- feat(diagnostics): K2010-K2090, K3037-K3055 — parsing-completion codes
+- feat(diagnostics): close out Phase 4 — cleanup + K4080
+- feat(diagnostics): K3060-K3068, K4060-K4064 — long-tail codes
+- feat(diagnostics): K3050-K3053 — strict-mode codes
+- feat(diagnostics): K4050-K4055 — TS ambient/types/enum codes
+- feat(diagnostics): K3040-K3043, K4040 — destructuring/rest/spread codes
+- feat(diagnostics): K4030-K4034 — TypeScript modifier codes
+- feat(diagnostics): K1010-K1015, K3036 — lexer codes + object literal dups
+- feat(diagnostics): K3030-K3035, K4020-K4023 — class member codes
+- feat(diagnostics): K3020-K3024, K4010 — module syntax codes
+- feat(diagnostics): K3010-K3015 — await/yield/async/generator codes
+- feat(diagnostics): error codes + source-aware Expected/got messages
+
+### Fixed
+- fix(ci): grant contents:read to publish-platforms for private-repo checkout
+- fix(fuzz): symmetric lenient flag + baseline slow adversarial inputs
+- fix(verifiers): use --json --compact after CLI default flip
+- fix(codegen): round-trip conformance — 92 → 213 passing fixtures
+
+### Performance
+- perf(diag): batch repeated chars + line text in one write — fixes O(n²) render
+
+
 ## [0.6.0] - 2026-05-24
 
 ### Added

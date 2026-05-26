@@ -1,6 +1,6 @@
 {
   "name": "@dvrdlibs/kessel",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Fast JavaScript/TypeScript/JSX/TSX parser. ESTree-compatible ASTs. 8% faster than OXC at the npm boundary.",
   "main": "index.js",
   "types": "./types/index.d.ts",
@@ -39,11 +39,11 @@
     "koffi": "^3.0.1"
   },
   "optionalDependencies": {
-    "@dvrdlibs/kessel-darwin-arm64": "0.6.0",
-    "@dvrdlibs/kessel-darwin-x64": "0.6.0",
-    "@dvrdlibs/kessel-linux-arm64": "0.6.0",
-    "@dvrdlibs/kessel-linux-x64": "0.6.0",
-    "@dvrdlibs/kessel-win32-x64": "0.6.0"
+    "@dvrdlibs/kessel-darwin-arm64": "0.7.0",
+    "@dvrdlibs/kessel-darwin-x64": "0.7.0",
+    "@dvrdlibs/kessel-linux-arm64": "0.7.0",
+    "@dvrdlibs/kessel-linux-x64": "0.7.0",
+    "@dvrdlibs/kessel-win32-x64": "0.7.0"
   },
   "engines": {
     "node": ">=18"
