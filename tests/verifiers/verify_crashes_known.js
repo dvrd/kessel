@@ -1,11 +1,19 @@
 #!/usr/bin/env node
 // Known-crash gate.
 //
-// Three fixtures crash the parser today (SIGTRAP / exit 133). They were
-// previously buried under `KNOWN FAIL (exit 133)` output in `task test:unit`,
-// which made them indistinguishable from an ordinary parse-error fixture.
-// A crashing parser is a denial-of-service surface for any downstream tool,
-// so we surface them explicitly here:
+// Current state: the pinned crash list is EMPTY \u2014 no fixture under
+// tests/fixtures/ is known to crash the parser today. The gate stays in
+// place as a regression sentinel: if any fixture starts crashing (exit > 1
+// or signal-terminated), the gate fails. A crashing parser is a
+// denial-of-service surface for any downstream tool, so a new crash must
+// not slip in unnoticed.
+//
+// History: this file was created when three fixtures crashed with SIGTRAP
+// (exit 133), buried under `KNOWN FAIL (exit 133)` in `task test:unit` and
+// indistinguishable from ordinary parse errors. All three were fixed
+// during Phase 3 (see the KNOWN_CRASHES comment below). The gate's
+// semantics are kept so the same surface is reused the moment a new crash
+// appears:
 //
 //   * A pinned fixture that STOPS crashing is an IMPROVEMENT (prints a
 //     hint and exit 0; maintainer should remove it from KNOWN list).
@@ -16,7 +24,7 @@
 // This gate is narrow on purpose: it walks tests/fixtures/ only (not the
 // 467-file real-world corpus \u2014 that's test:real's job, and
 // test:fuzz:invalid covers random-byte crashes). Its one job is to keep
-// the 3 pinned fixtures visible.
+// the pinned-crash surface visible.
 //
 // Crash criterion: exit code > 1 OR signal-terminated. A parse error
 // (exit 1, stderr reports "Parse errors: N") is NOT a crash.
