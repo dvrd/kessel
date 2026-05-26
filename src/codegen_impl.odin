@@ -320,6 +320,8 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 
 gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 	cg_str(cg, "import ")
+	if s.import_kind == .Type { cg_str(cg, "type ") }
+	if len(s.phase) > 0 { cg_str(cg, s.phase); cg_space(cg) }
 	first := true
 	// Default + namespace specifiers (each appears at most once).
 	for spec in s.specifiers {
@@ -461,10 +463,10 @@ gen_export_all_declaration :: proc(cg: ^Codegen, s: ^ExportAllDeclaration) {
 // Real coverage is a follow-up; round-trip tests will skip TS-only files.
 // ============================================================================
 
-gen_ts_interface_declaration   :: proc(cg: ^Codegen, s: ^TSInterfaceDeclaration)   { cg_str(cg, "/*interface*/") }
-gen_ts_type_alias_declaration  :: proc(cg: ^Codegen, s: ^TSTypeAliasDeclaration)   { cg_str(cg, "/*type-alias*/") }
-gen_ts_enum_declaration        :: proc(cg: ^Codegen, s: ^TSEnumDeclaration)        { cg_str(cg, "/*enum*/") }
-gen_ts_module_declaration      :: proc(cg: ^Codegen, s: ^TSModuleDeclaration)      { cg_str(cg, "/*module*/") }
-gen_ts_import_equals           :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) { cg_str(cg, "/*import-equals*/") }
-gen_ts_export_assignment       :: proc(cg: ^Codegen, s: ^TSExportAssignment)       { cg_str(cg, "/*export-assignment*/") }
-gen_ts_namespace_export        :: proc(cg: ^Codegen, s: ^TSNamespaceExportDeclaration) { cg_str(cg, "/*namespace-export*/") }
+gen_ts_interface_declaration   :: proc(cg: ^Codegen, s: ^TSInterfaceDeclaration)   { gen_ts_interface_declaration_full(cg, s) }
+gen_ts_type_alias_declaration  :: proc(cg: ^Codegen, s: ^TSTypeAliasDeclaration)   { gen_ts_type_alias_declaration_full(cg, s) }
+gen_ts_enum_declaration        :: proc(cg: ^Codegen, s: ^TSEnumDeclaration)        { gen_ts_enum_declaration_full(cg, s) }
+gen_ts_module_declaration      :: proc(cg: ^Codegen, s: ^TSModuleDeclaration)      { gen_ts_module_declaration_full(cg, s) }
+gen_ts_import_equals           :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) { gen_ts_import_equals_full(cg, s) }
+gen_ts_export_assignment       :: proc(cg: ^Codegen, s: ^TSExportAssignment)       { gen_ts_export_assignment_full(cg, s) }
+gen_ts_namespace_export        :: proc(cg: ^Codegen, s: ^TSNamespaceExportDeclaration) { gen_ts_namespace_export_full(cg, s) }

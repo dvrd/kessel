@@ -137,7 +137,7 @@ gen_function_params_and_body :: proc(
 	type_parameters: Maybe(^TSTypeParameterDeclaration),
 	return_type: Maybe(^TSTypeAnnotation),
 ) {
-	_ = type_parameters
+	gen_ts_type_parameter_declaration(cg, type_parameters)
 	cg_byte(cg, '(')
 	for i in 0..<len(params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
@@ -178,14 +178,22 @@ gen_class_like :: proc(
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation),
 	implements_list: [dynamic]TSInterfaceHeritage,
 ) {
-	_ = type_parameters
 	_ = super_type_arguments
-	_ = implements_list
 	cg_str(cg, "class")
 	if len(name) > 0 { cg_hard_space(cg); cg_str(cg, name) }
+	gen_ts_type_parameter_declaration(cg, type_parameters)
 	if sc, ok := super_class.?; ok {
 		cg_str(cg, " extends ")
 		gen_expression(cg, sc, PREC_CALL)
+		gen_ts_type_arguments(cg, super_type_arguments)
+	}
+	if len(implements_list) > 0 {
+		cg_str(cg, " implements ")
+		for i in 0..<len(implements_list) {
+			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
+			gen_expression(cg, implements_list[i].expression, PREC_CALL)
+			gen_ts_type_arguments(cg, implements_list[i].type_parameters)
+		}
 	}
 	cg_space(cg)
 	cg_byte(cg, '{')
@@ -206,7 +214,16 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		gen_expression(cg, d.expression, PREC_CALL)
 		cg_newline(cg)
 	}
-	if el.static { cg_str(cg, "static ") }
+	switch el.accessibility {
+	case .None:      // nothing
+	case .Public:    cg_str(cg, "public ")
+	case .Private:   cg_str(cg, "private ")
+	case .Protected: cg_str(cg, "protected ")
+	}
+	if el.abstract  { cg_str(cg, "abstract ") }
+	if el.static    { cg_str(cg, "static ") }
+	if el.override_ { cg_str(cg, "override ") }
+	if el.readonly  { cg_str(cg, "readonly ") }
 	if el.is_accessor { cg_str(cg, "accessor ") }
 	switch el.kind {
 	case .Method:
@@ -230,6 +247,12 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
 		if el.computed { cg_byte(cg, ']') }
+		if el.optional { cg_byte(cg, '?') }
+		if el.definite { cg_byte(cg, '!') }
+		if ta, ok := el.type_annotation.?; ok {
+			cg_str(cg, ": ")
+			gen_ts_type(cg, ta.type_annotation)
+		}
 		if is_method {
 			gen_function_params_and_body(cg, fn.async, fn.generator, fn.params[:], fn.body, fn.no_body, fn.type_parameters, fn.return_type)
 			return
@@ -359,17 +382,17 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 			gen_ts_type(cg, v.element_types[i])
 		}
 		cg_byte(cg, ']')
-	case ^TSFunctionType:        cg_str(cg, "(...) => any")
-	case ^TSConstructorType:     cg_str(cg, "new (...) => any")
-	case ^TSTypeLiteral:         cg_str(cg, "{}")
-	case ^TSConditionalType:     cg_str(cg, "/*conditional*/")
-	case ^TSInferType:           cg_str(cg, "/*infer*/")
-	case ^TSTypeQuery:           cg_str(cg, "/*typeof*/")
-	case ^TSTypeOperator:        cg_str(cg, "/*op*/")
-	case ^TSIndexedAccessType:   cg_str(cg, "/*indexed*/")
-	case ^TSMappedType:          cg_str(cg, "/*mapped*/")
-	case ^TSLiteralType:         cg_str(cg, "/*literal-type*/")
-	case ^TSTemplateLiteralType: cg_str(cg, "/*template-literal*/")
+	case ^TSFunctionType:        gen_ts_function_type(cg, v)
+	case ^TSConstructorType:     gen_ts_constructor_type(cg, v)
+	case ^TSTypeLiteral:         gen_ts_type_literal(cg, v)
+	case ^TSConditionalType:     gen_ts_conditional_type(cg, v)
+	case ^TSInferType:           gen_ts_infer_type(cg, v)
+	case ^TSTypeQuery:           gen_ts_type_query(cg, v)
+	case ^TSTypeOperator:        gen_ts_type_operator(cg, v)
+	case ^TSIndexedAccessType:   gen_ts_indexed_access_type(cg, v)
+	case ^TSMappedType:          gen_ts_mapped_type(cg, v)
+	case ^TSLiteralType:         gen_ts_literal_type(cg, v)
+	case ^TSTemplateLiteralType: gen_ts_template_literal_type(cg, v)
 	case ^TSParenthesizedType:
 		cg_byte(cg, '(')
 		gen_ts_type(cg, v.type_annotation)
@@ -384,7 +407,7 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 		cg_str(cg, v.label.name)
 		cg_str(cg, ": ")
 		gen_ts_type(cg, v.element_type)
-	case ^TSTypePredicate:    cg_str(cg, "/*predicate*/")
-	case ^TSImportType:       cg_str(cg, "/*import-type*/")
+	case ^TSTypePredicate:    gen_ts_type_predicate(cg, v)
+	case ^TSImportType:       gen_ts_import_type_full(cg, v)
 	}
 }

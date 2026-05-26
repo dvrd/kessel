@@ -208,6 +208,7 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 gen_call_expression :: proc(cg: ^Codegen, e: ^CallExpression) {
 	gen_expression(cg, e.callee, PREC_CALL)
 	if e.optional { cg_str(cg, "?.") }
+	gen_ts_type_arguments(cg, e.type_parameters)
 	cg_byte(cg, '(')
 	for i in 0..<len(e.arguments) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
@@ -229,6 +230,7 @@ gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
 	} else {
 		gen_expression(cg, e.callee, PREC_CALL)
 	}
+	gen_ts_type_arguments(cg, e.type_parameters)
 	cg_byte(cg, '(')
 	for i in 0..<len(e.arguments) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
@@ -503,4 +505,4 @@ gen_jsx_child :: proc(cg: ^Codegen, c: JSXChild) {
 gen_ts_as_expression        :: proc(cg: ^Codegen, e: ^TSAsExpression)        { gen_expression(cg, e.expression, PREC_CALL); cg_str(cg, " as "); gen_ts_type(cg, e.type_annotation) }
 gen_ts_satisfies_expression :: proc(cg: ^Codegen, e: ^TSSatisfiesExpression) { gen_expression(cg, e.expression, PREC_CALL); cg_str(cg, " satisfies "); gen_ts_type(cg, e.type_annotation) }
 gen_ts_type_assertion       :: proc(cg: ^Codegen, e: ^TSTypeAssertion)       { cg_byte(cg, '<'); gen_ts_type(cg, e.type_annotation); cg_byte(cg, '>'); gen_expression(cg, e.expression, PREC_UNARY) }
-gen_ts_instantiation        :: proc(cg: ^Codegen, e: ^TSInstantiationExpression) { gen_expression(cg, e.expression, PREC_CALL); cg_str(cg, "/*<...>*/") }
+gen_ts_instantiation        :: proc(cg: ^Codegen, e: ^TSInstantiationExpression) { gen_ts_instantiation_full(cg, e) }

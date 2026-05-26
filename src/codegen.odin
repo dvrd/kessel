@@ -245,7 +245,7 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression) {
 	case ^RegExpLiteral:              gen_regexp_literal(cg, e)
 	case ^TemplateLiteral:            gen_template_literal(cg, e)
 	case ^TaggedTemplateExpression:   gen_tagged_template(cg, e)
-	case ^Identifier:                 cg_str(cg, e.name)
+	case ^Identifier:                 gen_pattern_identifier(cg, e)
 	case ^PrivateIdentifier:          cg_byte(cg, '#'); cg_str(cg, e.name)
 	case ^ThisExpression:             cg_str(cg, "this")
 	case ^Super:                      cg_str(cg, "super")
