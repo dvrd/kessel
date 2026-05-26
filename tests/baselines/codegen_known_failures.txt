@@ -1,0 +1,51 @@
+# Codegen known failures — fixtures where parse→codegen→parse does not
+# round-trip to an equal AST. Listed here so `task test:codegen` reports
+# them as expected failures rather than hiding them as skips or breaking
+# the gate.
+#
+# The vast majority of these are TS-only syntax that today's codegen
+# legitimately erases when emitting JS (interfaces, type aliases, enums,
+# type annotations, type arguments, type parameters, import kinds). When
+# codegen learns to preserve those forms (or the verifier learns a
+# "type-erased" tolerance), the entries below can be removed.
+#
+# Behavior:
+#   - A fixture listed here that still fails passes the gate.
+#   - A fixture listed here that now ROUND-TRIPS cleanly is an
+#     IMPROVEMENT (the verifier prints a hint; remove it from this file).
+#   - A fixture NOT listed here that fails is a REGRESSION (gate fails).
+#
+# Path is RELATIVE to tests/fixtures/.
+
+# TS declarations that codegen erases entirely (length N vs 0):
+es2025/019_ts_interface.js                                # TSInterfaceDeclaration erased
+es2025/020_ts_type_alias.js                               # TSTypeAliasDeclaration erased
+es2025/021_ts_enum.js                                     # TSEnumDeclaration erased
+spec/typescript/003_conditional_type.js                   # TSTypeAliasDeclaration erased
+spec/typescript/004_mapped_type.js                        # TSTypeAliasDeclaration erased
+spec/typescript/005_union_intersection.js                 # TSTypeAliasDeclaration erased
+spec/typescript/009_index_signature.js                    # TSInterfaceDeclaration erased
+spec/typescript/011_interface_extends.js                  # TSInterfaceDeclaration erased
+spec/typescript/012_const_enum.js                         # TSEnumDeclaration erased
+spec/typescript/015_namespace_module.js                   # TSModuleDeclaration erased
+spec/typescript/020_import_equals.js                      # TSImportEqualsDeclaration erased
+
+# TSX/TS files with mixed JS+TS bodies — TS statements erased:
+spec/tsx/001_generic_component.js                         # length 4 vs 2; TS decls erased
+spec/tsx/002_hooks_refs_as_casts.js                       # length 4 vs 3; TS decls erased
+spec/typescript/013_class_implements.js                   # length 5 vs 3; TS decls erased
+spec/typescript/014_type_parameter_constraints.js         # length 7 vs 5; TS decls erased
+
+# TS field-level erasure (annotation / arguments / parameters → null):
+spec/ambiguity/003_generic_call_vs_relational.js          # typeArguments erased
+spec/ambiguity/007_type_arguments_call_chain.js           # typeArguments erased
+spec/interactions/010_ts_types_inside_complex_class.js    # typeAnnotation erased
+spec/typescript/001_generic_function.js                   # typeParameters erased
+spec/typescript/002_generic_class.js                      # typeAnnotation erased
+
+# importKind drift — codegen omits the `importKind` field on imports:
+spec/ambiguity/010_import_type_vs_import_call.js          # importKind dropped
+spec/typescript/008_import_type.js                        # importKind dropped
+
+# Codegen emits a TS construct that the parser then rejects on reparse:
+spec/typescript/010_type_predicate.js                     # reparse: K2040/K3053/K2002

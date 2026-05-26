@@ -51,17 +51,61 @@ function listFixtures() {
 // Kessel drivers
 // ---------------------------------------------------------------------------
 
-function parseToAst(filePath) {
+// Dialect detection from file path. Mirrors verify_json_deep.js so kessel
+// always knows which grammar to parse a fixture in. Without this, .js
+// fixtures that contain TS or JSX syntax were rejected with K2040 /
+// K2010 / K4053 / etc. and counted as skips even though they parse
+// cleanly in the right --lang mode.
+//   - JSX, TypeScript, and TSX-ambiguity families have their own dirs.
+//   - `spec/interactions/` is mixed: filename markers carry the dialect.
+function detectDialect(p) {
+  if (p.includes('/spec/jsx/'))        return 'jsx';
+  if (p.includes('/spec/tsx/'))        return 'tsx';
+  if (p.includes('/spec/typescript/')) return 'ts';
+  if (p.includes('/spec/ambiguity/'))  return 'tsx';
+  if (p.includes('/spec/interactions/')) {
+    if (/_jsx_/.test(p)) return 'jsx';
+    if (/_ts_/.test(p))  return 'ts';
+  }
+  // `es2025/0XX_jsx_*.js` and `es2025/0XX_ts_*.js` live next to plain JS
+  // ES2025 fixtures; pick the right grammar from the filename marker.
+  if (p.includes('/es2025/')) {
+    if (/_jsx_/.test(p)) return 'jsx';
+    if (/_ts_/.test(p))  return 'ts';
+  }
+  // Recovery TS/JSX bucket carries the dialect in its directory name.
+  if (p.includes('/recovery/jsx_ts/')) {
+    if (/_jsx_/.test(p) || /jsx/.test(path.basename(p))) return 'jsx';
+    if (/_ts_/.test(p)  || /\bts\b/.test(path.basename(p))) return 'ts';
+    return 'tsx';
+  }
+  return 'js';
+}
+
+function dialectExt(dialect) {
+  switch (dialect) {
+    case 'jsx': return '.jsx';
+    case 'ts':  return '.ts';
+    case 'tsx': return '.tsx';
+    default:    return '.js';
+  }
+}
+
+function parseToAst(filePath, dialect) {
   // --json mode always exits 0; errors are inside the JSON.
-  const out = execFileSync(KESSEL, ['parse', filePath, '--json'], {
+  const args = ['parse', filePath, '--json'];
+  if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
+  const out = execFileSync(KESSEL, args, {
     maxBuffer: 256 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'ignore'],
   });
   return JSON.parse(out.toString('utf8'));
 }
 
-function codegen(filePath) {
-  return execFileSync(KESSEL, ['codegen', filePath], {
+function codegen(filePath, dialect) {
+  const args = ['codegen', filePath];
+  if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
+  return execFileSync(KESSEL, args, {
     maxBuffer: 256 * 1024 * 1024,
     stdio: ['ignore', 'pipe', 'ignore'],
   }).toString('utf8');
@@ -141,10 +185,11 @@ function firstDiff(a, b, p = '$') {
 // ---------------------------------------------------------------------------
 
 function roundtrip(fixturePath, tmpRoot) {
+  const dialect = detectDialect(fixturePath);
   // Step 1: parse original.
   let astA;
   try {
-    astA = parseToAst(fixturePath);
+    astA = parseToAst(fixturePath, dialect);
   } catch (e) {
     return { kind: 'skip', reason: 'parse_invoke_failed: ' + (e.message || e) };
   }
@@ -156,20 +201,22 @@ function roundtrip(fixturePath, tmpRoot) {
   // already filtered those above. A non-zero exit here is a real failure.
   let src;
   try {
-    src = codegen(fixturePath);
+    src = codegen(fixturePath, dialect);
   } catch (e) {
     return { kind: 'fail', stage: 'codegen', detail: (e.stderr || '').toString().trim() || (e.message || String(e)) };
   }
 
-  // Step 3: write to a temp file with the same extension and re-parse.
-  // The extension drives lang detection (.ts -> TS, .tsx -> TSX, etc.).
-  const ext = path.extname(fixturePath);
-  const base = path.basename(fixturePath, ext);
+  // Step 3: write to a temp file with the dialect-appropriate extension
+  // and re-parse. The extension drives kessel's path-based lang detection
+  // (.ts -> TS, .tsx -> TSX, etc.) as a defense in depth alongside the
+  // explicit --lang flag we still pass.
+  const ext = dialectExt(dialect);
+  const base = path.basename(fixturePath, path.extname(fixturePath));
   const tmp = path.join(tmpRoot, `${base}.regen${ext}`);
   fs.writeFileSync(tmp, src);
   let astB;
   try {
-    astB = parseToAst(tmp);
+    astB = parseToAst(tmp, dialect);
   } catch (e) {
     return { kind: 'fail', stage: 'reparse_invoke', detail: (e.message || String(e)) };
   }
@@ -193,6 +240,27 @@ function roundtrip(fixturePath, tmpRoot) {
 }
 
 // ---------------------------------------------------------------------------
+// Known-failure baseline
+// ---------------------------------------------------------------------------
+
+// Path is RELATIVE to tests/fixtures/. Mirrors the ambiguity baseline so
+// the gate stays green on documented codegen gaps (mostly TS-erasure)
+// while still catching real regressions and surfacing improvements.
+const KNOWN_FAILURES_PATH = path.join(
+  ROOT, 'tests/baselines/codegen_known_failures.txt',
+);
+function loadKnownFailures() {
+  if (!fs.existsSync(KNOWN_FAILURES_PATH)) return new Set();
+  const out = new Set();
+  for (const raw of fs.readFileSync(KNOWN_FAILURES_PATH, 'utf8').split('\n')) {
+    const trimmed = raw.replace(/#.*$/, '').trim();
+    if (trimmed) out.add(trimmed);
+  }
+  return out;
+}
+const KNOWN_FAILURES = loadKnownFailures();
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -204,18 +272,39 @@ process.on('exit', () => {
 const fixtures = listFixtures();
 let pass = 0, skip = 0;
 const failures = [];
+const knownFailures = [];
+const unexpectedPasses = [];
 
 const t0 = Date.now();
 for (const abs of fixtures) {
   const rel = path.relative(ROOT, abs);
+  const relFromFixtures = path.relative(FIXTURES_DIR, abs);
+  const isKnown = KNOWN_FAILURES.has(relFromFixtures);
   const r = roundtrip(abs, tmpRoot);
-  if (r.kind === 'pass') pass++;
-  else if (r.kind === 'skip') skip++;
-  else failures.push({ rel, ...r });
+  if (r.kind === 'pass') {
+    pass++;
+    if (isKnown) unexpectedPasses.push(relFromFixtures);
+  } else if (r.kind === 'skip') {
+    skip++;
+  } else if (isKnown) {
+    knownFailures.push({ rel, ...r });
+  } else {
+    failures.push({ rel, ...r });
+  }
 }
 const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
-console.log(`verify_codegen: ${fixtures.length} fixtures, ${pass} pass, ${skip} skip, ${failures.length} fail (${elapsed}s)`);
+console.log(
+  `verify_codegen: ${fixtures.length} fixtures, ${pass} pass, ${skip} skip, ` +
+  `${failures.length} fail, ${knownFailures.length} known-fail (${elapsed}s)`,
+);
+
+if (unexpectedPasses.length > 0) {
+  console.log('');
+  console.log('  Improvements \u2014 these are listed in codegen_known_failures.txt');
+  console.log('  but now ROUND-TRIP CLEANLY. Remove them from the baseline:');
+  for (const p of unexpectedPasses) console.log(`    - ${p}`);
+}
 
 if (failures.length > 0) {
   // Group by stage for a quick overview.
