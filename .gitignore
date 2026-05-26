@@ -1,5 +1,7 @@
 bin/
 tmp/
+docs/
+
 # Odin's default `-out:` location when no path is given (e.g. `odin build src`).
 src.bin
 src.bin.dSYM/
