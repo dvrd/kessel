@@ -34,13 +34,27 @@ if (!fs.existsSync(KESSEL)) {
 // Fixture enumeration
 // ---------------------------------------------------------------------------
 
+// Directories whose entire contents are out of scope for round-trip
+// codegen and must be excluded from enumeration. `recovery/` fixtures
+// are deliberately malformed — they exist to exercise the parser's
+// error-recovery paths, so by construction they cannot round-trip
+// (parse → codegen → reparse) to the original AST. Counting them as
+// `skip` made the verifier look like it had a 78-then-36 codegen
+// backlog, when in reality the codegen pipeline has no work to do on
+// those inputs at all.
+const EXCLUDED_DIRS = new Set(['recovery']);
+
 function listFixtures() {
   const out = [];
   function walk(dir) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.isFile() && /\.(js|mjs|jsx|ts|tsx)$/.test(entry.name)) out.push(full);
+      if (entry.isDirectory()) {
+        if (EXCLUDED_DIRS.has(entry.name)) continue;
+        walk(full);
+      } else if (entry.isFile() && /\.(js|mjs|jsx|ts|tsx)$/.test(entry.name)) {
+        out.push(full);
+      }
     }
   }
   walk(FIXTURES_DIR);
