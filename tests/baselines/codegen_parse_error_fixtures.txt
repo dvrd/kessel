@@ -1,0 +1,28 @@
+# Codegen intentional-skip baseline — fixtures the codegen round-trip
+# verifier must skip because the source intentionally fails to parse
+# cleanly. Codegen refuses to emit when parse produced errors, so those
+# fixtures can never round-trip; the gate treats them as expected skips
+# instead of either silently bumping the skip count or flagging them as
+# regressions.
+#
+# Behavior:
+#   - A fixture listed here that still triggers parse_errors_in_source
+#     during round-trip is counted as `intentional-skip` and passes.
+#   - A fixture listed here that now PARSES CLEANLY is an IMPROVEMENT
+#     (the verifier prints a hint; remove it from this file).
+#   - A fixture NOT listed here that triggers parse_errors_in_source is
+#     counted as plain `skip` and surfaced under SHOW_SKIPS=1.
+#
+# Path is RELATIVE to tests/fixtures/.
+
+# tsx-mode ambiguity recovery gaps — both kessel and OXC reject the
+# input, but OXC produces a usable AST through deeper recovery. Tracked
+# separately in tests/baselines/ambiguity_known_failures.txt.
+spec/ambiguity/001_ts_assertion_vs_jsx_simple.js
+spec/ambiguity/002_ts_assertion_vs_jsx_paren.js
+spec/ambiguity/004_generic_arrow_vs_relational.js
+
+# BOM-before-hashbang: kessel matches OXC / Acorn / Babel and rejects
+# (only V8 accepts). The fixture is kept as a positive-golden anchor
+# for the diagnostic shape, not as a round-trippable input.
+spec/lexical/001_hashbang_bom.js

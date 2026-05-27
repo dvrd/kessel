@@ -274,6 +274,25 @@ function loadKnownFailures() {
 }
 const KNOWN_FAILURES = loadKnownFailures();
 
+// Fixtures whose source intentionally contains parse errors (BOM-before-
+// hashbang regression anchor, tsx-mode ambiguity recovery fixtures, etc.).
+// Codegen refuses to emit when the parser produced errors, so these can
+// never round-trip; the gate treats them as expected `intentional-skip`
+// instead of either masking the count or flagging a regression.
+const PARSE_ERROR_FIXTURES_PATH = path.join(
+  ROOT, 'tests/baselines/codegen_parse_error_fixtures.txt',
+);
+function loadParseErrorFixtures() {
+  if (!fs.existsSync(PARSE_ERROR_FIXTURES_PATH)) return new Set();
+  const out = new Set();
+  for (const raw of fs.readFileSync(PARSE_ERROR_FIXTURES_PATH, 'utf8').split('\n')) {
+    const trimmed = raw.replace(/#.*$/, '').trim();
+    if (trimmed) out.add(trimmed);
+  }
+  return out;
+}
+const PARSE_ERROR_FIXTURES = loadParseErrorFixtures();
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
@@ -284,22 +303,30 @@ process.on('exit', () => {
 });
 
 const fixtures = listFixtures();
-let pass = 0, skip = 0;
+let pass = 0, skip = 0, intentionalSkip = 0;
 const failures = [];
 const knownFailures = [];
 const unexpectedPasses = [];
+const unexpectedlyClean = [];
 
 const t0 = Date.now();
 for (const abs of fixtures) {
   const rel = path.relative(ROOT, abs);
   const relFromFixtures = path.relative(FIXTURES_DIR, abs);
   const isKnown = KNOWN_FAILURES.has(relFromFixtures);
+  const isParseError = PARSE_ERROR_FIXTURES.has(relFromFixtures);
   const r = roundtrip(abs, tmpRoot);
   if (r.kind === 'pass') {
     pass++;
     if (isKnown) unexpectedPasses.push(relFromFixtures);
+    if (isParseError) unexpectedlyClean.push(relFromFixtures);
   } else if (r.kind === 'skip') {
-    skip++;
+    if (isParseError && r.reason === 'parse_errors_in_source') {
+      intentionalSkip++;
+    } else {
+      skip++;
+      if (process.env.SHOW_SKIPS) console.log('SKIP', relFromFixtures, '--', r.reason);
+    }
   } else if (isKnown) {
     knownFailures.push({ rel, ...r });
   } else {
@@ -310,8 +337,16 @@ const elapsed = ((Date.now() - t0) / 1000).toFixed(1);
 
 console.log(
   `verify_codegen: ${fixtures.length} fixtures, ${pass} pass, ${skip} skip, ` +
+  `${intentionalSkip} intentional-skip, ` +
   `${failures.length} fail, ${knownFailures.length} known-fail (${elapsed}s)`,
 );
+
+if (unexpectedlyClean.length > 0) {
+  console.log('');
+  console.log('  Improvements \u2014 these are listed in codegen_parse_error_fixtures.txt');
+  console.log('  but now PARSE CLEANLY. Remove them from the baseline:');
+  for (const p of unexpectedlyClean) console.log(`    - ${p}`);
+}
 
 if (unexpectedPasses.length > 0) {
   console.log('');
