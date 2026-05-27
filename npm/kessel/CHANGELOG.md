@@ -4,6 +4,12 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.9.0] - 2026-05-27
+
+### Added
+- feat(codegen): full TS declaration + type emission
+
+
 ## [0.8.0] - 2026-05-26
 
 ### Added
