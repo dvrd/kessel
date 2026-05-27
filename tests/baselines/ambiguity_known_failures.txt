@@ -15,10 +15,22 @@
 #   - spec/ambiguity/008_less_than_binary_not_generic.js
 #   - spec/ambiguity/009_jsx_fragment_vs_type_context.js
 
-# Still-diverging fixtures (kessel hits parse errors while OXC produces a
-# usable AST in the same tsx mode — these are recovery / disambiguation
-# gaps in the tsx grammar, not golden-vs-deep tool divergences):
+# Still-diverging fixtures. Today both kessel AND OXC reject the input in
+# tsx mode (each reports 1 parse error). The deep-compare divergence is
+# *not* a parser-correctness gap — it is a recovery-shape difference:
+#
+#   * OXC drops the partial AST when a tsx-mode parse fails: it returns
+#     `program.body = []` with `start: 0, end: 0`.
+#   * Kessel keeps the partial AST it had reconstructed up to the error,
+#     plus an `errors: [...]` field on the Program node so downstream
+#     tooling (IDE highlighters, recovery-based formatters) can still
+#     work with the structure.
+#
+# Either shape is defensible. Both engines agree the input is invalid.
+# These entries stay listed so the deep-compare runner does not flag a
+# reporting-style choice as a regression, and so reviewers know there is
+# no actual parser bug to chase.
 
-spec/ambiguity/001_ts_assertion_vs_jsx_simple.js   # `<Type>expr` recovery in tsx mode emits parse errors.
-spec/ambiguity/002_ts_assertion_vs_jsx_paren.js    # `<Type>(expr)` recovery in tsx mode emits parse errors.
-spec/ambiguity/004_generic_arrow_vs_relational.js  # Generic arrow recovery still emits parse errors.
+spec/ambiguity/001_ts_assertion_vs_jsx_simple.js   # `<Type>expr`        — both reject; kessel keeps partial body.
+spec/ambiguity/002_ts_assertion_vs_jsx_paren.js    # `<Type>(expr)`      — both reject; kessel keeps partial body.
+spec/ambiguity/004_generic_arrow_vs_relational.js  # `<T>(value: T) => …` — both reject; kessel keeps partial body.
