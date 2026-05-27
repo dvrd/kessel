@@ -160,12 +160,21 @@ gen_function_expression :: proc(cg: ^Codegen, e: ^FunctionExpression) {
 
 gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression) {
 	if e.async { cg_str(cg, "async ") }
+	// TS generic arrow: `<T>(x: T) => x`. Without this, the type-parameter
+	// list is silently erased, which breaks both round-trip equality and
+	// the semantic meaning when a downstream consumer reads typeParameters
+	// off the AST and we round-trip via codegen.
+	gen_ts_type_parameter_declaration(cg, e.type_parameters)
 	cg_byte(cg, '(')
 	for i in 0..<len(e.params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_function_param(cg, e.params[i])
 	}
 	cg_byte(cg, ')')
+	if rt, ok := e.return_type.?; ok {
+		cg_str(cg, ": ")
+		gen_ts_type(cg, rt.type_annotation)
+	}
 	cg_space(cg)
 	cg_str(cg, "=>")
 	cg_space(cg)

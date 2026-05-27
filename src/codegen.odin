@@ -52,6 +52,13 @@ Codegen :: struct {
 	// True at the start of a line; controls whether the next textual
 	// write prefixes itself with indentation in pretty mode.
 	at_line_start: bool,
+
+	// Source-map state. nil unless the caller opted in via
+	// codegen_enable_sourcemap(). Borrowed; the caller owns the lifetime.
+	// Recording mappings on the hot path is a single nil-check + append
+	// per Statement; everything else (line/col conversion, VLQ encoding)
+	// happens once at the end in sourcemap_to_json.
+	sm: ^SourceMap,
 }
 
 // ----------------------------------------------------------------------------
@@ -91,6 +98,15 @@ codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source_len_hint: int, all
 	cg.pos           = 0
 	cg.depth         = 0
 	cg.at_line_start = true
+	cg.sm            = nil
+}
+
+// Opt the codegen into source-map recording. After codegen_program
+// returns, the caller can read `cg.sm.records` and pass them to
+// sourcemap_to_json. Borrowed pointer; caller manages the SourceMap's
+// lifetime.
+codegen_enable_sourcemap :: proc(cg: ^Codegen, sm: ^SourceMap) {
+	cg.sm = sm
 }
 
 codegen_destroy :: proc(cg: ^Codegen, alloc: mem.Allocator) {
@@ -186,6 +202,13 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program) {
 // ============================================================================
 
 gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
+	if cg.sm != nil {
+		// Force indent before recording so the mapping points at the
+		// statement keyword, not at the leading whitespace.
+		cg_indent(cg)
+		stmt_local := stmt
+		cg_record_stmt_mapping(cg, &stmt_local)
+	}
 	switch s in stmt {
 	case ^ExpressionStatement:        gen_expression_statement(cg, s)
 	case ^EmptyStatement:             cg_byte(cg, ';')
@@ -326,10 +349,19 @@ expression_precedence :: proc(expr: ^Expression) -> int {
 		return PREC_COMMA
 	case ^SpreadElement:
 		return PREC_ASSIGN
-	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion,
-	     ^TSInstantiationExpression:
+	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
+		// `expr as Type` / `expr satisfies Type` / `<Type>expr` all bind
+		// looser than member access and call: `(x as T).y` and
+		// `(x as T)(args)` MUST keep their parens, otherwise the regen
+		// reparses as `x as (T.y)` / `x as T(args)`. Picking PREC_REL
+		// matches how the TS grammar slots `as` next to relational
+		// operators.
+		return PREC_REL
+	case ^TSInstantiationExpression:
 		return PREC_CALL
 	case ^TSNonNullExpression:
+		// Postfix `!` is tighter than member access in TS, so it stays
+		// at PREC_CALL just like `.` / `[]`.
 		return PREC_CALL
 	}
 	return PREC_LOWEST

@@ -344,4 +344,101 @@ function offsetToLineColumn(offset, lineStarts) {
   return [lo + 1, offset - lineStarts[lo] + 1];
 }
 
-module.exports = { parseSync, parseAsync };
+// ---------------------------------------------------------------------------
+// Codegen FFI
+// ---------------------------------------------------------------------------
+//
+// Mirror of `kessel codegen` on the CLI. Returns { code, map?, errors }.
+// `code` is the generated source string. `map` is only present when
+// `options.sourceMap === true`; it's the parsed v3 source-map object
+// (not a string — the JSON has already been round-tripped through
+// JSON.parse for the caller's convenience). `errors` is non-empty when
+// the parse failed, in which case `code` is the empty string.
+const CodegenResult = koffi.struct('KesselCodegenResult', {
+  handle:   'void *',
+  code_ptr: 'void *',
+  code_len: 'int32',
+  map_ptr:  'void *',
+  map_len:  'int32',
+  ok:       'int32',
+});
+
+let _codegen = null;
+let _free_codegen_result = null;
+try {
+  _codegen = lib.func('kessel_codegen', CodegenResult, [
+    'void *', 'int32',   // src_ptr, src_len
+    'void *', 'int32',   // filename_ptr, filename_len
+    'int32',             // lang (0=js 1=jsx 2=ts 3=tsx, -1=auto)
+    'int32',             // source_type (0=script 1=module)
+    'int32',             // minified
+    'int32',             // want_sourcemap
+  ]);
+  _free_codegen_result = lib.func('kessel_free_codegen_result', 'void', ['void *']);
+} catch (e) {
+  // Older shared libraries don't ship the codegen exports yet; calling
+  // `codegen()` then throws with a clearer message than the koffi default.
+}
+
+function langCodeFromName(name) {
+  if (!name) return -1;
+  const lower = name.toLowerCase();
+  if (lower.endsWith('.tsx')) return 3;
+  if (lower.endsWith('.ts')  || lower.endsWith('.mts') || lower.endsWith('.cts')) return 2;
+  if (lower.endsWith('.jsx')) return 1;
+  return 0;
+}
+
+function codegen(source, options) {
+  if (_codegen == null) {
+    throw new Error('kessel: native library does not export kessel_codegen — rebuild libkessel');
+  }
+  if (typeof source !== 'string') {
+    throw new TypeError('kessel.codegen(source, options): source must be a string');
+  }
+  const opts        = options || {};
+  const filename    = typeof opts.filename === 'string' ? opts.filename : 'input';
+  const minified    = !!opts.minified;
+  const wantMap     = !!opts.sourceMap;
+  const langOpt     = typeof opts.lang === 'string' ? opts.lang.toLowerCase() : null;
+  const langCode    =
+    langOpt === 'tsx' ? 3 :
+    langOpt === 'ts'  ? 2 :
+    langOpt === 'jsx' ? 1 :
+    langOpt === 'js'  ? 0 :
+    langCodeFromName(filename);
+  const sourceType  = opts.sourceType === 'script' ? 0 : 1;
+
+  const srcBytes      = Buffer.from(source, 'utf8');
+  const filenameBytes = Buffer.from(filename, 'utf8');
+
+  const r = _codegen(
+    srcBytes, srcBytes.length,
+    filenameBytes, filenameBytes.length,
+    langCode,
+    sourceType,
+    minified ? 1 : 0,
+    wantMap  ? 1 : 0,
+  );
+  try {
+    if (!r.ok) {
+      // Native side already declined; signal a failed parse to the
+      // caller. We don't have detailed diagnostics here — use
+      // parseSync to surface those if needed.
+      return { code: '', map: null, errors: [{ message: 'parse failed' }] };
+    }
+    const code = r.code_len > 0
+      ? Buffer.from(koffi.decode(r.code_ptr, 'uint8_t', r.code_len)).toString('utf8')
+      : '';
+    let map = null;
+    if (wantMap && r.map_len > 0) {
+      const mapBytes = Buffer.from(koffi.decode(r.map_ptr, 'uint8_t', r.map_len)).toString('utf8');
+      map = JSON.parse(mapBytes);
+    }
+    return { code, map, errors: [] };
+  } finally {
+    if (r.handle) _free_codegen_result(r.handle);
+  }
+}
+
+module.exports = { parseSync, parseAsync, codegen };

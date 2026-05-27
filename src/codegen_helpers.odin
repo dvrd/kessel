@@ -30,14 +30,24 @@ gen_pattern_identifier :: proc(cg: ^Codegen, e: ^Identifier) {
 
 gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern) {
 	cg_byte(cg, '{')
-	if len(e.properties) == 0 { cg_byte(cg, '}'); return }
-	cg_space(cg)
-	for i in 0..<len(e.properties) {
-		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
-		gen_object_pattern_property(cg, e.properties[i])
+	if len(e.properties) == 0 {
+		cg_byte(cg, '}')
+	} else {
+		cg_space(cg)
+		for i in 0..<len(e.properties) {
+			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
+			gen_object_pattern_property(cg, e.properties[i])
+		}
+		cg_space(cg)
+		cg_byte(cg, '}')
 	}
-	cg_space(cg)
-	cg_byte(cg, '}')
+	// TS-position annotation lives on the ObjectPattern itself when the
+	// pattern is not a bare Identifier. Mirror the Identifier branch in
+	// gen_pattern_identifier so `function f({a, b}: Props)` round-trips.
+	if ta, ok := e.type_annotation.?; ok {
+		cg_str(cg, ": ")
+		gen_ts_type(cg, ta.type_annotation)
+	}
 }
 
 gen_object_pattern_property :: proc(cg: ^Codegen, p: ObjectPatternProperty) {
@@ -73,6 +83,12 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern) {
 		}
 	}
 	cg_byte(cg, ']')
+	// Same TS-position annotation as ObjectPattern: `function
+	// f([a, b]: number[])` carries `: number[]` on the ArrayPattern.
+	if ta, ok := e.type_annotation.?; ok {
+		cg_str(cg, ": ")
+		gen_ts_type(cg, ta.type_annotation)
+	}
 }
 
 gen_assignment_pattern :: proc(cg: ^Codegen, e: ^AssignmentPattern) {
@@ -361,7 +377,9 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 	case ^TSUnknownKeyword:   cg_str(cg, "unknown")
 	case ^TSVoidKeyword:      cg_str(cg, "void")
 	case ^TSThisType:         cg_str(cg, "this")
-	case ^TSTypeReference:    gen_expression(cg, v.type_name, PREC_CALL)
+	case ^TSTypeReference:
+		gen_expression(cg, v.type_name, PREC_CALL)
+		gen_ts_type_arguments(cg, v.type_parameters)
 	case ^TSUnionType:
 		for i in 0..<len(v.types) {
 			if i > 0 { cg_str(cg, " | ") }

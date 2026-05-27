@@ -279,12 +279,22 @@ gen_try_statement :: proc(cg: ^Codegen, s: ^TryStatement) {
 }
 
 gen_function_declaration :: proc(cg: ^Codegen, s: ^FunctionDeclaration) {
+	// TS `declare function f(): void;` is a FunctionDeclaration with
+	// declare=true and no body. The keyword must be preserved or the
+	// regen loses its ambient marker (and a body-less function without
+	// `declare` is a parse error).
+	if s.declare { cg_str(cg, "declare ") }
 	name := ""
 	if id, ok := s.id.?; ok { name = id.name }
 	gen_function_expression_like(cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters, s.return_type, true)
 }
 
 gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_semicolon: bool) {
+	// TS `declare const X: T;` reaches codegen as a VariableDeclaration
+	// with `declare = true` and no initializer. Emitting it without the
+	// keyword regenerates `const X: T;`, which is an early error because
+	// `const` requires an initializer outside of ambient context.
+	if s.declare { cg_str(cg, "declare ") }
 	switch s.kind {
 	case .Var:   cg_str(cg, "var")
 	case .Let:   cg_str(cg, "let")
@@ -313,6 +323,13 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 		gen_expression(cg, d.expression, PREC_CALL)
 		cg_newline(cg)
 	}
+	// TS ambient + abstract class modifiers. `declare class C { ... }`
+	// and `abstract class C { ... }` both reach codegen as a
+	// ClassDeclaration with the respective flag set. Forgetting either
+	// drops the modifier and, for `declare`, regresses the AST shape
+	// downstream consumers see.
+	if s.declare  { cg_str(cg, "declare ") }
+	if s.abstract { cg_str(cg, "abstract ") }
 	name := ""
 	if id, ok := s.id.?; ok { name = id.name }
 	gen_class_like(cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements)
@@ -408,6 +425,11 @@ export_name_eq :: proc(a, b: ExportSpecifierName) -> bool {
 
 gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 	cg_str(cg, "export ")
+	// `export type { A } from "x"` and `export type * from "x"` carry
+	// the `type` modifier on the declaration itself. Without this, the
+	// regen drops the modifier and the AST exportKind drifts from "type"
+	// to "value".
+	if s.export_kind == .Type { cg_str(cg, "type ") }
 	if decl_ptr, ok := s.declaration.?; ok {
 		gen_statement(cg, decl_to_stmt(decl_ptr^))
 		return
@@ -446,7 +468,11 @@ gen_export_default_declaration :: proc(cg: ^Codegen, s: ^ExportDefaultDeclaratio
 }
 
 gen_export_all_declaration :: proc(cg: ^Codegen, s: ^ExportAllDeclaration) {
-	cg_str(cg, "export * ")
+	cg_str(cg, "export ")
+	// `export type * from "x"` keeps the type-only marker on the
+	// declaration's export_kind. Same drop bug as gen_export_named.
+	if s.export_kind == .Type { cg_str(cg, "type ") }
+	cg_str(cg, "* ")
 	if name, ok := s.exported.?; ok {
 		cg_str(cg, "as ")
 		cg_str(cg, name.name)

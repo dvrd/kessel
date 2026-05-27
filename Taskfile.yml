@@ -118,6 +118,13 @@ tasks:
     cmds:
       - node tests/verifiers/verify_codegen.js
 
+  test:sourcemap:
+    desc: "Source-map v3 end-to-end — decode kessel-emitted map with source-map-js and assert positions resolve to the right source lines."
+    deps: [build]
+    silent: true
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_sourcemap.js
+
   test:real:
     desc: "Parse all 467 real-world files, fail on any error or crash."
     deps: [build]
@@ -215,6 +222,14 @@ tasks:
     status:
       - test -f ../../{{.OXC_BENCH}}
       - test -f ../../bench/oxc_compare/target/release/oxc_cli_equiv
+      - test -f ../../bench/oxc_compare/target/release/oxc_codegen_microbench
+
+  bench:codegen:compare:
+    desc: "Codegen latency — kessel vs oxc-codegen on real-world files."
+    deps: [build, bench:oxc:build]
+    silent: false
+    cmds:
+      - bash scripts/bench_codegen_vs_oxc.sh {{.CLI_ARGS}}
 
   test:bench:regression:
     desc: "Performance regression gate — microbench 10 curated files."

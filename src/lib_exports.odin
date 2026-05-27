@@ -27,6 +27,7 @@ package kessel
 // ============================================================================
 
 import "base:runtime"
+import "core:mem"
 
 // Owning handle. Holds the binary buffer alive until the caller passes
 // its rawptr address back to kessel_free_result. Embedded inside the
@@ -204,5 +205,145 @@ kessel_free_result :: proc "c" (handle: rawptr) {
 	if handle == nil { return }
 	result := cast(^LibResult)handle
 	delete(result.buf)
+	free(result)
+}
+
+// ============================================================================
+// Codegen FFI — source-to-source with optional source map.
+// ============================================================================
+//
+// Mirrors `kessel codegen` on the CLI. Takes source text, parses it,
+// runs codegen, optionally records a v3 source map, returns up to two
+// owned byte buffers (generated code + map JSON) plus a single handle
+// for the JS caller to pass back to kessel_free_codegen_result.
+//
+// JS wire layout (struct KesselCodegenResult, 48 bytes):
+//   handle    void*    8
+//   code_ptr  void*    8
+//   code_len  int32    4 (+ 4 padding)
+//   map_ptr   void*    8
+//   map_len   int32    4 (+ 4 padding)
+//   ok        int32    4 (+ 4 padding)  — 0 on parse failure, code/map empty.
+
+LibCodegenResult :: struct {
+	code_buf: [dynamic]u8,
+	map_buf:  [dynamic]u8,
+}
+
+KesselCodegenResult :: struct {
+	handle:   rawptr,
+	code_ptr: rawptr,
+	code_len: i32,
+	map_ptr:  rawptr,
+	map_len:  i32,
+	ok:       i32,
+}
+
+// kessel_codegen(
+//   src_ptr, src_len           — source text
+//   filename_ptr, filename_len — used in source map `file`/`sources`
+//   lang                       — 0=js 1=jsx 2=ts 3=tsx (auto from name if -1)
+//   source_type                — 0=script 1=module
+//   minified                   — 0/1 — compact one-line output
+//   want_sourcemap             — 0/1 — also build a map
+// )
+@(export, link_name="kessel_codegen")
+kessel_codegen :: proc "c" (
+	src_ptr: [^]u8, src_len: i32,
+	filename_ptr: [^]u8, filename_len: i32,
+	lang: i32,
+	source_type: i32,
+	minified: i32,
+	want_sourcemap: i32,
+) -> KesselCodegenResult {
+	context = runtime.default_context()
+	if src_ptr == nil || src_len < 0 { return KesselCodegenResult{} }
+	source := string((cast([^]u8) src_ptr)[:src_len])
+	filename := "input"
+	if filename_ptr != nil && filename_len > 0 {
+		filename = string((cast([^]u8) filename_ptr)[:filename_len])
+	}
+
+	// Parse setup: mirrors parse_job_run on a freshly built ParseConfig.
+	cfg := ParseConfig{}
+	if l, ok := kessel_lang_from_i32(lang).?; ok { cfg.lang_override = l }
+	if st, ok := kessel_source_type_from_i32(source_type).?; ok { cfg.source_type_override = st }
+
+	job: ParseJob
+	if !parse_job_open_inline(&job, source, cfg, filename) {
+		return KesselCodegenResult{}
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+	if len(job.parser.errors) > 0 {
+		return KesselCodegenResult{}
+	}
+
+	result := new(LibCodegenResult)
+
+	// Codegen.
+	cg_cfg := CodegenConfig{minified = kessel_bool_from_i32(minified), indent = "  "}
+	cg: Codegen
+	codegen_init(&cg, cg_cfg, len(source), context.allocator)
+	defer codegen_destroy(&cg, context.allocator)
+
+	sm: SourceMap
+	want_sm := kessel_bool_from_i32(want_sourcemap)
+	if want_sm {
+		if job.parser.lexer.num_lines == 0 {
+			build_line_table(job.parser.lexer)
+		}
+		line_offsets := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
+		sourcemap_init(&sm, source, line_offsets)
+		codegen_enable_sourcemap(&cg, &sm)
+	}
+	defer if want_sm { sourcemap_destroy(&sm) }
+
+	if job.lexer.has_hashbang {
+		cg_str(&cg, "#!")
+		cg_str(&cg, job.lexer.hashbang_value)
+		cg_newline(&cg)
+	}
+	codegen_program(&cg, job.program)
+	if !cg_cfg.minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
+		cg_byte(&cg, '\n')
+	}
+
+	// Copy generated code into an owned dynamic buffer the LibResult
+	// can free. We can't hand out cg.buf directly because codegen_destroy
+	// frees it on the deferred path.
+	result.code_buf = make([dynamic]u8, cg.pos)
+	mem.copy(raw_data(result.code_buf), raw_data(cg.buf), cg.pos)
+
+	if want_sm {
+		map_json := sourcemap_to_json(
+			&sm,
+			filename,
+			filename,
+			string(cg.buf[:cg.pos]),
+			true,
+		)
+		result.map_buf = make([dynamic]u8, len(map_json))
+		mem.copy(raw_data(result.map_buf), raw_data(map_json), len(map_json))
+		delete(map_json)
+	}
+
+	return KesselCodegenResult{
+		handle   = rawptr(result),
+		code_ptr = rawptr(raw_data(result.code_buf)),
+		code_len = i32(len(result.code_buf)),
+		map_ptr  = rawptr(raw_data(result.map_buf)) if len(result.map_buf) > 0 else nil,
+		map_len  = i32(len(result.map_buf)),
+		ok       = 1,
+	}
+}
+
+@(export, link_name="kessel_free_codegen_result")
+kessel_free_codegen_result :: proc "c" (handle: rawptr) {
+	context = runtime.default_context()
+	if handle == nil { return }
+	result := cast(^LibCodegenResult)handle
+	delete(result.code_buf)
+	delete(result.map_buf)
 	free(result)
 }

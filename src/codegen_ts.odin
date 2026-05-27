@@ -246,12 +246,32 @@ gen_ts_module_declaration_full :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
 	case .Module:    cg_str(cg, "module ")
 	case .Global:    cg_str(cg, "global ")
 	}
-	gen_expression(cg, s.id, PREC_CALL)
-	body_opt, has_body := s.body.?
+	gen_ts_module_id_and_body(cg, s.id, s.body)
+}
+
+// Emit the id and the trailing body of a TSModuleDeclaration without the
+// leading `declare` / `namespace` / `module` / `global` keyword. Used both
+// for the top-level declaration and recursively for nested
+// `namespace A.B.C { ... }` chains, which the parser desugars into a chain
+// of TSModuleDeclaration nodes. Emitting the keyword again at each level
+// would produce `namespace A.namespace B.namespace C { ... }`, which is
+// not valid TypeScript.
+gen_ts_module_id_and_body :: proc(
+	cg: ^Codegen,
+	id: ^Expression,
+	body_raw: Maybe(^TSModuleBody),
+) {
+	gen_expression(cg, id, PREC_CALL)
+	body_opt, has_body := body_raw.?
 	if !has_body || body_opt == nil { cg_byte(cg, ';'); return }
-	cg_space(cg)
+	// `namespace Outer.Inner { ... }` flattens to a chain of
+	// TSModuleDeclaration nodes joined by `.`, not by ` { `. Emitting an
+	// unconditional space here would produce `Outer .Inner` with a
+	// stray space before the dot — it still parses but adds visual
+	// noise and may trip strict deep-equal walkers downstream.
 	switch b in body_opt^ {
 	case ^TSModuleBlock:
+		cg_space(cg)
 		cg_byte(cg, '{')
 		if len(b.body) == 0 { cg_byte(cg, '}'); return }
 		cg_newline(cg)
@@ -265,9 +285,8 @@ gen_ts_module_declaration_full :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
 		cg_indent(cg)
 		cg_byte(cg, '}')
 	case ^TSModuleDeclaration:
-		// `namespace A.B.C { ... }` — nested namespace chain.
 		cg_byte(cg, '.')
-		gen_ts_module_declaration_full(cg, b)
+		gen_ts_module_id_and_body(cg, b.id, b.body)
 	}
 }
 

@@ -210,6 +210,7 @@ main :: proc() {
 	case "microbench":
 		if len(os.args) < 4 {
 			out_println("Usage: kessel microbench parse <file> [--iterations N] [--ast-only]")
+			out_println("       kessel microbench codegen <file> [--iterations N] [--minified]")
 			out_println("       kessel microbench lex <file> [--iterations N]")
 			flush_stdout_writer()
 			os.exit(1)
@@ -219,9 +220,10 @@ main :: proc() {
 		mb_file := os.args[3]
 		mb_iters := 100
 		mb_ast_only := false
+		mb_minified := false
 		// Scan optional flags after the file path. Order-independent.
 		// CliConfig flags pass through cli_try_parse_flag; bench-specific
-		// flags (--iterations, --ast-only) are handled inline.
+		// flags (--iterations, --ast-only, --minified) are handled inline.
 		i := 4
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -237,6 +239,11 @@ main :: proc() {
 				// bench harness for OXC never invokes the semantic pass.
 				mb_ast_only = true
 				i += 1
+			} else if arg == "--minified" {
+				// Codegen-only knob: produces the compact single-line form.
+				// Ignored by `parse` / `lex`.
+				mb_minified = true
+				i += 1
 			} else {
 				i += 1
 			}
@@ -244,11 +251,13 @@ main :: proc() {
 		switch mb_sub {
 		case "parse":
 			microbench_file(mb_file, mb_iters, mb_ast_only, cli)
+		case "codegen":
+			microbench_codegen(mb_file, mb_iters, mb_minified, cli)
 		case "lex":
 			microbench_lex(mb_file, mb_iters)
 		case:
 			out_printf("Unknown microbench subcommand: %s\n", mb_sub)
-			out_println("Subcommands: parse, lex")
+			out_println("Subcommands: parse, codegen, lex")
 			flush_stdout_writer()
 			os.exit(1)
 		}
@@ -297,13 +306,21 @@ main :: proc() {
 	case "codegen":
 		if len(os.args) < 3 {
 			out_println("Error: codegen command requires a file path")
-			out_println("Usage: kessel codegen <file> [--minified]")
+			out_println("Usage: kessel codegen <file> [--minified] [--sourcemap[=inline|external]]")
 			flush_stdout_writer()
 			os.exit(1)
 		}
 		cli := cli_config_default()
 		cg_file := ""
 		cg_minified := false
+		// Source-map output mode. Three states:
+		//   - ""        : no sourcemap (default).
+		//   - "inline"  : embed the map as a base64 data URI in a
+		//                 trailing `//# sourceMappingURL=` comment.
+		//   - "external": with stdout output we fall back to inline; with
+		//                 a future `--out=<file>` mode we'd write
+		//                 `<out>.map` next to the source.
+		cg_sourcemap := ""
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -311,6 +328,12 @@ main :: proc() {
 			switch {
 			case arg == "--minified":
 				cg_minified = true
+				i += 1
+			case arg == "--sourcemap", arg == "--sourcemap=inline":
+				cg_sourcemap = "inline"
+				i += 1
+			case arg == "--sourcemap=external":
+				cg_sourcemap = "external"
 				i += 1
 			case:
 				if cg_file == "" {
@@ -327,7 +350,7 @@ main :: proc() {
 			flush_stdout_writer()
 			os.exit(1)
 		}
-		codegen_file(cg_file, cli, cg_minified)
+		codegen_file(cg_file, cli, cg_minified, cg_sourcemap)
 
 	case "help", "-h", "--help":
 		print_usage()
@@ -564,7 +587,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 // Codegen: parse and emit JS source from the AST
 // ============================================================================
 
-codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
+codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool, sourcemap_mode: string = "") {
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
@@ -597,6 +620,26 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
 	codegen_init(&cg, cfg, len(job.source.data), context.allocator)
 	defer codegen_destroy(&cg, context.allocator)
 
+	// Wire the source map recorder if the caller asked for one. The
+	// recorder borrows the lexer's line-offset table; nothing here owns
+	// or frees it. sourcemap_destroy frees only the records slice.
+	sm: SourceMap
+	want_sm := sourcemap_mode != ""
+	if want_sm {
+		// The lexer builds its line-offset table lazily — it is only
+		// populated when diagnostics are rendered. Force it here so the
+		// source map's src_offset → (line, col) conversion has data to
+		// work with. Without this the lazy table is empty and every
+		// source position collapses to (0, 0) silently.
+		if job.parser.lexer.num_lines == 0 {
+			build_line_table(job.parser.lexer)
+		}
+		line_offsets := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
+		sourcemap_init(&sm, string(job.source.data), line_offsets)
+		codegen_enable_sourcemap(&cg, &sm)
+	}
+	defer if want_sm { sourcemap_destroy(&sm) }
+
 	// Hashbang lives on the lexer (ES2023 Program.hashbang). Codegen must
 	// re-emit `#!...\n` at the very start before any other output — the
 	// hashbang production requires byte offset 0.
@@ -612,6 +655,28 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
 	if !minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
 		cg_byte(&cg, '\n')
 	}
+
+	// Source-map trailer. The CLI currently writes to stdout only, so
+	// `external` mode degrades into `inline` (writing `<file>.map` would
+	// need an --out flag). The trailer is a single line, so producers
+	// like browsers and node debuggers pick it up via the standard
+	// `sourceMappingURL=` convention.
+	if want_sm {
+		map_json := sourcemap_to_json(
+			&sm,
+			file_path,
+			file_path,
+			string(cg.buf[:cg.pos]),
+			true,
+		)
+		defer delete(map_json)
+		encoded := base64_encode(transmute([]byte) map_json)
+		defer delete(encoded)
+		cg_str(&cg, "//# sourceMappingURL=data:application/json;base64,")
+		cg_str(&cg, string(encoded))
+		cg_newline(&cg)
+	}
+
 	os.write(os.stdout, cg.buf[:cg.pos])
 }
 
@@ -1117,6 +1182,104 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 
 	// Output results
 	out_printf("Microbench: %s (%d bytes)\n", file_path, file_size)
+	out_printf("Iterations: %d\n", iterations)
+	out_printf("Total time:  %.2f ms\n", total_ms)
+	out_printf("Mean:        %.3f us\n", mean_us)
+	out_printf("Min:         %.3f us\n", min_us)
+	out_printf("Max:         %.3f us\n", max_us)
+	out_printf("P50:         %.3f us\n", p50_us)
+	out_printf("P95:         %.3f us\n", p95_us)
+	out_printf("P99:         %.3f us\n", p99_us)
+}
+
+// ----------------------------------------------------------------------------
+// microbench_codegen — in-process AST->source codegen latency loop.
+// ----------------------------------------------------------------------------
+//
+// Mirror of `microbench_file` but for the codegen pass. Parses the input
+// once outside the timed loop and re-runs `codegen_init` + `codegen_program`
+// + `codegen_destroy` on every iteration. The buffer is created and freed
+// per iter to match the OXC harness (`oxc_codegen_microbench`), which
+// constructs a fresh `Codegen` per iter so the byte buffer's growth path
+// is exercised, not just the steady-state writes.
+//
+// Output shape matches `microbench_file` so existing parsers in
+// `bench_vs_oxc.sh` / `tests/verifiers/npm_bench.js` work unchanged.
+microbench_codegen :: proc(file_path: string, iterations: int, minified: bool, cli: CliConfig) {
+	probe, probe_ok := source_read(file_path, context.allocator)
+	if !probe_ok {
+		out_printf("Error: Could not read file: %s\n", file_path)
+		flush_stdout_writer()
+		os.exit(1)
+	}
+	file_size := len(probe.data)
+	source_release(probe, context.allocator)
+
+	// Parse once. The AST lives in the ParseJob's arena for the entire
+	// microbench; only the codegen pass is timed.
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		out_printf("Error: Could not read file: %s\n", file_path)
+		flush_stdout_writer()
+		os.exit(1)
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+	if len(job.parser.errors) > 0 {
+		out_printf("Error: parse failed for %s\n", file_path)
+		flush_stdout_writer()
+		os.exit(1)
+	}
+
+	cfg := CodegenConfig{minified = minified, indent = "  "}
+
+	// Warm-up run (not timed). Pre-touches the codegen dispatch tables
+	// and the AST in cache before the measured loop.
+	{
+		cg: Codegen
+		codegen_init(&cg, cfg, file_size, context.allocator)
+		codegen_program(&cg, job.program)
+		codegen_destroy(&cg, context.allocator)
+	}
+
+	durations := make([dynamic]time.Duration, context.allocator)
+	defer delete(durations)
+
+	output_bytes_last: int = 0
+	for _ in 0..<iterations {
+		start := time.tick_now()
+		cg: Codegen
+		codegen_init(&cg, cfg, file_size, context.allocator)
+		codegen_program(&cg, job.program)
+		output_bytes_last = cg.pos
+		codegen_destroy(&cg, context.allocator)
+		elapsed := time.tick_since(start)
+		append(&durations, elapsed)
+	}
+
+	microseconds := make([dynamic]f64, context.allocator)
+	defer delete(microseconds)
+	for d in durations {
+		append(&microseconds, f64(time.duration_microseconds(d)))
+	}
+
+	total_us := f64(0)
+	min_us := microseconds[0]
+	max_us := microseconds[0]
+	for us in microseconds {
+		total_us += us
+		if us < min_us { min_us = us }
+		if us > max_us { max_us = us }
+	}
+	mean_us := total_us / f64(len(microseconds))
+
+	slice.sort(microseconds[:])
+	p50_us := percentile(microseconds[:], 50)
+	p95_us := percentile(microseconds[:], 95)
+	p99_us := percentile(microseconds[:], 99)
+	total_ms := total_us / 1000.0
+
+	out_printf("Microbench: %s (%d bytes in, %d bytes out)\n", file_path, file_size, output_bytes_last)
 	out_printf("Iterations: %d\n", iterations)
 	out_printf("Total time:  %.2f ms\n", total_ms)
 	out_printf("Mean:        %.3f us\n", mean_us)

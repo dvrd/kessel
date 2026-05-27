@@ -1,5 +1,5 @@
 [workspace]
-members = ["cli", "microbench"]
+members = ["cli", "microbench", "codegen_microbench"]
 resolver = "2"
 
 # Path to the pinned local OXC checkout. Keep ../oxc at the commit recorded
@@ -15,6 +15,7 @@ oxc_parser    = { path = "../../../oxc/crates/oxc_parser" }
 oxc_span      = { path = "../../../oxc/crates/oxc_span" }
 oxc_ast       = { path = "../../../oxc/crates/oxc_ast", features = ["serialize"] }
 oxc_estree    = { path = "../../../oxc/crates/oxc_estree", features = ["serialize"] }
+oxc_codegen   = { path = "../../../oxc/crates/oxc_codegen" }
 
 [profile.release]
 opt-level = 3

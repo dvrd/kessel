@@ -3,12 +3,6 @@
 # them as expected failures rather than hiding them as skips or breaking
 # the gate.
 #
-# Most remaining entries are codegen gaps on JS declarations that need to
-# preserve TS adornments (typeAnnotation on params/identifiers,
-# typeParameters on functions/classes, typeArguments on call sites,
-# importKind on import declarations). The TS-only declarations
-# (interface, type alias, enum, module, etc.) now round-trip cleanly.
-#
 # Behavior:
 #   - A fixture listed here that still fails passes the gate.
 #   - A fixture listed here that now ROUND-TRIPS cleanly is an
@@ -16,15 +10,5 @@
 #   - A fixture NOT listed here that fails is a REGRESSION (gate fails).
 #
 # Path is RELATIVE to tests/fixtures/.
-
-# TSX/TS files with mixed JS+TS bodies — TS statements erased:
-spec/tsx/001_generic_component.js                         # length 4 vs 2; TS decls erased
-spec/tsx/002_hooks_refs_as_casts.js                       # length 4 vs 3; TS decls erased
-spec/typescript/014_type_parameter_constraints.js         # length 7 vs 5; TS decls erased
-
-# TS field-level erasure on JS declarations:
-spec/interactions/010_ts_types_inside_complex_class.js    # typeAnnotation erased on class field
-spec/typescript/015_namespace_module.js                   # body content drift inside namespace block
-
-# importKind drift — codegen omits the `importKind` field on imports:
-# (resolved)
+#
+# Currently empty: every fixture in the spec corpus round-trips cleanly.
