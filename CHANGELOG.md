@@ -4,6 +4,17 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.11.0] - 2026-05-28
+
+### Added
+- feat(codegen): cross-corpus round-trip gate + three TS round-trip fixes
+- feat(sourcemap): map class element headers
+- feat(codegen): minified-mode round-trip parity with pretty mode
+
+### Fixed
+- fix(codegen,parser): six round-trip bugs surfaced by Babel corpus
+
+
 ## [0.10.0] - 2026-05-28
 
 ### Added
