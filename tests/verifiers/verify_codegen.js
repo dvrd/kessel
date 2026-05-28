@@ -22,6 +22,17 @@ const { execFileSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '../..');
 const KESSEL = path.join(ROOT, 'bin/kessel');
 const FIXTURES_DIR = path.join(ROOT, 'tests/fixtures');
+const VENDOR_DIR = path.join(ROOT, 'tests/vendor');
+
+// Corpus selection. `--corpus spec` (default) runs the in-tree spec/
+// fixtures only. The other values point at the vendored conformance
+// corpora; `--corpus all` runs every supported corpus in sequence.
+const CORPUS_ARG_IDX = process.argv.indexOf('--corpus');
+const CORPUS = CORPUS_ARG_IDX > 0 ? process.argv[CORPUS_ARG_IDX + 1] : 'spec';
+const CORPUS_LIMIT_IDX = process.argv.indexOf('--corpus-limit');
+const CORPUS_LIMIT = CORPUS_LIMIT_IDX > 0
+  ? parseInt(process.argv[CORPUS_LIMIT_IDX + 1], 10)
+  : 0;
 
 const MAX_FAILURES_PRINTED = 25;
 
@@ -44,21 +55,81 @@ if (!fs.existsSync(KESSEL)) {
 // those inputs at all.
 const EXCLUDED_DIRS = new Set(['recovery']);
 
+// Corpus roots — directory under which to walk, plus optional skip-path
+// predicate that mirrors the conformance harness's `*_skip_path` rules.
+const CORPUS_ROOTS = {
+  spec: {
+    root: FIXTURES_DIR,
+    skip: null,
+  },
+  estree: {
+    root: path.join(VENDOR_DIR, 'estree-conformance/tests'),
+    // Skip support directories and JSON oracle files.
+    skip: (p) => p.includes('/utils/') || /\.expected\.json$/.test(p),
+  },
+  babel: {
+    root: path.join(VENDOR_DIR, 'babel/packages/babel-parser/test/fixtures'),
+    // OXC-mirrored: only `input.*` is a fixture; everything else is
+    // an option file, expected AST, or helper.
+    skip: (p) => !/\/input\.(js|mjs|jsx|ts|tsx)$/.test(p),
+  },
+  test262: {
+    root: path.join(VENDOR_DIR, 'test262/test'),
+    // Mirrors tests/coverage/src/test262.odin: drop staging/, _FIXTURE
+    // helper files, and intl402 (locale-dependent, not parser scope).
+    skip: (p) =>
+      p.includes('/staging/') ||
+      p.includes('/intl402/') ||
+      /_FIXTURE\.js$/.test(p),
+  },
+  ts: {
+    root: path.join(VENDOR_DIR, 'typescript/tests/cases'),
+    // TS fixtures contain many `// @filename` multi-file scripts that
+    // need preprocessing; for the codegen gate, skip those for now
+    // and pick up single-file fixtures only.
+    skip: (p) => /\.d\.ts$/.test(p),
+  },
+};
+
 function listFixtures() {
-  const out = [];
-  function walk(dir) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (EXCLUDED_DIRS.has(entry.name)) continue;
-        walk(full);
-      } else if (entry.isFile() && /\.(js|mjs|jsx|ts|tsx)$/.test(entry.name)) {
-        out.push(full);
-      }
+  const corpora = CORPUS === 'all'
+    ? ['spec', 'estree', 'babel', 'test262', 'ts']
+    : [CORPUS];
+  for (const c of corpora) {
+    if (!CORPUS_ROOTS[c]) {
+      console.error(`verify_codegen: unknown --corpus "${c}" (expected spec|estree|babel|test262|ts|all)`);
+      process.exit(2);
     }
   }
-  walk(FIXTURES_DIR);
-  return out.sort();
+  const out = [];
+  for (const c of corpora) {
+    const { root, skip } = CORPUS_ROOTS[c];
+    if (!fs.existsSync(root)) {
+      console.error(`verify_codegen: corpus root missing for ${c}: ${root}`);
+      process.exit(2);
+    }
+    walk(root, skip, out);
+  }
+  out.sort();
+  if (CORPUS_LIMIT > 0 && out.length > CORPUS_LIMIT) {
+    return out.slice(0, CORPUS_LIMIT);
+  }
+  return out;
+}
+
+function walk(dir, skip, out) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (EXCLUDED_DIRS.has(entry.name)) continue;
+      if (entry.name === '.git') continue;
+      if (entry.name === 'node_modules') continue;
+      walk(full, skip, out);
+    } else if (entry.isFile() && /\.(js|mjs|jsx|ts|tsx)$/.test(entry.name)) {
+      if (skip && skip(full)) continue;
+      out.push(full);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +144,12 @@ function listFixtures() {
 //   - JSX, TypeScript, and TSX-ambiguity families have their own dirs.
 //   - `spec/interactions/` is mixed: filename markers carry the dialect.
 function detectDialect(p) {
+  // File extension is the highest-signal marker across all corpora.
+  if (/\.tsx$/.test(p)) return 'tsx';
+  if (/\.jsx$/.test(p)) return 'jsx';
+  if (/\.ts$/.test(p))  return 'ts';
+  if (/\.mjs$/.test(p)) return 'js';
+
   if (p.includes('/spec/jsx/'))        return 'jsx';
   if (p.includes('/spec/tsx/'))        return 'tsx';
   if (p.includes('/spec/typescript/')) return 'ts';
@@ -93,6 +170,12 @@ function detectDialect(p) {
     if (/_ts_/.test(p)  || /\bts\b/.test(path.basename(p))) return 'ts';
     return 'tsx';
   }
+  // Vendor-corpus markers.
+  //   * babel/.../typescript/   -> ts (input.ts present), jsx -> jsx, etc.
+  //   * babel/.../jsx/          -> jsx
+  //   * babel/.../flow/         -> js  (Flow not supported — will skip on parse error)
+  if (p.includes('/babel/') && p.includes('/typescript/')) return 'ts';
+  if (p.includes('/babel/') && p.includes('/jsx/'))        return 'jsx';
   return 'js';
 }
 
@@ -106,8 +189,12 @@ function dialectExt(dialect) {
 }
 
 function parseToAst(filePath, dialect) {
-  // --json mode always exits 0; errors are inside the JSON.
-  const args = ['parse', filePath, '--json'];
+  // --json mode always exits 0; errors are inside the JSON. Pass
+  // --preserve-parens so semantic-bearing parens (e.g. `(class Foo {})`
+  // in default-export position, `(await x) ** y` for the **-precedence
+  // exception) survive the round-trip. The codegen call below uses the
+  // same flag so emit and re-parse stay symmetric.
+  const args = ['parse', filePath, '--json', '--preserve-parens'];
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
   const out = execFileSync(KESSEL, args, {
     maxBuffer: 256 * 1024 * 1024,
@@ -117,7 +204,7 @@ function parseToAst(filePath, dialect) {
 }
 
 function codegen(filePath, dialect) {
-  const args = ['codegen', filePath];
+  const args = ['codegen', filePath, '--preserve-parens'];
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
   return execFileSync(KESSEL, args, {
     maxBuffer: 256 * 1024 * 1024,
@@ -312,9 +399,10 @@ const unexpectedlyClean = [];
 const t0 = Date.now();
 for (const abs of fixtures) {
   const rel = path.relative(ROOT, abs);
-  const relFromFixtures = path.relative(FIXTURES_DIR, abs);
-  const isKnown = KNOWN_FAILURES.has(relFromFixtures);
-  const isParseError = PARSE_ERROR_FIXTURES.has(relFromFixtures);
+  const inSpec = abs.startsWith(FIXTURES_DIR + path.sep);
+  const relFromFixtures = inSpec ? path.relative(FIXTURES_DIR, abs) : rel;
+  const isKnown = inSpec && KNOWN_FAILURES.has(relFromFixtures);
+  const isParseError = inSpec && PARSE_ERROR_FIXTURES.has(relFromFixtures);
   const r = roundtrip(abs, tmpRoot);
   if (r.kind === 'pass') {
     pass++;
