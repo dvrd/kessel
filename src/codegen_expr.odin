@@ -218,6 +218,7 @@ gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
 }
 
 gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
+	obj_start := cg.pos
 	gen_expression(cg, e.object, PREC_CALL)
 	if e.computed {
 		if e.optional { cg_str(cg, "?.") }
@@ -225,6 +226,26 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 		gen_expression(cg, e.property, PREC_LOWEST)
 		cg_byte(cg, ']')
 	} else {
+		// A bare decimal-integer object (`1`, `100`) immediately
+		// followed by `.` re-lexes as a float (`1.`), so `1.toString()`
+		// is a SyntaxError. Emit a separating space so the member `.`
+		// stays a member `.`. Hex/octal/binary/exponent/float forms
+		// already carry a disambiguating char and re-lex fine. The
+		// optional `?.` form is also safe — the `?` terminates the
+		// number. ECMA-262 §12.9.3 / §13.3.
+		if !e.optional {
+			if _, is_num := e.object.(^NumericLiteral); is_num {
+				bare_int := cg.pos > obj_start
+				for i in obj_start..<cg.pos {
+					c := cg.buf[i]
+					if !(c >= '0' && c <= '9') && c != '_' {
+						bare_int = false
+						break
+					}
+				}
+				if bare_int { cg_byte(cg, ' ') }
+			}
+		}
 		cg_byte(cg, e.optional ? '?' : '.')
 		if e.optional { cg_byte(cg, '.') }
 		gen_expression_raw(cg, e.property)

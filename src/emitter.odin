@@ -6369,25 +6369,64 @@ bigint_to_decimal :: proc(bigint_source: string) -> string {
 	if len(source) >= 2 && source[0] == '0' {
 		switch source[1] {
 		case 'x', 'X':
-			// Hex: parse as base 16
-			if val, ok := strconv.parse_u64(source[2:], 16); ok {
-				return fmt.aprint(val)
-			}
+			return bigint_base_to_decimal(source[2:], 16)
 		case 'o', 'O':
-			// Octal: parse as base 8
-			if val, ok := strconv.parse_u64(source[2:], 8); ok {
-				return fmt.aprint(val)
-			}
+			return bigint_base_to_decimal(source[2:], 8)
 		case 'b', 'B':
-			// Binary: parse as base 2
-			if val, ok := strconv.parse_u64(source[2:], 2); ok {
-				return fmt.aprint(val)
-			}
+			return bigint_base_to_decimal(source[2:], 2)
 		}
 	}
 
 	// Decimal: separators already stripped above; return as-is.
 	return source
+}
+
+// Convert a base-2/8/16 digit string (no prefix, no `_` separators) to its
+// decimal representation using arbitrary-precision schoolbook arithmetic.
+//
+// BigInt literals are unbounded, so the previous `strconv.parse_u64` path
+// silently truncated any value above 2^64-1 (e.g. `0x1_0000_0000_0000_0000n`
+// emitted `bigint: "0"`). ESTree requires `Literal.bigint` to be the exact
+// decimal string, so we maintain the running value as base-10 digits
+// (least-significant first) and fold each input digit in via `acc = acc*base + d`.
+bigint_base_to_decimal :: proc(digits: string, base: u64) -> string {
+	if len(digits) == 0 { return "0" }
+
+	// Decimal accumulator, least-significant digit first. Capacity sized for
+	// the worst case (hex → decimal grows by at most ~1.21× the digit count).
+	dec := make([dynamic]u8, 1, len(digits) * 2 + 2, context.temp_allocator)
+	dec[0] = 0
+
+	for i in 0..<len(digits) {
+		c := digits[i]
+		d: u64
+		switch {
+		case c >= '0' && c <= '9': d = u64(c - '0')
+		case c >= 'a' && c <= 'f': d = u64(c - 'a' + 10)
+		case c >= 'A' && c <= 'F': d = u64(c - 'A' + 10)
+		case: continue // The lexer already validated the digits.
+		}
+
+		carry := d
+		for j in 0..<len(dec) {
+			v := u64(dec[j]) * base + carry
+			dec[j] = u8(v % 10)
+			carry = v / 10
+		}
+		for carry > 0 {
+			append(&dec, u8(carry % 10))
+			carry /= 10
+		}
+	}
+
+	// Emit most-significant first, dropping leading zeros (keep at least one).
+	hi := len(dec) - 1
+	for hi > 0 && dec[hi] == 0 { hi -= 1 }
+	out := make([dynamic]u8, 0, hi + 1, context.temp_allocator)
+	for k := hi; k >= 0; k -= 1 {
+		append(&out, '0' + dec[k])
+	}
+	return string(out[:])
 }
 
 // ============================================================================

@@ -146,6 +146,11 @@ kessel_parse_binary :: proc "c" (
 ) -> KesselParseResult {
 	context = runtime.default_context()
 
+	// Guard the FFI boundary: a nil pointer or negative length would slice
+	// out of bounds (release builds run with -no-bounds-check). Mirror the
+	// guard in kessel_codegen and return an empty result the caller can
+	// detect via handle == nil.
+	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
 	source := string(source_ptr[:source_len])
 
 	config := ParseConfig{
@@ -178,6 +183,9 @@ kessel_parse_binary_v2 :: proc "c" (
 
 	_ = options_version
 
+	// Guard the FFI boundary against nil / negative length (see
+	// kessel_parse_binary). filename is checked separately below.
+	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
 	source := string(source_ptr[:source_len])
 	label := "lib"
 	if filename_ptr != nil && filename_len > 0 {

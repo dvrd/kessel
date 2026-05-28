@@ -12097,7 +12097,13 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		}
 
 		eat(p)
-		next_min_prec := Precedence(int(op_prec) + 1)
+		// `**` is the only right-associative binary operator (ECMA-262
+		// §13.6): `2 ** 3 ** 2` must parse as `2 ** (3 ** 2)`. For
+		// right-associativity the RHS is parsed at the operator's own
+		// binding power (so a following `**` at the same precedence is
+		// absorbed into the right operand); every other operator is
+		// left-associative and parses its RHS one level tighter.
+		next_min_prec := op_prec if cur_type == .Pow else Precedence(int(op_prec) + 1)
 
 		// Track `in`-RHS context so PrivateIdentifier in primary-expr
 		// position is rejected for `#x in #y` while staying legal for
