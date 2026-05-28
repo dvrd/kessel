@@ -1,14 +1,91 @@
-# Codegen known failures — fixtures where parse→codegen→parse does not
-# round-trip to an equal AST. Listed here so `task test:codegen` reports
-# them as expected failures rather than hiding them as skips or breaking
-# the gate.
+# Codegen known failures — fixtures where parse→codegen→parse does
+# not round-trip to an equal AST. Listed here so the gate reports them
+# as expected failures rather than hiding them as skips or breaking.
 #
 # Behavior:
-#   - A fixture listed here that still fails passes the gate.
+#   - A fixture listed here that still misses passes the gate.
 #   - A fixture listed here that now ROUND-TRIPS cleanly is an
-#     IMPROVEMENT (the verifier prints a hint; remove it from this file).
-#   - A fixture NOT listed here that fails is a REGRESSION (gate fails).
+#     IMPROVEMENT (the verifier prints a hint; remove it).
+#   - A fixture NOT listed here that misses is a REGRESSION.
 #
-# Path is RELATIVE to tests/fixtures/.
+# Paths take one of two forms:
+#   - Spec corpus:      relative to tests/fixtures/  (e.g. spec/foo.js)
+#   - Vendored corpora: relative to the repo root    (e.g.
+#                       tests/vendor/typescript/...)
+# The verifier tries both forms when looking up a fixture.
 #
-# Currently empty: every fixture in the spec corpus round-trips cleanly.
+# Spec corpus: every fixture round-trips cleanly.
+
+# ----- test262 corpus (5 entries) -----
+tests/vendor/test262/test/language/asi/S7.9_A5.9_T1.js
+tests/vendor/test262/test/language/expressions/unary-minus/bigint.js
+tests/vendor/test262/test/language/statements/class/elements/syntax/valid/grammar-field-named-get-followed-by-generator-asi.js
+tests/vendor/test262/test/language/statements/class/elements/syntax/valid/grammar-field-named-set-followed-by-generator-asi.js
+tests/vendor/test262/test/language/statements/for-of/head-lhs-async-escaped.js
+
+# ----- Babel corpus (16 entries) -----
+tests/vendor/babel/packages/babel-parser/test/fixtures/es2015/uncategorised/124/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/es2021/for-async-of/escaped/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/es2022/class-properties/edge-cases/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/es2022/module-string-names/named-import/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/es2022/module-string-names/namespace-export/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/esprima/es2015-class/migrated_0019/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/estree/typescript/shorthand-ambient-module/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/flow/module-string-names/named-imports/input.js
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/class/constructor-with-override-modifer-names/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/module-namespace/declare-shorthand/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/type-arguments/super-type-arguments-comments/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/type-arguments/super-type-arguments/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/types/tuple-keyword-labeled/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/types/tuple-labeled-spread/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/types/tuple-labeled/input.ts
+tests/vendor/babel/packages/babel-parser/test/fixtures/typescript/types/union-intersection/input.ts
+
+# ----- TypeScript corpus (47 entries) -----
+tests/vendor/typescript/tests/cases/compiler/asiArith.ts
+tests/vendor/typescript/tests/cases/compiler/baseTypeOrderChecking.ts
+tests/vendor/typescript/tests/cases/compiler/classPropertyErrorOnNameOnly.ts
+tests/vendor/typescript/tests/cases/compiler/classUsedBeforeInitializedVariables.ts
+tests/vendor/typescript/tests/cases/compiler/complicatedGenericRecursiveBaseClassReference.ts
+tests/vendor/typescript/tests/cases/compiler/contextualTyping14.ts
+tests/vendor/typescript/tests/cases/compiler/contextualTyping15.ts
+tests/vendor/typescript/tests/cases/compiler/convertKeywordsYes.ts
+tests/vendor/typescript/tests/cases/compiler/declarationEmitAnyComputedPropertyInClass.ts
+tests/vendor/typescript/tests/cases/compiler/defaultValueInFunctionTypes.ts
+tests/vendor/typescript/tests/cases/compiler/esModuleInteropTslibHelpers.ts
+tests/vendor/typescript/tests/cases/compiler/expressionWithJSDocTypeArguments.ts
+tests/vendor/typescript/tests/cases/compiler/genericTupleWithSimplifiableElements.ts
+tests/vendor/typescript/tests/cases/compiler/genericTypeAssertions3.ts
+tests/vendor/typescript/tests/cases/compiler/getAndSetAsMemberNames.ts
+tests/vendor/typescript/tests/cases/compiler/importExportInternalComments.ts
+tests/vendor/typescript/tests/cases/compiler/indexedAccessRelation.ts
+tests/vendor/typescript/tests/cases/compiler/inferTypesWithFixedTupleExtendsAtVariadicPosition.ts
+tests/vendor/typescript/tests/cases/compiler/inheritance.ts
+tests/vendor/typescript/tests/cases/compiler/intersectionTypeWithLeadingOperator.ts
+tests/vendor/typescript/tests/cases/compiler/optionalTupleElementsAndUndefined.ts
+tests/vendor/typescript/tests/cases/compiler/prefixIncrementAsOperandOfPlusExpression.ts
+tests/vendor/typescript/tests/cases/compiler/singletonLabeledTuple.ts
+tests/vendor/typescript/tests/cases/compiler/superElementAccess.ts
+tests/vendor/typescript/tests/cases/compiler/superPropertyAccess.ts
+tests/vendor/typescript/tests/cases/compiler/typeAssertionToGenericFunctionType.ts
+tests/vendor/typescript/tests/cases/compiler/unionTypeWithLeadingOperator.ts
+tests/vendor/typescript/tests/cases/conformance/ambient/ambientShorthand.ts
+tests/vendor/typescript/tests/cases/conformance/ambient/ambientShorthand_declarationEmit.ts
+tests/vendor/typescript/tests/cases/conformance/ambient/ambientShorthand_duplicate.ts
+tests/vendor/typescript/tests/cases/conformance/ambient/ambientShorthand_merging.ts
+tests/vendor/typescript/tests/cases/conformance/ambient/ambientShorthand_reExport.ts
+tests/vendor/typescript/tests/cases/conformance/classes/constructorDeclarations/quotedConstructors.ts
+tests/vendor/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_exportEmpty.ts
+tests/vendor/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_importEmpty.ts
+tests/vendor/typescript/tests/cases/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts
+tests/vendor/typescript/tests/cases/conformance/esDecorators/esDecorators-decoratorExpression.1.ts
+tests/vendor/typescript/tests/cases/conformance/expressions/contextualTyping/generatedContextualTyping.ts
+tests/vendor/typescript/tests/cases/conformance/externalModules/typeOnly/typeOnlyESMImportFromCJS.ts
+tests/vendor/typescript/tests/cases/conformance/jsx/correctlyMarkAliasAsReferences1.tsx
+tests/vendor/typescript/tests/cases/conformance/jsx/correctlyMarkAliasAsReferences2.tsx
+tests/vendor/typescript/tests/cases/conformance/jsx/correctlyMarkAliasAsReferences3.tsx
+tests/vendor/typescript/tests/cases/conformance/jsx/correctlyMarkAliasAsReferences4.tsx
+tests/vendor/typescript/tests/cases/conformance/moduleResolution/allowImportingTsExtensions.ts
+tests/vendor/typescript/tests/cases/conformance/types/rest/genericRestParameters3.ts
+tests/vendor/typescript/tests/cases/conformance/types/tuple/contextualTypeTupleEnd.ts
+tests/vendor/typescript/tests/cases/conformance/types/tuple/named/namedTupleMembers.ts

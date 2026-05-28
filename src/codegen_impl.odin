@@ -310,7 +310,7 @@ gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_sem
 	for i in 0..<len(s.declarations) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		d := s.declarations[i]
-		gen_pattern(cg, d.id)
+		gen_var_declarator_id(cg, d.id, d.definite)
 		if init, ok := d.init.?; ok {
 			cg_space(cg)
 			cg_byte(cg, '=')

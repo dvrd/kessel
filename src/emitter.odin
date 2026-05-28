@@ -1680,11 +1680,13 @@ print_class_body_inline :: proc(e: ^Emitter, body: ^ClassBody, indent: int) {
 //   * .Method with a non-function (or nil) value   → "PropertyDefinition"
 //     (class field; `value` may be null)
 //
-// Known edge case: `field = function() {}` (a class field whose initializer
-// is a non-arrow function expression) cannot be distinguished from a method
-// by the current AST representation alone - the parser reuses .Method for
-// fields. We accept the rare misclassification rather than bolt a
-// parser-side kind field on in this pass. Arrow-valued fields
+// Disambiguation for `field = function name() {}` (a class field whose
+// initializer is a non-arrow function expression): if the FunctionExpression
+// carries an `id`, it cannot be a class method (methods are anonymous),
+// so it must be a PropertyDefinition with an initializer. Anonymous
+// `field = function() {}` is still indistinguishable from a method by
+// AST shape alone — we accept that rare misclassification rather than
+// bolt a parser-side kind flag on in this pass. Arrow-valued fields
 // (`field = () => ...`) are ArrowFunctionExpression, not
 // FunctionExpression, so they take the PropertyDefinition path correctly.
 print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int) {
@@ -1692,11 +1694,13 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 	// no initializer (bare `x;` field) or if disambiguation failed.
 	value_expr: ^Expression = nil
 	value_is_function := false
+	value_fn_has_id := false
 	if v, ok := elem.value.(^Expression); ok && v != nil {
 		value_expr = v
-		#partial switch _ in v^ {
+		#partial switch fn in v^ {
 		case ^FunctionExpression:
 			value_is_function = true
+			if _, has := fn.id.?; has { value_fn_has_id = true }
 		}
 	}
 
@@ -1708,7 +1712,11 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 		return
 	}
 
-	is_method := value_is_function
+	// A class method's FunctionExpression value cannot carry an `id`
+	// (methods are anonymous). A non-nil `id` therefore proves the source
+	// wrote `name = function id() {}` — a PropertyDefinition, not a
+	// MethodDefinition.
+	is_method := value_is_function && !value_fn_has_id
 	#partial switch elem.kind {
 	case .Constructor, .Get, .Set:
 		is_method = true

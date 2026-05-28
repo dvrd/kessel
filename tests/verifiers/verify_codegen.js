@@ -38,7 +38,9 @@ const CORPUS_LIMIT = CORPUS_LIMIT_IDX > 0
 // the original — a true regression-grade test of the minifier.
 const MINIFIED = process.argv.includes('--minified');
 
-const MAX_FAILURES_PRINTED = 25;
+const MAX_FAILURES_PRINTED = parseInt(
+  process.env.MAX_FAILURES_PRINTED || '25', 10,
+);
 
 if (!fs.existsSync(KESSEL)) {
   console.error('verify_codegen: missing kessel binary at', KESSEL);
@@ -349,9 +351,13 @@ function roundtrip(fixturePath, tmpRoot) {
 // Known-failure baseline
 // ---------------------------------------------------------------------------
 
-// Path is RELATIVE to tests/fixtures/. Mirrors the ambiguity baseline so
-// the gate stays green on documented codegen gaps (mostly TS-erasure)
-// while still catching real regressions and surfacing improvements.
+// Known-failure baseline accepts EITHER:
+//   - Paths relative to `tests/fixtures/`  (spec corpus, e.g. `spec/foo.js`)
+//   - Paths relative to the repo root      (vendored corpora, e.g.
+//     `tests/vendor/typescript/...`)
+//
+// Both representations are loaded into one Set; lookup tries the
+// fixture-relative form first (back-compat), then the root-relative form.
 const KNOWN_FAILURES_PATH = path.join(
   ROOT, 'tests/baselines/codegen_known_failures.txt',
 );
@@ -406,12 +412,19 @@ for (const abs of fixtures) {
   const rel = path.relative(ROOT, abs);
   const inSpec = abs.startsWith(FIXTURES_DIR + path.sep);
   const relFromFixtures = inSpec ? path.relative(FIXTURES_DIR, abs) : rel;
-  const isKnown = inSpec && KNOWN_FAILURES.has(relFromFixtures);
+  // A fixture is "known" if either its fixture-relative path (spec
+  // corpus) or its root-relative path (vendored corpora) is listed in
+  // codegen_known_failures.txt.
+  const knownKey =
+    inSpec && KNOWN_FAILURES.has(relFromFixtures) ? relFromFixtures
+    : KNOWN_FAILURES.has(rel) ? rel
+    : null;
+  const isKnown = knownKey !== null;
   const isParseError = inSpec && PARSE_ERROR_FIXTURES.has(relFromFixtures);
   const r = roundtrip(abs, tmpRoot);
   if (r.kind === 'pass') {
     pass++;
-    if (isKnown) unexpectedPasses.push(relFromFixtures);
+    if (isKnown) unexpectedPasses.push(knownKey);
     if (isParseError) unexpectedlyClean.push(relFromFixtures);
   } else if (r.kind === 'skip') {
     if (isParseError && r.reason === 'parse_errors_in_source') {

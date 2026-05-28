@@ -73,6 +73,30 @@ gen_pattern_identifier :: proc(cg: ^Codegen, e: ^Identifier) {
 	}
 }
 
+// VariableDeclarator id emission. Like `gen_pattern`, but injects `!`
+// between the identifier and its (optional) type annotation when the
+// declarator carries TS `definite` (`var x!: T` definite-assignment
+// assertion). The grammar only permits `!` after a bare Identifier, so
+// the non-Identifier fallback is a safety net rather than valid syntax.
+gen_var_declarator_id :: proc(cg: ^Codegen, id: Pattern, definite: bool) {
+	if !definite {
+		gen_pattern(cg, id)
+		return
+	}
+	if id_node, ok := id.(^Identifier); ok {
+		cg_str(cg, id_node.name)
+		if id_node.optional { cg_byte(cg, '?') }
+		cg_byte(cg, '!')
+		if ta, ok2 := id_node.type_annotation.?; ok2 {
+			cg_str(cg, ": ")
+			gen_ts_type(cg, ta.type_annotation)
+		}
+		return
+	}
+	gen_pattern(cg, id)
+	cg_byte(cg, '!')
+}
+
 gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern) {
 	cg_byte(cg, '{')
 	if len(e.properties) == 0 {
@@ -309,13 +333,21 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		// PropertyDefinition: if the value is a FunctionExpression it's
 		// a method; otherwise it's a field initializer (`x = 1;` or `x;`).
 		// Mirrors the emitter's class-element dispatch.
+		//
+		// Disambiguation for `name = function id() {}`: a real method's
+		// FunctionExpression value is anonymous (no `.id`). A non-nil
+		// `.id` proves the source had `=` + a named function expression,
+		// so this slot is a PropertyDefinition, not a MethodDefinition.
 		raw_val, val_ok := el.value.?
 		fn: ^FunctionExpression
 		is_method := false
 		if val_ok {
 			if f, ok := raw_val.(^FunctionExpression); ok {
-				fn = f
-				is_method = true
+				_, has_id := f.id.?
+				if !has_id {
+					fn = f
+					is_method = true
+				}
 			}
 		}
 		if is_method {

@@ -112,11 +112,22 @@ tasks:
       - node tests/verifiers/verify_regression.js
 
   test:codegen:
-    desc: "Codegen round-trip — parse → codegen → re-parse → AST equality across fixtures. Currently has known emitter bugs; not yet in `task test`."
+    desc: "Codegen round-trip on the spec corpus — parse → codegen → re-parse → AST equality. Fast (~2s). Use `test:codegen:full` for cross-corpus coverage."
     deps: [build]
     silent: true
     cmds:
       - node tests/verifiers/verify_codegen.js
+
+  test:codegen:full:
+    desc: "Codegen round-trip across every corpus (spec + estree + babel + test262 + ts). ~80 known failures baselined in tests/baselines/codegen_known_failures.txt; the gate fails only on NEW divergences. Slow (~10 min). Part of `task test:release`."
+    deps: [build]
+    silent: false
+    cmds:
+      - node tests/verifiers/verify_codegen.js --corpus spec
+      - node tests/verifiers/verify_codegen.js --corpus estree
+      - node tests/verifiers/verify_codegen.js --corpus babel
+      - node tests/verifiers/verify_codegen.js --corpus test262
+      - node tests/verifiers/verify_codegen.js --corpus ts
 
   test:sourcemap:
     desc: "Source-map v3 end-to-end — decode kessel-emitted map with source-map-js and assert positions resolve to the right source lines."
@@ -192,7 +203,7 @@ tasks:
       - node tests/verifiers/verify_lexer_tokens.js
 
   test:release:
-    desc: "Zero-tolerance pre-release gate — coverage + unit + regression + real-world + estree + fuzz + bench."
+    desc: "Zero-tolerance pre-release gate — coverage + unit + regression + real-world + estree + fuzz + codegen (all corpora) + bench."
     deps: [build, bench:oxc:build]
     silent: false
     cmds:
@@ -204,6 +215,7 @@ tasks:
       - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
       - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --strict
       - task: test:crashes-known
+      - task: test:codegen:full
       - task: test:bench:regression
       - task: test:lexer-tokens
 

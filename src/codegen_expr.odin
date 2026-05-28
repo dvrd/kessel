@@ -467,6 +467,11 @@ gen_meta_property :: proc(cg: ^Codegen, e: ^MetaProperty) {
 gen_jsx_element :: proc(cg: ^Codegen, e: ^JSXElement) {
 	cg_byte(cg, '<')
 	gen_jsx_name(cg, e.opening_element.name)
+	// TS-in-JSX generic type arguments: `<Foo<T> />`. The opening element
+	// carries them; without this emission, the type args are dropped and
+	// the round-trip diff shows `openingElement.typeArguments` only on
+	// the original AST.
+	gen_ts_type_arguments(cg, e.opening_element.type_arguments)
 	for a in e.opening_element.attributes {
 		cg_byte(cg, ' ')
 		gen_jsx_attr(cg, a)
