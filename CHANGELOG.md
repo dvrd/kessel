@@ -4,6 +4,12 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.10.0] - 2026-05-28
+
+### Added
+- feat(codegen): source maps, codegen microbench, and TS audit fixtures
+
+
 ## [0.9.0] - 2026-05-27
 
 ### Added
