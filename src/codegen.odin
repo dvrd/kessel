@@ -182,6 +182,15 @@ cg_hard_space :: #force_inline proc(cg: ^Codegen) {
 	cg_byte(cg, ' ')
 }
 
+// Decorator / modifier separator: emits a newline in pretty mode (so each
+// decorator lands on its own line) and a single mandatory space in
+// minified mode. Plain `cg_newline` collapses to nothing in minified
+// output, which glues `@computed accessor` -> `@computedaccessor` and
+// loses the token boundary on reparse.
+cg_break_or_space :: #force_inline proc(cg: ^Codegen) {
+	if cg.cfg.minified { cg_hard_space(cg) } else { cg_newline(cg) }
+}
+
 // ----------------------------------------------------------------------------
 // Top-level entry point
 // ----------------------------------------------------------------------------
@@ -192,9 +201,69 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program) {
 	// and as the leading ExpressionStatement of `program.body`. We emit only
 	// from body[] to avoid duplicate output.
 	for i in 0..<len(program.body) {
+		need_asi_guard := false
+		if cg.cfg.minified && i + 1 < len(program.body) {
+			need_asi_guard = prev_stmt_can_continue_into_next(program.body[i]^, program.body[i+1]^)
+		}
 		gen_statement(cg, program.body[i]^)
-		cg_newline(cg)
+		if !cg.cfg.minified {
+			cg_newline(cg)
+		} else if need_asi_guard {
+			// Use a newline instead of `;` here — a `;` would reparse as
+			// an additional EmptyStatement, lengthening the body by one
+			// and breaking AST round-trip. A bare newline is a free ASI
+			// separator that doesn't add a node.
+			if cg.pos > 0 && cg.buf[cg.pos-1] != '\n' { cg_byte(cg, '\n') }
+		}
 	}
+}
+
+// prev_stmt_can_continue_into_next reports whether the codegen output
+// of `prev` (in minified form) could be glued onto `next`'s leading
+// token and reparsed as a single expression. The only practical
+// hazards we've hit are: `export default <FunctionExpression>` or
+// `export default <ClassExpression>` followed by an expression
+// statement whose first token is `(`, `[`, a backtick, etc. — the
+// `)` / `]` / template would otherwise re-tokenise as a call /
+// member-access / tagged-template on the function-expression.
+prev_stmt_can_continue_into_next :: proc(prev, next: Statement) -> bool {
+	// Only `export default <expression>` is at risk: a regular
+	// FunctionDeclaration or ClassDeclaration is a Statement and the
+	// parser cannot fold a following `(foo)` into it.
+	ed, is_ed := prev.(^ExportDefaultDeclaration)
+	if !is_ed || ed == nil || ed.declaration == nil { return false }
+	#partial switch v in ed.declaration^ {
+	case ^Expression:
+		#partial switch _ in v^ {
+		case ^FunctionExpression: // ok
+		case ^ClassExpression:    // ok
+		case:                     return false
+		}
+	case:
+		return false
+	}
+	return stmt_starts_with_asi_hazard(next)
+}
+
+// stmt_starts_with_asi_hazard reports whether `stmt` begins with a
+// token that, when glued directly onto a previous statement ending in
+// `)` or `]` or `}`, would extend that statement instead of starting a
+// new one. Used to decide whether the minifier must emit a separating
+// `;` between adjacent statements.
+stmt_starts_with_asi_hazard :: proc(stmt: Statement) -> bool {
+	es, is_expr_stmt := stmt.(^ExpressionStatement)
+	if !is_expr_stmt || es == nil || es.expression == nil { return false }
+	#partial switch e in es.expression^ {
+	case ^UnaryExpression:         return true
+	case ^UpdateExpression:        return true
+	case ^TemplateLiteral:         return true
+	case ^TaggedTemplateExpression:return true
+	case ^RegExpLiteral:           return true
+	case ^ParenthesizedExpression: return true
+	case ^ArrayExpression:         return true
+	case ^CallExpression:          return true
+	}
+	return false
 }
 
 // ============================================================================

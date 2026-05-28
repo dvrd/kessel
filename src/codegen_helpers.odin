@@ -282,7 +282,7 @@ gen_class_like :: proc(
 gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	for d in el.decorators {
 		gen_decorator(cg, d)
-		cg_newline(cg)
+		cg_break_or_space(cg)
 	}
 	switch el.accessibility {
 	case .None:      // nothing

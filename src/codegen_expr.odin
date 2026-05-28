@@ -325,9 +325,14 @@ gen_binary_expression :: proc(cg: ^Codegen, e: ^BinaryExpression) {
 	} else {
 		gen_expression(cg, e.left, prec)
 	}
-	cg_space(cg)
+	// Word operators (`in`, `instanceof`) MUST be separated from the
+	// surrounding identifiers / private names. Symbolic operators (`+`,
+	// `**`, `<<`, etc.) can elide the spaces in minified mode because
+	// the lexer will retokenise correctly without them.
+	word_op := op == "in" || op == "instanceof"
+	if word_op { cg_hard_space(cg) } else { cg_space(cg) }
 	cg_str(cg, op)
-	cg_space(cg)
+	if word_op { cg_hard_space(cg) } else { cg_space(cg) }
 	// Right-assoc only for **; everything else is left-assoc, so bump on right.
 	right_prec := prec + 1
 	if op == "**" { right_prec = prec }

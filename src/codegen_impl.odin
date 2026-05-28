@@ -175,7 +175,11 @@ gen_while_statement :: proc(cg: ^Codegen, s: ^WhileStatement) {
 
 gen_do_while_statement :: proc(cg: ^Codegen, s: ^DoWhileStatement) {
 	cg_str(cg, "do")
-	cg_space(cg)
+	// `do <stmt> while (...)` — the body may be a block (`{...}`) or any
+	// statement form. A bare identifier (e.g. `do keep(); while (true)`)
+	// needs a hard separator from the `do` keyword; cg_space collapses
+	// in minified mode and produces `dokeep()`.
+	cg_hard_space(cg)
 	gen_statement(cg, s.body^)
 	cg_space(cg)
 	cg_str(cg, "while")
@@ -320,7 +324,7 @@ gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_sem
 gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 	for d in s.decorators {
 		gen_decorator(cg, d)
-		cg_newline(cg)
+		cg_break_or_space(cg)
 	}
 	// TS ambient + abstract class modifiers. `declare class C { ... }`
 	// and `abstract class C { ... }` both reach codegen as a
@@ -337,7 +341,12 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 	cg_str(cg, "import ")
 	if s.import_kind == .Type { cg_str(cg, "type ") }
-	if len(s.phase) > 0 { cg_str(cg, s.phase); cg_space(cg) }
+	// Source-phase / defer-phase imports (`import source x from "m"`,
+	// `import defer x from "m"`) need a HARD space between the phase
+	// keyword and the binding identifier — the minified `cg_space`
+	// collapses to nothing and produces `import sourcex` which the
+	// parser then reads as a single identifier.
+	if len(s.phase) > 0 { cg_str(cg, s.phase); cg_hard_space(cg) }
 	first := true
 	// Default + namespace specifiers (each appears at most once).
 	for spec in s.specifiers {

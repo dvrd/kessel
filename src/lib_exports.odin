@@ -302,7 +302,9 @@ kessel_codegen :: proc "c" (
 	if job.lexer.has_hashbang {
 		cg_str(&cg, "#!")
 		cg_str(&cg, job.lexer.hashbang_value)
-		cg_newline(&cg)
+		// Hashbang is a line comment; emit a real newline even in
+		// minified mode so the next token doesn't get swallowed.
+		cg_byte(&cg, '\n')
 	}
 	codegen_program(&cg, job.program)
 	if !cg_cfg.minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {

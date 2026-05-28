@@ -646,7 +646,10 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool, sourcema
 	if job.lexer.has_hashbang {
 		cg_str(&cg, "#!")
 		cg_str(&cg, job.lexer.hashbang_value)
-		cg_newline(&cg)
+		// Hashbang is a line comment; it MUST end with a real newline,
+		// even in minified mode, otherwise the next token glues onto the
+		// hashbang line and gets swallowed as part of the comment.
+		cg_byte(&cg, '\n')
 	}
 	codegen_program(&cg, job.program)
 

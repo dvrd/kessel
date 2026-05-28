@@ -395,7 +395,11 @@ gen_ts_type_query :: proc(cg: ^Codegen, t: ^TSTypeQuery) {
 
 gen_ts_type_operator :: proc(cg: ^Codegen, t: ^TSTypeOperator) {
 	cg_str(cg, t.operator)
-	cg_space(cg)
+	// `keyof T`, `readonly T[]`, `unique symbol` — all word operators.
+	// Minified mode strips a plain cg_space, gluing the operator into
+	// the following type name (`keyofT`) and turning a TSTypeOperator
+	// into a TSTypeReference on reparse.
+	cg_hard_space(cg)
 	gen_ts_type(cg, t.type_annotation)
 }
 

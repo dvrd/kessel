@@ -33,6 +33,10 @@ const CORPUS_LIMIT_IDX = process.argv.indexOf('--corpus-limit');
 const CORPUS_LIMIT = CORPUS_LIMIT_IDX > 0
   ? parseInt(process.argv[CORPUS_LIMIT_IDX + 1], 10)
   : 0;
+// `--minified` runs the round-trip with the codegen in minified mode
+// (`kessel codegen --minified`). The reparsed AST must still match
+// the original — a true regression-grade test of the minifier.
+const MINIFIED = process.argv.includes('--minified');
 
 const MAX_FAILURES_PRINTED = 25;
 
@@ -205,6 +209,7 @@ function parseToAst(filePath, dialect) {
 
 function codegen(filePath, dialect) {
   const args = ['codegen', filePath, '--preserve-parens'];
+  if (MINIFIED) args.push('--minified');
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
   return execFileSync(KESSEL, args, {
     maxBuffer: 256 * 1024 * 1024,
