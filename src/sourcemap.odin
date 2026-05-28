@@ -75,6 +75,18 @@ cg_record_stmt_mapping :: #force_inline proc(cg: ^Codegen, stmt: ^Statement) {
 	sourcemap_record(cg.sm, u32(cg.pos), loc.start)
 }
 
+// Record a mapping at the current codegen position for a class element
+// (method, property, accessor, static block). The element's `loc.start`
+// points at the first byte the parser saw for this element — typically
+// the leading modifier (`static`, `accessor`, `public`, etc.) or the
+// key. Mapping each class element lets sourcemap consumers resolve
+// `gen L<n>C<col>` queries on method-header lines back to the right
+// source position instead of returning (unmapped).
+cg_record_class_element_mapping :: #force_inline proc(cg: ^Codegen, el: ^ClassElement) {
+	if cg.sm == nil { return }
+	sourcemap_record(cg.sm, u32(cg.pos), el.loc.start)
+}
+
 // Record a mapping at the current codegen position. Called by codegen
 // helpers right before they emit the first byte of a Statement/Expression
 // that carries a Loc. `src_offset` is `loc.start`. No-op when `sm == nil`.

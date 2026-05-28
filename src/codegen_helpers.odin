@@ -271,7 +271,15 @@ gen_class_like :: proc(
 	if len(body.body) == 0 { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	for el in body.body {
+	for i in 0..<len(body.body) {
+		el := body.body[i]
+		if cg.sm != nil {
+			// Force the indent before recording so the mapping points at
+			// the first non-whitespace column (e.g. the method key /
+			// modifier keyword) rather than at the leading spaces.
+			cg_indent(cg)
+			cg_record_class_element_mapping(cg, &body.body[i])
+		}
 		gen_class_element(cg, el)
 		cg_newline(cg)
 	}
