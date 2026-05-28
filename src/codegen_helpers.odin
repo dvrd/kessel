@@ -4,6 +4,51 @@ package kessel
 // Codegen — shared helpers (patterns, function bodies, class bodies, TS types).
 // ============================================================================
 
+// gen_decorator emits `@Expr` with parens when the expression is not a
+// bare DecoratorMemberExpression / DecoratorCallExpression. The legacy
+// decorator grammar only allows `@Ident.foo.bar(args)` style chains
+// bare; anything else — `@(foo + bar)`, `@(obj[key])`, `@(foo().bar)`,
+// `@(arrow => x)` — must be wrapped, otherwise the regen reparses
+// differently (or as a syntax error).
+gen_decorator :: proc(cg: ^Codegen, d: Decorator) {
+	cg_byte(cg, '@')
+	if decorator_expr_is_bare(d.expression) {
+		gen_expression(cg, d.expression, PREC_CALL)
+	} else {
+		cg_byte(cg, '(')
+		gen_expression(cg, d.expression, PREC_LOWEST)
+		cg_byte(cg, ')')
+	}
+}
+
+// decorator_expr_is_bare reports whether `expr` is a member-chain or
+// call-on-member-chain that fits the bare decorator grammar. Anything
+// else needs `@(...)` parens.
+decorator_expr_is_bare :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	cur := expr
+	// Unwrap a leading CallExpression: `@foo.bar(args)` is allowed; the
+	// callee must itself be a bare member chain.
+	if ce, is_call := cur^.(^CallExpression); is_call {
+		if ce.optional { return false }
+		cur = ce.callee
+	}
+	// Now `cur` must be a bare member chain: Identifier, or a chain of
+	// non-computed, non-optional MemberExpression ending in Identifier.
+	for {
+		#partial switch v in cur^ {
+		case ^Identifier:
+			return true
+		case ^MemberExpression:
+			if v.computed { return false }
+			if v.optional { return false }
+			cur = v.object
+		case:
+			return false
+		}
+	}
+}
+
 // ----------------------------------------------------------------------------
 // Patterns (destructuring)
 // ----------------------------------------------------------------------------
@@ -80,6 +125,16 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		if el, ok := e.elements[i].?; ok {
 			gen_pattern(cg, el)
+		}
+	}
+	// Preserve a trailing hole: in `[a, ,]` the last comma is the
+	// element separator, not the elision marker, so the array has 2
+	// elements. Without the extra comma we would emit `[a, ]` which
+	// reparses as `[a]` and silently drops the hole.
+	n := len(e.elements)
+	if n > 0 {
+		if _, ok := e.elements[n-1].?; !ok {
+			cg_byte(cg, ',')
 		}
 	}
 	cg_byte(cg, ']')
@@ -226,8 +281,7 @@ gen_class_like :: proc(
 
 gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	for d in el.decorators {
-		cg_byte(cg, '@')
-		gen_expression(cg, d.expression, PREC_CALL)
+		gen_decorator(cg, d)
 		cg_newline(cg)
 	}
 	switch el.accessibility {

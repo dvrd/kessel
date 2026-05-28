@@ -319,8 +319,7 @@ gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_sem
 
 gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 	for d in s.decorators {
-		cg_byte(cg, '@')
-		gen_expression(cg, d.expression, PREC_CALL)
+		gen_decorator(cg, d)
 		cg_newline(cg)
 	}
 	// TS ambient + abstract class modifiers. `declare class C { ... }`
@@ -425,11 +424,29 @@ export_name_eq :: proc(a, b: ExportSpecifierName) -> bool {
 
 gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 	cg_str(cg, "export ")
-	// `export type { A } from "x"` and `export type * from "x"` carry
-	// the `type` modifier on the declaration itself. Without this, the
-	// regen drops the modifier and the AST exportKind drifts from "type"
-	// to "value".
-	if s.export_kind == .Type { cg_str(cg, "type ") }
+	// `export type { A } from "x"`, `export type * from "x"`, and the
+	// inner type-alias / interface / enum / module forms all carry the
+	// `type` modifier on the declaration itself. The `type` keyword on
+	// the export wrapper is only needed when no inner declaration
+	// supplies it — i.e. the specifier-only export form. Emitting it
+	// before TSInterfaceDeclaration / TSTypeAliasDeclaration produces
+	// `export type interface I {}` / `export type type X = ...`, both
+	// of which are SyntaxErrors.
+	if s.export_kind == .Type {
+		inner_supplies_type := false
+		if decl_ptr, ok := s.declaration.?; ok && decl_ptr != nil {
+			#partial switch _ in decl_ptr^ {
+			case ^TSInterfaceDeclaration:    inner_supplies_type = true
+			case ^TSTypeAliasDeclaration:    inner_supplies_type = true
+			case ^TSEnumDeclaration:         inner_supplies_type = true
+			case ^TSModuleDeclaration:       inner_supplies_type = true
+			case ^FunctionDeclaration:       inner_supplies_type = true  // `declare function`
+			case ^VariableDeclaration:       inner_supplies_type = true  // `declare const`
+			case ^ClassDeclaration:          inner_supplies_type = true  // `declare class`
+			}
+		}
+		if !inner_supplies_type { cg_str(cg, "type ") }
+	}
 	if decl_ptr, ok := s.declaration.?; ok {
 		gen_statement(cg, decl_to_stmt(decl_ptr^))
 		return
@@ -463,7 +480,17 @@ gen_export_default_declaration :: proc(cg: ^Codegen, s: ^ExportDefaultDeclaratio
 		gen_statement(cg, decl_to_stmt(v^))
 	case ^Expression:
 		gen_expression(cg, v, PREC_ASSIGN)
-		cg_byte(cg, ';')
+		// Function and class *expressions* in default-export position are
+		// declaration-shaped at the source level (closing `}` ends the
+		// statement). Emitting `;` after them produces two statements on
+		// re-parse — the declaration plus a stray EmptyStatement — which
+		// breaks AST round-trip. Only assign-expression forms need `;`.
+		needs_semi := true
+		#partial switch _ in v^ {
+		case ^FunctionExpression: needs_semi = false
+		case ^ClassExpression:    needs_semi = false
+		}
+		if needs_semi { cg_byte(cg, ';') }
 	}
 }
 

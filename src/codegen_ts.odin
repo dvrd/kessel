@@ -244,7 +244,32 @@ gen_ts_module_declaration_full :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
 	switch s.kind {
 	case .Namespace: cg_str(cg, "namespace ")
 	case .Module:    cg_str(cg, "module ")
-	case .Global:    cg_str(cg, "global ")
+	case .Global:
+		// `declare global { ... }` (or bare `global { ... }` inside a
+		// module declaration) carries the keyword itself as the
+		// declaration name on the parser side. Emit the keyword and the
+		// body, but skip the id — emitting it again would produce
+		// `global global { ... }`, which is invalid syntax.
+		cg_str(cg, "global")
+		body_opt, has_body := s.body.?
+		if !has_body || body_opt == nil { cg_byte(cg, ';'); return }
+		cg_space(cg)
+		switch b in body_opt^ {
+		case ^TSModuleBlock:
+			cg_byte(cg, '{')
+			if len(b.body) == 0 { cg_byte(cg, '}'); return }
+			cg_newline(cg)
+			cg.depth += 1
+			for stmt in b.body {
+				gen_statement(cg, stmt^)
+				cg_newline(cg)
+			}
+			cg.depth -= 1
+			cg_byte(cg, '}')
+		case ^TSModuleDeclaration:
+			gen_ts_module_declaration_full(cg, b)
+		}
+		return
 	}
 	gen_ts_module_id_and_body(cg, s.id, s.body)
 }

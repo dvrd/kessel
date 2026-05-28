@@ -350,13 +350,14 @@ expression_precedence :: proc(expr: ^Expression) -> int {
 	case ^SpreadElement:
 		return PREC_ASSIGN
 	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
-		// `expr as Type` / `expr satisfies Type` / `<Type>expr` all bind
-		// looser than member access and call: `(x as T).y` and
-		// `(x as T)(args)` MUST keep their parens, otherwise the regen
-		// reparses as `x as (T.y)` / `x as T(args)`. Picking PREC_REL
-		// matches how the TS grammar slots `as` next to relational
-		// operators.
-		return PREC_REL
+		// kessel's parser binds `as` / `satisfies` / `<Type>x` tighter
+		// than relational and binary operators (verified empirically:
+		// `x < y as boolean` parses as `x < (y as boolean)`). Treat them
+		// at unary level so the right operand of `<`, `+`, etc. does not
+		// pick up spurious parens, while `(x as T).y` and `(x as T)(args)`
+		// still get them because MemberExpression / CallExpression are
+		// at PREC_CALL (higher than PREC_UNARY).
+		return PREC_UNARY
 	case ^TSInstantiationExpression:
 		return PREC_CALL
 	case ^TSNonNullExpression:

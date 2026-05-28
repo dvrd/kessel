@@ -89,6 +89,15 @@ gen_array_expression :: proc(cg: ^Codegen, e: ^ArrayExpression) {
 			gen_expression(cg, el, PREC_ASSIGN)
 		}
 	}
+	// Preserve a trailing hole: `[1, ,]` is a 2-element array (1 + hole),
+	// but `[1, ]` reparses as `[1]`. Emit the extra comma so the hole
+	// survives the round-trip.
+	n := len(e.elements)
+	if n > 0 {
+		if _, ok := e.elements[n-1].?; !ok {
+			cg_byte(cg, ',')
+		}
+	}
 	cg_byte(cg, ']')
 }
 
@@ -195,6 +204,14 @@ gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression) {
 }
 
 gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
+	// Class expressions can carry decorators in the legacy decorators
+	// proposal (`var x = @dec class Foo {}`). Emit them in source order
+	// before the `class` keyword; omitting them drops information that
+	// breaks AST round-trip.
+	for d in e.decorators {
+		gen_decorator(cg, d)
+		cg_hard_space(cg)
+	}
 	name := ""
 	if id, ok := e.id.?; ok { name = id.name }
 	gen_class_like(cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements)
@@ -294,7 +311,20 @@ gen_unary_expression :: proc(cg: ^Codegen, e: ^UnaryExpression) {
 
 gen_binary_expression :: proc(cg: ^Codegen, e: ^BinaryExpression) {
 	op, prec := binop_text(e.operator)
-	gen_expression(cg, e.left, prec)
+	// Spec: ExponentiationExpression's left operand is restricted to
+	// UpdateExpression — a UnaryExpression / AwaitExpression on the
+	// left of `**` is a syntax error unless parenthesized. Normal
+	// precedence comparison would let `await x ** y` through because
+	// PREC_UNARY > PREC_EXP, but the parse re-rejects it. Force parens
+	// on the left when the operator is `**` and the left is a prefix
+	// form that cannot legally appear there bare.
+	if op == "**" && left_needs_paren_for_exp(e.left) {
+		cg_byte(cg, '(')
+		gen_expression(cg, e.left, PREC_LOWEST)
+		cg_byte(cg, ')')
+	} else {
+		gen_expression(cg, e.left, prec)
+	}
 	cg_space(cg)
 	cg_str(cg, op)
 	cg_space(cg)
@@ -302,6 +332,19 @@ gen_binary_expression :: proc(cg: ^Codegen, e: ^BinaryExpression) {
 	right_prec := prec + 1
 	if op == "**" { right_prec = prec }
 	gen_expression(cg, e.right, right_prec)
+}
+
+// left_needs_paren_for_exp — true when `expr` cannot legally appear as
+// the bare left operand of `**`. The exponentiation production accepts
+// only UpdateExpression on the left; UnaryExpression (including `-x`,
+// `!x`, `void x`, etc.) and AwaitExpression must be parenthesized.
+left_needs_paren_for_exp :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	#partial switch _ in expr^ {
+	case ^UnaryExpression:   return true
+	case ^AwaitExpression:   return true
+	}
+	return false
 }
 
 binop_text :: proc(op: BinaryOperator) -> (string, int) {
@@ -511,7 +554,7 @@ gen_jsx_child :: proc(cg: ^Codegen, c: JSXChild) {
 // TS expressions
 // ----------------------------------------------------------------------------
 
-gen_ts_as_expression        :: proc(cg: ^Codegen, e: ^TSAsExpression)        { gen_expression(cg, e.expression, PREC_CALL); cg_str(cg, " as "); gen_ts_type(cg, e.type_annotation) }
-gen_ts_satisfies_expression :: proc(cg: ^Codegen, e: ^TSSatisfiesExpression) { gen_expression(cg, e.expression, PREC_CALL); cg_str(cg, " satisfies "); gen_ts_type(cg, e.type_annotation) }
+gen_ts_as_expression        :: proc(cg: ^Codegen, e: ^TSAsExpression)        { gen_expression(cg, e.expression, PREC_UNARY); cg_str(cg, " as "); gen_ts_type(cg, e.type_annotation) }
+gen_ts_satisfies_expression :: proc(cg: ^Codegen, e: ^TSSatisfiesExpression) { gen_expression(cg, e.expression, PREC_UNARY); cg_str(cg, " satisfies "); gen_ts_type(cg, e.type_annotation) }
 gen_ts_type_assertion       :: proc(cg: ^Codegen, e: ^TSTypeAssertion)       { cg_byte(cg, '<'); gen_ts_type(cg, e.type_annotation); cg_byte(cg, '>'); gen_expression(cg, e.expression, PREC_UNARY) }
 gen_ts_instantiation        :: proc(cg: ^Codegen, e: ^TSInstantiationExpression) { gen_ts_instantiation_full(cg, e) }
