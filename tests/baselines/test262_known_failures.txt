@@ -1,7 +1,0 @@
-# Test262 known failures — tests that should fail but don't, or vice versa.
-# Each line is a filename (no path). The runner treats these as "expected fail"
-# so they don't block the gate. Remove a line when the parser is fixed.
-#
-# (literals_string_S7.8.4_A1.1_T1 / T2 were previously listed; both now
-# correctly reject. Entries removed so the gate enforces that as a
-# regression check.)

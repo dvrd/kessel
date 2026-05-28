@@ -1,5 +1,5 @@
-// TIER-1.3-AUDIT: TS adornments threaded through JS nodes. Round-trips
-// here cover every slot from `plans/oxc-substitution-roadmap.md` 1.3.
+// TS adornments threaded through JS nodes. Round-trip coverage for
+// every slot where TS adorns a JS node with type information.
 //
 //   * typeAnnotation on identifiers / params / class members
 //   * typeParameters on functions / classes / methods / arrows

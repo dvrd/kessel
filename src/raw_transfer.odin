@@ -1199,11 +1199,8 @@ RawTransferResult :: struct {
 	error_count: int,
 }
 
-// Build a raw transfer buffer from an ALREADY-PARSED job. This is the
-// canonical entry point - it inherits the job's lang / source-type /
-// strict / preserve-parens / .d.ts resolution, fixing the long-standing
-// bug where the standalone `produce_raw_buffer` ignored every CLI flag
-// except --lang.
+// Build a raw transfer buffer from an ALREADY-PARSED job. Inherits the
+// job's lang / source-type / strict / preserve-parens / .d.ts resolution.
 produce_raw_buffer_from_job :: proc(job: ^ParseJob) -> RawTransferResult {
 	assert(job.opened)
 	assert(job.program != nil, "produce_raw_buffer_from_job: parse_job_run must be called first")
@@ -1239,53 +1236,6 @@ produce_raw_buffer_from_job :: proc(job: ^ParseJob) -> RawTransferResult {
 	}
 }
 
-// Legacy free-function entry point, kept for any in-process caller that
-// already has source + arena and doesn't need flag plumbing. New code
-// should build a ParseJob and call produce_raw_buffer_from_job - that
-// path correctly threads --source-type, --force-strict, --preserve-parens,
-// and .d.ts detection.
-//
-// `lang` selects the grammar (defaults to .JSX, matching init_parser's
-// default). Pass .TS / .TSX to parse TypeScript fixtures whose `.js`
-// extension would otherwise route through JSX mode and produce spurious
-// errors on `interface` / `type` declarations.
-produce_raw_buffer :: proc(source: string, arena: ^mvirtual.Arena, arena_alloc: mem.Allocator, lang: Lang = .JSX) -> RawTransferResult {
-	// Parse
-	lex: Lexer
-	init_lexer(&lex, source, arena_alloc)
-
-	p: Parser
-	init_parser(&p, &lex, arena_alloc, lang)
-	program := parse_program(&p, .Script)
-	error_count := len(p.errors)
-
-	// Get arena base pointer — all allocations are offsets from here
-	base := uintptr(arena.curr_block.base)
-	used := int(arena.total_used)
-
-	// Rewrite all pointers to offsets
-	rewrite_ast_pointers(program, base, source)
-
-	// Build header
-	program_offset := ptr_to_offset(base, program)
-	header := RawTransferHeader{
-		magic          = RAW_TRANSFER_MAGIC,
-		version        = RAW_TRANSFER_VERSION,
-		program_offset = program_offset,
-		source_len     = u32(len(source)),
-		total_bytes    = u32(used),
-	}
-
-	// Return the arena memory as a byte slice
-	buffer := ([^]u8)(arena.curr_block.base)[:used]
-
-	return RawTransferResult{
-		buffer      = buffer,
-		header      = header,
-		source      = source,
-		error_count = error_count,
-	}
-}
 
 // Write raw transfer buffer to a file: [header][arena bytes]
 write_raw_buffer :: proc(result: RawTransferResult, path: string) -> bool {

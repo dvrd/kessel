@@ -15,14 +15,9 @@
 #   type predicates. Fixtures listed here CRASH or PRODUCE PARSE ERRORS.
 #
 # Fixtures that parse-clean but emit WRONG trees (drift vs OXC) are NOT
-# listed here — they're owned by the deep-JSON gate in run_spec_fixtures.js
-# (tests/baselines/spec_fixtures_baseline.json). We want those to remain
-# "passed positively" here but fail at the deep-compare layer; that's
-# exactly how verified compliance stacks.
+# listed here — they're owned by the conformance coverage harness.
 #
 # Cases that silently parse-clean today (wrong tree, but no error):
-#   spec/typescript/001_generic_function   — OK via run_spec_fixtures baseline
-#   spec/typescript/003_conditional_type   — OK via run_spec_fixtures baseline
 #   spec/typescript/005_union_intersection — actually matches OXC cleanly
 #
 # (Both spec/jsx/005_nested_element and spec/typescript/007_type_assertion

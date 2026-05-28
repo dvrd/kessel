@@ -67,13 +67,6 @@ flush_stdout_writer :: proc() {
 // server framing / parse stats / error messages. They always write to
 // the stdout bufio writer; the AST emitter uses its own emit_* helpers
 // (src/emitter.odin) that write to e.buf.
-//
-// Pre-#6 out_println had a `compact_json` branch that stripped the
-// trailing newline. That branch was dead in practice — the AST emitter
-// no longer routes through these helpers (since #2), and no test or
-// downstream consumer relies on compact lex/banner output. Dropping
-// it removes the last reader of the compact_json global from the
-// stdout helpers.
 
 out_print :: proc(args: ..any) -> int {
 	init_stdout_writer()
@@ -721,9 +714,7 @@ parse_file_binary :: proc(file_path: string, cli: CliConfig) {
 
 raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
 	// All flag threading (lang, source-type, strict, preserve-parens,
-	// .d.ts) flows through ParseJob now - matches the JSON path exactly.
-	// Previously this used the standalone produce_raw_buffer which only
-	// accepted `lang`, silently ignoring every other flag.
+	// .d.ts) flows through ParseJob — matches the JSON path exactly.
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("Error: Could not read file: %s\n", file_path)
@@ -1207,7 +1198,7 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 // is exercised, not just the steady-state writes.
 //
 // Output shape matches `microbench_file` so existing parsers in
-// `bench_vs_oxc.sh` / `tests/verifiers/npm_bench.js` work unchanged.
+// `bench_vs_oxc.sh` work unchanged.
 microbench_codegen :: proc(file_path: string, iterations: int, minified: bool, cli: CliConfig) {
 	probe, probe_ok := source_read(file_path, context.allocator)
 	if !probe_ok {

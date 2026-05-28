@@ -8052,9 +8052,6 @@ string_raw_has_forbidden_escape :: proc(raw: string) -> bool {
 }
 
 parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
-	// `start` was used by an earlier diagnostic path that no longer
-	// exists; the leaf paths below all carry their own loc. Drop the
-	// dead local; vet flags it as unused.
 	if is_token(p, .LBrace) {
 		return parse_object_pattern(p)
 	}

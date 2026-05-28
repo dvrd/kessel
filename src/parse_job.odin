@@ -11,14 +11,10 @@
 //
 // Before this module the chain lived in five different shapes across
 // `parse_file`, `parse_file_to_disk`, `raw_transfer_file`,
-// `parse_file_raw_to_disk`, `produce_raw_buffer`, the bench loops, and
-// the server loop. The variants quietly disagreed on which CLI flags
-// they honoured: `--raw` ignored `--source-type`, `--force-strict`,
-// `--preserve-parens` and `.d.ts` detection; the multi-file worker path
-// ignored the same set; `produce_raw_buffer` hard-coded `.Script` and
-// JSX-default lang. Centralising the chain here is what fixes those
-// bugs - every caller now goes through `parse_job_open_*` +
-// `parse_job_run`, so flag handling is single-sourced.
+// `parse_file_raw_to_disk`, the bench loops, and the server loop.
+// Centralising the chain here ensures every caller goes through
+// `parse_job_open_*` + `parse_job_run`, so flag handling is
+// single-sourced.
 //
 // Why a job (mutable struct) and not a free function? Three callers
 // need access to intermediate state AFTER parse_program returns:
