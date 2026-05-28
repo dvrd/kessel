@@ -34,6 +34,25 @@ and matches the reference parser on every invalid input in the corpora.
 | Import attributes (`with`) | ✅ |
 | `using` / `await using` | ✅ |
 
+## Codegen
+
+Kessel can emit JavaScript / TypeScript source back from an AST. The same
+binary that parses your code can round-trip it through `bin/kessel codegen`
+(pretty or `--minified`). The codegen is gated by a round-trip property test:
+`parse → codegen → re-parse` must produce an equal AST.
+
+| Corpus | Round-trip pass | Known divergences |
+|---|---:|---:|
+| Spec (in-tree) | 253 / 253 | 0 |
+| ESTree | 39 / 39 | 0 |
+| Babel | 2 620 / 2 636 | 16 (baselined) |
+| test262 | 44 181 / 44 186 | 5 (baselined) |
+| TypeScript | 16 957 / 17 004 | 47 (baselined) |
+
+Remaining 68 divergences across the three vendored corpora are tracked in
+`tests/baselines/codegen_known_failures.txt` and surface in
+`task test:codegen:full`; the gate fails on any NEW divergence.
+
 ## Installation
 
 ### CLI
@@ -130,7 +149,7 @@ programmatic handling. Full API and visitor helpers documented in
 ```bash
 task test                     # Primary gate — coverage + unit (~12s)
 task test:quick               # Fast dev loop — unit + regression (~8s)
-task test:release             # Zero-tolerance pre-release chain (~3 min)
+task test:release             # Zero-tolerance pre-release chain (~13 min)
 ```
 
 | Command | What it tests |
@@ -142,6 +161,8 @@ task test:release             # Zero-tolerance pre-release chain (~3 min)
 | `task test:estree` | String-escape decoding parity vs reference parser |
 | `task test:fuzz` | 100 random valid programs, diff vs reference |
 | `task test:fuzz:invalid` | 300 mutated/invalid inputs — no crashes or hangs |
+| `task test:codegen` | Spec-corpus round-trip: parse → codegen → re-parse → AST equality (~2s) |
+| `task test:codegen:full` | Same, swept across spec + estree + Babel + test262 + TS corpora (~73K fixtures, ~10 min) |
 | `task test:bench:regression` | 10 curated files vs baselines, fails on >5% regression |
 | `task test:conformance:report` | Print conformance summary from snap files |
 
