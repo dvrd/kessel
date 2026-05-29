@@ -22,14 +22,12 @@ Decorator :: struct {
 	expression: ^Expression,
 }
 
-// Name kind for imports/exports
 ESMNameKind :: enum {
 	Default,
 	Namespace,
 	Name,
 }
 
-// ESM import/export name with kind and optional location info
 ESMNameEntry :: struct {
 	kind:  ESMNameKind,
 	name:  string,
@@ -37,7 +35,6 @@ ESMNameEntry :: struct {
 	end:   u32,
 }
 
-// Static import entry (import X from "m")
 ESMStaticImportEntry :: struct {
 	importName: ESMNameEntry,
 	localName:  ESMNameEntry,
@@ -54,7 +51,6 @@ ESMStaticImport :: struct {
 	entries: [dynamic]ESMStaticImportEntry,
 }
 
-// Static export entry (export { x, y as z } or export * from "m")
 ESMExportNameEntry :: struct {
 	kind:  ESMNameKind,
 	name:  string,
@@ -175,7 +171,6 @@ JSXSpreadChild :: struct {
 	expression: ^Expression,
 }
 
-// Union types for JSX
 JSXElementName :: union {
 	JSXIdentifier,
 	^JSXMemberExpression,
@@ -462,7 +457,6 @@ TSInstantiationExpression :: struct {
 	type_arguments:  ^TSTypeParameterInstantiation,
 }
 
-// TS interface declaration
 TSInterfaceDeclaration :: struct {
 	loc:             Loc,
 	id:              BindingIdentifier,
@@ -483,7 +477,6 @@ TSInterfaceHeritage :: struct {
 	type_parameters: Maybe(^TSTypeParameterInstantiation),
 }
 
-// TS type alias: `type X = T`
 TSTypeAliasDeclaration :: struct {
 	loc:             Loc,
 	id:              BindingIdentifier,
@@ -492,7 +485,6 @@ TSTypeAliasDeclaration :: struct {
 	declare:         bool,
 }
 
-// TS enum
 TSEnumDeclaration :: struct {
 	loc:     Loc,
 	id:      BindingIdentifier,
@@ -546,7 +538,6 @@ TSExternalModuleReference :: struct {
 	expression: ^StringLiteral,
 }
 
-// TS module/namespace declaration
 TSModuleDeclaration :: struct {
 	loc:     Loc,
 	id:      ^Expression,  // Identifier or StringLiteral
@@ -572,7 +563,6 @@ TSModuleBlock :: struct {
 	body: [dynamic]^Statement,
 }
 
-// Interface/object-type signatures
 TSPropertySignature :: struct {
 	loc:             Loc,
 	key:             ^Expression,
@@ -621,7 +611,6 @@ TSIndexSignature :: struct {
 	static_:          bool,
 }
 
-// Signature union
 TSSignature :: union {
 	TSPropertySignature,
 	TSMethodSignature,
@@ -630,7 +619,6 @@ TSSignature :: union {
 	TSIndexSignature,
 }
 
-// Master TSType union
 TSType :: union {
 	// Keywords
 	^TSAnyKeyword,
@@ -772,7 +760,6 @@ Identifier :: struct {
 	has_escape:         bool,
 }
 
-// PrivateIdentifier for class private fields/methods (#field)
 PrivateIdentifier :: struct {
 	loc:  Loc,
 	name: string, // without the # prefix
@@ -1172,7 +1159,6 @@ ClassExpression :: struct {
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation),  // TS: `extends Foo<T, U>`
 }
 
-// StaticBlock for ES2022 static class blocks (static { ... })
 StaticBlock :: struct {
 	loc:  Loc,
 	body: [dynamic]^Statement,

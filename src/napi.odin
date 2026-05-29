@@ -821,7 +821,6 @@ napi_emit_function :: proc "contextless" (ctx: ^NapiCtx, type_name: cstring, fn:
 	params := napi_arr(env, uint(len(fn.params)))
 	for p, i in fn.params { napi_set_element(env, params, u32(i), napi_emit_pattern(ctx, p.pattern)) }
 	set(env, obj, "params", params)
-	// body
 	body_obj := napi_obj(env)
 	set_node_base(env, body_obj, "BlockStatement", fn.body.loc)
 	body := napi_arr(env, uint(len(fn.body.body)))
@@ -955,13 +954,11 @@ napi_parse_sync :: proc "c" (env: napi_env, info: napi_callback_info) -> napi_va
 		return nil
 	}
 
-	// Read filename (for language detection)
 	fname_buf: [512]u8
 	fname_len: uint
 	napi_get_value_string_utf8(env, argv[0], raw_data(fname_buf[:]), 512, &fname_len)
 	filename := string(fname_buf[:fname_len])
 
-	// Read source string length
 	src_len: uint
 	napi_get_value_string_utf8(env, argv[1], nil, 0, &src_len)
 
@@ -971,13 +968,11 @@ napi_parse_sync :: proc "c" (env: napi_env, info: napi_callback_info) -> napi_va
 	napi_get_value_string_utf8(env, argv[1], raw_data(src_buf), src_len + 1, &src_len)
 	source := string(src_buf[:src_len])
 
-	// Detect language
 	lang := Lang.JS
 	if strings.has_suffix(filename, ".tsx") { lang = .TSX }
 	else if strings.has_suffix(filename, ".ts") || strings.has_suffix(filename, ".mts") || strings.has_suffix(filename, ".cts") { lang = .TS }
 	else if strings.has_suffix(filename, ".jsx") { lang = .JSX }
 
-	// Parse
 	config := ParseConfig{ lang_override = lang, ast_only = true }
 	job: ParseJob
 	if !parse_job_open_inline(&job, source, config, "napi") {
@@ -987,11 +982,9 @@ napi_parse_sync :: proc "c" (env: napi_env, info: napi_callback_info) -> napi_va
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 
-	// Build V8 objects directly from the AST
 	ctx := napi_init_ctx(env)
 	program := napi_emit_program(&ctx, job.program)
 
-	// Wrap in { program, errors }
 	result := napi_obj(env)
 	set(env, result, "program", program)
 	errors := napi_arr(env, 0)

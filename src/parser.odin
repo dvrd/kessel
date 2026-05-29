@@ -8,8 +8,6 @@ import "core:strings"
 // Token Access (cached in Parser for zero-overhead reads)
 // ============================================================================
 
-// Advance lexer: shift nxt → cur, lex new nxt. Writes minimal Token fields.
-// Advance: consume current token, produce the next one.
 // Hot path inlined: whitespace skip + single-char + identifier dispatch.
 // Cold tokens (strings, numbers, operators) fall through to lex_token.
 advance_token :: #force_inline proc(p: ^Parser) {
@@ -47,7 +45,6 @@ ensure_nxt :: #force_inline proc(p: ^Parser) {
 	}
 }
 
-// Peek at the NEXT token (1-ahead). Lazily lexes nxt if needed.
 peek_token :: #force_inline proc(p: ^Parser) -> Token {
 	if p.lexer != nil {
 		ensure_nxt(p)
@@ -106,7 +103,6 @@ bump_init :: proc(pool: ^BumpPool, backing: mem.Allocator, capacity: int) {
 }
 
 bump_alloc :: #force_inline proc(pool: ^BumpPool, size: int, align: int) -> rawptr {
-	// align up
 	mask := align - 1
 	aligned := (pool.offset + mask) & ~mask
 	new_offset := aligned + size
@@ -253,10 +249,8 @@ Parser :: struct {
 	// this by value to eliminate save/restore boilerplate.
 	ctx: ParseContext,
 
-	// Error handling
 	errors: [dynamic]ParseError,
 
-	// String interner for identifiers
 	interner: ^StringInterner,
 
 	// When true, the NEXT parse_block_statement scope check uses
@@ -542,8 +536,6 @@ StringInterner :: struct {
 	initialized:  bool,
 }
 
-// Parse result
-
 // Any keyword can be used as a property name in object literals and as method/field names.
 // ES spec: PropertyName can be IdentifierName, which includes all keywords.
 is_keyword_usable_as_property_name :: #force_inline proc(t: TokenType) -> bool {
@@ -585,14 +577,11 @@ can_be_binding_identifier :: #force_inline proc(t: TokenType) -> bool {
 	}
 }
 
-// Initialize string interner - map allocated lazily on first intern() call
 init_interner :: proc(i: ^StringInterner, alloc: mem.Allocator, capacity_hint: int = 0) {
 	i.allocator = alloc
 	i.capacity_hint = capacity_hint
-	// Map NOT allocated here - deferred to first intern() call
 }
 
-// Intern a string (lazy map init on first call)
 intern :: proc(i: ^StringInterner, s: string) -> string {
 	if !i.initialized {
 		if i.capacity_hint > 0 {
@@ -606,7 +595,6 @@ intern :: proc(i: ^StringInterner, s: string) -> string {
 		return existing
 	}
 
-	// Copy string with allocator
 	bytes, _ := mem.alloc_bytes(len(s), allocator=i.allocator)
 	copy(bytes, s)
 	interned := string(bytes)
@@ -615,7 +603,6 @@ intern :: proc(i: ^StringInterner, s: string) -> string {
 }
 
 
-// Initialize parser with lexer
 // Language mode. Used to gate JSX and TS syntax at parse-dispatch sites.
 // Default .JSX preserves legacy behaviour: every file accepts JSX. Callers
 // that know the file extension or user intent should pass the real mode.
@@ -757,7 +744,6 @@ has_scope_relevant_stmt :: proc(body: []^Statement) -> bool {
 	return false
 }
 
-// Create a new node allocated from bump pool (zero-dispatch)
 new_node :: #force_inline proc(p: ^Parser, $T: typeid) -> ^T {
 	if p.profile_enabled {
 			p.profile.node_allocs += 1
@@ -799,24 +785,19 @@ new_node :: #force_inline proc(p: ^Parser, $T: typeid) -> ^T {
 	if ptr != nil {
 		return transmute(^T)ptr
 	}
-	// Fallback to arena allocator
 	result, _ := mem.new(T, p.allocator)
 	return result
 }
 
-// Helper to convert any statement node to ^Statement union
-// Uses transmute with proper type handling
 statement_from :: proc(p: ^Parser, stmt_ptr: ^$T) -> ^Statement {
 	if stmt_ptr == nil {
 		return nil
 	}
-	// Allocate a Statement from the arena and assign the concrete pointer
 	result := new_node(p, Statement)
 	result^ = stmt_ptr
 	return result
 }
 
-// Helper to convert any expression node to ^Expression union
 // Check if an expression (or SequenceExpression) contains a SpreadElement.
 // Used to reject `(b, ...a)` without `=>` — rest/spread in parens is only
 // valid as arrow parameter cover grammar.
@@ -895,9 +876,6 @@ new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
 	stmt^ = node
 	return node, stmt
 }
-
-// Fast path for hot expression types - avoids allocation by using transmute
-// Only safe when T is exactly one of the types in the Expression union
 
 // Report an error
 // `LexerLoc` carries only `offset` now. Line / column are computed at
@@ -1197,7 +1175,6 @@ get_profile :: proc(p: ^Parser) -> ParserProfile {
 	return p.profile
 }
 
-// Get bump pool usage stats
 get_bump_stats :: proc(p: ^Parser) -> (used: int, capacity: int, overflow_count: int) {
 	if p == nil { return 0, 0, 0 }
 	return p.node_pool.offset, p.node_pool.capacity, p.node_pool.overflow_count
@@ -1228,12 +1205,10 @@ skip_token :: #force_inline proc(p: ^Parser) {
 	advance_token(p)
 }
 
-// Check if current token matches type - zero cost, just a field read
 is_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	return p.cur_type == t
 }
 
-// Check if next token matches type - reads from nxt (no indirection)
 is_next_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	if p.lexer != nil {
 		ensure_nxt(p)
@@ -1253,7 +1228,6 @@ is_next_identifier_value :: #force_inline proc(p: ^Parser, value: string) -> boo
 	return p.lexer.source[nxt.start:nxt.end] == value
 }
 
-// Consume current token if it matches
 match_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	if p.cur_type == t {
 		skip_token(p)
@@ -1262,7 +1236,6 @@ match_token :: #force_inline proc(p: ^Parser, t: TokenType) -> bool {
 	return false
 }
 
-// Consume current token (return value rarely used - prefer skip_token path)
 eat :: #force_inline proc(p: ^Parser) {
 	advance_token(p)
 }
@@ -9050,7 +9023,6 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 						// pattern. Only the implementation (the one with a
 						// body) contributes a real binding for ExportedNames.
 						if d.no_body && allow_ts_mode(p) {
-							// skip
 						} else if id, ok := d.id.(BindingIdentifier); ok {
 							bump_append(&decl_names, id.name)
 							bump_append(&decl_offs, id.loc.start)

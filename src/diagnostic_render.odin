@@ -92,7 +92,6 @@ render_pretty_diagnostics :: proc(
 	}
 }
 
-// render_one prints a single diagnostic block.
 @(private="file")
 render_one :: proc(
 	source:       string,

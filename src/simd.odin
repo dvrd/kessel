@@ -528,9 +528,7 @@ simd_find_module_pre_scan_candidate :: #force_inline proc(src: []u8, start: int)
 }
 
 // simd_has_multibyte returns true if source contains any byte >= 0x80.
-// Processes 16 bytes per iteration on ARM64 NEON; scalar fallback otherwise.
-// simd_has_multibyte uses Odin's cross-platform SIMD (SSE2 on x86-64,
-// NEON on ARM64) to scan 16 bytes per iteration.
+// 16 bytes per iteration with hardware SIMD; scalar fallback otherwise.
 simd_has_multibyte :: proc(source: []u8) -> bool {
 	high_bit: Vec16 = 0x80
 	off := 0

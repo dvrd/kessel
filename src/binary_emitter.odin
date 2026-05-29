@@ -284,14 +284,11 @@ bin_node_header :: proc(be: ^BinaryEmitter, type_id: BinNodeType, loc: Loc) {
 
 bin_emit_program :: proc(be: ^BinaryEmitter, program: ^Program) {
 	bin_node_header(be, .Program, program.loc)
-	// sourceType
 	bw_string_ref(be, program.type == .Module ? "module" : "script")
-	// body
 	bw_u32(be, u32(len(program.body)))
 	for stmt in program.body {
 		bin_emit_statement(be, stmt)
 	}
-	// directives
 	bw_u32(be, u32(len(program.directives)))
 	for d in program.directives {
 		bin_emit_directive(be, d)
@@ -368,7 +365,6 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bin_emit_statement(be, s.body)
 	case ^ForStatement:
 		bin_node_header(be, .ForStatement, s.loc)
-		// init (VariableDeclaration | Expression | null)
 		if d, ok := s.init_decl.?; ok && d != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_var_decl(be, d)
@@ -378,14 +374,12 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-		// test
 		if t, ok := s.test.?; ok && t != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, t)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-		// update
 		if u, ok := s.update.?; ok && u != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, u)
@@ -395,7 +389,6 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bin_emit_statement(be, s.body)
 	case ^ForInStatement:
 		bin_node_header(be, .ForInStatement, s.loc)
-		// left (VariableDeclaration | Expression)
 		if d, ok := s.left_decl.?; ok && d != nil {
 			bin_emit_var_decl(be, d)
 		} else if e, ok := s.left_expr.?; ok && e != nil {
@@ -408,7 +401,6 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 	case ^ForOfStatement:
 		bin_node_header(be, .ForOfStatement, s.loc)
 		bw_bool(be, s.await)
-		// left (VariableDeclaration | Expression)
 		if d, ok := s.left_decl.?; ok && d != nil {
 			bin_emit_var_decl(be, d)
 		} else if e, ok := s.left_expr.?; ok && e != nil {
@@ -723,12 +715,9 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	// ===================== JSX =====================
 	case ^JSXElement:
 		bin_node_header(be, .JSXElement, e.loc)
-		// opening element
 		bin_emit_jsx_opening(be, e.opening_element)
-		// children
 		bw_u32(be, u32(len(e.children)))
 		for child in e.children { bin_emit_jsx_child(be, child) }
-		// closing element (nullable)
 		if ce, ok := e.closing_element.?; ok && ce != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_node_header(be, .JSXClosingElement, ce.loc)
@@ -738,12 +727,9 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		}
 	case ^JSXFragment:
 		bin_node_header(be, .JSXFragment, e.loc)
-		// opening fragment
 		bin_node_header(be, .JSXOpeningFragment, e.opening_fragment.loc)
-		// children
 		bw_u32(be, u32(len(e.children)))
 		for child in e.children { bin_emit_jsx_child(be, child) }
-		// closing fragment
 		bin_node_header(be, .JSXClosingFragment, e.closing_fragment.loc)
 	case ^JSXText:
 		bin_node_header(be, .JSXText, e.loc)
@@ -877,7 +863,6 @@ bin_emit_jsx_opening :: proc(be: ^BinaryEmitter, oe: ^JSXOpeningElement) {
 	bin_node_header(be, .JSXOpeningElement, oe.loc)
 	bw_bool(be, oe.self_closing)
 	bin_emit_jsx_elem_name(be, oe.name)
-	// attributes
 	bw_u32(be, u32(len(oe.attributes)))
 	for attr in oe.attributes {
 		switch a in attr {
@@ -1104,7 +1089,6 @@ bin_emit_function_body :: proc(be: ^BinaryEmitter, body: FunctionBody) {
 @(private="file")
 bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^FunctionExpression) {
 	bin_node_header(be, type_id, fn.loc)
-	// id
 	if bid, ok := fn.id.(BindingIdentifier); ok {
 		bw_u8(be, u8(BinValType.StringRef))
 		bw_string_ref(be, bid.name)
@@ -1132,21 +1116,18 @@ bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
 @(private="file")
 bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 	bin_node_header(be, type_id, class.loc)
-	// id
 	if bid, ok := class.id.(BindingIdentifier); ok {
 		bw_u8(be, u8(BinValType.StringRef))
 		bw_string_ref(be, bid.name)
 	} else {
 		bw_u8(be, u8(BinValType.Null))
 	}
-	// superClass
 	if sc, ok := class.super_class.?; ok && sc != nil {
 		bw_u8(be, u8(BinValType.Node))
 		bin_emit_expression(be, sc)
 	} else {
 		bw_u8(be, u8(BinValType.NullNode))
 	}
-	// body (ClassBody)
 	bin_node_header(be, .ClassBody, class.body.loc)
 	bw_u32(be, u32(len(class.body.body)))
 	for elem in class.body.body {

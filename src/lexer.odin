@@ -93,10 +93,6 @@ init_fast_token_start_table :: proc "contextless" () {
     }
 }
 
-// ============================================================================
-// Lexer — optimized lexer with FastToken output and SIMD scanning
-// ============================================================================
-
 import "core:mem"
 
 Lexer :: struct {
@@ -408,12 +404,6 @@ init_single_char_table :: proc "contextless" () {
 	single_char_tokens['@'] = .At
 }
 
-// ============================================================================
-// Fast token production — wraps lex_token
-// ============================================================================
-
-// Re-lex the current cur token as a regex literal.
-// Called by the parser when it knows `/` should be regex.
 relex_as_regex :: proc(l: ^Lexer) {
 	if l.cur.kind != .Div && l.cur.kind != .AssignDiv { return }
 	// Trim any lexer errors that were emitted at or past the current token
@@ -502,13 +492,11 @@ try_split_open_angle :: proc(l: ^Lexer) -> bool {
 	}
 }
 
-// Get source text for a fast token
 token_source :: #force_inline proc(l: ^Lexer, ft: FastToken) -> string {
 	if ft.start >= ft.end { return "" }
 	return l.source[ft.start:ft.end]
 }
 
-// Check if current position can start a regex literal based on previous token
 can_start_regex :: proc(l: ^Lexer) -> bool {
 	#partial switch l.cur.kind {
 	case .EOF, .Semi, .Colon, .Comma, .LParen, .LBrace, .LBracket,
@@ -555,7 +543,6 @@ can_start_regex :: proc(l: ^Lexer) -> bool {
 	}
 }
 
-// SIMD-accelerated comment skipping
 skip_line_comment :: proc(l: ^Lexer) {
 	comment_start := u32(l.offset)
 	l.offset += 2
@@ -608,19 +595,8 @@ skip_block_comment :: proc(l: ^Lexer) {
 	l.offset = end
 }
 
-// ============================================================================
-// Lexer — main tokenization loop
-// Produces FastToken by-value. Literals stored in LiteralStore.
-// This is the hot path called by the parser's advance_token.
-// ============================================================================
-
 import "core:strconv"
 import "core:simd"
-
-
-// ============================================================================
-// Main entry point — replaces the old lex_token that wrapped lex_next_compact
-// ============================================================================
 
 // Inline hot path: handles ~70% of tokens (single-char + short ASCII
 // identifiers) without a function call. Called from advance_token.
@@ -678,12 +654,11 @@ lex_token_inline :: #force_inline proc(l: ^Lexer) {
 }
 
 lex_token :: proc(l: ^Lexer) -> FastToken {
-	// ---- Inline whitespace skip (register-local offset) ----
 	// NOTE: had_line_terminator is NOT reset here (OXC pattern).
 	// It was reset after flags capture in the previous call.
 	src := l.source_bytes
 	src_len := len(src)
-	off := l.offset  // local copy for register residency
+	off := l.offset
 
 	// OXC-style branchless double-read: skip one space with arithmetic,
 	// then check if we're at a token. Avoids branch for common single-space case.
@@ -924,10 +899,6 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	l.had_line_terminator = false  // reset AFTER capture, not at start (saves 1 write when no newline)
 	c := src[off]
 
-	// ---- Single-char token via lookup table ----
-	// `single_char_tokens` is sized [256] so the high half (non-ASCII lead
-	// bytes) is populated with .Invalid and falls through naturally. This
-	// drops the `if c < 128` guard that otherwise gates every token.
 	tt := single_char_tokens[c]
 	if tt != .Invalid {
 		// When inside template interpolation, track brace depth
@@ -947,14 +918,12 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 		return FastToken{start = start, end = u32(l.offset), kind = tt, flags = flags}
 	}
 
-	// ---- Identifier or keyword ----
 	if is_id_start_fast(c) {
 		return lex_identifier(l, start, flags)
 	}
 
-	// ---- Escaped identifier — \uXXXX or \u{H...H} at start.
 	// ECMA-262 §12.7.2: identifier with any unicode escape is ALWAYS an
-	// Identifier, never a reserved word. Cooked name published via last_lit_*.
+	// Identifier, never a reserved word.
 	if c == '\\' && off + 1 < src_len && src[off + 1] == 'u' {
 		return lex_identifier_escaped(l, start, flags)
 	}
@@ -962,7 +931,6 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	return lex_token_dispatch(l, c, start, flags)
 }
 
-// Core token dispatch — handles numbers, operators, strings, templates.
 // Separated from lex_token so that advance_token's inline hot path can
 // call it directly for cold tokens, skipping the redundant WS-skip +
 // single-char + identifier checks that the inline path already did.
@@ -1361,15 +1329,10 @@ lex_identifier_escaped :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = end, kind = .Identifier, flags = flags | FLAG_HAS_ESCAPE}
 }
 
-// ============================================================================
-// Number — scan digits, store literal in LiteralStore
-// ============================================================================
-
 lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	src := l.source_bytes
 	src_len := len(src)
 
-	// Handle hex, binary, octal prefixes
 	if src[l.offset] == '0' && l.offset + 1 < src_len {
 		next := src[l.offset + 1]
 		switch next {
@@ -1796,14 +1759,8 @@ lex_octal :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
 }
 
-// ============================================================================
-// String scanning — SIMD + scalar fallback
-// ============================================================================
-
 lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
-	l.offset += 1 // skip opening quote
-
-	// SIMD: find first quote or backslash (also detects newlines)
+	l.offset += 1
 	remaining := l.source_bytes[l.offset:]
 	pos, found_quote, simd_saw_nl := simd_find_string_end(remaining, quote)
 
@@ -1856,11 +1813,9 @@ lex_string :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastToken {
 		}
 	}
 
-	// Scalar fallback for strings with escapes
 	return lex_string_scalar(l, start, flags, quote)
 }
 
-// Helper: convert a codepoint to UTF-8 bytes and append to buffer
 append_utf8 :: #force_inline proc(cook_buf: ^[dynamic]u8, cp: u32) {
 	if cp < 0x80 {
 		append(cook_buf, u8(cp))
@@ -1879,7 +1834,6 @@ append_utf8 :: #force_inline proc(cook_buf: ^[dynamic]u8, cp: u32) {
 	}
 }
 
-// Helper: get the value of a hex digit, or -1 if not hex
 hex_val :: #force_inline proc(c: u8) -> i32 {
 	switch {
 	case c >= '0' && c <= '9': return i32(c - '0')
@@ -1947,12 +1901,9 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 
 		c := src[l.offset]
 
-		// Closing quote found
 		if c == quote {
-			l.offset += 1 // skip closing quote
+			l.offset += 1
 			end := u32(l.offset)
-
-			// Publish the cooked value
 			l.lit_offset[l.lit_write_idx] = start
 			l.lit_value[l.lit_write_idx] = LiteralValue(string(cook_buf[:]))
 			l.lit_type[l.lit_write_idx] = .String
@@ -1967,7 +1918,6 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			next := src[l.offset + 1]
 
 			switch next {
-			// Single-char escapes
 			case 'n':
 				bump_append(&cook_buf, u8(0x0A))
 				l.offset += 2
@@ -1990,9 +1940,8 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 				bump_append(&cook_buf, next)
 				l.offset += 2
 			case '0':
-				// \0 only if not followed by a digit
+				// \0 only if not followed by a digit (otherwise legacy octal).
 				if l.offset + 2 < src_len && src[l.offset + 2] >= '0' && src[l.offset + 2] <= '9' {
-					// Followed by digit; fallback to identity
 					bump_append(&cook_buf, next)
 					l.offset += 2
 				} else {
@@ -2119,7 +2068,6 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 					l.offset += 1
 				}
 			case:
-				// Any other char after backslash: identity fallback
 				bump_append(&cook_buf, next)
 				l.offset += 2
 			}
@@ -2150,20 +2098,15 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			bump_append(&cook_buf, src[l.offset + 2])
 			l.offset += 3
 		} else {
-			// Regular character
 			bump_append(&cook_buf, c)
 			l.offset += 1
 		}
 	}
 
-	// Unterminated string — do NOT publish cooked value
+	// Unterminated string: report the span but do NOT publish a cooked value.
 	end := u32(l.offset)
 	return FastToken{start = start, end = end, kind = .Invalid, flags = flags}
 }
-
-// ============================================================================
-// Operator handlers — each advances l.offset and returns FastToken directly
-// ============================================================================
 
 lex_plus :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
@@ -2317,11 +2260,9 @@ lex_pipe :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 lex_dot :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
-		// .5, .123 etc — number starting with dot
 		if next >= '0' && next <= '9' {
 			return lex_dot_number(l, start, flags)
 		}
-		// ... spread
 		if next == '.' && l.offset + 2 < len(l.source) && l.source_bytes[l.offset + 2] == '.' {
 			l.offset += 3
 			return FastToken{start = start, end = u32(l.offset), kind = .Dot3, flags = flags}
@@ -2448,7 +2389,6 @@ lex_question :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToke
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
 		if next == '.' {
-			// ?. is OptionalChain ONLY if not followed by a digit (otherwise it's ternary + .N number)
 			if l.offset + 2 >= len(l.source) || !(l.source_bytes[l.offset + 2] >= '0' && l.source_bytes[l.offset + 2] <= '9') {
 				l.offset += 2; return FastToken{start = start, end = u32(l.offset), kind = .OptionalChain, flags = flags}
 			}
@@ -2484,14 +2424,9 @@ lex_percent :: #force_inline proc(l: ^Lexer, start: u32, flags: u8) -> FastToken
 	return FastToken{start = start, end = u32(l.offset), kind = .Mod, flags = flags}
 }
 
-// ============================================================================
-// Slash — division, regex, or comment (comments handled in whitespace skip)
-// ============================================================================
-
 lex_slash :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	if l.offset + 1 < len(l.source) {
 		next := l.source_bytes[l.offset + 1]
-		// Comments should have been consumed in whitespace skip, but handle just in case
 		if next == '/' {
 			skip_line_comment(l)
 			return lex_token(l) // recurse for next token
@@ -2502,12 +2437,10 @@ lex_slash :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		}
 	}
 
-	// Context-aware: regex or division/assign-div
 	if can_start_regex(l) {
 		return lex_regex(l, start, flags)
 	}
 
-	// Division or /=
 	if l.offset + 1 < len(l.source) && l.source_bytes[l.offset + 1] == '=' {
 		l.offset += 2
 		return FastToken{start = start, end = u32(l.offset), kind = .AssignDiv, flags = flags}
@@ -2955,36 +2888,30 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			continue
 		}
 
-		// Interpolation: ${  → TemplateHead
 		if c == '$' && l.offset + 1 < src_len && src[l.offset + 1] == '{' {
 			l.template_stack[template_start_idx] = true
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
-			content_end := u32(l.offset) // position before ${
+			content_end := u32(l.offset)
 			l.offset += 2 // consume ${  
 			// Push template brace depth
 			if l.template_depth < len(l.template_brace_stack) {
 				l.template_brace_stack[l.template_depth] = 0
 				l.template_depth += 1
 			}
-			// Store literal offset matching the token start position (after the backtick)
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
-			// Token should span the template element content, not including the opening backtick or ${}
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateHead, flags = flags}
 		}
 
-		// Closing backtick → Template (no interpolation)
 		if c == '`' {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
-			content_end := u32(l.offset) // position before closing backtick
+			content_end := u32(l.offset)
 			l.offset += 1
 			if template_start_idx < len(l.template_stack) {
 				ordered_remove(&l.template_stack, template_start_idx)
 			}
-			// Store literal offset matching the token start position (after the backtick)
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
-			// Token should span the template element content, not including the delimiters
 			return FastToken{start = u32(content_start), end = content_end, kind = .Template, flags = flags}
 		}
 
@@ -2998,13 +2925,11 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		l.offset += 1
 	}
 
-	// Unterminated
 	return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 }
 
 lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
-	l.offset += 1 // skip }
-	// Pop the brace depth for the interpolation we're leaving
+	l.offset += 1
 	if l.template_depth > 0 {
 		l.template_depth -= 1
 	}
@@ -3036,33 +2961,25 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			continue
 		}
 
-		// Next interpolation: ${ → TemplateMiddle
 		if c == '$' && l.offset + 1 < src_len && src[l.offset + 1] == '{' {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
-			content_end := u32(l.offset) // position before ${
+			content_end := u32(l.offset)
 			l.offset += 2
-			// Push brace depth for new interpolation
 			if l.template_depth < len(l.template_brace_stack) {
 				l.template_brace_stack[l.template_depth] = 0
 				l.template_depth += 1
 			}
-			// Store literal offset matching the token start position (after the closing brace)
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
-			// Token should span the template element content, not including the closing brace or ${
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateMiddle, flags = flags}
 		}
 
-		// Closing backtick → TemplateTail
 		if c == '`' {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
-			content_end := u32(l.offset) // position before closing backtick
+			content_end := u32(l.offset)
 			l.offset += 1
-			// Template is done — depth already popped at start of resume
-			// Store literal offset matching the token start position (after the closing brace)
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
-			// Token should span the template element content, not including the closing brace or backtick
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateTail, flags = flags}
 		}
 

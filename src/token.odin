@@ -1,6 +1,5 @@
 package kessel
 
-// TokenType represents all JavaScript token types
 TokenType :: enum {
 	// Literals
 	Null,
@@ -160,7 +159,6 @@ TokenType :: enum {
 	Invalid,
 }
 
-// Token represents a lexical token
 Token :: struct {
 	type:     TokenType,
 	loc:      LexerLoc,
@@ -179,7 +177,6 @@ Token :: struct {
 	                  // the identifier arrived via escape.
 }
 
-// LiteralValue holds the parsed value of a literal token
 LiteralValue :: union {
 	bool,
 	f64,
@@ -205,7 +202,6 @@ LiteralValue :: union {
 // snapshot and every cross-function Token copy got 16 bytes lighter.
 LexerLoc :: distinct int
 
-// IsAssignmentOperator checks if token is an assignment operator
 is_assignment_operator :: proc(t: TokenType) -> bool {
 	#partial switch t {
 	case .Assign, .AssignAdd, .AssignSub, .AssignMul, .AssignDiv, .AssignMod,
@@ -217,7 +213,6 @@ is_assignment_operator :: proc(t: TokenType) -> bool {
 	return false
 }
 
-// GetTokenName returns the string name of a token type
 get_token_name :: proc(t: TokenType) -> string {
 	#partial switch t {
 	case .Null:             return "null"
@@ -333,11 +328,8 @@ get_token_name :: proc(t: TokenType) -> string {
 	}
 }
 
-// Keyword lookup table
-
 // ============================================================================
 // FAST TOKEN — 16 bytes by-value, like OXC's Token(u128)
-// 16 bytes by-value. Copied between lexer and parser.
 // ============================================================================
 
 

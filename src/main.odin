@@ -888,7 +888,6 @@ parse_lang_flag :: proc(value: string) -> (Lang, bool) {
 // resolution now lives in src/parse_job.odin parse_job_resolve, which
 // uses ParseConfig.lang_override.)
 
-// Extract filename without directory from a path
 filepath_base :: proc(path: string) -> string {
 	for i := len(path) - 1; i >= 0; i -= 1 {
 		if path[i] == '/' || path[i] == '\\' {
@@ -898,7 +897,6 @@ filepath_base :: proc(path: string) -> string {
 	return path
 }
 
-// Create directory and all parents (like mkdir -p)
 mkdir_p :: proc(path: string) {
 	for i in 0..<len(path) {
 		if path[i] == '/' && i > 0 {
@@ -914,7 +912,6 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: 
 		return
 	}
 
-	// Create output directory (recursive)
 	mkdir_p(out_dir)
 
 	// Pre-initialize thread-unsafe global tables before spawning workers.
@@ -1043,7 +1040,6 @@ microbench_lex :: proc(file_path: string, iterations: int) {
 	defer delete(microseconds)
 	for d in durations { append(&microseconds, f64(time.duration_microseconds(d))) }
 
-	// Sort for percentiles
 	for i in 0..<len(microseconds) {
 		for j in i+1..<len(microseconds) {
 			if microseconds[j] < microseconds[i] {
@@ -1081,7 +1077,6 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 	file_size := len(probe.data)
 	source_release(probe, context.allocator)
 
-	// Allocate array for timing measurements
 	durations := make([dynamic]time.Duration, context.allocator)
 	defer delete(durations)
 
@@ -1140,7 +1135,6 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 		append(&durations, elapsed)
 	}
 
-	// Convert durations to microseconds for analysis
 	microseconds := make([dynamic]f64, context.allocator)
 	defer delete(microseconds)
 
@@ -1148,7 +1142,6 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 		append(&microseconds, f64(time.duration_microseconds(d)))
 	}
 
-	// Calculate statistics
 	total_us := f64(0)
 	min_us := microseconds[0]
 	max_us := microseconds[0]
@@ -1165,7 +1158,6 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 
 	mean_us := total_us / f64(len(microseconds))
 
-	// Sort for percentiles
 	slice.sort(microseconds[:])
 
 	p50_us := percentile(microseconds[:], 50)
@@ -1174,7 +1166,6 @@ microbench_file :: proc(file_path: string, iterations: int, ast_only: bool, cli:
 
 	total_ms := total_us / 1000.0
 
-	// Output results
 	out_printf("Microbench: %s (%d bytes)\n", file_path, file_size)
 	out_printf("Iterations: %d\n", iterations)
 	out_printf("Total time:  %.2f ms\n", total_ms)
@@ -1318,7 +1309,6 @@ lex_file :: proc(file_path: string) {
 	defer source_release(src_buf, context.allocator)
 	source := src_buf.data
 
-	// Create virtual arena for allocations (lazy commit via virtual memory)
 	arena: mvirtual.Arena
 	err := mvirtual.arena_init_static(&arena, uint(max(len(source) * 256, 16 * 1024 * 1024)))
 	if err != nil {
@@ -1328,14 +1318,10 @@ lex_file :: proc(file_path: string) {
 	defer mvirtual.arena_destroy(&arena)
 	arena_alloc := mvirtual.arena_allocator(&arena)
 
-	// Initialize lexer
 	lex: Lexer
 	init_lexer(&lex, string(source), arena_alloc)
-
-	// Build line table for line/column reporting
 	build_line_table(&lex)
 
-	// Tokenize and print
 	out_println("[")
 
 	token_count := 0
@@ -1347,18 +1333,12 @@ lex_file :: proc(file_path: string) {
 			out_println(",")
 		}
 
-		// Get source text
 		value := token_source(&lex, ft)
-
-		// Get line/column
 		line, col := offset_to_line_col(lex.line_offsets, ft.start)
-
-		// Line terminator flag
 		has_lt := (ft.flags & FLAG_NEW_LINE) != 0
 
 		out_printf("  {{\"type\": \"%s\", \"value\": ", get_token_name(ft.kind))
 
-		// Escape string value for JSON
 		escaped := value
 		escaped, _ = strings.replace_all(escaped, "\\", "\\\\")
 		escaped, _ = strings.replace_all(escaped, "\"", "\\\"")
@@ -1450,8 +1430,6 @@ profile_parser_file :: proc(file_path: string, iterations: int) {
 		}
 	}
 
-	// Sort for percentiles
-	// Simple insertion sort for small arrays
 	for i in 1..<len(full_us) {
 		key := full_us[i]
 		j := i - 1
@@ -1578,7 +1556,6 @@ profile_lex_file :: proc(file_path: string, iterations: int) {
 		if i == 0 { token_count = tc }
 	}
 
-	// Sort
 	for i in 1..<len(durations) {
 		key := durations[i]
 		j := i - 1

@@ -62,15 +62,11 @@ STRING_ARENA_FLAG :: u32(0x8000_0000)
 @(thread_local) tl_source_end:  uintptr
 @(thread_local) tl_arena_base:  uintptr
 
-// Convert a native pointer to a u32 offset relative to base.
-// Returns 0 for nil pointers.
 ptr_to_offset :: #force_inline proc(base: uintptr, ptr: rawptr) -> u32 {
 	if ptr == nil { return 0 }
 	return u32(uintptr(ptr) - base)
 }
 
-// Rewrite all pointer fields in the AST to offsets relative to arena base.
-// After this call, the arena memory is a self-contained buffer.
 rewrite_ast_pointers :: proc(program: ^Program, base: uintptr, source: string) {
 	source_base := uintptr(raw_data(source))
 	tl_source_base = source_base
@@ -91,7 +87,6 @@ rewrite_ast_pointers :: proc(program: ^Program, base: uintptr, source: string) {
 // Per-node rewriters
 // ============================================================================
 
-// Helper: rewrite a raw pointer field in-place
 rewrite_ptr :: #force_inline proc(field: ^rawptr, base: uintptr) {
 	if field^ != nil {
 		offset := u32(uintptr(field^) - base)
@@ -130,7 +125,6 @@ rewrite_string :: #force_inline proc(field: ^string, source_base: uintptr) {
 	}
 }
 
-// Helper: rewrite a Maybe(string) — same layout as string, nil = empty
 rewrite_maybe_string :: #force_inline proc(field: ^Maybe(string), source_base: uintptr) {
 	if _, ok := field^.(string); ok {
 		str_field := (^string)(field)
@@ -163,7 +157,6 @@ rewrite_union_ptr :: #force_inline proc(field: rawptr, base: uintptr) {
 	}
 }
 
-// Helper: fully rewrite an Expression field — recurse + union ptr + field ptr
 rewrite_expr_field :: #force_inline proc(expr: ^Expression, field_addr: rawptr, base: uintptr, source_base: uintptr) {
 	if expr == nil { return }
 	rewrite_expression(expr, base, source_base)  // recurse into contents
@@ -171,7 +164,6 @@ rewrite_expr_field :: #force_inline proc(expr: ^Expression, field_addr: rawptr, 
 	rewrite_ptr((^rawptr)(field_addr), base)     // rewrite the field itself
 }
 
-// Helper: fully rewrite a Statement field — recurse + union ptr + field ptr  
 rewrite_stmt_field :: #force_inline proc(stmt: ^Statement, field_addr: rawptr, base: uintptr, source_base: uintptr) {
 	if stmt == nil { return }
 	rewrite_statement(stmt, base, source_base)
@@ -370,9 +362,7 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 	case ^BlockStatement:
 		rewrite_statement_array(&v.body, base, source_base)
 	case ^EmptyStatement:
-		// nothing
 	case ^DebuggerStatement:
-		// nothing
 	case ^ReturnStatement:
 		rewrite_maybe_expr(&v.argument, base, source_base)
 	case ^BreakStatement:
@@ -495,7 +485,6 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 	case ^TSModuleDeclaration:
 		rewrite_ts_module_declaration(v, base, source_base)
 	case:
-		// Unknown statement type
 	}
 }
 
@@ -530,7 +519,6 @@ rewrite_statement_array :: proc(arr: ^[dynamic]^Statement, base: uintptr, source
 // ============================================================================
 
 rewrite_program :: proc(p: ^Program, base: uintptr, source_base: uintptr) {
-	// Rewrite directives
 	dir_len := len(p.directives)
 	for i in 0..<dir_len {
 		rewrite_string(&p.directives[i].value.value, source_base)
@@ -539,7 +527,6 @@ rewrite_program :: proc(p: ^Program, base: uintptr, source_base: uintptr) {
 	}
 	rewrite_dynamic_header(rawptr(&p.directives), base, dir_len)
 
-	// Rewrite body
 	rewrite_statement_array(&p.body, base, source_base)
 }
 

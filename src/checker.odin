@@ -1534,7 +1534,6 @@ ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_d
 		for j in i+1..<len(body) {
 			s2 := body[j]
 			if s2 == nil { continue }
-			// Unwrap export.
 			#partial switch v2 in s2^ {
 			case ^ClassDeclaration:
 				if v2 == nil || v2.declare { continue }
@@ -1585,7 +1584,6 @@ ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 		if inner == nil { return false }
 		for stmt in inner.body {
 			if stmt == nil { continue }
-			// Unwrap export.
 			actual := stmt
 			if exp, ok := stmt^.(^ExportNamedDeclaration); ok && exp != nil {
 				if d, have_d := exp.declaration.(^Declaration); have_d && d != nil {
@@ -1594,7 +1592,6 @@ ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 					     ^ClassDeclaration, ^TSEnumDeclaration:
 						return true
 					case ^TSModuleDeclaration:
-						// Nested namespace — check recursively.
 						if inner_mod, is_mod := d^.(^TSModuleDeclaration); is_mod {
 							if ts_namespace_is_instantiated(inner_mod) { return true }
 						}
@@ -1613,7 +1610,6 @@ ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 			}
 		}
 	case ^TSModuleDeclaration:
-		// Nested module declaration (namespace A.B.C).
 		if inner == nil { return false }
 		return ts_namespace_is_instantiated(inner)
 	}
@@ -2133,13 +2129,11 @@ ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
 @(private="file")
 ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 	if c == nil || cls == nil { return }
-	// Collect instance field names.
 	field_names: map[string]bool
 	field_names.allocator = context.temp_allocator
 	defer delete(field_names)
 	for elem in cls.body.body {
 		if elem.static { continue }
-		// Skip constructors, getters, setters, static blocks.
 		#partial switch elem.kind {
 		case .Get, .Set, .Constructor, .StaticBlock:
 			continue
@@ -2156,17 +2150,14 @@ ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpr
 		}
 	}
 	if len(field_names) == 0 { return }
-	// Find the implementation constructor (has body).
 	for elem in cls.body.body {
 		if elem.kind != .Constructor { continue }
 		fn_expr, have := elem.value.(^Expression)
 		if !have || fn_expr == nil { continue }
 		func, is_fn := fn_expr^.(^FunctionExpression)
 		if !is_fn || func == nil || func.no_body { continue }
-		// Check each parameter for a property modifier.
 		for param in func.params {
 			if param.accessibility == .None && !param.readonly { continue }
-			// Extract the parameter name.
 			param_name: string
 			param_loc: u32
 			#partial switch p in param.pattern {
@@ -3115,7 +3106,6 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 		for param in idx.parameters {
 			ta, has_ta := param.type_annotation.(^TSTypeAnnotation)
 			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
-			// Check the type.
 			valid := false
 			#partial switch t in ta.type_annotation^ {
 			case ^TSStringKeyword:        valid = true
@@ -3208,7 +3198,6 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 		iface, ok := extract_iface(stmt)
 		if !ok { continue }
 		name := iface.id.name
-		// Collect type parameter names.
 		pcount := 0
 		pnames: [dynamic]string
 		pnames.allocator = context.temp_allocator
@@ -3226,7 +3215,6 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 					msg := fmt.tprintf("All declarations of '%s' must have identical type parameters.", name)
 					ck_report_coded(c, u32(iface.id.loc.start), .K4080_DuplicateImplementation, msg)
 				} else {
-					// Compare parameter names.
 					mismatch := false
 					for i in 0..<pcount {
 						if pnames[i] != prev.param_names[i] { mismatch = true; break }
@@ -3296,7 +3284,6 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 			if allow_empty { continue }
 		// Everything else is a statement — flag it.
 		case:
-			// Get offset from the statement.
 			off := u32(0)
 			#partial switch s in stmt^ {
 			case ^IfStatement:              if s != nil { off = u32(s.loc.start) }

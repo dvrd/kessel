@@ -567,7 +567,6 @@ emit_module_record :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 	emit_bool(e, p.has_module_syntax)
 	emit_raw(e, ",\n")
 
-	// Emit staticImports array
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"staticImports\": [\n")
 	for imp, i in p.staticImports {
@@ -656,7 +655,6 @@ emit_module_record :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 	emit_indent(e, indent + 1)
 	emit_raw(e, "],\n")
 
-	// Emit staticExports array
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"staticExports\": [\n")
 	for exp, i in p.staticExports {
@@ -750,7 +748,6 @@ emit_module_record :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 	emit_indent(e, indent + 1)
 	emit_raw(e, "],\n")
 
-	// Emit dynamicImports array
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"dynamicImports\": [\n")
 	for dyn, i in p.dynamicImports {
@@ -786,7 +783,6 @@ emit_module_record :: proc(e: ^Emitter, p: ^Parser, indent: int) {
 	emit_indent(e, indent + 1)
 	emit_raw(e, "],\n")
 
-	// Emit importMetas array
 	emit_indent(e, indent + 1)
 	emit_raw(e, "\"importMetas\": [\n")
 	for meta, i in p.importMetas {
@@ -5149,7 +5145,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
 		emit_raw(e, "\"bigint\": ")
-		// Convert to decimal representation
 		decimal_repr := bigint_to_decimal(n.raw)
 		emit_str(e, decimal_repr)
 		return
@@ -5587,7 +5582,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 			emit_indent(e, indent)
 			emit_raw(e, "]")
 		}
-		// TypeScript return type annotation.
 		if ann, ok := n.return_type.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
