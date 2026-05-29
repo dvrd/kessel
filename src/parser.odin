@@ -4833,16 +4833,7 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
 				// Check for parentheses via backward source scan.
 				arrow_start := int(arrow.loc.start)
-				paren_wrapped := false
-				if p.lexer != nil && arrow_start > 0 {
-					pi := arrow_start - 1
-					for pi >= 0 {
-						pch := p.lexer.source_bytes[pi]
-						if pch == '(' { paren_wrapped = true; break }
-						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-						break
-					}
-				}
+				paren_wrapped := is_paren_wrapped_at(p, arrow_start)
 				if !paren_wrapped {
 					report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Arrow function is not a valid class heritage expression")
 				}
@@ -11806,16 +11797,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// backwards from the span start, identical to the `**` and `??`
 		// checks above.
 		yield_start := int(loc_from_expr(left).start)
-		paren_wrapped := false
-		if p.lexer != nil && yield_start > 0 {
-			yi := yield_start - 1
-			for yi >= 0 {
-				ych := p.lexer.source_bytes[yi]
-				if ych == '(' { paren_wrapped = true; break }
-				if ych == ' ' || ych == '\t' || ych == '\n' || ych == '\r' { yi -= 1; continue }
-				break
-			}
-		}
+		paren_wrapped := is_paren_wrapped_at(p, yield_start)
 		if !paren_wrapped {
 			next_prec := precedence_for_token(p.cur_type)
 			// §12.6 ASI: when there's a LineTerminator between the
@@ -12027,40 +12009,30 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				lhs_loc := loc_from_expr(left)
 				lhs_start := lhs_loc.start
 				lhs_end   := lhs_loc.end
-				paren_wrapped := false
-				if p.lexer != nil && int(lhs_start) < len(p.lexer.source_bytes) {
-					// Without --preserve-parens the UnaryExpression's span
-					// is [unary_op, end) and the optional `(` lives one byte
-					// before. Walk backwards over insignificant whitespace
-					// (rare in practice) to detect the wrapper.
-					i := int(lhs_start) - 1
-					for i >= 0 {
-						ch := p.lexer.source_bytes[i]
-						if ch == '(' { paren_wrapped = true; break }
-						if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+				// Without --preserve-parens the UnaryExpression's span is
+				// [unary_op, end) and the optional `(` lives one byte before.
+				// Walk backwards over insignificant whitespace to detect it.
+				paren_wrapped := is_paren_wrapped_at(p, int(lhs_start))
+				// Found a '(' before the unary. Verify it closes
+				// *before* the '**' - i.e. the ')' sits between the
+				// UnaryExpression's end and the '**' token. If the ')'
+				// is missing (or after '**') the '(' wraps the whole
+				// binary expression, not just the unary operand:
+				//   (-5) ** 6   → ')' at 3, before '**' at 5 → wrapped
+				//   (-5 ** 6)   → ')' at 8, after  '**' at 4 → NOT
+				if paren_wrapped {
+					// Walk forward from lhs_end over whitespace looking
+					// for ')'. Must appear before the current token (the '**').
+					closing := false
+					j := int(lhs_end)
+					pow_off := int(cur_offset(p))
+					for j < pow_off {
+						ch := p.lexer.source_bytes[j]
+						if ch == ')' { closing = true; break }
+						if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
 						break
 					}
-					// Found a '(' before the unary. Verify it closes
-					// *before* the '**' - i.e. the ')' sits between the
-					// UnaryExpression's end and the '**' token. If the ')'
-					// is missing (or after '**') the '(' wraps the whole
-					// binary expression, not just the unary operand:
-					//   (-5) ** 6   → ')' at 3, before '**' at 5 → wrapped
-					//   (-5 ** 6)   → ')' at 8, after  '**' at 4 → NOT
-					if paren_wrapped {
-						// Walk forward from lhs_end over whitespace looking
-						// for ')'. Must appear before the current token (the '**').
-						closing := false
-						j := int(lhs_end)
-						pow_off := int(cur_offset(p))
-						for j < pow_off {
-							ch := p.lexer.source_bytes[j]
-							if ch == ')' { closing = true; break }
-							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
-							break
-						}
-						if !closing { paren_wrapped = false }
-					}
+					if !closing { paren_wrapped = false }
 				}
 				if !paren_wrapped {
 					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Unparenthesized unary expression cannot appear as the left operand of '**'")
@@ -12094,17 +12066,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		}
 
 		if _, is_arrow := right.(^ArrowFunctionExpression); is_arrow {
-			paren_wrapped := false
-			if p.lexer != nil {
-				start := int(loc_from_expr(right).start)
-				i := start - 1
-				for i >= 0 {
-					ch := p.lexer.source_bytes[i]
-					if ch == '(' { paren_wrapped = true; break }
-					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
-					break
-				}
-			}
+			paren_wrapped := is_paren_wrapped_at(p, int(loc_from_expr(right).start))
 			if !paren_wrapped {
 				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
 			}
@@ -12118,16 +12080,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// yield's span start, mirroring the `**` unary check above.
 		if _, is_yield := right.(^YieldExpression); is_yield && cur_type != .Comma {
 			yield_start := int(loc_from_expr(right).start)
-			paren_wrapped := false
-			if p.lexer != nil && yield_start > 0 {
-				i := yield_start - 1
-				for i >= 0 {
-					ch := p.lexer.source_bytes[i]
-					if ch == '(' { paren_wrapped = true; break }
-					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
-					break
-				}
-			}
+			paren_wrapped := is_paren_wrapped_at(p, yield_start)
 			if !paren_wrapped {
 				// Structural parse error: see the LHS-form rationale
 				// above. YieldExpression has assignment-expression
@@ -12145,34 +12098,14 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		if cur_type == .Nullish {
 			if le, ok := left.(^LogicalExpression); ok &&
 			   (le.operator == .And || le.operator == .Or) {
-				le_start := int(le.loc.start)
-				paren_ok := false
-				if p.lexer != nil && le_start > 0 {
-					pi := le_start - 1
-					for pi >= 0 {
-						pch := p.lexer.source_bytes[pi]
-						if pch == '(' { paren_ok = true; break }
-						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-						break
-					}
-				}
+				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
 				if !paren_ok {
 					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
 				}
 			}
 			if le, ok := right.(^LogicalExpression); ok &&
 			   (le.operator == .And || le.operator == .Or) {
-				le_start := int(le.loc.start)
-				paren_ok := false
-				if p.lexer != nil && le_start > 0 {
-					pi := le_start - 1
-					for pi >= 0 {
-						pch := p.lexer.source_bytes[pi]
-						if pch == '(' { paren_ok = true; break }
-						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-						break
-					}
-				}
+				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
 				if !paren_ok {
 					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
 				}
@@ -12180,17 +12113,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
 			if le, ok := left.(^LogicalExpression); ok &&
 			   le.operator == .NullishCoalescing {
-				le_start := int(le.loc.start)
-				paren_ok := false
-				if p.lexer != nil && le_start > 0 {
-					pi := le_start - 1
-					for pi >= 0 {
-						pch := p.lexer.source_bytes[pi]
-						if pch == '(' { paren_ok = true; break }
-						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-						break
-					}
-				}
+				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
 				if !paren_ok {
 					report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
 				}
@@ -12202,17 +12125,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			// expressions/coalesce/cannot-chain-head-with-logical-or.js.
 			if le, ok := right.(^LogicalExpression); ok &&
 			   le.operator == .NullishCoalescing {
-				le_start := int(le.loc.start)
-				paren_ok := false
-				if p.lexer != nil && le_start > 0 {
-					pi := le_start - 1
-					for pi >= 0 {
-						pch := p.lexer.source_bytes[pi]
-						if pch == '(' { paren_ok = true; break }
-						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-						break
-					}
-				}
+				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
 				if !paren_ok {
 					report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
 				}
@@ -12271,33 +12184,14 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		// legal; only the bare-yield form is rejected.)
 		if y, is_yield := argument.(^YieldExpression); is_yield {
 			yield_start := int(y.loc.start)
-			paren_wrapped := false
-			if p.lexer != nil && yield_start > 0 {
-				pi := yield_start - 1
-				for pi >= 0 {
-					pch := p.lexer.source_bytes[pi]
-					if pch == '(' { paren_wrapped = true; break }
-					if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-					break
-				}
-			}
+			paren_wrapped := is_paren_wrapped_at(p, yield_start)
 			if !paren_wrapped {
 				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
 					"'yield' expression cannot be the operand of a unary operator")
 			}
 		}
 		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
-			paren_wrapped := false
-			if p.lexer != nil {
-				start := int(loc_from_expr(argument).start)
-				i := start - 1
-				for i >= 0 {
-					ch := p.lexer.source_bytes[i]
-					if ch == '(' { paren_wrapped = true; break }
-					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
-					break
-				}
-			}
+			paren_wrapped := is_paren_wrapped_at(p, int(loc_from_expr(argument).start))
 			if !paren_wrapped {
 				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
 			}
@@ -14993,16 +14887,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		if sc, have := super_class.(^Expression); have && sc != nil {
 			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
 				arrow_start := int(arrow.loc.start)
-				paren_wrapped := false
-				if p.lexer != nil && arrow_start > 0 {
-					pi := arrow_start - 1
-					for pi >= 0 {
-						pch := p.lexer.source_bytes[pi]
-						if pch == '(' { paren_wrapped = true; break }
-						if pch == ' ' || pch == '\t' || pch == '\n' || pch == '\r' { pi -= 1; continue }
-						break
-					}
-				}
+				paren_wrapped := is_paren_wrapped_at(p, arrow_start)
 				if !paren_wrapped {
 					report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Arrow function is not a valid class heritage expression")
 				}
@@ -22018,6 +21903,25 @@ parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSM
 // Fast accessors - read directly from FastToken, no Token struct copy
 cur_offset :: #force_inline proc(p: ^Parser) -> u32 {
 	return p.lexer.cur.start
+}
+
+// is_paren_wrapped_at reports whether the source byte immediately before
+// `span_start` (skipping insignificant whitespace) is an opening paren `(`.
+// With --preserve-parens off, a parenthesised operand's AST span starts at the
+// inner expression rather than the `(`, so a backward source scan is the only
+// way to recover the paren context. Returns false when there is no lexer or
+// `span_start` is at (or before) the start of source.
+is_paren_wrapped_at :: proc(p: ^Parser, span_start: int) -> bool {
+	if p.lexer == nil { return false }
+	if span_start <= 0 { return false }
+	i := span_start - 1
+	for i >= 0 {
+		ch := p.lexer.source_bytes[i]
+		if ch == '(' { return true }
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+		break
+	}
+	return false
 }
 
 // prev_end_offset returns the end offset of the LAST consumed token. Use this
