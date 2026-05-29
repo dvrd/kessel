@@ -216,7 +216,13 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	// First rewrite the union pointer itself is not needed — the parent does that.
 	// We need to rewrite the INNER fields of whichever variant it holds.
 	
-	#partial switch v in expr {
+	// Complete switch (no #partial, no default): the Odin compiler now
+	// enforces that every variant of `Expression :: union { ... }` in
+	// src/ast.odin has an explicit case here. A new AST variant fails the
+	// build instead of silently leaving its pointers un-rewritten in the
+	// binary buffer — the dropped-variant bug class noted for ChainExpression
+	// and TSInstantiationExpression below.
+	switch v in expr {
 	case ^Identifier:
 		rewrite_identifier(v, base, source_base)
 	case ^PrivateIdentifier:
@@ -321,8 +327,7 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 		// no pointer fields beyond loc
 	case ^JSXSpreadChild:
 		rewrite_expr_field(v.expression, &v.expression, base, source_base)
-	// TS expression variants (S26 W2-alt). Same partial-switch position as
-	// the JS variants; reach into the TSType walker for type-annotation
+	// TS expression variants. Reach into the TSType walker for type-annotation
 	// slots. Without these, TS-bearing expressions in the binary buffer
 	// leave the wrapped expression and type pointers unrewritten.
 	case ^TSAsExpression:
@@ -336,16 +341,22 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 	case ^TSTypeAssertion:
 		rewrite_ts_type_field(v.type_annotation, &v.type_annotation, base, source_base)
 		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+	// TSInstantiationExpression (`foo<number>`). Wraps an inner ^Expression
+	// plus a ^TSTypeParameterInstantiation. It was the lone Expression union
+	// variant still missing from this switch, so its two pointers fell through
+	// to the default and stayed un-rewritten in the binary buffer — the same
+	// silently-dropped-variant bug class documented for ChainExpression above.
+	case ^TSInstantiationExpression:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+		if v.type_arguments != nil {
+			rewrite_ts_type_parameter_instantiation(v.type_arguments, base, source_base)
+			rewrite_ptr((^rawptr)(&v.type_arguments), base)
+		}
 	case ^ParenthesizedExpression:
 		// Pure ESTree wrapper — emitted only under --preserve-parens but
 		// the variant exists in the union and would otherwise be silently
 		// skipped here, leaving the inner expression's pointer unrewritten.
 		rewrite_expr_field(v.expression, &v.expression, base, source_base)
-	case:
-		// Unknown / not-yet-wired — skip. As of S26 W3 every Expression
-		// union variant has an explicit case above; this default exists
-		// only as a forward-compat catch-all for new variants added to
-		// src/ast.odin's `Expression :: union { ... }` declaration.
 	}
 }
 
