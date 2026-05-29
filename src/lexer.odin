@@ -67,6 +67,18 @@ is_id_cont_fast :: #force_inline proc(c: u8) -> bool {
     return class == u8(CharClass.IdStart) || class == u8(CharClass.Digit)
 }
 
+// is_ls_ps_at reports whether the three bytes starting at `offset` encode
+// U+2028 LINE SEPARATOR (E2 80 A8) or U+2029 PARAGRAPH SEPARATOR (E2 80 A9) —
+// the two non-ASCII LineTerminators (§12.3). Bounds are checked first so the
+// byte reads are always in range; matches the `offset + 2 < len` guard the
+// open-coded sites used.
+is_ls_ps_at :: #force_inline proc(bytes: []u8, offset: int) -> bool {
+    return offset + 2 < len(bytes) &&
+           bytes[offset] == 0xE2 &&
+           bytes[offset+1] == 0x80 &&
+           (bytes[offset+2] == 0xA8 || bytes[offset+2] == 0xA9)
+}
+
 // FAST_TOKEN_START_TABLE[c] is `true` when byte `c` is a guaranteed
 // fast-path token start — i.e. NOT one of:
 //
@@ -296,9 +308,7 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 			for l.offset < len(source) {
 				c := l.source_bytes[l.offset]
 				if c == '\n' || c == '\r' { break }
-				if c == 0xE2 && l.offset + 2 < len(source) &&
-				   l.source_bytes[l.offset+1] == 0x80 &&
-				   (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+				if is_ls_ps_at(l.source_bytes, l.offset) {
 					break
 				}
 				l.offset += 1
@@ -312,9 +322,7 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 					if l.offset < len(source) && l.source_bytes[l.offset] == '\n' { l.offset += 1 }
 				} else if c == '\n' {
 					l.offset += 1
-				} else if c == 0xE2 && l.offset + 2 < len(source) &&
-				          l.source_bytes[l.offset+1] == 0x80 &&
-				          (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+				} else if is_ls_ps_at(l.source_bytes, l.offset) {
 					l.offset += 3
 				}
 			}
@@ -334,9 +342,7 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 			if c == '\n' || c == '\r' { break }
 			// U+2028 (LINE SEPARATOR) and U+2029 (PARAGRAPH SEPARATOR) are
 			// spec line terminators and terminate the hashbang comment.
-			if c == 0xE2 && l.offset + 2 < len(source) &&
-			   l.source_bytes[l.offset+1] == 0x80 &&
-			   (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+			if is_ls_ps_at(l.source_bytes, l.offset) {
 				break
 			}
 			l.offset += 1
@@ -357,9 +363,7 @@ init_lexer :: proc(l: ^Lexer, source: string, alloc: mem.Allocator, source_type:
 				}
 			} else if c == '\n' {
 				l.offset += 1
-			} else if c == 0xE2 && l.offset + 2 < len(source) &&
-			          l.source_bytes[l.offset+1] == 0x80 &&
-			          (l.source_bytes[l.offset+2] == 0xA8 || l.source_bytes[l.offset+2] == 0xA9) {
+			} else if is_ls_ps_at(l.source_bytes, l.offset) {
 				l.offset += 3 // consume U+2028/U+2029
 			}
 		}
@@ -2085,9 +2089,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 			if c == '\r' && l.offset < src_len && src[l.offset] == '\n' {
 				l.offset += 1 // skip CR+LF pair
 			}
-		} else if c == 0xE2 && l.offset + 2 < src_len &&
-		          src[l.offset + 1] == 0x80 &&
-		          (src[l.offset + 2] == 0xA8 || src[l.offset + 2] == 0xA9) {
+		} else if is_ls_ps_at(src, int(l.offset)) {
 			// U+2028 LINE SEPARATOR (E2 80 A8) / U+2029 PARAGRAPH
 			// SEPARATOR (E2 80 A9) — also line terminators per §12.3.
 			// ES2019+ allows them in strings, so NO error here. Just
@@ -2536,8 +2538,7 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		// Treat the same as `\n` / `\r` — break the body scan, let the
 		// `unterminated` path below emit the diagnostic. Test262:
 		//   regexp-{first,source}-char-no-{line,paragraph}-separator.js.
-		if c == 0xE2 && l.offset + 2 < src_len && src[l.offset + 1] == 0x80 &&
-		   (src[l.offset + 2] == 0xA8 || src[l.offset + 2] == 0xA9) {
+		if is_ls_ps_at(src, int(l.offset)) {
 			break
 		}
 		l.offset += 1
