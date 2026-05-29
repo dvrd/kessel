@@ -222,28 +222,17 @@ bw_u16 :: #force_inline proc(be: ^BinaryEmitter, v: u16) {
 @(private="file")
 bw_u32 :: #force_inline proc(be: ^BinaryEmitter, v: u32) {
 	be_ensure(be, 4)
-	p := be.pos
-	be.buf[p]   = u8(v)
-	be.buf[p+1] = u8(v >> 8)
-	be.buf[p+2] = u8(v >> 16)
-	be.buf[p+3] = u8(v >> 24)
-	be.pos = p + 4
+	// Single unaligned little-endian store; u32le byte-swaps only on
+	// big-endian hosts so the wire format stays LE everywhere.
+	(^u32le)(&be.buf[be.pos])^ = u32le(v)
+	be.pos += 4
 }
 
 @(private="file")
 bw_f64 :: #force_inline proc(be: ^BinaryEmitter, v: f64) {
 	be_ensure(be, 8)
-	bits := transmute(u64)v
-	p := be.pos
-	be.buf[p]   = u8(bits)
-	be.buf[p+1] = u8(bits >> 8)
-	be.buf[p+2] = u8(bits >> 16)
-	be.buf[p+3] = u8(bits >> 24)
-	be.buf[p+4] = u8(bits >> 32)
-	be.buf[p+5] = u8(bits >> 40)
-	be.buf[p+6] = u8(bits >> 48)
-	be.buf[p+7] = u8(bits >> 56)
-	be.pos = p + 8
+	(^u64le)(&be.buf[be.pos])^ = u64le(transmute(u64)v)
+	be.pos += 8
 }
 
 @(private="file")
