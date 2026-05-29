@@ -228,11 +228,20 @@ emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
 emit_raw :: #force_inline proc(e: ^Emitter, s: string) {
 	emit_reserve(e, len(s))
 	if e.cfg.compact {
+		// Copy the runs between newlines in bulk; the common case (no
+		// '\n' in the fragment) collapses to a single mem.copy.
+		start := 0
 		for i in 0..<len(s) {
-			if s[i] != '\n' {
-				e.buf[e.pos] = s[i]
-				e.pos += 1
+			if s[i] != '\n' { continue }
+			if i > start {
+				mem.copy(&e.buf[e.pos], raw_data(s[start:i]), i - start)
+				e.pos += i - start
 			}
+			start = i + 1
+		}
+		if len(s) > start {
+			mem.copy(&e.buf[e.pos], raw_data(s[start:]), len(s) - start)
+			e.pos += len(s) - start
 		}
 		return
 	}
@@ -424,27 +433,39 @@ emit_println :: proc(e: ^Emitter, args: ..any) {
 }
 
 // Format string into e.buf. Used by the AST emitter for span fields,
-// numbers, line/col output. Routes through a strings.Builder because
-// fmt.bprintf's signature returns a string slice into a stack array
-// that we can't directly memcpy without a length-aware helper.
+// numbers, line/col output. All call sites format short integers plus a
+// fixed literal, or a single f64 (shortest round-trip form) — every
+// result fits comfortably in 64 bytes, so format into a stack buffer and
+// avoid the per-call strings.Builder heap allocation.
 emit_printf :: proc(e: ^Emitter, format: string, args: ..any) {
-	sb: strings.Builder
-	strings.builder_init(&sb)
-	defer strings.builder_destroy(&sb)
-	fmt.sbprintf(&sb, format, ..args)
-	emit_raw(e, strings.to_string(sb))
+	tmp: [64]u8
+	s := fmt.bprintf(tmp[:], format, ..args)
+	emit_raw(e, s)
 }
 
 // Indent N levels (skipped in compact mode). Two-space indent matches
-// the existing pretty-print format.
+// the existing pretty-print format. Copied from a static blank table in
+// one mem.copy per call rather than a two-byte-at-a-time loop.
 emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
 	if e.cfg.compact { return }
-	emit_reserve(e, depth * 2)
-	for _ in 0..<depth {
-		e.buf[e.pos]   = ' '
-		e.buf[e.pos+1] = ' '
-		e.pos += 2
+	n := depth * 2
+	emit_reserve(e, n)
+	for n > 0 {
+		chunk := min(n, len(EMIT_SPACES))
+		mem.copy(&e.buf[e.pos], &EMIT_SPACES[0], chunk)
+		e.pos += chunk
+		n -= chunk
 	}
+}
+
+// Static blank run for emit_indent bulk copies. 64 spaces covers depth
+// 32 in a single mem.copy; deeper nesting loops in 64-byte chunks.
+@(rodata)
+EMIT_SPACES := [64]u8{
+	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+	' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
 }
 
 // ============================================================================
@@ -988,16 +1009,14 @@ emit_string_literal_object :: proc(e: ^Emitter, s: StringLiteral, indent: int) {
 // on every single emitted node for start/end offsets - millions of calls on a
 // large file - so the allocation-free path is worth the ~40 lines.
 
-// emit_span_fields writes `,\n<indent>"start": N,\n<indent>"end": N` - a
-// LEADING comma (no trailing one), designed to slot between the `"type": "X"`
-// line and whatever the case emits next (which still starts with its own
-// `,\n<indent>"field": ...`). This is the one-call-per-node invariant that
-// closes the ESTree position-info drift uniformly.
+// emit_span_core writes the shared position body:
+//   "start": N,\n<indent>"end": N[,\n<indent>"range": [...]][,\n<indent>"loc": {...}]
+// with NO leading and NO trailing comma. emit_span_fields and
+// emit_span_leading wrap it with their respective comma placement.
 //
 // Accepts loc by value (16B) rather than by pointer so there's no risk of
-// accidental mutation. Hot path: inlined. Invariant: start <= end (asserted;
-// an inverted span is a parser bug and we'd rather crash than emit nonsense).
-emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+// accidental mutation. Hot path: inlined.
+emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	// Tolerate inverted spans (end < start) that can arise from deeply-nested
 	// JSX children or error-recovery paths - clamp `end := max(start, end)` so
 	// invalid input is still emitted as well-formed JSON instead of SIGTRAPping.
@@ -1007,8 +1026,6 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	if end < start { end = start }
 	start_u16 := to_utf16(e, start)
 	end_u16 := to_utf16(e, end)
-	emit_raw(e, ",\n")
-	emit_indent(e, indent)
 	emit_raw(e, "\"start\": ")
 	emit_u32(e, start_u16)
 	emit_raw(e, ",\n")
@@ -1056,64 +1073,24 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	}
 }
 
+// emit_span_fields writes `,\n<indent>"start": N,\n<indent>"end": N` - a
+// LEADING comma (no trailing one), designed to slot between the `"type": "X"`
+// line and whatever the case emits next (which still starts with its own
+// `,\n<indent>"field": ...`). This is the one-call-per-node invariant that
+// closes the ESTree position-info drift uniformly.
+emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_span_core(e, loc, indent)
+}
+
 // emit_span_leading writes `"start": N,\n<indent>"end": N,\n<indent>` - a
 // TRAILING comma, used when the caller has JUST printed `"type": "X",\n` +
 // emit_indent(e, indent). Convenient for inline emitters (SwitchCase, Property,
 // ImportSpecifier, CatchClause, Directive, etc.) that don't use `emit_span_fields`'s
 // leading-comma pattern.
 emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
-	// Tolerate inverted spans - see note on emit_span_fields.
-	start := loc.start
-	end := loc.end
-	if end < start { end = start }
-	start_u16 := to_utf16(e, start)
-	end_u16 := to_utf16(e, end)
-	emit_raw(e, "\"start\": ")
-	emit_u32(e, start_u16)
-	emit_raw(e, ",\n")
-	emit_indent(e, indent)
-	emit_raw(e, "\"end\": ")
-	emit_u32(e, end_u16)
-
-	if e.cfg.range {
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"range\": [")
-		emit_u32(e, start_u16)
-		emit_raw(e, ", ")
-		emit_u32(e, end_u16)
-		emit_raw(e, "]")
-	}
-
-	if e.cfg.loc {
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"loc\": { \"start\": { \"line\": ")
-
-		start_line, _ := offset_to_line_col(e.line_offsets, loc.start)
-		emit_u32(e, start_line)
-		emit_raw(e, ", \"column\": ")
-
-		line_start_byte := e.line_offsets[start_line - 1] if start_line > 0 && start_line - 1 < u32(len(e.line_offsets)) else 0
-		line_start_utf16 := to_utf16(e, line_start_byte)
-		start_utf16 := to_utf16(e, loc.start)
-		start_col_0indexed := start_utf16 - line_start_utf16
-		emit_u32(e, start_col_0indexed)
-
-		emit_raw(e, " }, \"end\": { \"line\": ")
-		end_line, _ := offset_to_line_col(e.line_offsets, loc.end)
-		emit_u32(e, end_line)
-		emit_raw(e, ", \"column\": ")
-
-		line_end_start_byte := e.line_offsets[end_line - 1] if end_line > 0 && end_line - 1 < u32(len(e.line_offsets)) else 0
-		line_end_start_utf16 := to_utf16(e, line_end_start_byte)
-		end_utf16 := to_utf16(e, loc.end)
-		end_col_0indexed := end_utf16 - line_end_start_utf16
-		emit_u32(e, end_col_0indexed)
-
-		emit_raw(e, " } }")
-	}
-
+	emit_span_core(e, loc, indent)
 	emit_raw(e, ",\n")
 	emit_indent(e, indent)
 }
