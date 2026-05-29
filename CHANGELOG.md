@@ -4,6 +4,18 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.12.0] - 2026-05-29
+
+### Fixed
+- fix(raw_transfer): rewrite TSInstantiationExpression pointers in binary buffer
+- fix(codegen,parser): four round-trip and FFI safety bugs
+
+### Performance
+- perf(regex): binary-search unicode property-name tables
+- perf(binary_emitter): single unaligned LE store in bw_u32/bw_f64
+- perf(emitter): bulk-copy raw/indent, stack-format printf, dedup span
+
+
 ## [0.11.0] - 2026-05-28
 
 ### Added
