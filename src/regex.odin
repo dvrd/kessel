@@ -1,6 +1,8 @@
 package kessel
 
+import "base:runtime"
 import "core:mem"
+import "core:slice"
 
 // ============================================================================
 // Regular expression pattern validator (ES2025 §22.2.1).
@@ -1486,14 +1488,28 @@ BINARY_UNICODE_PROPERTIES := [?]string{
 	"IDST",    // → IDS_Trinary_Operator
 }
 
+// The two large property-name tables (BINARY_UNICODE_PROPERTIES ~95
+// entries, GENERAL_CATEGORY_VALUES ~70) are sorted once at startup so
+// the per-`\p{}` membership checks can binary-search instead of
+// linear-scanning the whole list. The sort runs in place over the
+// package-level arrays (no allocation), and `slice.binary_search` uses
+// the same byte-lexicographic ordering as `slice.sort`, so the two stay
+// consistent. The smaller tables (NONBINARY ~6, PROPERTIES_OF_STRINGS
+// ~7) keep their linear scan — log-n search would not pay for itself.
+@(init)
+regex_sort_property_tables :: proc "contextless" () {
+	context = runtime.default_context()
+	slice.sort(BINARY_UNICODE_PROPERTIES[:])
+	slice.sort(GENERAL_CATEGORY_VALUES[:])
+}
+
 is_binary_unicode_property_name :: proc(name: string) -> bool {
-	// Length gate: properties are 2-28 chars. First-byte gate narrows further.
+	// Length gate: properties are 2-28 chars. Reject out-of-range
+	// lengths before paying for the log-n search.
 	l := len(name)
 	if l < 2 || l > 28 { return false }
-	for n in BINARY_UNICODE_PROPERTIES {
-		if len(n) == l && n == name { return true }
-	}
-	return false
+	_, found := slice.binary_search(BINARY_UNICODE_PROPERTIES[:], name)
+	return found
 }
 
 // §22.2.1.2 "NonbinaryUnicodeProperties" — the spec recognises
@@ -1551,10 +1567,8 @@ GENERAL_CATEGORY_VALUES := [?]string{
 is_general_category_value :: proc(name: string) -> bool {
 	l := len(name)
 	if l < 1 || l > 21 { return false }
-	for n in GENERAL_CATEGORY_VALUES {
-		if len(n) == l && n == name { return true }
-	}
-	return false
+	_, found := slice.binary_search(GENERAL_CATEGORY_VALUES[:], name)
+	return found
 }
 
 // §22.2.1.2 "BinaryPropertyOfStrings" — the v-flag-only set of
