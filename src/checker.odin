@@ -4362,11 +4362,9 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
 	// overload-signature exception)..
 	ck_check_class_constructors(c, ctx, cls)
-	// §15.7.1 — private getter/setter static-mismatch.
-	ck_check_class_private_static_mismatch(c, cls)
 	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
-	// set pair. Subsumes the static-mismatch helper for the get/set pair
-	// case but keeps it as the dedicated single-shape diagnostic.
+	// set pair. This walker also folds in the private getter/setter
+	// static-mismatch sub-rule for the lone get/set pair shape.
 	ck_check_class_private_duplicates(c, cls, ctx.lang == .TS || ctx.lang == .TSX)
 	// TS — method overload-chain check (TS2391 / TS2389). Only fires in
 	// TS / TSX. Suppressed when the enclosing class is `declare class`
@@ -6665,50 +6663,6 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is
 
 		msg := fmt.tprintf("Duplicate private name '#%s' in class body", name)
 		ck_report_coded(c, rec.last_dup_loc, .K3032_PrivateNameInvalid, msg)
-	}
-}
-
-// ck_check_class_private_static_mismatch — §15.7.1 — a private getter /
-// setter pair must have matching static-ness. `static get #f() {}`
-// paired with `set #f(v) {}` is a SyntaxError because the private slot
-// is shared across statics and instances and can't straddle.
-//
-// Walks `cls.body.body`, building a per-name accumulator of get/set
-// static flags as elements are seen, then fires once per mismatch. The
-// parser's shape is preserved verbatim — the check is purely AST-driven
-// (no parse-time state needed).
-@(private="file")
-ck_check_class_private_static_mismatch :: proc(c: ^Checker, cls: ^ClassExpression) {
-	if cls == nil { return }
-	PrivateGetSet :: struct { has_get, has_set, get_static, set_static: bool, set_loc: u32 }
-	seen: map[string]PrivateGetSet
-	seen.allocator = context.temp_allocator
-	defer delete(seen)
-	for elem in cls.body.body {
-		if elem.key == nil { continue }
-		pid, is_priv := elem.key^.(^PrivateIdentifier)
-		if !is_priv || pid == nil { continue }
-		name := pid.name
-		prev, _ := seen[name]
-		switch elem.kind {
-		case .Get:
-			if prev.has_set && prev.set_static != elem.static {
-				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report_coded(c, u32(elem.loc.start), .K3032_PrivateNameInvalid, msg)
-			}
-			prev.has_get = true
-			prev.get_static = elem.static
-		case .Set:
-			if prev.has_get && prev.get_static != elem.static {
-				msg := fmt.tprintf("Private getter and setter for '#%s' must both be static or both be non-static", name)
-				ck_report_coded(c, u32(elem.loc.start), .K3032_PrivateNameInvalid, msg)
-			}
-			prev.has_set = true
-			prev.set_static = elem.static
-		case .Method, .Constructor, .StaticBlock:
-			// Field/method/ctor/staticblock don't pair with get/set.
-		}
-		seen[name] = prev
 	}
 }
 
