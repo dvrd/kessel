@@ -212,6 +212,14 @@ CheckerContext :: struct {
 	extends_null: bool,
 }
 
+// ck_is_ts reports whether the checker is running over TypeScript source
+// (.ts or .tsx). The TS/TSX distinction is purely about JSX availability;
+// every TS-only semantic check applies to both. Centralises a test that
+// was repeated verbatim ~30 times across the checker.
+ck_is_ts :: #force_inline proc(ctx: ^CheckerContext) -> bool {
+	return ctx.lang == .TS || ctx.lang == .TSX
+}
+
 Checker :: struct {
 	errors:    [dynamic]ParseError,
 	allocator: mem.Allocator,
@@ -827,11 +835,11 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	case ^FunctionDeclaration:
 		if v != nil {
 			// TS1221 — generators in ambient context (declare function* or .d.ts).
-			if (ctx.lang == .TS || ctx.lang == .TSX) && v.generator && (v.declare || ctx.is_dts) {
+			if ck_is_ts(ctx) && v.generator && (v.declare || ctx.is_dts) {
 				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Generators are not allowed in an ambient context")
 			}
 			// TS1040 — async modifier in ambient context.
-			if (ctx.lang == .TS || ctx.lang == .TSX) && v.async && (v.declare || ctx.is_dts) {
+			if ck_is_ts(ctx) && v.async && (v.declare || ctx.is_dts) {
 				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "'async' modifier cannot be used in an ambient context")
 			}
 			ck_walk_function(c, ctx, &v.expr)
@@ -883,7 +891,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		// external module (top-level of a module file) or inside an ambient
 		// module declaration (`declare module "..." {}`). Anywhere else
 		// (script top-level, inside a namespace, etc.) is an error.
-		if (v.global || v.kind == .Global) && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if (v.global || v.kind == .Global) && ck_is_ts(ctx) {
 			global_ok := false
 			if ctx.is_dts {
 				// .d.ts files are ambient declaration files — `declare global`
@@ -909,7 +917,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		ck_walk_ts_module_decl(c, ctx, v)
 
 	case ^TSInterfaceDeclaration:
-		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if v != nil && ck_is_ts(ctx) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Interface name cannot be '%s'.", v.id.name)
 				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
@@ -927,7 +935,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		return
 
 	case ^TSTypeAliasDeclaration:
-		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if v != nil && ck_is_ts(ctx) {
 			// TS2457 — type alias name cannot be a predefined type name.
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Type alias name cannot be '%s'.", v.id.name)
@@ -943,7 +951,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		return
 
 	case ^TSEnumDeclaration:
-		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if v != nil && ck_is_ts(ctx) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
 				ck_report_coded(c, u32(v.id.loc.start), .K4054_EnumInvalid, msg)
@@ -962,7 +970,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSImportEqualsDeclaration:
 		// TS2438 — import alias name cannot be a predefined type name.
-		if v != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if v != nil && ck_is_ts(ctx) {
 			if is_ts_predefined_type_name(v.id.name) {
 				msg := fmt.tprintf("Import name cannot be '%s'.", v.id.name)
 				ck_report_coded(c, u32(v.id.loc.start), .K3020_ImportExportNameOrBinding, msg)
@@ -988,7 +996,7 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 	case ^VariableDeclaration: if inner != nil { ck_walk_var_decl(c, ctx, inner) }
 	case ^TSModuleDeclaration: if inner != nil { ck_walk_ts_module_decl(c, ctx, inner) }
 	case ^TSInterfaceDeclaration:
-		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if inner != nil && ck_is_ts(ctx) {
 			if is_ts_predefined_type_name(inner.id.name) {
 				msg := fmt.tprintf("Interface name cannot be '%s'.", inner.id.name)
 				ck_report_coded(c, u32(inner.id.loc.start), .K4051_TSDeclarationStructure, msg)
@@ -999,14 +1007,14 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 			}
 		}
 	case ^TSEnumDeclaration:
-		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if inner != nil && ck_is_ts(ctx) {
 			if is_ts_predefined_type_name(inner.id.name) {
 				msg := fmt.tprintf("Enum name cannot be '%s'.", inner.id.name)
 				ck_report_coded(c, u32(inner.id.loc.start), .K4054_EnumInvalid, msg)
 			}
 		}
 	case ^TSTypeAliasDeclaration:
-		if inner != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if inner != nil && ck_is_ts(ctx) {
 			if tp, has := inner.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
 			}
@@ -3757,7 +3765,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 			if fn, ok := prop.value^.(^FunctionExpression); ok && fn != nil {
 				ck_walk_function(c, ctx, fn, .Method, false)
 				// TS2408 — setters cannot return a value.
-				if prop.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+				if prop.kind == .Set && ck_is_ts(ctx) {
 					ck_check_setter_return_value(c, fn.body.body[:])
 				}
 				// TS2378 — getters must return a value.
@@ -3775,7 +3783,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		ck_check_unary_delete_private(c, e)
 		ck_check_unary_delete_local(c, ctx, e)
 		// TS2703 — delete operand must be a property reference.
-		if e.operator == .Delete && e.argument != nil && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if e.operator == .Delete && e.argument != nil && ck_is_ts(ctx) {
 			is_valid := false
 			inner := e.argument
 			for inner != nil {
@@ -3906,7 +3914,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		// (a nested class inside a method has its computed keys evaluated
 		// in the method's scope, so super IS valid there).
 		if e != nil && ctx.in_class_computed_key && !ctx.in_method &&
-		   (ctx.lang == .TS || ctx.lang == .TSX) {
+		   ck_is_ts(ctx) {
 			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'super' cannot be referenced in a computed property name")
 		}
 		// §13.3.7 — SuperProperty / SuperCall is only legal in a
@@ -3922,14 +3930,14 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^ThisExpression:
 		// TS2465 — 'this' cannot be referenced in a computed property name.
 		if e != nil && ctx.in_class_computed_key &&
-		   (ctx.lang == .TS || ctx.lang == .TSX) {
+		   ck_is_ts(ctx) {
 			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'this' cannot be referenced in a computed property name")
 		}
 		// TS2331 — 'this' at the direct body level of a namespace (not
 		// inside any function, arrow, method, or class body).
 		if e != nil && ctx.ts_namespace_depth > 0 &&
 		   ctx.function_depth == 0 && !ctx.in_arrow_body &&
-		   (ctx.lang == .TS || ctx.lang == .TSX) {
+		   ck_is_ts(ctx) {
 			ck_report_coded(c, u32(e.loc.start), .K3033_SuperInvalidContext, "'this' cannot be referenced in a module or namespace body")
 		}
 
@@ -4014,13 +4022,13 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	if fn == nil { return }
 	// TS — function generic type-parameter duplicate-name check.
 	// `function foo<X, X>() {}` is TS2300. Independent of strict-mode.
-	if ctx.lang == .TS || ctx.lang == .TSX {
+	if ck_is_ts(ctx) {
 		if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
 			ck_check_ts_type_param_dups(c, tp)
 		}
 	}
 	// TS1016 — a required parameter cannot follow an optional parameter.
-	if ctx.lang == .TS || ctx.lang == .TSX {
+	if ck_is_ts(ctx) {
 		ck_check_ts1016_required_after_optional(c, fn.params[:])
 	}
 	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
@@ -4133,7 +4141,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		for pr in fn.params { ck_check_strict_param_pattern(c, pr.pattern) }
 	}
 	// TS2371 — overload signatures may not have parameter initializers.
-	if fn.no_body && (ctx.lang == .TS || ctx.lang == .TSX) {
+	if fn.no_body && ck_is_ts(ctx) {
 		for pr in fn.params {
 			if _, has := pr.default_val.(^Expression); has {
 				msg := fmt.tprintf("A parameter initializer is only allowed in a function or constructor implementation.")
@@ -4144,7 +4152,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 	// TS2372 — parameter default value must not reference itself.
 	// TS2373 — parameter default value must not forward-reference a
 	// parameter declared after it in the same parameter list.
-	if ctx.lang == .TS || ctx.lang == .TSX {
+	if ck_is_ts(ctx) {
 		for pi in 0..<len(fn.params) {
 			pr := fn.params[pi]
 			if def, has := pr.default_val.(^Expression); has && def != nil {
@@ -4214,7 +4222,7 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		// §14.1.3 / Annex B.3.2. Static-block bodies and class-method
 		// bodies share the same scoping rule.
 		ck_run_scope_check(c, ctx, fn.body.body[:], false)
-		if kind == .Constructor && derived_ctor && (ctx.lang == .TS || ctx.lang == .TSX) && !ctx.extends_null {
+		if kind == .Constructor && derived_ctor && ck_is_ts(ctx) && !ctx.extends_null {
 			// TS17009 — `this` before `super()` in derived constructor.
 			ck_check_this_before_super(c, ctx, fn.body.body[:])
 			// TS2377 — derived constructors must contain a `super()` call.
@@ -4282,7 +4290,7 @@ ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
 	// TS2414 — class name cannot be a predefined type name.
-	if (ctx.lang == .TS || ctx.lang == .TSX) {
+	if ck_is_ts(ctx) {
 		if id, ok := cls.id.(BindingIdentifier); ok {
 			if is_ts_predefined_type_name(id.name) {
 				msg := fmt.tprintf("Class name cannot be '%s'.", id.name)
@@ -4365,13 +4373,13 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
 	// set pair. This walker also folds in the private getter/setter
 	// static-mismatch sub-rule for the lone get/set pair shape.
-	ck_check_class_private_duplicates(c, cls, ctx.lang == .TS || ctx.lang == .TSX)
+	ck_check_class_private_duplicates(c, cls, ck_is_ts(ctx))
 	// TS — method overload-chain check (TS2391 / TS2389). Only fires in
 	// TS / TSX. Suppressed when the enclosing class is `declare class`
 	// (ambient — signatures without bodies are valid in .d.ts shape) or
 	// when the source file itself is a .d.ts (every declaration is
 	// implicitly ambient).
-	if (ctx.lang == .TS || ctx.lang == .TSX) && !cls.declare && !ctx.is_dts {
+	if ck_is_ts(ctx) && !cls.declare && !ctx.is_dts {
 		// TS2391/TS2389 overload chain — migrated to parser.
 		ck_check_ts_class_member_dups(c, cls)
 		ck_check_ts_constructor_param_property_dups(c, cls)
@@ -4379,7 +4387,7 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 	// TS — class type-parameter duplicate-name check. Independent of the
 	// `declare class` / .d.ts gate above: `class C<X, X>` is rejected
 	// even in ambient context.
-	if ctx.lang == .TS || ctx.lang == .TSX {
+	if ck_is_ts(ctx) {
 		if tp, has := cls.type_parameters.(^TSTypeParameterDeclaration); has {
 			ck_check_ts_type_param_dups(c, tp)
 		}
@@ -4490,13 +4498,13 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 		case .Get, .Set, .Method:
 			ck_walk_function(c, ctx, fn, .Method, false)
 			// TS2408 — setters cannot return a value.
-			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if elem.kind == .Set && ck_is_ts(ctx) {
 				ck_check_setter_return_value(c, fn.body.body[:])
 			}
 			// TS2378 — getters must return a value.
 			// OXC does not enforce TS2378. Disabled for parity.
 			// TS2784 — get/set accessors cannot declare 'this' parameter.
-			if (elem.kind == .Get || elem.kind == .Set) && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if (elem.kind == .Get || elem.kind == .Set) && ck_is_ts(ctx) {
 				if len(fn.params) > 0 {
 					if id, ok := fn.params[0].pattern.(^Identifier); ok && id != nil && id.name == "this" {
 						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "'get' and 'set' accessors cannot declare 'this' parameters")
@@ -4504,7 +4512,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 				}
 			}
 			// TS1051 — set accessor cannot have optional parameter.
-			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if elem.kind == .Set && ck_is_ts(ctx) {
 				for param in fn.params {
 					if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
 						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have an optional parameter")
@@ -4512,7 +4520,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 				}
 			}
 			// TS1095 — set accessor cannot have a return type annotation.
-			if elem.kind == .Set && (ctx.lang == .TS || ctx.lang == .TSX) {
+			if elem.kind == .Set && ck_is_ts(ctx) {
 				if _, has_ret := fn.return_type.(^TSTypeAnnotation); has_ret {
 					ck_report_coded(c, u32(fn.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have a return type annotation")
 				}
@@ -4869,7 +4877,7 @@ ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 @(private="file")
 ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
-	ts_mode := ctx.lang == .TS || ctx.lang == .TSX
+	ts_mode := ck_is_ts(ctx)
 	constructor_seen := false
 	constructor_implementation_seen := false
 	for elem in cls.body.body {
@@ -5500,7 +5508,7 @@ ck_check_import_export_position :: proc(
 		// TS1319 — `export default` inside a namespace is invalid.
 		// Exception: inside `declare module "..."` (ambient module
 		// declarations) and .d.ts files, `export default` IS valid.
-		if is_default && !ctx.is_dts && !ctx.in_ambient_module_decl && (ctx.lang == .TS || ctx.lang == .TSX) {
+		if is_default && !ctx.is_dts && !ctx.in_ambient_module_decl && ck_is_ts(ctx) {
 			ck_report_coded(c, u32(loc.start), .K3021_ExportDefaultRestrictions, "A default export must be at the top level of a file or module declaration")
 		}
 		return
@@ -5722,7 +5730,7 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Program) {
 	if program == nil { return }
 	if program.type != .Module { return }
-	if !(ctx.lang == .TS || ctx.lang == .TSX) { return }
+	if !ck_is_ts(ctx) { return }
 	exported: map[string]u32
 	exported.allocator = context.temp_allocator
 	defer delete(exported)
@@ -6326,7 +6334,7 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 		// in strict mode when the catch parameter is a simple identifier.
 		// Only fire for destructuring patterns in TS, or always in JS
 		// strict mode per ECMA-262 §B.3.4.
-		is_ts := ctx.lang == .TS || ctx.lang == .TSX
+		is_ts := ck_is_ts(ctx)
 		if (!is_ts && ctx.strict_mode) || !is_simple_id {
 			if off, ok := scope_map_get(&body_vars, n); ok {
 				msg := fmt.tprintf("Catch parameter '%s' cannot be redeclared with 'var' in catch block", n)
@@ -6451,7 +6459,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 	// TS2404 — type annotation in for-in loop head is not allowed
 	// (checked before the for_in_init_ok gate so it fires regardless
 	// of Annex B sloppy-mode carve-out).
-	if is_in && (ctx.lang == .TS || ctx.lang == .TSX) {
+	if is_in && ck_is_ts(ctx) {
 		for d in decl.declarations {
 			has_ann := false
 			#partial switch pat in d.id {
@@ -6471,7 +6479,7 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 	if for_in_init_ok { return }
 	// TS2491 — destructuring patterns in for-in LHS are not allowed
 	// in TS. `for (var [a, b] in []) {}` is a SyntaxError.
-	if is_in && (ctx.lang == .TS || ctx.lang == .TSX) {
+	if is_in && ck_is_ts(ctx) {
 		for d in decl.declarations {
 			is_destructuring := false
 			#partial switch _ in d.id {
