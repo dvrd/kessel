@@ -128,22 +128,40 @@ CheckerLabel :: struct {
 // `in_generator`: are we inside a generator function body? Same
 //   propagation rules as in_async (arrows reset to false; arrows can't
 //   be generators). Read by class-name / arrow-param identifier checks.
+// CheckerScope groups the function/lexical-scope flags that ck_enter_function
+// snapshots on entry to a function or arrow body and ck_exit_function restores
+// on exit. Bundling them into one embedded sub-struct collapses save/restore to
+// a single struct copy (`saved := ctx.scope` / `ctx.scope = saved`) and removes
+// the triple-maintenance hazard of keeping a separate save struct, an entry
+// copy, and an exit copy field-aligned by hand — a documented source of
+// "silently un-restored flag" bugs.
+CheckerScope :: struct {
+	iter_depth:             int,
+	switch_depth:           int,
+	label_floor:            int,
+	strict_mode:            bool,
+	in_method:              bool,
+	in_derived_constructor: bool,
+	in_field_init:          bool,
+	in_class_static_block:  bool,
+	in_class_computed_key:  bool,  // TS2465: this/super invalid in computed keys
+	in_params:              bool,
+	params_is_arrow:        bool,
+	in_async:               bool,
+	in_generator:           bool,
+	// class_body_depth — number of enclosing class bodies. When > 0,
+	// `new.target` is valid (returns undefined in field initializers,
+	// constructor reference in constructors). Arrow functions and
+	// static blocks inherit this depth; regular functions reset it.
+	class_body_depth:       int,
+}
+
 CheckerContext :: struct {
-	iter_depth:            int,
-	switch_depth:          int,
+	using scope:           CheckerScope,
 	labels:                [dynamic]CheckerLabel,
-	label_floor:           int,
 	lang:                  Lang,
-	strict_mode:           bool,
 	in_tagged_template:    bool,
 	function_depth:        int,
-	in_method:             bool,
-	in_derived_constructor: bool,
-	in_field_init:         bool,
-	in_class_static_block: bool,
-	in_class_computed_key: bool,  // TS2465: this/super invalid in computed keys
-	in_params:             bool,
-	params_is_arrow:       bool,
 	source_type:           SourceType,
 	at_top_level:          bool,
 	// ts_namespace_depth — number of enclosing TS namespace / module
@@ -153,19 +171,12 @@ CheckerContext :: struct {
 	// program top level). Pushed by ck_walk_ts_module_decl on body
 	// entry, popped on exit.
 	ts_namespace_depth:    int,
-	// class_body_depth — number of enclosing class bodies. When > 0,
-	// `new.target` is valid (returns undefined in field initializers,
-	// constructor reference in constructors). Arrow functions and
-	// static blocks inherit this depth; regular functions reset it.
-	class_body_depth:      int,
 	// block_nest_depth — number of enclosing block / loop / conditional
 	// bodies. Used to reject type aliases / interfaces / enums appearing
 	// inside control-flow statements. NOT incremented for function
 	// bodies (handled separately via function_depth) or namespace
 	// bodies (handled via ts_namespace_depth).
 	block_nest_depth:      int,
-	in_async:              bool,
-	in_generator:          bool,
 	// scope_skip — set true while walking the immediate body of an
 	// uncovered expression context (ArrayExpression elements,
 	// ObjectExpression property values / computed keys, the right
@@ -477,41 +488,15 @@ label_in_scope :: proc(ctx: ^CheckerContext, name: string) -> (CheckerLabel, boo
 // directive). The save/restore pattern naturally implements both rules.
 @(private="file")
 CheckerScopeSave :: struct {
-	iter_depth:            int,
-	switch_depth:          int,
-	label_floor:           int,
-	label_len:             int,
-	strict_mode:           bool,
-	in_method:             bool,
-	in_derived_constructor: bool,
-	in_field_init:         bool,
-	in_class_static_block: bool,
-	in_class_computed_key: bool,
-	in_async:              bool,
-	in_generator:          bool,
-	class_body_depth:      int,
-	in_params:             bool,
-	params_is_arrow:       bool,
+	scope:     CheckerScope,
+	label_len: int,
 }
 
 @(private="file")
 ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 	saved := CheckerScopeSave{
-		iter_depth             = ctx.iter_depth,
-		switch_depth           = ctx.switch_depth,
-		label_floor            = ctx.label_floor,
-		label_len              = len(ctx.labels),
-		strict_mode            = ctx.strict_mode,
-		in_method              = ctx.in_method,
-		in_derived_constructor = ctx.in_derived_constructor,
-		in_field_init          = ctx.in_field_init,
-		in_class_static_block  = ctx.in_class_static_block,
-		in_class_computed_key  = ctx.in_class_computed_key,
-		in_async               = ctx.in_async,
-		in_generator           = ctx.in_generator,
-		class_body_depth       = ctx.class_body_depth,
-		in_params              = ctx.in_params,
-		params_is_arrow        = ctx.params_is_arrow,
+		scope     = ctx.scope,
+		label_len = len(ctx.labels),
 	}
 	ctx.iter_depth   = 0
 	ctx.switch_depth = 0
@@ -521,20 +506,7 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 
 @(private="file")
 ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
-	ctx.iter_depth             = saved.iter_depth
-	ctx.switch_depth           = saved.switch_depth
-	ctx.label_floor            = saved.label_floor
-	ctx.strict_mode            = saved.strict_mode
-	ctx.in_method              = saved.in_method
-	ctx.in_derived_constructor = saved.in_derived_constructor
-	ctx.in_field_init          = saved.in_field_init
-	ctx.in_class_static_block  = saved.in_class_static_block
-	ctx.in_class_computed_key  = saved.in_class_computed_key
-	ctx.in_async               = saved.in_async
-	ctx.in_generator           = saved.in_generator
-	ctx.class_body_depth       = saved.class_body_depth
-	ctx.in_params              = saved.in_params
-	ctx.params_is_arrow        = saved.params_is_arrow
+	ctx.scope = saved.scope
 	// Truncate any labels pushed inside the function body that weren't
 	// popped (defensive — the LabeledStatement walker pops on exit, so
 	// this should already be a no-op).
