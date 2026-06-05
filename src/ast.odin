@@ -233,21 +233,68 @@ TSTypeParameterInstantiation :: struct {
 	params: [dynamic]^TSType,
 }
 
-// Keyword types
-TSAnyKeyword :: struct { loc: Loc }
-TSBigIntKeyword :: struct { loc: Loc }
-TSBooleanKeyword :: struct { loc: Loc }
-TSIntrinsicKeyword :: struct { loc: Loc }
-TSNeverKeyword :: struct { loc: Loc }
-TSNullKeyword :: struct { loc: Loc }
-TSNumberKeyword :: struct { loc: Loc }
-TSObjectKeyword :: struct { loc: Loc }
-TSStringKeyword :: struct { loc: Loc }
-TSSymbolKeyword :: struct { loc: Loc }
-TSUndefinedKeyword :: struct { loc: Loc }
-TSUnknownKeyword :: struct { loc: Loc }
-TSVoidKeyword :: struct { loc: Loc }
-TSThisType :: struct { loc: Loc }
+// Keyword types. The 13 TS keyword types plus `this` share an identical
+// shape (just a Loc), so they collapse into one TSKeywordType node tagged
+// by kind. This shrinks the TSType union from 36 to 23 variants and keeps
+// the four AST walkers' keyword handling to a single switch arm each.
+TSKeywordKind :: enum u8 {
+	Any,
+	BigInt,
+	Boolean,
+	Intrinsic,
+	Never,
+	Null,
+	Number,
+	Object,
+	String,
+	Symbol,
+	Undefined,
+	Unknown,
+	Void,
+	This,
+}
+
+TSKeywordType :: struct {
+	loc:  Loc,
+	kind: TSKeywordKind,
+}
+
+// ESTree node `type` string per keyword kind. `this` is TSThisType in
+// TS-ESTree; the rest follow the `TS<Name>Keyword` pattern.
+TS_KEYWORD_ESTREE_TYPE := [TSKeywordKind]string{
+	.Any       = "TSAnyKeyword",
+	.BigInt    = "TSBigIntKeyword",
+	.Boolean   = "TSBooleanKeyword",
+	.Intrinsic = "TSIntrinsicKeyword",
+	.Never     = "TSNeverKeyword",
+	.Null      = "TSNullKeyword",
+	.Number    = "TSNumberKeyword",
+	.Object    = "TSObjectKeyword",
+	.String    = "TSStringKeyword",
+	.Symbol    = "TSSymbolKeyword",
+	.Undefined = "TSUndefinedKeyword",
+	.Unknown   = "TSUnknownKeyword",
+	.Void      = "TSVoidKeyword",
+	.This      = "TSThisType",
+}
+
+// Source keyword spelling per kind, for the JS/TS source printer (codegen).
+TS_KEYWORD_SOURCE := [TSKeywordKind]string{
+	.Any       = "any",
+	.BigInt    = "bigint",
+	.Boolean   = "boolean",
+	.Intrinsic = "intrinsic",
+	.Never     = "never",
+	.Null      = "null",
+	.Number    = "number",
+	.Object    = "object",
+	.String    = "string",
+	.Symbol    = "symbol",
+	.Undefined = "undefined",
+	.Unknown   = "unknown",
+	.Void      = "void",
+	.This      = "this",
+}
 
 // Type reference: `Foo`, `Array<T>`
 TSTypeReference :: struct {
@@ -620,21 +667,8 @@ TSSignature :: union {
 }
 
 TSType :: union {
-	// Keywords
-	^TSAnyKeyword,
-	^TSBigIntKeyword,
-	^TSBooleanKeyword,
-	^TSIntrinsicKeyword,
-	^TSNeverKeyword,
-	^TSNullKeyword,
-	^TSNumberKeyword,
-	^TSObjectKeyword,
-	^TSStringKeyword,
-	^TSSymbolKeyword,
-	^TSUndefinedKeyword,
-	^TSUnknownKeyword,
-	^TSVoidKeyword,
-	^TSThisType,
+	// Keywords (any/bigint/boolean/.../void plus `this`), tagged by kind.
+	^TSKeywordType,
 	// Compound
 	^TSTypeReference,
 	^TSUnionType,

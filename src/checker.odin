@@ -3116,9 +3116,10 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
 			valid := false
 			#partial switch t in ta.type_annotation^ {
-			case ^TSStringKeyword:        valid = true
-			case ^TSNumberKeyword:        valid = true
-			case ^TSSymbolKeyword:        valid = true
+			case ^TSKeywordType:
+				#partial switch t.kind {
+				case .String, .Number, .Symbol: valid = true
+				}
 			case ^TSTemplateLiteralType:  valid = true
 			case:
 				// Also allow union types where every member is valid.
@@ -3148,21 +3149,24 @@ ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
 			ta, has_ta := param.type_annotation.(^TSTypeAnnotation)
 			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
 			#partial switch t in ta.type_annotation^ {
-			case ^TSStringKeyword:
-				if seen_string {
-					ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'string'")
+			case ^TSKeywordType:
+				#partial switch t.kind {
+				case .String:
+					if seen_string {
+						ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'string'")
+					}
+					seen_string = true
+				case .Number:
+					if seen_number {
+						ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'number'")
+					}
+					seen_number = true
+				case .Symbol:
+					if seen_symbol {
+						ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'symbol'")
+					}
+					seen_symbol = true
 				}
-				seen_string = true
-			case ^TSNumberKeyword:
-				if seen_number {
-					ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'number'")
-				}
-				seen_number = true
-			case ^TSSymbolKeyword:
-				if seen_symbol {
-					ck_report_coded(c, u32(idx.loc.start), .K4055_IndexSignatureForm, "Duplicate index signature for type 'symbol'")
-				}
-				seen_symbol = true
 			}
 		}
 	}

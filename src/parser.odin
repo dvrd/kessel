@@ -18503,9 +18503,9 @@ report_unparenthesized_function_type :: proc(p: ^Parser, t: ^TSType) {
 	}
 }
 
-parse_ts_kw :: proc(p: ^Parser, $T: typeid, start: Loc) -> ^TSType {
+parse_ts_kw :: proc(p: ^Parser, kind: TSKeywordKind, start: Loc) -> ^TSType {
 	eat(p)
-	node := new_node(p, T); node.loc = start; node.loc.end = prev_end_offset(p)
+	node := new_node(p, TSKeywordType); node.loc = start; node.loc.end = prev_end_offset(p); node.kind = kind
 	result := new_node(p, TSType); result^ = node
 	return parse_ts_postfix(p, result, start)
 }
@@ -18868,10 +18868,10 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// Same chain as the LBrace branch above - `[T, U][]` (array of tuples)
 		// and `[T, U][N]` (indexed access into a tuple) need parse_ts_postfix.
 		return parse_ts_postfix(p, r, start)
-	case .Void:   return parse_ts_kw(p, TSVoidKeyword, start)
-	case .Null:   return parse_ts_kw(p, TSNullKeyword, start)
-	case .This:   return parse_ts_kw(p, TSThisType, start)
-	case .Never:  return parse_ts_kw(p, TSNeverKeyword, start)
+	case .Void:   return parse_ts_kw(p, .Void, start)
+	case .Null:   return parse_ts_kw(p, .Null, start)
+	case .This:   return parse_ts_kw(p, .This, start)
+	case .Never:  return parse_ts_kw(p, .Never, start)
 	case .Const:
 		// TS const assertion target: `expr as const`. `const` is a JS
 		// reserved keyword (lexed as .Const), not a real type, but TS-ESTree
@@ -19337,21 +19337,21 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 		return parse_ts_type_reference(p)
 	}
 	switch value {
-	case "any":       return parse_ts_kw(p, TSAnyKeyword, start)
-	case "number":    return parse_ts_kw(p, TSNumberKeyword, start)
-	case "string":    return parse_ts_kw(p, TSStringKeyword, start)
-	case "boolean":   return parse_ts_kw(p, TSBooleanKeyword, start)
-	case "bigint":    return parse_ts_kw(p, TSBigIntKeyword, start)
-	case "symbol":    return parse_ts_kw(p, TSSymbolKeyword, start)
-	case "object":    return parse_ts_kw(p, TSObjectKeyword, start)
-	case "unknown":   return parse_ts_kw(p, TSUnknownKeyword, start)
-	case "undefined": return parse_ts_kw(p, TSUndefinedKeyword, start)
-	case "never":     return parse_ts_kw(p, TSNeverKeyword, start)
+	case "any":       return parse_ts_kw(p, .Any, start)
+	case "number":    return parse_ts_kw(p, .Number, start)
+	case "string":    return parse_ts_kw(p, .String, start)
+	case "boolean":   return parse_ts_kw(p, .Boolean, start)
+	case "bigint":    return parse_ts_kw(p, .BigInt, start)
+	case "symbol":    return parse_ts_kw(p, .Symbol, start)
+	case "object":    return parse_ts_kw(p, .Object, start)
+	case "unknown":   return parse_ts_kw(p, .Unknown, start)
+	case "undefined": return parse_ts_kw(p, .Undefined, start)
+	case "never":     return parse_ts_kw(p, .Never, start)
 	case "intrinsic":
 		// `intrinsic` is a TS keyword type. Parse it, then check for
 		// disallowed postfix operators. `intrinsic["foo"]` is not valid.
 		eat(p)
-		node := new_node(p, TSIntrinsicKeyword); node.loc = start
+		node := new_node(p, TSKeywordType); node.loc = start; node.kind = .Intrinsic
 		node.loc.end = prev_end_offset(p)
 		result := new_node(p, TSType); result^ = node
 		// Reject indexed access on intrinsic keyword.
@@ -21152,16 +21152,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	if t == nil { return nil }
 	#partial switch v in t^ {
-	case ^TSAnyKeyword: return &v.loc
-	case ^TSNumberKeyword: return &v.loc
-	case ^TSStringKeyword: return &v.loc
-	case ^TSBooleanKeyword: return &v.loc
-	case ^TSVoidKeyword: return &v.loc
-	case ^TSNullKeyword: return &v.loc
-	case ^TSNeverKeyword: return &v.loc
-	case ^TSUnknownKeyword: return &v.loc
-	case ^TSUndefinedKeyword: return &v.loc
-	case ^TSObjectKeyword: return &v.loc
+	case ^TSKeywordType: return &v.loc
 	case ^TSTypeReference: return &v.loc
 	case ^TSUnionType: return &v.loc
 	case ^TSIntersectionType: return &v.loc

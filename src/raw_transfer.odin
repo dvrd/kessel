@@ -827,10 +827,7 @@ rewrite_ts_type :: proc(t: ^TSType, base: uintptr, source_base: uintptr) {
 	if t == nil { return }
 	#partial switch v in t {
 	// Keywords — no pointer fields beyond loc
-	case ^TSAnyKeyword, ^TSBigIntKeyword, ^TSBooleanKeyword, ^TSIntrinsicKeyword,
-	     ^TSNeverKeyword, ^TSNullKeyword, ^TSNumberKeyword, ^TSObjectKeyword,
-	     ^TSStringKeyword, ^TSSymbolKeyword, ^TSUndefinedKeyword, ^TSUnknownKeyword,
-	     ^TSVoidKeyword, ^TSThisType:
+	case ^TSKeywordType:
 		// nothing to walk
 	case ^TSTypeReference:
 		rewrite_expr_field(v.type_name, &v.type_name, base, source_base)

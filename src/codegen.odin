@@ -1439,20 +1439,7 @@ decl_to_stmt :: proc(d: Declaration) -> Statement {
 gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 	if ty == nil { cg_str(cg, "any"); return }
 	switch v in ty^ {
-	case ^TSAnyKeyword:       cg_str(cg, "any")
-	case ^TSBigIntKeyword:    cg_str(cg, "bigint")
-	case ^TSBooleanKeyword:   cg_str(cg, "boolean")
-	case ^TSIntrinsicKeyword: cg_str(cg, "intrinsic")
-	case ^TSNeverKeyword:     cg_str(cg, "never")
-	case ^TSNullKeyword:      cg_str(cg, "null")
-	case ^TSNumberKeyword:    cg_str(cg, "number")
-	case ^TSObjectKeyword:    cg_str(cg, "object")
-	case ^TSStringKeyword:    cg_str(cg, "string")
-	case ^TSSymbolKeyword:    cg_str(cg, "symbol")
-	case ^TSUndefinedKeyword: cg_str(cg, "undefined")
-	case ^TSUnknownKeyword:   cg_str(cg, "unknown")
-	case ^TSVoidKeyword:      cg_str(cg, "void")
-	case ^TSThisType:         cg_str(cg, "this")
+	case ^TSKeywordType:      cg_str(cg, TS_KEYWORD_SOURCE[v.kind])
 	case ^TSTypeReference:
 		gen_expression(cg, v.type_name, PREC_CALL)
 		gen_ts_type_arguments(cg, v.type_parameters)

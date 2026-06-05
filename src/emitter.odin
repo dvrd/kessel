@@ -4529,61 +4529,11 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 	}
 	emit_raw(e, "{\n")
 	#partial switch v in t^ {
-	case ^TSAnyKeyword:
+	case ^TSKeywordType:
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSAnyKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSNumberKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSNumberKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSStringKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSStringKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSBooleanKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSBooleanKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSVoidKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSVoidKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSNullKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSNullKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSNeverKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSNeverKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSUnknownKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSUnknownKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSUndefinedKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSUndefinedKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSObjectKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSObjectKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSBigIntKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSBigIntKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSSymbolKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSSymbolKeyword\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSThisType:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSThisType\"")
-		emit_span_fields(e, v.loc, indent + 1)
-	case ^TSIntrinsicKeyword:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSIntrinsicKeyword\"")
+		emit_raw(e, "\"type\": \"")
+		emit_raw(e, TS_KEYWORD_ESTREE_TYPE[v.kind])
+		emit_raw(e, "\"")
 		emit_span_fields(e, v.loc, indent + 1)
 	case ^TSTypeReference:
 		emit_indent(e, indent + 1)
