@@ -234,7 +234,7 @@ kessel_free_result :: proc "c" (handle: rawptr) {
 //   ok        int32    4 (+ 4 padding)  — 0 on parse failure, code/map empty.
 
 LibCodegenResult :: struct {
-	code_buf: [dynamic]u8,
+	code_buf: []u8,
 	map_buf:  [dynamic]u8,
 }
 
@@ -319,12 +319,6 @@ kessel_codegen :: proc "c" (
 		cg_byte(&cg, '\n')
 	}
 
-	// Copy generated code into an owned dynamic buffer the LibResult
-	// can free. We can't hand out cg.buf directly because codegen_destroy
-	// frees it on the deferred path.
-	result.code_buf = make([dynamic]u8, cg.pos)
-	mem.copy(raw_data(result.code_buf), raw_data(cg.buf), cg.pos)
-
 	if want_sm {
 		map_json := sourcemap_to_json(
 			&sm,
@@ -338,10 +332,21 @@ kessel_codegen :: proc "c" (
 		delete(map_json)
 	}
 
+	// Steal codegen's output buffer instead of copying it: hand the slice
+	// to the LibResult and detach it from `cg` so the deferred
+	// codegen_destroy does not free it. This drops one full-output
+	// make + memcpy on every codegen FFI call (the npm hot path), mirroring
+	// the kessel_parse_binary buffer steal above. The source map (if any)
+	// is built first because it reads cg.buf.
+	code_bytes := cg.pos
+	result.code_buf = cg.buf
+	cg.buf = nil
+	cg.pos = 0
+
 	return KesselCodegenResult{
 		handle   = rawptr(result),
 		code_ptr = rawptr(raw_data(result.code_buf)),
-		code_len = i32(len(result.code_buf)),
+		code_len = i32(code_bytes),
 		map_ptr  = rawptr(raw_data(result.map_buf)) if len(result.map_buf) > 0 else nil,
 		map_len  = i32(len(result.map_buf)),
 		ok       = 1,
