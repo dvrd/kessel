@@ -5043,6 +5043,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
 	// Every branch emits start/end via emit_span_fields or emit_span_leading so
 	// downstream consumers get position info uniformly.
+	//
+	// This switch stays #partial on purpose: it is an early-dispatch fast path for
+	// the six literal variants only (each emits a self-contained node and returns).
+	// Completeness of the Expression union is enforced by the second, complete
+	// switch below — every non-literal variant must have an explicit case there.
 	#partial switch n in expr^ {
 	case ^NumericLiteral:
 		emit_indent(e, indent)
@@ -5174,7 +5179,15 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	emit_raw(e, "\"")
 	emit_span_fields(e, get_expression_loc(expr), indent)
 
-	#partial switch n in expr^ {
+	// Complete switch (no #partial, no default): the Odin compiler enforces that
+	// every variant of `Expression :: union { ... }` in src/ast.odin has an explicit
+	// case here. A newly-added AST variant fails the build instead of silently
+	// emitting an "[UNIMPLEMENTED]" node. The six literal variants are handled (and
+	// returned) by the #partial fast-path switch above, so their cases here are
+	// unreachable and intentionally empty.
+	switch n in expr^ {
+	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral, ^BigIntLiteral, ^RegExpLiteral:
+		// Unreachable: handled with an early return in the literal fast-path above.
 	case ^Identifier:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -6089,10 +6102,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
-	case:
-		emit_println(e, ",")
-		emit_indent(e, indent)
-		emit_printf(e, "\"[UNIMPLEMENTED]\": true")
 	}
 }
 
