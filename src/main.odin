@@ -441,22 +441,33 @@ run_server_mode :: proc(cli: CliConfig) {
 	line_buf := make([dynamic]u8, 0, 1024, context.allocator)
 	defer delete(line_buf)
 
+	// Buffered read window over `buf`: bytes [buf_pos:buf_len) are filled
+	// but not yet consumed. Persists across the outer loop so a single
+	// os.read that spans multiple newline-delimited paths is split without
+	// extra syscalls. Pre-#23 the inner loop issued one os.read per byte.
+	buf_pos := 0
+	buf_len := 0
+
 	for {
 		// Read a newline-delimited path from stdin. Done inline because
 		// core:bufio.Reader over os.stdin has some platform quirks on the
 		// Odin vendor; os.read returns raw bytes and we do our own split.
 		clear(&line_buf)
 		at_eof := false
-		read_err: os.Error
 		for {
-			n: int
-			n, read_err = os.read(os.stdin, buf[:1])
-			if n <= 0 || read_err != nil {
-				at_eof = true
-				break
+			if buf_pos >= buf_len {
+				n, read_err := os.read(os.stdin, buf[:])
+				if n <= 0 || read_err != nil {
+					at_eof = true
+					break
+				}
+				buf_pos = 0
+				buf_len = n
 			}
-			if buf[0] == '\n' { break }
-			if buf[0] != '\r' { append(&line_buf, buf[0]) }
+			b := buf[buf_pos]
+			buf_pos += 1
+			if b == '\n' { break }
+			if b != '\r' { append(&line_buf, b) }
 		}
 		if at_eof && len(line_buf) == 0 { return }
 		path := string(line_buf[:])
