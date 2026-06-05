@@ -163,6 +163,23 @@ ErrorInfo :: struct {
 // supply codes that exist in the table; unknown codes return a zero
 // `ErrorInfo` (silent fallback — never crashes the parser).
 error_info :: proc(code: ErrorCode) -> ErrorInfo {
+	// The lookup table is split into contiguous sub-tables (error_info_part1
+	// .. part6) so no single proc carries all ~80 arms. Each helper returns a
+	// zero ErrorInfo (empty default_message) for codes it does not handle;
+	// every defined code has a non-empty default_message, so an empty record
+	// is an unambiguous "not in this sub-table" signal and the dispatcher
+	// falls through to the next. Unknown codes fall through every part and
+	// land on part6's `{severity = .Error}` tail — identical to the prior
+	// single-switch fallback.
+	if i := error_info_part1(code); i.default_message != "" { return i }
+	if i := error_info_part2(code); i.default_message != "" { return i }
+	if i := error_info_part3(code); i.default_message != "" { return i }
+	if i := error_info_part4(code); i.default_message != "" { return i }
+	if i := error_info_part5(code); i.default_message != "" { return i }
+	return error_info_part6(code)
+}
+
+error_info_part1 :: proc(code: ErrorCode) -> ErrorInfo {
 	#partial switch code {
 	case .K2002_ExpectedToken:
 		return ErrorInfo{
@@ -332,6 +349,12 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	//   Covers: identifier reference, label, function/class declaration
 	//   name, arrow parameter, shorthand-property identifier.
 	//   Spec: §13.3.7.1 IdentifierReference, §14.13 LabelledStatement.
+	}
+	return ErrorInfo{}
+}
+
+error_info_part2 :: proc(code: ErrorCode) -> ErrorInfo {
+	#partial switch code {
 	case .K3010_AwaitYieldAsBindingName:
 		return ErrorInfo{
 			default_message = "'await' or 'yield' cannot be used as a binding name in this context",
@@ -546,6 +569,12 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	// K1010 — numeric literal forms: malformed digit groups, BigInt
 	//   restrictions, legacy octal restrictions, missing exponent,
 	//   numeric separator placement.
+	}
+	return ErrorInfo{}
+}
+
+error_info_part3 :: proc(code: ErrorCode) -> ErrorInfo {
+	#partial switch code {
 	case .K1010_InvalidNumericLiteral:
 		return ErrorInfo{
 			default_message = "invalid numeric literal",
@@ -606,6 +635,12 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 
 	// K4020 — TypeScript modifier (`abstract`, `override`, `declare`,
 	//   `type-param`, type-annotation) used on a constructor declaration.
+	}
+	return ErrorInfo{}
+}
+
+error_info_part4 :: proc(code: ErrorCode) -> ErrorInfo {
+	#partial switch code {
 	case .K4020_ConstructorTSModifier:
 		return ErrorInfo{
 			default_message = "this TypeScript modifier cannot appear on a constructor declaration",
@@ -755,6 +790,12 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 	// K4050 — ambient context (`declare module/namespace/...`, `.d.ts`
 	//   file) restrictions: implementations, initializers, statements
 	//   not allowed at ambient scope.
+	}
+	return ErrorInfo{}
+}
+
+error_info_part5 :: proc(code: ErrorCode) -> ErrorInfo {
+	#partial switch code {
 	case .K4050_AmbientContextRestriction:
 		return ErrorInfo{
 			default_message = "this construct is not allowed in an ambient context",
@@ -864,6 +905,12 @@ error_info :: proc(code: ErrorCode) -> ErrorInfo {
 
 	// K3060 — declaration not allowed in a single-statement context
 	//   (the body of `if` / `else` / `for` / `while` / `with` / label).
+	}
+	return ErrorInfo{}
+}
+
+error_info_part6 :: proc(code: ErrorCode) -> ErrorInfo {
+	#partial switch code {
 	case .K3060_SingleStatementContext:
 		return ErrorInfo{
 			default_message = "declaration is not allowed in a single-statement context",
