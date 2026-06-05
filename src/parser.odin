@@ -2656,6 +2656,110 @@ parse_do_while_statement :: proc(p: ^Parser) -> ^Statement {
 	return do__s
 }
 
+// parse_for_await_validate enforces the ECMA-262 §14.7.5 context restriction
+// for a `for await` head: it is valid only inside an async function/generator
+// body or at module top level, and never inside a class static block. Pure
+// validation — emits diagnostics, consumes no tokens. Extracted from
+// parse_for_statement to keep the for-head disambiguation readable.
+parse_for_await_validate :: proc(p: ^Parser) {
+	// TS18038 — `for await` inside a class static block is always
+	// invalid, even when the block is nested inside an async function.
+	if p.ctx.in_static_block {
+		report_error_coded(p, .K3013_ForAwaitContextRestricted,
+			"'for await' loops cannot be used inside a class static block")
+	} else if !p.ctx.in_async {
+		if p.ctx.in_function {
+			report_error_coded(p, .K3013_ForAwaitContextRestricted,
+				"'for await' is only valid in async functions or at the top level of a module")
+		} else if allow_ts_mode(p) {
+			// TS files: top-level `for await` is allowed — tsc and OXC
+			// defer module-detection concerns to the type checker.
+		} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
+			// Explicitly forced Script mode - reject unconditionally.
+			report_error_coded(p, .K3013_ForAwaitContextRestricted,
+				"Top-level 'for await' is only valid in module code")
+		} else if !have {
+			// Auto-detect: lazy pre-scan resolves whether the file is
+			// a module before deciding. On files without import/export,
+			// has_module_syntax stays false and we reject as Script.
+			ensure_module_syntax_resolved(p)
+			if !p.has_module_syntax {
+				report_error_coded(p, .K3013_ForAwaitContextRestricted,
+					"Top-level 'for await' is only valid in module code")
+			}
+		}
+	}
+}
+
+// for_head_let_starts_decl reports whether a `let` at the for-head opens a
+// ForDeclaration (§14.7.4 / §14.7.5). `let` is only a lexical-binding keyword
+// when followed by `[`, `{`, or a BindingIdentifier; otherwise it is an
+// IdentifierReference (`for (let in obj)`, `for (let.x in obj)`, ...). Consumes
+// no tokens.
+for_head_let_starts_decl :: proc(p: ^Parser) -> bool {
+	if !is_token(p, .Let) { return false }
+	nxt := peek_token(p)
+	// Conservative whitelist of tokens that legally start a
+	// LexicalBinding after `let`. Anything else falls through to
+	// the expression-head path. is_identifier_like_token covers
+	// every contextual keyword that's also a valid binding name
+	// (`assert`, `abstract`, `declare`, ... plus the JS contextuals).
+	return nxt.type == .LBracket || nxt.type == .LBrace ||
+	       is_identifier_like_token(nxt.type)
+}
+
+// for_head_using_starts_decl reports whether a `using` at the for-head opens a
+// using-declaration vs. an IdentifierReference. Mirrors the `let` rule, with an
+// extra 3-token lookahead to disambiguate `for (using of ...)` plus a §12.7.2
+// escaped-keyword check on the binding name. Consumes no tokens (every snapshot
+// is restored); may emit K3015 for an escaped `of` binding name.
+for_head_using_starts_decl :: proc(p: ^Parser) -> bool {
+	if !is_token(p, .Using) { return false }
+	result := false
+	nxt_u := peek_token(p)
+	// `for (using of ...)` is ambiguous: `of` after `using` can be
+	// (a) the for-of keyword → LHS expression `using` of `iterable`,
+	//     e.g. `for (using of of [])`, or
+	// (b) a binding name `of` in a C-style for-init using-decl,
+	//     e.g. `for (using of = reader();;)`.
+	// Disambiguate with 3-token lookahead: if the token AFTER `of`
+	// is `=` (initialiser), `,` (next declarator), `:` (TS type
+	// annotation), or `;` (end of for-init), then `of` is a binding
+	// name. Otherwise it's the for-of keyword.
+	if nxt_u.type == .Of && !nxt_u.had_line_terminator {
+		snap := lexer_snapshot(p)
+		advance_token(p) // consume `using` → cur=`of`
+		advance_token(p) // consume `of`    → cur=token after `of`
+		after_of := p.cur_type
+		lexer_restore(p, snap)
+		result = after_of == .Assign || after_of == .Comma ||
+		         after_of == .Semi || after_of == .Colon
+	} else {
+		result = (nxt_u.type == .Identifier || can_be_binding_identifier(nxt_u.type)) &&
+		         !nxt_u.had_line_terminator
+		// Escaped `of` identifier (`o\u0066`): ECMA-262 §12.7.2 says
+		// keywords must not contain Unicode escapes. When the binding
+		// name is an escaped-identifier whose cooked value is "of",
+		// reject it — matches OXC / V8 behaviour.
+		// Check by decoding the raw source span: if the nxt token has
+		// an escape and its span is 2 chars wide when decoded to "of",
+		// the identifier is an escaped keyword.
+		ensure_nxt(p)
+		if result && nxt_u.type == .Identifier &&
+		   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
+			// Read cooked value: advance into the token, check, restore.
+			snap_u := lexer_snapshot(p)
+			advance_token(p) // consume `using` → cur = escaped ident
+			cooked_is_of := cur_value_eq(p, "of")
+			lexer_restore(p, snap_u)
+			if cooked_is_of {
+				report_error_coded(p, .K3015_KeywordContainsEscape, "Keywords cannot contain escape characters")
+			}
+		}
+	}
+	return result
+}
+
 parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume for
@@ -2671,33 +2775,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// but `for await` at script top-level is still invalid. Mirror the
 	// plain-await rules.
 	if await {
-		// TS18038 — `for await` inside a class static block is always
-		// invalid, even when the block is nested inside an async function.
-		if p.ctx.in_static_block {
-			report_error_coded(p, .K3013_ForAwaitContextRestricted,
-				"'for await' loops cannot be used inside a class static block")
-		} else if !p.ctx.in_async {
-			if p.ctx.in_function {
-				report_error_coded(p, .K3013_ForAwaitContextRestricted,
-					"'for await' is only valid in async functions or at the top level of a module")
-			} else if allow_ts_mode(p) {
-				// TS files: top-level `for await` is allowed — tsc and OXC
-				// defer module-detection concerns to the type checker.
-			} else if st, have := p.force_source_type.(SourceType); have && st == .Script {
-				// Explicitly forced Script mode - reject unconditionally.
-				report_error_coded(p, .K3013_ForAwaitContextRestricted,
-					"Top-level 'for await' is only valid in module code")
-			} else if !have {
-				// Auto-detect: lazy pre-scan resolves whether the file is
-				// a module before deciding. On files without import/export,
-				// has_module_syntax stays false and we reject as Script.
-				ensure_module_syntax_resolved(p)
-				if !p.has_module_syntax {
-					report_error_coded(p, .K3013_ForAwaitContextRestricted,
-						"Top-level 'for await' is only valid in module code")
-				}
-			}
-		}
+		parse_for_await_validate(p)
 	}
 
 	if !expect_token(p, .LParen) {
@@ -2717,65 +2795,10 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// `for (let in obj)`, `for (let.x in obj)`, `for (let + 1; ...)` all
 	// treat `let` as an IdentifierReference. Kessel was unconditionally
 	// committing to a let-declaration, breaking those programs.
-	let_starts_decl := false
-	if is_token(p, .Let) {
-		nxt := peek_token(p)
-		// Conservative whitelist of tokens that legally start a
-		// LexicalBinding after `let`. Anything else falls through to
-		// the expression-head path. is_identifier_like_token covers
-		// every contextual keyword that's also a valid binding name
-		// (`assert`, `abstract`, `declare`, ... plus the JS contextuals).
-		if nxt.type == .LBracket || nxt.type == .LBrace ||
-		   is_identifier_like_token(nxt.type) {
-			let_starts_decl = true
-		}
-	}
+	let_starts_decl := for_head_let_starts_decl(p)
 	// `using` in a for-head follows the same BindingIdentifier rule:
 	// `for (using of of)` → expression; `for (using x of ...)` → decl.
-	using_starts_decl := false
-	if is_token(p, .Using) {
-		nxt_u := peek_token(p)
-		// `for (using of ...)` is ambiguous: `of` after `using` can be
-		// (a) the for-of keyword → LHS expression `using` of `iterable`,
-		//     e.g. `for (using of of [])`, or
-		// (b) a binding name `of` in a C-style for-init using-decl,
-		//     e.g. `for (using of = reader();;)`.
-		// Disambiguate with 3-token lookahead: if the token AFTER `of`
-		// is `=` (initialiser), `,` (next declarator), `:` (TS type
-		// annotation), or `;` (end of for-init), then `of` is a binding
-		// name. Otherwise it's the for-of keyword.
-		if nxt_u.type == .Of && !nxt_u.had_line_terminator {
-			snap := lexer_snapshot(p)
-			advance_token(p) // consume `using` → cur=`of`
-			advance_token(p) // consume `of`    → cur=token after `of`
-			after_of := p.cur_type
-			lexer_restore(p, snap)
-			using_starts_decl = after_of == .Assign || after_of == .Comma ||
-			                    after_of == .Semi || after_of == .Colon
-		} else {
-			using_starts_decl = (nxt_u.type == .Identifier || can_be_binding_identifier(nxt_u.type)) &&
-			                    !nxt_u.had_line_terminator
-			// Escaped `of` identifier (`o\u0066`): ECMA-262 §12.7.2 says
-			// keywords must not contain Unicode escapes. When the binding
-			// name is an escaped-identifier whose cooked value is "of",
-			// reject it — matches OXC / V8 behaviour.
-			// Check by decoding the raw source span: if the nxt token has
-			// an escape and its span is 2 chars wide when decoded to "of",
-			// the identifier is an escaped keyword.
-			ensure_nxt(p)
-			if using_starts_decl && nxt_u.type == .Identifier &&
-			   (p.lexer.nxt.flags & FLAG_HAS_ESCAPE) != 0 {
-				// Read cooked value: advance into the token, check, restore.
-				snap_u := lexer_snapshot(p)
-				advance_token(p) // consume `using` → cur = escaped ident
-				cooked_is_of := cur_value_eq(p, "of")
-				lexer_restore(p, snap_u)
-				if cooked_is_of {
-					report_error_coded(p, .K3015_KeywordContainsEscape, "Keywords cannot contain escape characters")
-				}
-			}
-		}
-	}
+	using_starts_decl := for_head_using_starts_decl(p)
 	await_using_for_decl := false
 	if is_token(p, .Await) && peek_token(p).type == .Using {
 		using_after_await := peek_token(p)
