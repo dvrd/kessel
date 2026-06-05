@@ -298,7 +298,10 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bw_u8(be, u8(BinValType.NullNode))
 		return
 	}
-	#partial switch s in stmt^ {
+	// Complete switch (no #partial): every Statement variant must have an explicit
+	// case so a newly-added AST node fails the build instead of being silently
+	// emitted as NullNode in the binary buffer consumed by the npm reader.
+	switch s in stmt^ {
 	case ^ExpressionStatement:
 		bin_node_header(be, .ExpressionStatement, s.loc)
 		bin_emit_expression(be, s.expression)
@@ -504,9 +507,17 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		} else {
 			bw_u8(be, u8(BinValType.Null))
 		}
-	case:
-		// Unknown statement type — emit as null for now
-		bw_u8(be, u8(BinValType.NullNode))
+	// TS declaration statements are not emitted into the binary buffer: the npm
+	// reader has no decoder for them, so they are written as NullNode. Listed
+	// explicitly (rather than via a default) so a newly-added Statement variant
+	// fails the build instead of being silently dropped here.
+	case ^TSInterfaceDeclaration:       bw_u8(be, u8(BinValType.NullNode))
+	case ^TSTypeAliasDeclaration:       bw_u8(be, u8(BinValType.NullNode))
+	case ^TSEnumDeclaration:            bw_u8(be, u8(BinValType.NullNode))
+	case ^TSModuleDeclaration:          bw_u8(be, u8(BinValType.NullNode))
+	case ^TSImportEqualsDeclaration:    bw_u8(be, u8(BinValType.NullNode))
+	case ^TSExportAssignment:           bw_u8(be, u8(BinValType.NullNode))
+	case ^TSNamespaceExportDeclaration: bw_u8(be, u8(BinValType.NullNode))
 	}
 }
 
@@ -515,7 +526,10 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bw_u8(be, u8(BinValType.NullNode))
 		return
 	}
-	#partial switch e in expr^ {
+	// Complete switch (no #partial): every Expression variant must have an explicit
+	// case so a newly-added AST node fails the build instead of being silently
+	// emitted as NullNode in the binary buffer consumed by the npm reader.
+	switch e in expr^ {
 	case ^Identifier:
 		bin_node_header(be, .Identifier, e.loc)
 		bw_string_ref(be, e.name)
@@ -749,8 +763,6 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	case ^TSInstantiationExpression:
 		bin_node_header(be, .TSInstantiationExpression, e.loc)
 		bin_emit_expression(be, e.expression)
-	case:
-		bw_u8(be, u8(BinValType.NullNode))
 	}
 }
 

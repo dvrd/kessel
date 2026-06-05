@@ -1,6 +1,6 @@
 parser_misc Summary:
-AST Parsed     : 85/85 (100.00%)
-Positive Passed: 85/85 (100.00%)
+AST Parsed     : 86/86 (100.00%)
+Positive Passed: 86/86 (100.00%)
 Negative Passed: 273/273 (100.00%)
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-export-statement.cjs:2:1: 'export' is only valid in module code

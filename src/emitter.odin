@@ -1905,7 +1905,10 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 	emit_raw(e, "\"")
 	emit_span_fields(e, get_statement_loc(stmt), indent)
 
-	#partial switch s in stmt^ {
+	// Complete switch (no #partial): every Statement variant must have an explicit
+	// case so a newly-added AST node fails the build instead of being silently
+	// dropped from the ESTree JSON output.
+	switch s in stmt^ {
 	case ^ExpressionStatement:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)

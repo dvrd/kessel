@@ -367,7 +367,11 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr) {
 	if stmt == nil { return }
 	
-	#partial switch v in stmt {
+	// Complete switch (no #partial, no default): the Odin compiler enforces that
+	// every variant of `Statement :: union { ... }` in src/ast.odin has an explicit
+	// case here. A new AST variant fails the build instead of silently leaving its
+	// pointers un-rewritten in the binary buffer.
+	switch v in stmt {
 	case ^ExpressionStatement:
 		rewrite_expr_field(v.expression, &v.expression, base, source_base)
 	case ^BlockStatement:
@@ -495,7 +499,13 @@ rewrite_statement :: proc(stmt: ^Statement, base: uintptr, source_base: uintptr)
 		rewrite_ts_enum_body(&v.body, base, source_base)
 	case ^TSModuleDeclaration:
 		rewrite_ts_module_declaration(v, base, source_base)
-	case:
+	case ^TSImportEqualsDeclaration:
+		rewrite_string(&v.id.name, source_base)
+		rewrite_ts_module_reference(&v.module_reference, base, source_base)
+	case ^TSExportAssignment:
+		rewrite_expr_field(v.expression, &v.expression, base, source_base)
+	case ^TSNamespaceExportDeclaration:
+		rewrite_string(&v.id.name, source_base)
 	}
 }
 
@@ -941,6 +951,27 @@ rewrite_maybe_ts_module_body :: #force_inline proc(field: ^Maybe(^TSModuleBody),
 		rewrite_union_ptr(b, base)
 		rewrite_ptr((^rawptr)(field), base)
 	}
+}
+
+// TSModuleReference :: union { ^Expression, ^TSExternalModuleReference } —
+// `import X = A.B.C` (Identifier/MemberExpression in the ^Expression arm) and
+// `import X = require("m")` (^TSExternalModuleReference whose `expression` is the
+// require()'d ^StringLiteral). The field is an inline union value with the same
+// memory shape as Expression (`{inner_ptr: 8, tag: 1, pad: 7}`): walk the inner
+// node, then collapse the union's inner ptr in place.
+rewrite_ts_module_reference :: proc(field: ^TSModuleReference, base: uintptr, source_base: uintptr) {
+	#partial switch v in field^ {
+	case ^Expression:
+		rewrite_expression(v, base, source_base)
+		rewrite_union_ptr(v, base)
+	case ^TSExternalModuleReference:
+		if v.expression != nil {
+			rewrite_string(&v.expression.value, source_base)
+			rewrite_string(&v.expression.raw, source_base)
+			rewrite_ptr((^rawptr)(&v.expression), base)
+		}
+	}
+	rewrite_union_ptr(field, base)
 }
 
 // =============================================================================
