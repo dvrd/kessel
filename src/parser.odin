@@ -6933,11 +6933,14 @@ parse_static_block :: proc(p: ^Parser, start: Loc) -> ^ClassElement {
 	return elem
 }
 
-parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind), consume_semi: bool, in_for := false, is_declare := false) -> ^Statement {
-	start := cur_loc(p)
-
-	kind: VariableKind
-
+// parse_var_decl_kind resolves the VariableKind for a variable / lexical
+// declaration from the current token. `var` / `let` / `const` / `using` map
+// directly; `await using` is recognised via two-token lookahead (and consumes
+// the `await` here, leaving the parent to consume the `using`). Any other
+// leading token falls back to kind_override (set when the head keyword was
+// already consumed by the caller, e.g. a TS `declare` prefix). Returns ok =
+// false after reporting K2023 when no kind can be determined.
+parse_var_decl_kind :: proc(p: ^Parser, kind_override: Maybe(VariableKind)) -> (kind: VariableKind, ok: bool) {
 	#partial switch p.cur_type {
 	case .Var:
 		kind = .Var
@@ -6952,20 +6955,30 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			kind = .AwaitUsing
 			eat(p) // consume await
 		} else {
-			if k, ok := kind_override.(VariableKind); ok {
+			if k, have := kind_override.(VariableKind); have {
 				kind = k
 			} else {
 				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected var, let, const, using, or await using")
-				return nil
+				return {}, false
 			}
 		}
 	case:
-		if k, ok := kind_override.(VariableKind); ok {
+		if k, have := kind_override.(VariableKind); have {
 			kind = k
 		} else {
 			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected var, let, or const")
-			return nil
+			return {}, false
 		}
+	}
+	return kind, true
+}
+
+parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind), consume_semi: bool, in_for := false, is_declare := false) -> ^Statement {
+	start := cur_loc(p)
+
+	kind, kind_ok := parse_var_decl_kind(p, kind_override)
+	if !kind_ok {
+		return nil
 	}
 
 	eat(p)
