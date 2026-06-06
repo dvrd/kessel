@@ -4,6 +4,16 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.13.0] - 2026-06-06
+
+### Fixed
+- fix(raw_transfer): handle TS import-equals/export-assignment in binary walker
+
+### Performance
+- perf(server): buffer stdin reads instead of one syscall per byte
+- perf(lib): steal codegen buffer in kessel_codegen instead of copying
+
+
 ## [0.12.0] - 2026-05-29
 
 ### Fixed
