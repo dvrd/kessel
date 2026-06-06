@@ -4291,6 +4291,50 @@ ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 }
 
 @(private="file")
+ck_check_class_whole :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
+	// Whole-class checks: §15.7.1 — at most one constructor (with TS
+	// overload-signature exception)..
+	ck_check_class_constructors(c, ctx, cls)
+	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
+	// set pair. This walker also folds in the private getter/setter
+	// static-mismatch sub-rule for the lone get/set pair shape.
+	ck_check_class_private_duplicates(c, cls, ck_is_ts(ctx))
+	// TS — method overload-chain check (TS2391 / TS2389). Only fires in
+	// TS / TSX. Suppressed when the enclosing class is `declare class`
+	// (ambient — signatures without bodies are valid in .d.ts shape) or
+	// when the source file itself is a .d.ts (every declaration is
+	// implicitly ambient).
+	if ck_is_ts(ctx) && !cls.declare && !ctx.is_dts {
+		// TS2391/TS2389 overload chain — migrated to parser.
+		ck_check_ts_class_member_dups(c, cls)
+		ck_check_ts_constructor_param_property_dups(c, cls)
+	}
+	// TS — class type-parameter duplicate-name check. Independent of the
+	// `declare class` / .d.ts gate above: `class C<X, X>` is rejected
+	// even in ambient context.
+	if ck_is_ts(ctx) {
+		if tp, has := cls.type_parameters.(^TSTypeParameterDeclaration); has {
+			ck_check_ts_type_param_dups(c, tp)
+		}
+		// Also check method-level type parameters on each overloadable
+		// member — `class C { m<X, X>() {} }`.
+		for elem in cls.body.body {
+			if fn, ok := elem_is_overloadable_method(elem); ok && fn != nil {
+				if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
+					ck_check_ts_type_param_dups(c, tp)
+				}
+			}
+		}
+		// Abstract-in-non-abstract — migrated to parser.
+		// TS — constructor overload signatures cannot have parameter
+		// properties (accessibility / readonly / override on params).
+		ck_check_ts_constructor_modifiers(c, cls)
+		// TS — incompatible modifier combinations on class elements.
+		// static+abstract, abstract+#name — migrated to parser.
+	}
+}
+
+@(private="file")
 ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
 	// TS2414 — class name cannot be a predefined type name.
@@ -4371,46 +4415,10 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 		ctx.class_body_depth      -= 1
 	}
 
-	// Whole-class checks: §15.7.1 — at most one constructor (with TS
-	// overload-signature exception)..
-	ck_check_class_constructors(c, ctx, cls)
-	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
-	// set pair. This walker also folds in the private getter/setter
-	// static-mismatch sub-rule for the lone get/set pair shape.
-	ck_check_class_private_duplicates(c, cls, ck_is_ts(ctx))
-	// TS — method overload-chain check (TS2391 / TS2389). Only fires in
-	// TS / TSX. Suppressed when the enclosing class is `declare class`
-	// (ambient — signatures without bodies are valid in .d.ts shape) or
-	// when the source file itself is a .d.ts (every declaration is
-	// implicitly ambient).
-	if ck_is_ts(ctx) && !cls.declare && !ctx.is_dts {
-		// TS2391/TS2389 overload chain — migrated to parser.
-		ck_check_ts_class_member_dups(c, cls)
-		ck_check_ts_constructor_param_property_dups(c, cls)
-	}
-	// TS — class type-parameter duplicate-name check. Independent of the
-	// `declare class` / .d.ts gate above: `class C<X, X>` is rejected
-	// even in ambient context.
-	if ck_is_ts(ctx) {
-		if tp, has := cls.type_parameters.(^TSTypeParameterDeclaration); has {
-			ck_check_ts_type_param_dups(c, tp)
-		}
-		// Also check method-level type parameters on each overloadable
-		// member — `class C { m<X, X>() {} }`.
-		for elem in cls.body.body {
-			if fn, ok := elem_is_overloadable_method(elem); ok && fn != nil {
-				if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
-					ck_check_ts_type_param_dups(c, tp)
-				}
-			}
-		}
-		// Abstract-in-non-abstract — migrated to parser.
-		// TS — constructor overload signatures cannot have parameter
-		// properties (accessibility / readonly / override on params).
-		ck_check_ts_constructor_modifiers(c, cls)
-		// TS — incompatible modifier combinations on class elements.
-		// static+abstract, abstract+#name — migrated to parser.
-	}
+	// Whole-class checks: §15.7.1 constructor / private-name rules plus the
+	// TS member-duplicate, type-parameter, and constructor-modifier checks.
+	// Grouped into one helper to keep ck_walk_class under the 70-line limit.
+	ck_check_class_whole(c, ctx, cls)
 
 	for elem in cls.body.body {
 		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
