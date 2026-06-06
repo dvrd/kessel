@@ -5887,6 +5887,160 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 	}
 }
 
+// ClassMemberModifiers is the loose TS modifier prefix that may appear in
+// front of a class member name: [accessibility] [static] [abstract]
+// [override] [readonly] [declare]. The parser captures the set permissively
+// (any order, matching OXC/typescript-eslint); an enforcing type-checker owns
+// the remaining duplicate/ordering rules.
+ClassMemberModifiers :: struct {
+	static_:       bool,
+	is_abstract:   bool,
+	accessibility: ClassAccessibility,
+	access_name:   string,
+	is_readonly:   bool,
+	is_override:   bool,
+	is_declare:    bool,
+}
+
+// ClassModifierScan adds the transient order bookkeeping used only while
+// scanning the prefix; only `mods` escapes to the caller.
+ClassModifierScan :: struct {
+	using mods:     ClassMemberModifiers,
+	mod_order_idx:  int,
+	access_order:   int,
+	static_order:   int,
+	readonly_order: int,
+}
+
+// class_modifier_set_access records an accessibility modifier (public /
+// private / protected). A second accessibility modifier is reported but still
+// consumed so the scan can continue past it.
+class_modifier_set_access :: proc(p: ^Parser, st: ^ClassModifierScan, access: ClassAccessibility, name: string) -> bool {
+	if st.accessibility == .None {
+		st.accessibility = access; st.access_name = name; st.access_order = st.mod_order_idx
+		eat(p); return true
+	}
+	report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
+	eat(p)
+	return true
+}
+
+// class_modifier_consume_ident handles the contextual-keyword modifiers that
+// the lexer emits as plain Identifier tokens (not reserved words): the three
+// accessibility keywords plus `readonly` and TS `declare`.
+class_modifier_consume_ident :: proc(p: ^Parser, st: ^ClassModifierScan) -> bool {
+	switch cur_value(p) {
+	case "public":    return class_modifier_set_access(p, st, .Public, "public")
+	case "private":   return class_modifier_set_access(p, st, .Private, "private")
+	case "protected": return class_modifier_set_access(p, st, .Protected, "protected")
+	case "readonly":
+		if !st.is_readonly { st.is_readonly = true; st.readonly_order = st.mod_order_idx; eat(p); return true }
+	case "declare":
+		if !st.is_declare  { st.is_declare  = true; eat(p); return true }
+	}
+	return false
+}
+
+// class_modifier_consume applies one modifier token to `st` and reports
+// whether it was consumed. `static` / `abstract` / `override` are reserved
+// keyword tokens matched by kind; the rest are contextual identifiers.
+class_modifier_consume :: proc(p: ^Parser, cur: TokenType, st: ^ClassModifierScan) -> bool {
+	#partial switch cur {
+	case .Static:
+		if !st.static_     { st.static_     = true; st.static_order = st.mod_order_idx; eat(p); return true }
+	case .Abstract:
+		if !st.is_abstract { st.is_abstract = true; eat(p); return true }
+	case .Override:
+		if !st.is_override { st.is_override = true; eat(p); return true }
+	case .Identifier:
+		return class_modifier_consume_ident(p, st)
+	}
+	return false
+}
+
+// reject_adjacent_static_modifiers reproduces OXC's rejection of
+// `static\nstatic <name>` when the second `static` and the name token sit on
+// the same line (both read as modifiers → conflict). When the name is on a
+// separate line OXC does ASI and accepts, so we peek two tokens ahead and only
+// reject when the third token is on the same line as the second `static`.
+reject_adjacent_static_modifiers :: proc(p: ^Parser) {
+	if is_token(p, .Static) && p.lexer != nil {
+		ensure_nxt(p)
+	}
+	if is_token(p, .Static) && p.lexer != nil && p.lexer.nxt.kind == .Static &&
+	   (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+		snap_ss := lexer_snapshot(p)
+		advance_token(p) // consume first `static`
+		advance_token(p) // consume second `static` → cur = third token
+		third_on_same_line := !cur_has_newline(p)
+		third_type := p.cur_type
+		lexer_restore(p, snap_ss)
+		if third_on_same_line && third_type != .RBrace && third_type != .Semi &&
+		   third_type != .EOF {
+			eat(p)       // consume first `static` (field name)
+			eat(p)       // consume second `static` (would-be modifier)
+			report_error_coded(p, .K2010_ExpectedSemicolon, fmt.tprintf("Expected `;` but found `%s`", cur_value(p)))
+		}
+	}
+}
+
+// check_class_modifier_order enforces the OXC parser-level modifier ordering
+// rules (accessibility before static/readonly, static before readonly) from
+// the order indices recorded during the scan. TS-mode only.
+check_class_modifier_order :: proc(p: ^Parser, st: ^ClassModifierScan) {
+	if !allow_ts_mode(p) {
+		return
+	}
+	if st.access_order >= 0 && st.static_order >= 0 && st.access_order > st.static_order {
+		report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'static' modifier", st.access_name))
+	}
+	if st.access_order >= 0 && st.readonly_order >= 0 && st.access_order > st.readonly_order {
+		report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'readonly' modifier", st.access_name))
+	}
+	if st.static_order >= 0 && st.readonly_order >= 0 && st.static_order > st.readonly_order {
+		report_error_coded(p, .K4030_ModifierOrder, "'static' modifier must precede 'readonly' modifier")
+	}
+}
+
+// parse_class_member_modifiers consumes the loose modifier prefix and returns
+// the captured set. A modifier token is only treated as a modifier when the
+// NEXT token plausibly continues the member signature — `( = ; , }` (and TS
+// `< ! ? :`) mean the keyword is the member NAME (e.g. `readonly()`), and a
+// LineTerminator triggers ASI (`public\n foo()` → field `public`). `static`
+// is exempt from that ASI rule per the ES grammar.
+parse_class_member_modifiers :: proc(p: ^Parser) -> ClassMemberModifiers {
+	st: ClassModifierScan
+	st.accessibility = .None
+	st.access_order = -1
+	st.static_order = -1
+	st.readonly_order = -1
+	for i := 0; i < 12; i += 1 {
+		cur := p.cur_type
+		ensure_nxt(p)
+		nxt := p.lexer.nxt.kind
+		is_member_start := nxt == .LParen || nxt == .Assign || nxt == .Semi ||
+		                   nxt == .Comma || nxt == .RBrace ||
+		                   (allow_ts_mode(p) && (nxt == .LAngle || nxt == .Not || nxt == .Question || nxt == .Colon))
+		if is_member_start {
+			break
+		}
+		ensure_nxt(p)
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 && cur != .Static {
+			break
+		}
+		consumed := class_modifier_consume(p, cur, &st)
+		if consumed {
+			st.mod_order_idx += 1
+		} else {
+			break
+		}
+	}
+	reject_adjacent_static_modifiers(p)
+	check_class_modifier_order(p, &st)
+	return st.mods
+}
+
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -5902,158 +6056,14 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return elem
 	}
 
-	// TS class-member modifiers form a LOOSE prefix in front of the name:
-	//   [accessibility] [static] [abstract] [override] [readonly] <name...>
-	// TypeScript itself allows these in a few orderings (e.g. static before
-	// or after access modifier); we accept any order and consume duplicates
-	// permissively, matching OXC/typescript-eslint leniency. The parser just
-	// captures the set; an enforcing type-checker owns ordering / duplicate
-	// rules.
-	// `public` / `private` / `protected` / `readonly` are lexed as plain
-	// Identifier tokens (contextual keywords, not reserved) so we inspect
-	// the string value; `static` / `abstract` / `override` ARE reserved
-	// keyword tokens in Kessel's lexer and can be matched by kind.
-	static_ := false
-	is_abstract := false
-	accessibility := ClassAccessibility.None
-	access_name := ""
-	is_readonly := false
-	is_override := false
-	is_declare := false
-
-	// Track modifier order for validation.
-	mod_order_idx := 0
-	access_order := -1
-	static_order := -1
-	readonly_order := -1
-
-	// Bounded scan. A modifier token is only a modifier if the NEXT token
-	// is a plausible continuation of the member signature - not `(`, `=`,
-	// `;`, `,`, `}` which indicate the keyword is being used AS the member
-	// name (e.g. `readonly()` is a method named readonly).
-	for i := 0; i < 12; i += 1 {
-		cur := p.cur_type
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		// When the NEXT token indicates the keyword is being used as
-		// the member NAME rather than as a modifier prefix, break:
-		//   ( = ; , }   - plain member-name-then-body/init/field
-		//   <           - TS generic method `declare<T>(){}` (TS only)
-		//   ! ? :       - TS definite/optional/annotation `abstract!:T`
-		is_member_start := nxt == .LParen || nxt == .Assign || nxt == .Semi ||
-		                   nxt == .Comma || nxt == .RBrace ||
-		                   (allow_ts_mode(p) && (nxt == .LAngle || nxt == .Not || nxt == .Question || nxt == .Colon))
-		if is_member_start {
-			break
-		}
-		// ASI: when the next token sits on a new line, a bare modifier-
-		// shaped identifier (`public\n private foo()`) is the FIELD NAME,
-		// not a modifier on the next member. The legal class-element
-		// production for `public` followed by a LineTerminator is the
-		// PropertyDefinition `public;` - same ASI rule that lets
-		// `accessor\n a;` parse as two fields. Test:
-		// typescript/compiler/asiPublicPrivateProtected.ts.
-		// Exception: `static` is NOT subject to ASI in class bodies.
-		// The ES grammar production `ClassElement : static MethodDefinition`
-		// has no [no LineTerminator here] restriction, so
-		// `static\nconstructor(){}` is always a static method. V8, Babel,
-		// and OXC all agree. Only TS contextual modifiers (public, private,
-		// protected, readonly, declare, abstract, override) use ASI here.
-		ensure_nxt(p)
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 && cur != .Static {
-			break
-		}
-
-		consumed := false
-		#partial switch cur {
-		case .Static:
-			if !static_       { static_       = true; static_order = mod_order_idx; eat(p); consumed = true }
-		case .Abstract:
-			if !is_abstract   { is_abstract   = true; eat(p); consumed = true }
-		case .Override:
-			if !is_override   { is_override   = true; eat(p); consumed = true }
-		case .Identifier:
-			val := cur_value(p)
-			switch val {
-			case "public":
-				if accessibility == .None {
-					accessibility = .Public; access_name = "public"; access_order = mod_order_idx; eat(p); consumed = true
-				} else {
-					report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
-					eat(p); consumed = true
-				}
-			case "private":
-				if accessibility == .None {
-					accessibility = .Private; access_name = "private"; access_order = mod_order_idx; eat(p); consumed = true
-				} else {
-					report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
-					eat(p); consumed = true
-				}
-			case "protected":
-				if accessibility == .None {
-					accessibility = .Protected; access_name = "protected"; access_order = mod_order_idx; eat(p); consumed = true
-				} else {
-					report_error_coded(p, .K4031_DuplicateModifier, "Accessibility modifier already seen")
-					eat(p); consumed = true
-				}
-			case "readonly":
-				if !is_readonly {
-					is_readonly = true; readonly_order = mod_order_idx; eat(p); consumed = true
-				}
-			// TS §3.1 ambient class members - `declare prop: T;` /
-			// `declare static x: T;` etc. Lexed as a plain Identifier
-			// ("declare" is not a reserved word in Kessel's lexer), so
-			// match it by string value. OXC accepts `declare` as a
-			// class modifier in all modes (JS + TS), matching V8 / Babel.
-			case "declare":
-				if !is_declare {
-					is_declare = true;          eat(p); consumed = true
-				}
-			}
-		}
-		if consumed { mod_order_idx += 1 }
-		if !consumed { break }
-	}
-
-	// OXC rejects `static\nstatic <name>` when the second `static` and
-	// the name token are on the same line — OXC reads both `static`
-	// tokens as modifiers, producing a conflict. When the name is on a
-	// SEPARATE line (`static\nstatic\na()`), OXC does ASI and accepts.
-	// Match by peeking 2 tokens ahead: reject only when the token after
-	// the second `static` is on the same line (no FLAG_NEW_LINE).
-	if is_token(p, .Static) && p.lexer != nil {
-		ensure_nxt(p)
-	}
-	if is_token(p, .Static) && p.lexer != nil && p.lexer.nxt.kind == .Static &&
-	   (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-		snap_ss := lexer_snapshot(p)
-		advance_token(p) // consume first `static`
-		advance_token(p) // consume second `static` → cur = third token
-		third_on_same_line := !cur_has_newline(p)
-		third_type := p.cur_type
-		lexer_restore(p, snap_ss)
-		// Only reject when the third token is on the same line as the
-		// second `static` and is a plausible member-name start.
-		if third_on_same_line && third_type != .RBrace && third_type != .Semi &&
-		   third_type != .EOF {
-			eat(p)       // consume first `static` (field name)
-			eat(p)       // consume second `static` (would-be modifier)
-			report_error_coded(p, .K2010_ExpectedSemicolon, fmt.tprintf("Expected `;` but found `%s`", cur_value(p)))
-		}
-	}
-
-	// Modifier ordering validation (OXC parser-level).
-	if allow_ts_mode(p) {
-		if access_order >= 0 && static_order >= 0 && access_order > static_order {
-			report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'static' modifier", access_name))
-		}
-		if access_order >= 0 && readonly_order >= 0 && access_order > readonly_order {
-			report_error_coded(p, .K4030_ModifierOrder, fmt.tprintf("'%s' modifier must precede 'readonly' modifier", access_name))
-		}
-		if static_order >= 0 && readonly_order >= 0 && static_order > readonly_order {
-			report_error_coded(p, .K4030_ModifierOrder, "'static' modifier must precede 'readonly' modifier")
-		}
-	}
+	mods := parse_class_member_modifiers(p)
+	static_       := mods.static_
+	is_abstract   := mods.is_abstract
+	accessibility := mods.accessibility
+	access_name   := mods.access_name
+	is_readonly   := mods.is_readonly
+	is_override   := mods.is_override
+	is_declare    := mods.is_declare
 
 	kind := ClassElementKind.Method
 	is_async := false
