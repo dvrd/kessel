@@ -2312,6 +2312,43 @@ fn_decl_overload_name :: proc(fn: ^FunctionDeclaration) -> (name: string, at: u3
 	return id.name, u32(id.loc.start), true
 }
 
+// TsFnDecl — one entry per body statement, classifying its function-
+// declaration shape ONCE so the overload-chain and duplicate-impl passes
+// can consume the result instead of each re-running fn_decl_extract +
+// fn_decl_overload_name over the whole body. `is_fn` is false for non-
+// function statements (they still occupy a slot to preserve the
+// chain-breaking position semantics the overload pass relies on).
+TsFnDecl :: struct {
+	name:     string,
+	name_at:  u32,
+	is_fn:    bool,
+	has_name: bool,
+	declare:  bool,
+	has_body: bool,
+	exported: bool,
+}
+
+// ts_collect_fn_decls — single classification prescan over a statement
+// list. Allocates the result on the caller-provided allocator (always
+// temp_allocator here). Mirrors exactly the per-statement classification
+// the two consumer passes used to compute independently.
+@(private="file")
+ts_collect_fn_decls :: proc(body: []^Statement, alloc: mem.Allocator) -> []TsFnDecl {
+	decls := make([]TsFnDecl, len(body), alloc)
+	for stmt, i in body {
+		fn, is_fn := fn_decl_extract(stmt)
+		d := TsFnDecl{is_fn = is_fn}
+		if is_fn && fn != nil {
+			d.declare = fn.declare
+			d.has_body = !fn.no_body
+			d.name, d.name_at, d.has_name = fn_decl_overload_name(fn)
+			_, d.exported = stmt^.(^ExportNamedDeclaration)
+		}
+		decls[i] = d
+	}
+	return decls
+}
+
 // ck_check_ts_func_overloads — walks a Statement-list left-to-right;
 // emits TS2391 / TS2389 per the overload-chain rules.
 //
@@ -2327,8 +2364,8 @@ fn_decl_overload_name :: proc(fn: ^FunctionDeclaration) -> (name: string, at: u3
 // TS2391 / TS2389 wherever an impl IS present and the chain is
 // inconsistent (FunctionDeclaration4.ts / 6.ts shape).
 @(private="file")
-ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
-	if c == nil || len(body) == 0 { return }
+ck_check_ts_func_overloads :: proc(c: ^Checker, decls: []TsFnDecl) {
+	if c == nil || len(decls) == 0 { return }
 
 	flush_unimplemented :: proc(c: ^Checker, sigs: []u32) {
 		for at in sigs {
@@ -2347,16 +2384,8 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 	chain_sigs.allocator = context.temp_allocator
 	defer delete(chain_sigs)
 
-	// Helper: check if a statement is wrapped in ExportNamedDeclaration.
-	is_exported :: proc(stmt: ^Statement) -> bool {
-		if stmt == nil { return false }
-		_, ok := stmt^.(^ExportNamedDeclaration)
-		return ok
-	}
-
-	for stmt in body {
-		fn, is_fn := fn_decl_extract(stmt)
-		if !is_fn {
+	for d in decls {
+		if !d.is_fn {
 			if chain_active && !chain_exported {
 				flush_unimplemented(c, chain_sigs[:])
 			}
@@ -2364,7 +2393,7 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 			clear(&chain_sigs)
 			continue
 		}
-		if fn.declare {
+		if d.declare {
 			// `declare function foo();` is a complete ambient decl.
 			// Doesn't participate in chains; flushes any active chain.
 			if chain_active && !chain_exported {
@@ -2374,7 +2403,7 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 			clear(&chain_sigs)
 			continue
 		}
-		name, name_at, has_name := fn_decl_overload_name(fn)
+		name, name_at, has_name := d.name, d.name_at, d.has_name
 		if !has_name {
 			if chain_active && !chain_exported {
 				flush_unimplemented(c, chain_sigs[:])
@@ -2383,8 +2412,8 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, body: []^Statement) {
 			clear(&chain_sigs)
 			continue
 		}
-		has_body := !fn.no_body
-		exported := is_exported(stmt)
+		has_body := d.has_body
+		exported := d.exported
 		if chain_active {
 			if has_body {
 				// Implementation found. TS treats ANY following
@@ -2499,29 +2528,25 @@ ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
 }
 
 @(private="file")
-ck_check_ts_dup_func_impls :: proc(c: ^Checker, body: []^Statement) {
-	if c == nil || len(body) == 0 { return }
+ck_check_ts_dup_func_impls :: proc(c: ^Checker, decls: []TsFnDecl) {
+	if c == nil || len(decls) == 0 { return }
 
 	// Pass 1: count impl bodies per name.
 	impl_count: map[string]int
 	impl_count.allocator = context.temp_allocator
 	defer delete(impl_count)
-	for stmt in body {
-		fn, is_fn := fn_decl_extract(stmt)
-		if !is_fn || fn.declare || fn.no_body { continue }
-		name, _, has_name := fn_decl_overload_name(fn)
-		if !has_name { continue }
-		impl_count[name] = impl_count[name] + 1
+	for d in decls {
+		if !d.is_fn || d.declare || !d.has_body { continue }
+		if !d.has_name { continue }
+		impl_count[d.name] = impl_count[d.name] + 1
 	}
 
 	// Pass 2: emit on every impl whose name has count >= 2.
-	for stmt in body {
-		fn, is_fn := fn_decl_extract(stmt)
-		if !is_fn || fn.declare || fn.no_body { continue }
-		name, name_at, has_name := fn_decl_overload_name(fn)
-		if !has_name { continue }
-		if impl_count[name] >= 2 {
-			ck_report_coded(c, name_at, .K4080_DuplicateImplementation,
+	for d in decls {
+		if !d.is_fn || d.declare || !d.has_body { continue }
+		if !d.has_name { continue }
+		if impl_count[d.name] >= 2 {
+			ck_report_coded(c, d.name_at, .K4080_DuplicateImplementation,
 				"Duplicate function implementation")
 		}
 	}
@@ -3416,8 +3441,11 @@ ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^State
 	// (every declaration is implicitly ambient there). Per-element
 	// `declare function` is suppressed inside the procedure itself.
 	if !ctx.is_dts && !is_block_scope {
-		ck_check_ts_func_overloads(c, body)
-		ck_check_ts_dup_func_impls(c, body)
+		// Single classification prescan shared by both function-overload
+		// passes (replaces the per-pass fn_decl_extract re-walks).
+		fn_decls := ts_collect_fn_decls(body, context.temp_allocator)
+		ck_check_ts_func_overloads(c, fn_decls)
+		ck_check_ts_dup_func_impls(c, fn_decls)
 	}
 }
 
