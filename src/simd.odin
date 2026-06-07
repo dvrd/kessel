@@ -31,6 +31,15 @@ load_u8x16_unaligned :: #force_inline proc "contextless" (ptr: rawptr) -> Vec16 
 	return intrinsics.unaligned_load((^Vec16)(ptr))
 }
 
+// Unaligned little-endian 8-byte load. Same MOVDQU/ldr rationale as the
+// Vec16 loader above: source buffers carry no 8-byte alignment guarantee, so
+// a typed `(^u64)(ptr)^` deref would lower to an alignment-assuming load and
+// #GP/SIGSEGV on x86_64. The keyword tail comparator uses this to verify a
+// keyword's bytes 4+ in one compare instead of a dependent byte-compare chain.
+load_u64_unaligned :: #force_inline proc "contextless" (ptr: rawptr) -> u64 {
+	return intrinsics.unaligned_load((^u64)(ptr))
+}
+
 
 // Find first quote or backslash — returns (position, is_quote)
 // If returns len(data), neither was found in the scanned range.

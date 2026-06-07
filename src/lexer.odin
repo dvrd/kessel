@@ -3021,6 +3021,14 @@ KEYWORD_HASH_TABLE: [268]TokenType
 // (identifiers that happen to share first-char + length with a keyword).
 KEYWORD_VERIFY: [268]u32
 
+// Keyword tail bytes (indices 4..length) packed little-endian into a u64, used
+// for a single masked word-compare on keywords longer than 4 bytes. Replaces a
+// per-candidate dependent byte-compare chain (one MOV+AND+CMP versus up to six
+// sequential byte loads). Only the non-colliding `length > 4` slots are read;
+// the 6 collision slots (.Invalid) resolve their tail inline in the 2nd-byte
+// switch and never consult this table.
+KEYWORD_TAIL: [268]u64
+
 @(init)
 init_keyword_hash :: proc "contextless" () {
 	for i in 0..<268 { KEYWORD_HASH_TABLE[i] = .Identifier }
@@ -3045,6 +3053,11 @@ init_keyword_hash :: proc "contextless" () {
 		if len(b) > 2 { v |= u32(b[2]) << 8 }
 		if len(b) > 3 { v |= u32(b[3]) << 16 }
 		KEYWORD_VERIFY[h] = v
+		// Pack bytes 4..len little-endian for the length>4 tail compare.
+		// Max keyword length is 10 (instanceof), so at most 6 bytes / shift 40.
+		t: u64 = 0
+		for j in 4..<len(b) { t |= u64(b[j]) << uint(8 * (j - 4)) }
+		KEYWORD_TAIL[h] = t
 	}
 
 	// Non-colliding keywords (51 entries)
@@ -3136,41 +3149,25 @@ lookup_keyword_by_letter :: #force_inline proc(src: []u8, start: u32, end: u32) 
 	if v != KEYWORD_VERIFY[h] { return .Identifier }
 
 	// For length ≤ 4, bytes 1..3 verify fully matched — we're done.
-	// For length > 4, verify remaining bytes 4+.
+	// For length > 4, verify the rest (bytes 4..length) in one masked
+	// word-compare against the precomputed KEYWORD_TAIL slot, replacing the
+	// former per-candidate dependent byte-compare chain. The hash + 3-byte
+	// verify already narrowed `h` to exactly one candidate, so a single
+	// compare of the remaining `length-4` bytes confirms the match.
 	if length > 4 {
-		// Only ~20 keywords have length > 4. Verify bytes 4+ with
-		// a targeted per-candidate check (the hash + 3-byte verify
-		// already narrowed to a single candidate).
-		#partial switch candidate {
-		case .Assert:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
-		case .Asserts:    if src[start+4] != 'r' || src[start+5] != 't' || src[start+6] != 's' { return .Identifier }
-		case .Break:      if src[start+4] != 'k' { return .Identifier }
-		case .Continue:   if src[start+4] != 'i' || src[start+5] != 'n' || src[start+6] != 'u' || src[start+7] != 'e' { return .Identifier }
-		case .Delete:     if src[start+4] != 't' || src[start+5] != 'e' { return .Identifier }
-		case .Default:    if src[start+4] != 'u' || src[start+5] != 'l' || src[start+6] != 't' { return .Identifier }
-		case .Debugger:   if src[start+4] != 'g' || src[start+5] != 'g' || src[start+6] != 'e' || src[start+7] != 'r' { return .Identifier }
-		case .Export:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
-		case .Extends:    if src[start+4] != 'n' || src[start+5] != 'd' || src[start+6] != 's' { return .Identifier }
-		case .False:      if src[start+4] != 'e' { return .Identifier }
-		case .Finally:    if src[start+4] != 'l' || src[start+5] != 'l' || src[start+6] != 'y' { return .Identifier }
-		case .Function:   if src[start+4] != 't' || src[start+5] != 'i' || src[start+6] != 'o' || src[start+7] != 'n' { return .Identifier }
-		case .Infer:      if src[start+4] != 'r' { return .Identifier }
-		case .Import:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
-		case .Instanceof: if src[start+4] != 'a' || src[start+5] != 'n' || src[start+6] != 'c' || src[start+7] != 'e' || src[start+8] != 'o' || src[start+9] != 'f' { return .Identifier }
-		case .Keyof:      if src[start+4] != 'f' { return .Identifier }
-		case .Never:      if src[start+4] != 'r' { return .Identifier }
-		case .Override:   if src[start+4] != 'r' || src[start+5] != 'i' || src[start+6] != 'd' || src[start+7] != 'e' { return .Identifier }
-		case .Return:     if src[start+4] != 'r' || src[start+5] != 'n' { return .Identifier }
-		case .Super:      if src[start+4] != 'r' { return .Identifier }
-		case .Satisfies:  if src[start+4] != 's' || src[start+5] != 'f' || src[start+6] != 'i' || src[start+7] != 'e' || src[start+8] != 's' { return .Identifier }
-		case .Throw:      if src[start+4] != 'w' { return .Identifier }
-		case .Typeof:     if src[start+4] != 'o' || src[start+5] != 'f' { return .Identifier }
-		case .Using:      if src[start+4] != 'g' { return .Identifier }
-		case .Unique:     if src[start+4] != 'u' || src[start+5] != 'e' { return .Identifier }
-		case .While:      if src[start+4] != 'e' { return .Identifier }
-		case .Yield:      if src[start+4] != 'd' { return .Identifier }
+		n := length - 4 // 1..6 (max keyword length is 10).
+		observed: u64 = ---
+		// Fast path: one unaligned 8-byte load when 8 bytes are in bounds.
+		// Near EOF the source carries no trailing padding (the SIMD scan
+		// stops 16 bytes short), so fall back to a bounded byte pack.
+		if int(start) + 12 <= len(src) {
+			observed = load_u64_unaligned(&src[start + 4])
+		} else {
+			observed = 0
+			for j in u32(0)..<n { observed |= u64(src[start + 4 + j]) << uint(8 * j) }
 		}
+		mask := (u64(1) << uint(8 * n)) - 1
+		if (observed & mask) != KEYWORD_TAIL[h] { return .Identifier }
 	}
-
 	return candidate
 }
