@@ -2073,14 +2073,12 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 // properties (accessibility / readonly / override on params). Only the
 // implementation constructor (with a body) may have these.
 @(private="file")
-ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
+ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression, funcs: []^FunctionExpression) {
 	if c == nil || cls == nil { return }
-	for elem in cls.body.body {
+	for elem, i in cls.body.body {
 		if elem.kind != .Constructor { continue }
-		fn, have := elem.value.(^Expression)
-		if !have || fn == nil { continue }
-		func, is_fn := fn^.(^FunctionExpression)
-		if !is_fn || func == nil { continue }
+		func := funcs[i]
+		if func == nil { continue }
 		// Only check overload signatures (no_body = true). The
 		// implementation constructor can have parameter properties.
 		if !func.no_body { continue }
@@ -2107,35 +2105,29 @@ ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression) {
 //   class D { y: number; constructor(public y: number) {} }  → TS2300
 //   class C { y: number; constructor(y: number) {} }         → OK (no modifier)
 @(private="file")
-ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
+ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpression, funcs: []^FunctionExpression) {
 	if c == nil || cls == nil { return }
 	field_names: map[string]bool
 	field_names.allocator = context.temp_allocator
 	defer delete(field_names)
-	for elem in cls.body.body {
+	for elem, i in cls.body.body {
 		if elem.static { continue }
 		#partial switch elem.kind {
 		case .Get, .Set, .Constructor, .StaticBlock:
 			continue
 		}
 		// Skip methods (FunctionExpression value = method, not field).
-		if val, have := elem.value.(^Expression); have && val != nil {
-			if _, is_fn := val^.(^FunctionExpression); is_fn {
-				continue
-			}
-		}
+		if funcs[i] != nil { continue }
 		if elem.computed || elem.key == nil { continue }
 		if id, ok := elem.key^.(^Identifier); ok && id != nil {
 			field_names[id.name] = true
 		}
 	}
 	if len(field_names) == 0 { return }
-	for elem in cls.body.body {
+	for elem, i in cls.body.body {
 		if elem.kind != .Constructor { continue }
-		fn_expr, have := elem.value.(^Expression)
-		if !have || fn_expr == nil { continue }
-		func, is_fn := fn_expr^.(^FunctionExpression)
-		if !is_fn || func == nil || func.no_body { continue }
+		func := funcs[i]
+		if func == nil || func.no_body { continue }
 		for param in func.params {
 			if param.accessibility == .None && !param.readonly { continue }
 			param_name: string
@@ -4290,11 +4282,34 @@ ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 	}
 }
 
+// ck_class_member_funcs resolves each class element's value to its
+// FunctionExpression once (nil for fields / non-function values) so the
+// constructor-scanning whole-class checks share a single classification pass
+// over the body instead of each re-running the value→Expression→
+// FunctionExpression double type-assertion. Behaviour-identical: the same
+// checks run under the same gates at the call site — only the redundant
+// per-pass re-resolution is removed (item 8, fewer cache misses on bodies).
+@(private="file")
+ck_class_member_funcs :: proc(cls: ^ClassExpression) -> []^FunctionExpression {
+	if cls == nil { return nil }
+	out := make([]^FunctionExpression, len(cls.body.body), context.temp_allocator)
+	for elem, i in cls.body.body {
+		if val, ok := elem.value.(^Expression); ok && val != nil {
+			if fn, fok := val^.(^FunctionExpression); fok && fn != nil {
+				out[i] = fn
+			}
+		}
+	}
+	return out
+}
+
 @(private="file")
 ck_check_class_whole :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
+	// Single classification pass shared by the constructor-scanning checks.
+	member_funcs := ck_class_member_funcs(cls)
 	// Whole-class checks: §15.7.1 — at most one constructor (with TS
 	// overload-signature exception)..
-	ck_check_class_constructors(c, ctx, cls)
+	ck_check_class_constructors(c, ctx, cls, member_funcs)
 	// §15.7.1 — PrivateBoundNames must be unique except for one get + one
 	// set pair. This walker also folds in the private getter/setter
 	// static-mismatch sub-rule for the lone get/set pair shape.
@@ -4307,7 +4322,7 @@ ck_check_class_whole :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpre
 	if ck_is_ts(ctx) && !cls.declare && !ctx.is_dts {
 		// TS2391/TS2389 overload chain — migrated to parser.
 		ck_check_ts_class_member_dups(c, cls)
-		ck_check_ts_constructor_param_property_dups(c, cls)
+		ck_check_ts_constructor_param_property_dups(c, cls, member_funcs)
 	}
 	// TS — class type-parameter duplicate-name check. Independent of the
 	// `declare class` / .d.ts gate above: `class C<X, X>` is rejected
@@ -4328,7 +4343,7 @@ ck_check_class_whole :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpre
 		// Abstract-in-non-abstract — migrated to parser.
 		// TS — constructor overload signatures cannot have parameter
 		// properties (accessibility / readonly / override on params).
-		ck_check_ts_constructor_modifiers(c, cls)
+		ck_check_ts_constructor_modifiers(c, cls, member_funcs)
 		// TS — incompatible modifier combinations on class elements.
 		// static+abstract, abstract+#name — migrated to parser.
 	}
@@ -4887,22 +4902,20 @@ ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 // behaviour and keeps the corpus's "Duplicate constructor" cluster at
 // zero kessel-only-rejects.
 @(private="file")
-ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
+ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression, funcs: []^FunctionExpression) {
 	if cls == nil { return }
 	ts_mode := ck_is_ts(ctx)
 	constructor_seen := false
 	constructor_implementation_seen := false
-	for elem in cls.body.body {
+	for elem, i in cls.body.body {
 		if elem.key == nil { continue }
 		if elem.static || elem.computed { continue }
 		if elem.kind != .Method && elem.kind != .Constructor { continue }
 		if class_element_prop_name(elem.key) != "constructor" { continue }
 
 		has_body := false
-		if val_expr, vok := elem.value.(^Expression); vok && val_expr != nil {
-			if fn, fok := val_expr^.(^FunctionExpression); fok && fn != nil {
-				has_body = len(fn.body.body) > 0 || fn.body.loc.end > fn.body.loc.start
-			}
+		if fn := funcs[i]; fn != nil {
+			has_body = len(fn.body.body) > 0 || fn.body.loc.end > fn.body.loc.start
 		}
 
 		loc := u32(get_expression_loc(elem.key).start)
