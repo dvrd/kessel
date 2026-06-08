@@ -13274,6 +13274,157 @@ parse_primary_literal_expr :: #force_inline proc(p: ^Parser, current: ^TokenSnap
 	}
 }
 
+// async_paren_is_arrow_head decides whether `async (...)` begins an async
+// arrow function rather than a call to an identifier named `async`. Pure
+// source-byte lookahead: walk from the `(` after `async` to its matching
+// `)` (tracking paren/bracket/brace depth, skipping string and comment
+// content), then skip trailing trivia and look for `=>` -- or, in TS/TSX, a
+// `: ReturnType =>` annotation. No lexer or parser state is mutated. Closes
+// Test262 annexB/.../cover-callexpression-and-asyncarrowhead.js. Lifted
+// verbatim from the `.Async` case of parse_primary_expr to honour the
+// 70-line limit; the surrounding disambiguation control flow is unchanged.
+@(private = "file")
+async_paren_is_arrow_head :: proc(p: ^Parser, current: TokenSnap, next: Token) -> bool {
+	if p.lexer == nil {
+		return false
+	}
+	is_arrow_head := false
+	src := p.lexer.source_bytes
+	lparen_off := int(next.raw_end) - 1
+	// `next.raw_end` is just past `(`, so `lparen_off` is
+	// the `(` byte. Walk forward tracking nesting depth
+	// over parens/brackets/braces; stop at the matching `)`.
+	// Skip string / template content so embedded brackets
+	// don't break the depth count.
+	depth := 0
+	i := lparen_off
+	src_len := len(src)
+	end_off := -1
+	scan: for i < src_len {
+		ch := src[i]
+		switch ch {
+		case '(', '[', '{':
+			depth += 1
+		case ')', ']', '}':
+			depth -= 1
+			if depth == 0 && ch == ')' {
+				end_off = i
+				break scan
+			}
+		case '"', '\'':
+			quote := ch
+			i += 1
+			for i < src_len && src[i] != quote {
+				if src[i] == '\\' && i + 1 < src_len { i += 1 }
+				i += 1
+			}
+		case '/':
+			// Bare `/` could be division or comment;
+			// skip a single-line `//` so we don't read
+			// `=>` from inside a comment.
+			if i + 1 < src_len && src[i+1] == '/' {
+				for i < src_len && src[i] != '\n' { i += 1 }
+			} else if i + 1 < src_len && src[i+1] == '*' {
+				i += 2
+				for i + 1 < src_len && !(src[i] == '*' && src[i+1] == '/') { i += 1 }
+				if i + 1 < src_len { i += 1 }
+			}
+		}
+		i += 1
+	}
+	if end_off >= 0 {
+		j := end_off + 1
+		// Skip whitespace AND comments (Test262 has
+		// `... ) /* f */ => /* g */ { ... }`).
+		for j < src_len {
+			ch := src[j]
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
+			if ch == '/' && j + 1 < src_len && src[j+1] == '/' {
+				for j < src_len && src[j] != '\n' { j += 1 }
+				continue
+			}
+			if ch == '/' && j + 1 < src_len && src[j+1] == '*' {
+				j += 2
+				for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+				if j + 1 < src_len { j += 2 }
+				continue
+			}
+			break
+		}
+		// TS / TSX async arrow with return type annotation:
+		// `async (): T => body`. After the matching `)` the
+		// next non-trivia byte is `:`; the type annotation
+		// extends until the `=>` (skipping balanced
+		// `<>` / `()` / `[]` / `{}` and string content).
+		// Previously the lookahead bailed at the `:` and treated
+		// `async (...)` as a plain CallExpression of `async`.
+		// "Expected semicolon" cluster.
+		// TS return-type lookahead. When inside a ternary
+		// consequent AND there's no extra wrapping paren
+		// before `async`, the `:` after `async(b)` is the
+		// ternary's alt separator, NOT a return type.
+		// `(async(b): T => ...)` inside parens is fine.
+		skip_return_type := false
+		if p.conditional_depth > 0 {
+			// Check if `async` is shielded by outer parens.
+			async_pos := int(current.start)
+			shielded := false
+			for k := async_pos - 1; k >= 0; k -= 1 {
+				ch := src[k]
+				if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { continue }
+				if ch == '(' { shielded = true }
+				break
+			}
+			skip_return_type = !shielded
+		}
+		if (p.lang == .TS || p.lang == .TSX) && !skip_return_type && j < src_len && src[j] == ':' {
+			j += 1
+			t_depth := 0
+			ts_scan: for j < src_len {
+				tch := src[j]
+				switch tch {
+				case '<', '(', '[', '{':
+					t_depth += 1
+				case '>', ')', ']', '}':
+					if t_depth == 0 {
+						// Hit a closer outside any nested
+						// group - type ended without `=>`,
+						// not an arrow head.
+						break ts_scan
+					}
+					t_depth -= 1
+				case '=':
+					if t_depth == 0 && j + 1 < src_len && src[j+1] == '>' {
+						is_arrow_head = true
+						break ts_scan
+					}
+				case ',', ';':
+					if t_depth == 0 { break ts_scan }
+				case '"', '\'':
+					quote := tch
+					j += 1
+					for j < src_len && src[j] != quote {
+						if src[j] == '\\' && j + 1 < src_len { j += 1 }
+						j += 1
+					}
+				case '/':
+					if j + 1 < src_len && src[j+1] == '/' {
+						for j < src_len && src[j] != '\n' { j += 1 }
+					} else if j + 1 < src_len && src[j+1] == '*' {
+						j += 2
+						for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+						if j + 1 < src_len { j += 1 }
+					}
+				}
+				j += 1
+			}
+		} else if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' {
+			is_arrow_head = true
+		}
+	}
+	return is_arrow_head
+}
+
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	current := snap_current(p)
 
@@ -13539,142 +13690,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 				// and let the LHS-tail parser build the CallExpression.
 				// Test262: annexB/language/expressions/assignmenttargettype/
 				// cover-callexpression-and-asyncarrowhead.js.
-				is_arrow_head := false
-				if p.lexer != nil {
-					src := p.lexer.source_bytes
-					lparen_off := int(next.raw_end) - 1
-					// `next.raw_end` is just past `(`, so `lparen_off` is
-					// the `(` byte. Walk forward tracking nesting depth
-					// over parens/brackets/braces; stop at the matching `)`.
-					// Skip string / template content so embedded brackets
-					// don't break the depth count.
-					depth := 0
-					i := lparen_off
-					src_len := len(src)
-					end_off := -1
-					scan: for i < src_len {
-						ch := src[i]
-						switch ch {
-						case '(', '[', '{':
-							depth += 1
-						case ')', ']', '}':
-							depth -= 1
-							if depth == 0 && ch == ')' {
-								end_off = i
-								break scan
-							}
-						case '"', '\'':
-							quote := ch
-							i += 1
-							for i < src_len && src[i] != quote {
-								if src[i] == '\\' && i + 1 < src_len { i += 1 }
-								i += 1
-							}
-						case '/':
-							// Bare `/` could be division or comment;
-							// skip a single-line `//` so we don't read
-							// `=>` from inside a comment.
-							if i + 1 < src_len && src[i+1] == '/' {
-								for i < src_len && src[i] != '\n' { i += 1 }
-							} else if i + 1 < src_len && src[i+1] == '*' {
-								i += 2
-								for i + 1 < src_len && !(src[i] == '*' && src[i+1] == '/') { i += 1 }
-								if i + 1 < src_len { i += 1 }
-							}
-						}
-						i += 1
-					}
-					if end_off >= 0 {
-						j := end_off + 1
-						// Skip whitespace AND comments (Test262 has
-						// `... ) /* f */ => /* g */ { ... }`).
-						for j < src_len {
-							ch := src[j]
-							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
-							if ch == '/' && j + 1 < src_len && src[j+1] == '/' {
-								for j < src_len && src[j] != '\n' { j += 1 }
-								continue
-							}
-							if ch == '/' && j + 1 < src_len && src[j+1] == '*' {
-								j += 2
-								for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
-								if j + 1 < src_len { j += 2 }
-								continue
-							}
-							break
-						}
-						// TS / TSX async arrow with return type annotation:
-						// `async (): T => body`. After the matching `)` the
-						// next non-trivia byte is `:`; the type annotation
-						// extends until the `=>` (skipping balanced
-						// `<>` / `()` / `[]` / `{}` and string content).
-						// Previously the lookahead bailed at the `:` and treated
-						// `async (...)` as a plain CallExpression of `async`.
-						// "Expected semicolon" cluster.
-						// TS return-type lookahead. When inside a ternary
-						// consequent AND there's no extra wrapping paren
-						// before `async`, the `:` after `async(b)` is the
-						// ternary's alt separator, NOT a return type.
-						// `(async(b): T => ...)` inside parens is fine.
-						skip_return_type := false
-						if p.conditional_depth > 0 {
-							// Check if `async` is shielded by outer parens.
-							async_pos := int(current.start)
-							shielded := false
-							for k := async_pos - 1; k >= 0; k -= 1 {
-								ch := src[k]
-								if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { continue }
-								if ch == '(' { shielded = true }
-								break
-							}
-							skip_return_type = !shielded
-						}
-						if (p.lang == .TS || p.lang == .TSX) && !skip_return_type && j < src_len && src[j] == ':' {
-							j += 1
-							t_depth := 0
-							ts_scan: for j < src_len {
-								tch := src[j]
-								switch tch {
-								case '<', '(', '[', '{':
-									t_depth += 1
-								case '>', ')', ']', '}':
-									if t_depth == 0 {
-										// Hit a closer outside any nested
-										// group - type ended without `=>`,
-										// not an arrow head.
-										break ts_scan
-									}
-									t_depth -= 1
-								case '=':
-									if t_depth == 0 && j + 1 < src_len && src[j+1] == '>' {
-										is_arrow_head = true
-										break ts_scan
-									}
-								case ',', ';':
-									if t_depth == 0 { break ts_scan }
-								case '"', '\'':
-									quote := tch
-									j += 1
-									for j < src_len && src[j] != quote {
-										if src[j] == '\\' && j + 1 < src_len { j += 1 }
-										j += 1
-									}
-								case '/':
-									if j + 1 < src_len && src[j+1] == '/' {
-										for j < src_len && src[j] != '\n' { j += 1 }
-									} else if j + 1 < src_len && src[j+1] == '*' {
-										j += 2
-										for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
-										if j + 1 < src_len { j += 1 }
-									}
-								}
-								j += 1
-							}
-						} else if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' {
-							is_arrow_head = true
-						}
-					}
-				}
+				is_arrow_head := async_paren_is_arrow_head(p, current, next)
 				if is_arrow_head {
 					eat(p) // consume async
 					return parse_async_arrow_with_parens(p, current)
