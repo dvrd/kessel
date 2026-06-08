@@ -6041,6 +6041,55 @@ parse_class_member_modifiers :: proc(p: ^Parser) -> ClassMemberModifiers {
 }
 
 
+// try_consume_ts_class_index_signature detects and consumes a TS index
+// signature in a class body (`[s: string]: number`) when the `[` clearly
+// opens one (`[ Identifier (: | ?:) ...`). Mirrors parse_ts_object_member's
+// index-signature arm. Returns true when an index signature was consumed —
+// the caller then drops the element (returns nil), matching the existing
+// pattern for parser-intentionally-dropped elements (TS overload signatures
+// don't materialize either). Returns false when the `[` is an ordinary
+// computed property key; the lexer cursor is left untouched in that case so
+// the caller can parse the computed key.
+@(private="file")
+try_consume_ts_class_index_signature :: proc(p: ^Parser, accessibility: ClassAccessibility, access_name: string) -> bool {
+	ensure_nxt(p)
+	if !(allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier) {
+		return false
+	}
+	// Two-token lookahead: nxt is the identifier, nxt.nxt would be `:`.
+	// We don't have a 2-tok-ahead helper, so snapshot+probe.
+	snap := lexer_snapshot(p)
+	eat(p)  // consume `[`
+	eat(p)  // consume identifier
+	ensure_nxt(p)
+	is_index_sig := is_token(p, .Colon) ||
+	                (is_token(p, .Question) && p.lexer.nxt.kind == .Colon)
+	lexer_restore(p, snap)
+	if !is_index_sig {
+		return false
+	}
+	// Confirmed: parse and discard the index signature. Same shape
+	// as parse_ts_object_member's index-signature arm.
+	if accessibility != .None {
+		report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", access_name))
+	}
+	eat(p)            // `[`
+	eat(p)            // identifier
+	if match_token(p, .Question) {
+		report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
+	}
+	expect_token(p, .Colon)
+	_ = parse_ts_type(p)
+	expect_token(p, .RBracket)
+	if is_token(p, .Colon) && allow_ts_mode(p) {
+		_ = parse_ts_type_annotation(p)
+	} else if allow_ts_mode(p) {
+		report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
+	}
+	match_semicolon_or_asi(p)
+	return true
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -6269,43 +6318,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// now - the parser accepts the syntax, the corpus smoke gate passes,
 		// and a proper TSIndexSignature class-element node can come in W7+
 		// when the deep walker starts comparing class bodies.
-		ensure_nxt(p)
-		if allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier {
-			// Two-token lookahead: nxt is the identifier, nxt.nxt would be `:`.
-			// We don't have a 2-tok-ahead helper, so snapshot+probe.
-			snap := lexer_snapshot(p)
-			eat(p)  // consume `[`
-			eat(p)  // consume identifier
-			ensure_nxt(p)
-			is_index_sig := is_token(p, .Colon) ||
-			                (is_token(p, .Question) && p.lexer.nxt.kind == .Colon)
-			lexer_restore(p, snap)
-			if is_index_sig {
-				// Confirmed: parse and discard the index signature. Same shape
-				// as parse_ts_object_member's index-signature arm.
-				if accessibility != .None {
-					report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", access_name))
-				}
-				eat(p)            // `[`
-				eat(p)            // identifier
-				if match_token(p, .Question) {
-					report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
-				}
-				expect_token(p, .Colon)
-				_ = parse_ts_type(p)
-				expect_token(p, .RBracket)
-				if is_token(p, .Colon) && allow_ts_mode(p) {
-					_ = parse_ts_type_annotation(p)
-				} else if allow_ts_mode(p) {
-					report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-				}
-				match_semicolon_or_asi(p)
-				// Return nil so the class-body loop swallows the element
-				// without erroring - mirrors the existing pattern for elements
-				// that the parser intentionally drops (TS overload signatures
-				// don't materialize either).
-				return nil
-			}
+		// Return nil so the class-body loop swallows the element without
+		// erroring - mirrors the existing pattern for elements that the parser
+		// intentionally drops (TS overload signatures don't materialize either).
+		if try_consume_ts_class_index_signature(p, accessibility, access_name) {
+			return nil
 		}
 		// Computed property: [expr]
 		computed = true
