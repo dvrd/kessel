@@ -13893,6 +13893,217 @@ parse_primary_langle :: proc(p: ^Parser) -> ^Expression {
 	return nil
 }
 
+// parse_primary_private_identifier handles a bare `#name` primary, valid
+// only as the LHS of an `in` (ergonomic brand check); every other use is a
+// SyntaxError. Queues the reference for end-of-class-body resolution.
+@(private = "file")
+parse_primary_private_identifier :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// ECMA-262 §13.2 - `#foo` may appear as a PrimaryExpression ONLY
+	// when it is the LHS of an `in` operator (ES2022 ergonomic brand
+	// check: `#foo in obj`). Every other primary-position use is a
+	// SyntaxError, including class-field usages outside a class body
+	// and use as an assignment target. `obj.#foo` / `this.#foo` are
+	// member accesses - those don't come through here because
+	// `parse_lhs_tail` consumes the `#foo` after `.` directly.
+	// `#x in #y` (Test262 expressions/in/private-field-in-nested.js)
+	// must reject the second `#y`: even though nxt.kind == .In here
+	// (the OUTER `in` of `#x in #y in z`), this slot is the RHS of
+	// the inner `in`, not its LHS. `in_in_rhs` distinguishes them.
+	if p.lexer != nil { ensure_nxt(p) }
+	invalid_position := p.ctx.in_in_rhs || p.ctx.no_in || !p.ctx.private_in_allowed ||
+	                    (p.lexer != nil && p.lexer.nxt.kind != .In)
+	if invalid_position {
+		report_error_coded(p, .K2040_UnexpectedToken, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
+	}
+	// §15.7.3 — a PrivateIdentifier reference outside any class body
+	// cannot resolve. Inside a class body, queue the reference for
+	// validation at end-of-class-body (when the declared-name set is
+	// known).
+	// Private field reference: #x (used in expressions like #x in this)
+	name := current.value
+	if len(name) > 0 && name[0] == '#' {
+		name = name[1:]
+	}
+	private_ref_loc := loc_from_token(&current)
+	if p.class_depth == 0 {
+		report_error_coded(p, .K3032_PrivateNameInvalid, "Private name reference is not allowed outside of a class")
+	} else if name != "" {
+		append(&p.pending_priv_refs, PendingPrivRef{name = name, loc = private_ref_loc, depth = p.class_depth})
+	}
+	pid, pid_e := new_expr(p, PrivateIdentifier)
+	pid.loc = loc_from_token(&current)
+	pid.name = name
+	p.private_id_count += 1
+	eat(p)
+	pid.loc.end = prev_end_offset(p)
+	return pid_e
+}
+
+// parse_primary_super handles a `super` primary: `super.prop` / `super[...]`
+// member access and `super(...)` calls. Context legality is checked later.
+@(private = "file")
+parse_primary_super :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// §13.3.7 SuperProperty / §15.7.6 SuperCall shape check.
+  ensure_nxt(p)
+	if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
+	   p.lexer.nxt.kind != .LParen {
+		report_error_coded(p, .K3033_SuperInvalidContext, "'super' can only be used with function calls or in property accesses")
+	}
+	// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
+	// `super.x` / `super[x]` outside a method body is a SyntaxError.
+  ensure_nxt(p)
+	if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method {
+		report_error_coded(p, .K3033_SuperInvalidContext, "'super' property access is only valid inside a method")
+	}
+	eat(p)
+	super, super_e := new_expr(p, Super)
+	super.loc = loc_from_token(&current)
+	super.loc.end = prev_end_offset(p)
+	return super_e
+}
+
+// parse_primary_identifier handles an IdentifierReference primary: any
+// contextual keyword usable as an identifier, plus the escaped-reserved /
+// strict-reserved / `enum` / class-field `arguments` early errors. Hot path
+// (every identifier expression), so the dispatch site calls it #force_inline.
+@(private = "file")
+parse_primary_identifier :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// All contextual keywords are valid identifiers in expression context.
+	// TS keywords (type, interface, enum) lex as Identifier and are
+	// handled via string-value check in parse_statement_or_declaration.
+	// ECMA-262 §12.7.2: if the identifier arrived via \uXXXX escape and
+	// its cooked StringValue matches a ReservedWord, IdentifierReference
+	// is a Syntax Error (check runs before eat so loc is correct).
+	report_escaped_reserved_word(p)
+	// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
+	// reserved (all modes, strict and sloppy). The lexer emits
+	// `enum` as .Identifier (contextual for TS enum decls), so
+	// we must check by value here in expression position.
+	if current.value == "enum" {
+		report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word")
+	}
+	// §12.6.1.1 - strict-mode IdentifierReference cannot be "let" /
+	// "yield" / "implements" / "interface" / "package" /
+	// "private" / "protected" / "public" / "static". The lexer emits
+	// .Let / .Static / .Yield as dedicated tokens and the rest as
+	// .Identifier, so check both channels. `yield` inside a generator
+	// and `await` inside async are handled by the dedicated keyword
+	// paths earlier in parse_unary_expr - we only reach here for
+	// sloppy-mode fall-through.
+	if p.ctx.strict_mode {
+		if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
+			report_error_coded(p, .K3050_StrictModeReserved, msg)
+		}
+	}
+
+	// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
+	// async-params / class-static-block context is enforced by the
+	// semantic checker (ck_check_identifier_await_reserved). The
+	// has_escape flag is propagated below to the Identifier so the
+	// checker can match the parser's narrow gating.
+	// Escaped `async` before `function` is SyntaxError. The lexer
+	// emits `.Identifier` (not `.Async`) for `\u0061sync`, so the
+	// `.Async` case's escape check doesn't fire.
+	if current.has_escape && current.value == "async" {
+		nxt := peek_token(p)
+		if nxt.type == .Function && !nxt.had_line_terminator {
+			report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
+		}
+	}
+	eat(p)
+	id, id_expr := new_expr(p, Identifier)
+	id.loc = loc_from_token(&current)
+	id.name = current.value
+	id.has_escape = current.has_escape
+	id.loc.end = prev_end_offset(p)
+	// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
+	// forbidden in class field initializers and class static blocks
+	// (the synthetic function does NOT bind `arguments`). Gate on the
+	// rare-context flags FIRST so the string compare doesn't run on
+	// every identifier in the hot path.
+	if (p.ctx.in_static_block || p.ctx.in_field_init) && current.value == "arguments" {
+		if p.ctx.in_static_block {
+			report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
+		} else {
+			report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
+		}
+	}
+	return id_expr
+}
+
+// parse_primary_at handles a leading `@` decorator that prefixes a class
+// expression (`@dec class {}`), parsing the decorator list then the class.
+@(private = "file")
+parse_primary_at :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// Decorator on a class expression: `@dec class {}`. Same
+	// `parse_decorators` walker as the statement-position decorated
+	// class. Decorator-on-expression is the stage-3 form (only
+	// applies to ClassExpression - nothing else accepts decorators).
+	decorators := parse_decorators(p)
+	if !is_token(p, .Class) {
+		report_error_coded(p, .K2090_MalformedDecorator, "Decorators can only be applied to class expressions")
+		return nil
+	}
+	cls := parse_class_expression(p)
+	if cls != nil {
+		if ce, ok := cls.(^ClassExpression); ok && ce != nil {
+			ce.decorators = decorators
+			if len(decorators) > 0 {
+				ce.loc.start = decorators[0].loc.start
+			}
+		}
+	}
+	return cls
+}
+
+// parse_primary_regex handles a RegularExpression literal primary, building
+// the RegExpLiteral node and routing the pattern through the validator.
+@(private = "file")
+parse_primary_regex :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	eat(p)
+	regex, regex_e := new_expr(p, RegExpLiteral)
+	regex.loc = loc_from_token(&current)
+	// Parse pattern and flags from token value (format: /pattern/flags)
+	raw := current.value
+	if len(raw) >= 2 && raw[0] == '/' {
+		// Find the last / that separates pattern from flags
+		last_slash := -1
+		for i := len(raw) - 1; i >= 0; i -= 1 {
+			if raw[i] == '/' {
+				last_slash = i
+				break
+			}
+		}
+		if last_slash > 0 {
+			regex.pattern = intern(p.interner, raw[1:last_slash])
+			if last_slash + 1 < len(raw) {
+				regex.flags = intern(p.interner, raw[last_slash + 1:])
+			}
+		}
+	}
+	regex.loc.end = prev_end_offset(p)
+	return regex_e
+}
+
+// parse_primary_this builds a ThisExpression. `this` is common in method
+// bodies, so the dispatch site calls it #force_inline to keep the original
+// inline codegen.
+@(private = "file")
+parse_primary_this :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	eat(p)
+	this, this_e := new_expr(p, ThisExpression)
+	this.loc = loc_from_token(&current)
+	this.loc.end = prev_end_offset(p)
+	return this_e
+}
+
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	current := snap_current(p)
 
@@ -13912,72 +14123,11 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	case .Import:
 		return parse_primary_import(p)
 	case .This:
-		eat(p)
-		this, this_e := new_expr(p, ThisExpression)
-		this.loc = loc_from_token(&current)
-		this.loc.end = prev_end_offset(p)
-		return this_e
-
+		return #force_inline parse_primary_this(p)
 	case .PrivateIdentifier:
-		// ECMA-262 §13.2 - `#foo` may appear as a PrimaryExpression ONLY
-		// when it is the LHS of an `in` operator (ES2022 ergonomic brand
-		// check: `#foo in obj`). Every other primary-position use is a
-		// SyntaxError, including class-field usages outside a class body
-		// and use as an assignment target. `obj.#foo` / `this.#foo` are
-		// member accesses - those don't come through here because
-		// `parse_lhs_tail` consumes the `#foo` after `.` directly.
-		// `#x in #y` (Test262 expressions/in/private-field-in-nested.js)
-		// must reject the second `#y`: even though nxt.kind == .In here
-		// (the OUTER `in` of `#x in #y in z`), this slot is the RHS of
-		// the inner `in`, not its LHS. `in_in_rhs` distinguishes them.
-		if p.lexer != nil { ensure_nxt(p) }
-		invalid_position := p.ctx.in_in_rhs || p.ctx.no_in || !p.ctx.private_in_allowed ||
-		                    (p.lexer != nil && p.lexer.nxt.kind != .In)
-		if invalid_position {
-			report_error_coded(p, .K2040_UnexpectedToken, "Private identifier can only appear as the LHS of an 'in' expression or as a class member")
-		}
-		// §15.7.3 — a PrivateIdentifier reference outside any class body
-		// cannot resolve. Inside a class body, queue the reference for
-		// validation at end-of-class-body (when the declared-name set is
-		// known).
-		// Private field reference: #x (used in expressions like #x in this)
-		name := current.value
-		if len(name) > 0 && name[0] == '#' {
-			name = name[1:]
-		}
-		private_ref_loc := loc_from_token(&current)
-		if p.class_depth == 0 {
-			report_error_coded(p, .K3032_PrivateNameInvalid, "Private name reference is not allowed outside of a class")
-		} else if name != "" {
-			append(&p.pending_priv_refs, PendingPrivRef{name = name, loc = private_ref_loc, depth = p.class_depth})
-		}
-		pid, pid_e := new_expr(p, PrivateIdentifier)
-		pid.loc = loc_from_token(&current)
-		pid.name = name
-		p.private_id_count += 1
-		eat(p)
-		pid.loc.end = prev_end_offset(p)
-		return pid_e
-
+		return parse_primary_private_identifier(p)
 	case .Super:
-		// §13.3.7 SuperProperty / §15.7.6 SuperCall shape check.
-  ensure_nxt(p)
-		if p.lexer.nxt.kind != .Dot && p.lexer.nxt.kind != .LBracket &&
-		   p.lexer.nxt.kind != .LParen {
-			report_error_coded(p, .K3033_SuperInvalidContext, "'super' can only be used with function calls or in property accesses")
-		}
-		// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
-		// `super.x` / `super[x]` outside a method body is a SyntaxError.
-  ensure_nxt(p)
-		if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method {
-			report_error_coded(p, .K3033_SuperInvalidContext, "'super' property access is only valid inside a method")
-		}
-		eat(p)
-		super, super_e := new_expr(p, Super)
-		super.loc = loc_from_token(&current)
-		super.loc.end = prev_end_offset(p)
-		return super_e
-
+		return parse_primary_super(p)
 	case .Null, .True, .False, .Number, .String, .BigInt:
 		return parse_primary_literal_expr(p, &current)
 
@@ -13988,69 +14138,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	     .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique, .Namespace, .Module,
 	     .Implements, .Require, .Package, .Private, .Protected, .Public,
 	     .Accessor, .Target, .Await, .Yield:
-		// All contextual keywords are valid identifiers in expression context.
-		// TS keywords (type, interface, enum) lex as Identifier and are
-		// handled via string-value check in parse_statement_or_declaration.
-		// ECMA-262 §12.7.2: if the identifier arrived via \uXXXX escape and
-		// its cooked StringValue matches a ReservedWord, IdentifierReference
-		// is a Syntax Error (check runs before eat so loc is correct).
-		report_escaped_reserved_word(p)
-		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
-		// reserved (all modes, strict and sloppy). The lexer emits
-		// `enum` as .Identifier (contextual for TS enum decls), so
-		// we must check by value here in expression position.
-		if current.value == "enum" {
-			report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word")
-		}
-		// §12.6.1.1 - strict-mode IdentifierReference cannot be "let" /
-		// "yield" / "implements" / "interface" / "package" /
-		// "private" / "protected" / "public" / "static". The lexer emits
-		// .Let / .Static / .Yield as dedicated tokens and the rest as
-		// .Identifier, so check both channels. `yield` inside a generator
-		// and `await` inside async are handled by the dedicated keyword
-		// paths earlier in parse_unary_expr - we only reach here for
-		// sloppy-mode fall-through.
-		if p.ctx.strict_mode {
-			if is_strict_reserved_word(current.type) || is_strict_reserved_name(current.value) {
-				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", current.value)
-				report_error_coded(p, .K3050_StrictModeReserved, msg)
-			}
-		}
-
-		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
-		// async-params / class-static-block context is enforced by the
-		// semantic checker (ck_check_identifier_await_reserved). The
-		// has_escape flag is propagated below to the Identifier so the
-		// checker can match the parser's narrow gating.
-		// Escaped `async` before `function` is SyntaxError. The lexer
-		// emits `.Identifier` (not `.Async`) for `\u0061sync`, so the
-		// `.Async` case's escape check doesn't fire.
-		if current.has_escape && current.value == "async" {
-			nxt := peek_token(p)
-			if nxt.type == .Function && !nxt.had_line_terminator {
-				report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
-			}
-		}
-		eat(p)
-		id, id_expr := new_expr(p, Identifier)
-		id.loc = loc_from_token(&current)
-		id.name = current.value
-		id.has_escape = current.has_escape
-		id.loc.end = prev_end_offset(p)
-		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
-		// forbidden in class field initializers and class static blocks
-		// (the synthetic function does NOT bind `arguments`). Gate on the
-		// rare-context flags FIRST so the string compare doesn't run on
-		// every identifier in the hot path.
-		if (p.ctx.in_static_block || p.ctx.in_field_init) && current.value == "arguments" {
-			if p.ctx.in_static_block {
-				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
-			} else {
-				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
-			}
-		}
-		return id_expr
-
+		return #force_inline parse_primary_identifier(p)
 	case .LParen:
 		return #force_inline parse_primary_lparen(p)
 	case .LBracket:
@@ -14066,26 +14154,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return parse_class_expression(p)
 
 	case .At:
-		// Decorator on a class expression: `@dec class {}`. Same
-		// `parse_decorators` walker as the statement-position decorated
-		// class. Decorator-on-expression is the stage-3 form (only
-		// applies to ClassExpression - nothing else accepts decorators).
-		decorators := parse_decorators(p)
-		if !is_token(p, .Class) {
-			report_error_coded(p, .K2090_MalformedDecorator, "Decorators can only be applied to class expressions")
-			return nil
-		}
-		cls := parse_class_expression(p)
-		if cls != nil {
-			if ce, ok := cls.(^ClassExpression); ok && ce != nil {
-				ce.decorators = decorators
-				if len(decorators) > 0 {
-					ce.loc.start = decorators[0].loc.start
-				}
-			}
-		}
-		return cls
-
+		return parse_primary_at(p)
 	case .New:
 		return parse_new_expr(p)
 
@@ -14093,30 +14162,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return parse_template_literal(p, false)
 
 	case .RegularExpression:
-		eat(p)
-		regex, regex_e := new_expr(p, RegExpLiteral)
-		regex.loc = loc_from_token(&current)
-		// Parse pattern and flags from token value (format: /pattern/flags)
-		raw := current.value
-		if len(raw) >= 2 && raw[0] == '/' {
-			// Find the last / that separates pattern from flags
-			last_slash := -1
-			for i := len(raw) - 1; i >= 0; i -= 1 {
-				if raw[i] == '/' {
-					last_slash = i
-					break
-				}
-			}
-			if last_slash > 0 {
-				regex.pattern = intern(p.interner, raw[1:last_slash])
-				if last_slash + 1 < len(raw) {
-					regex.flags = intern(p.interner, raw[last_slash + 1:])
-				}
-			}
-		}
-		regex.loc.end = prev_end_offset(p)
-		return regex_e
-
+		return parse_primary_regex(p)
 	case .LAngle:
 		return parse_primary_langle(p)
 	case:
