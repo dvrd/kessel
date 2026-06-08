@@ -13425,6 +13425,474 @@ async_paren_is_arrow_head :: proc(p: ^Parser, current: TokenSnap, next: Token) -
 	return is_arrow_head
 }
 
+// parse_primary_import handles the `import` primary forms: dynamic
+// `import(spec)`, `import.meta`, and the stage-3 phase imports
+// `import.defer(spec)` / `import.source(spec)`. Static import is a
+// SyntaxError in expression position. Split out of parse_primary_expr.
+@(private = "file")
+parse_primary_import :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// Check for dynamic import: import(specifier)
+	if is_next_token(p, .LParen) {
+		return parse_dynamic_import(p, "")
+	}
+	// Check for import.<property> forms:
+	//   import.meta             - MetaProperty (§13.3.12)
+	//   import.defer(specifier) - Phase Imports (stage-3, import-defer)
+	//   import.source(specifier)- Phase Imports (stage-3, import-source)
+	if is_next_token(p, .Dot) {
+		eat(p) // consume import
+		if !expect_token(p, .Dot) {
+			return nil
+		}
+		meta_name := parse_identifier(p)
+
+		// Phase-import call form: import.defer(...) / import.source(...).
+		// Only matches when the property is a known phase AND the next
+		// token is `(` - otherwise falls through to MetaProperty so an
+		// error surfaces for the bare form.
+		if is_token(p, .LParen) &&
+		   (meta_name.name == "defer" || meta_name.name == "source") {
+			// Hand off to parse_dynamic_import_tail so the import()
+			// grammar (AssignmentExpression ,opt [, AssignmentExpression
+			// ,opt ]) is shared. Start-loc is the `import` keyword
+			// (current, before eat); the helper uses prev_end_offset for
+			// the closing paren.
+			return parse_dynamic_import_tail(p, loc_from_token(&current), meta_name.name)
+		}
+
+		// §Grammar Notation: the `meta` in `import.meta` must not
+		// contain Unicode escape sequences.
+		if meta_name.name == "meta" {
+			// Check the raw source for escape sequences: parse_identifier
+			// uses the cooked name but raw source may have \uXXXX.
+			span_bytes := p.lexer.source_bytes[meta_name.loc.start:meta_name.loc.end]
+			for b in span_bytes {
+				if b == '\\' {
+					report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "'import.meta' property name must not contain Unicode escape sequences")
+					break
+				}
+			}
+		}
+		// §13.3.12 - The only valid meta property for `import` is
+		// `import.meta`.  `import.then`, `import.foo`, etc. are
+		// SyntaxErrors.
+		if meta_name.name != "meta" {
+			msg := fmt.tprintf("The only valid meta property for import is import.meta (got 'import.%s')", meta_name.name)
+			report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, msg)
+		}
+		meta_prop, meta_prop_e := new_expr(p, MetaProperty)
+		meta_prop.loc = loc_from_token(&current)
+		meta_prop.meta = Identifier{
+			loc  = loc_from_token(&current),
+			name = "import",
+		}
+		meta_prop.property = Identifier{
+			loc  = meta_name.loc,
+			name = meta_name.name,
+		}
+		meta_prop.loc.end = prev_end_offset(p)
+		p.has_module_syntax = true
+		// `import.meta` is Module syntax. In script sourceType it's a
+		// SyntaxError per ECMA-262 §13.3.12.
+		if st, have := p.force_source_type.(SourceType); have && st == .Script {
+			report_error_coded(p, .K3022_ModuleSyntaxInScript, "'import.meta' is only valid in module code")
+		}
+		// Collect ESM import.meta record
+		esm_import_meta := ESMImportMeta{
+			start = meta_prop.loc.start,
+			end = meta_prop.loc.end,
+		}
+		bump_append(&p.importMetas, esm_import_meta)
+		return meta_prop_e
+	}
+	// Static import - not valid in expression context
+	report_error_coded(p, .K2040_UnexpectedToken, "Unexpected import in expression context")
+	return nil
+}
+
+// parse_primary_async handles a leading `async`: async function
+// expression, async arrow (`async x =>`, `async (...) =>`, TS generic
+// `async <T>(...) =>`), or `async` as a bare IdentifierReference.
+// Split out of parse_primary_expr; still larger than the 70-line
+// target and a candidate for further internal decomposition.
+@(private = "file")
+parse_primary_async :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// async function expression or arrow function
+	// Lookahead to check what follows async
+	next := peek_token(p)
+	// ECMA-262 §15.8 / §15.9 Restricted Productions: no LineTerminator
+	// between `async` and the following `function` / BindingIdentifier /
+	// `(`. If there is one, the grammar rule fails and ASI treats `async`
+	// as a bare IdentifierReference; the lookahead token starts a new
+	// statement/expression.
+	// §Grammar Notation: terminal symbols must not contain Unicode escape
+	// sequences. `\u0061sync` is NOT the `async` keyword. Detect by
+	// checking the token's has_escape flag.
+	if current.has_escape {
+		// Escaped async: `\u0061sync function f(){}` is a SyntaxError
+		// because the `async` keyword must appear literally. Report and
+		// fall through to treat it as an identifier.
+		report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
+		eat(p)
+		ident, ident_e := new_expr(p, Identifier)
+		ident.loc = loc_from_token(&current)
+		// `"async"` is a compile-time literal whose `raw_data` lives in the
+		// binary's RODATA segment - outside both the source-bytes range and
+		// the parser arena range. raw_transfer's rewrite_string then writes
+		// a garbage offset for the field, and the binary buffer surfaces
+		// the Identifier with `name=""`. JSON path is correct (it just
+		// prints the live Odin string), so the bug stayed silent until W5
+		// extended verify_integration to walk Identifier names through every
+		// reachable expression slot. Source slice is in-source, so
+		// rewrite_string's source-base branch fires and produces a
+		// well-formed offset.
+		ident.name = current.value
+		ident.loc.end = prev_end_offset(p)
+		return ident_e
+	}
+	async_lt_break := next.had_line_terminator
+	async_arrow_ctx_kw := false  // async <contextual-kw> => x
+	if !async_lt_break && next.type == .Function {
+		// async function() {} - function expression
+		return parse_function_expression(p)
+	} else if !async_lt_break && next.type != .Identifier && next.type != .LParen &&
+	          is_identifier_like_token(next.type) {
+		// `async <contextual-kw>`: ambiguous between async-arrow
+		//   `async of => x`   (async arrow with `of` as binding)
+		// and bare-async + for-of head
+		//   `for await (async of x)`   (`async` is the LHS Identifier)
+		// Disambiguate via SOURCE-BYTE lookahead: scan past the next
+		// token to see whether the following non-whitespace bytes are
+		// `=>`. If yes, commit to the arrow path; otherwise let the
+		// `.Async`-as-Identifier fall-through below run, which keeps
+		// the for-await-of test (head-lhs-async.js) parsing.
+		if p.lexer != nil {
+			src := p.lexer.source_bytes
+			i := int(next.raw_end)
+			src_len := len(src)
+			for i < src_len {
+				ch := src[i]
+				if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i += 1; continue }
+				break
+			}
+			if i + 1 < src_len && src[i] == '=' && src[i+1] == '>' {
+				async_arrow_ctx_kw = true
+			}
+		}
+	}
+	if !async_lt_break && (next.type == .Identifier || next.type == .LParen || async_arrow_ctx_kw ||
+	   (allow_ts_mode(p) && next.type == .LAngle)) {
+		// This might be an async arrow function: async x => x or async () => {}
+		if next.type == .Identifier || async_arrow_ctx_kw {
+			// async x => ...
+			// Snapshot before consuming both tokens. If `=>` doesn't
+			// follow the param identifier, roll back so only `async`
+			// is consumed as a bare IdentifierReference. Without this,
+			// `async functionX ()` loses `functionX` entirely.
+			snap_async := lexer_snapshot(p)
+			snap_errs := len(p.errors)
+			eat(p) // consume async
+			param_ident := parse_identifier(p)
+			if is_token(p, .Arrow) {
+				return parse_async_arrow_function(p, param_ident)
+			}
+			// Not an arrow — roll back to just after `async`, let the
+			// LHS-tail / expression parser handle the next tokens.
+			lexer_restore(p, snap_async)
+			if len(p.errors) > snap_errs {
+				resize(&p.errors, snap_errs)
+			}
+			eat(p) // re-consume only `async`
+			ident, ident_e := new_expr(p, Identifier)
+			ident.loc = loc_from_token(&current)
+			ident.name = current.value
+			ident.loc.end = prev_end_offset(p)
+			return ident_e
+		} else if next.type == .LParen {
+			// `async (...)` is ambiguous: an async arrow head, OR a
+			// regular call to `async`. Source-byte lookahead at the
+			// matching `)` decides: if `=>` follows, it's an arrow;
+			// otherwise treat `async` as a plain IdentifierReference
+			// and let the LHS-tail parser build the CallExpression.
+			// Test262: annexB/language/expressions/assignmenttargettype/
+			// cover-callexpression-and-asyncarrowhead.js.
+			is_arrow_head := async_paren_is_arrow_head(p, current, next)
+			if is_arrow_head {
+				eat(p) // consume async
+				return parse_async_arrow_with_parens(p, current)
+			}
+			// Fall through: `async` will be re-parsed as a bare
+			// IdentifierReference below; the LHS-tail loop then
+			// consumes `(...)` as a CallExpression.
+		} else if allow_ts_mode(p) && next.type == .LAngle {
+			// TS async generic arrow: `async <T>(a: T): T => a`.
+			// Trial-parse: consume `async`, parse `<T>` as type params,
+			// then delegate to the paren-params path. On failure, roll
+			// back and treat `async` as a plain identifier.
+			snap := lexer_snapshot(p)
+			eat(p) // consume async
+			type_params := parse_ts_type_parameters(p)
+			if is_token(p, .LParen) {
+				arrow := parse_async_arrow_with_parens(p, current)
+				if arrow != nil {
+					// Attach the type parameters.
+					if ae, ok := arrow^.(^ArrowFunctionExpression); ok && ae != nil {
+						ae.type_parameters = type_params
+					}
+					if len(p.errors) == snap.errors_len {
+						return arrow
+					}
+				}
+			}
+			lexer_restore(p, snap)
+		}
+	}
+	// async as identifier
+	eat(p)
+	ident, ident_e := new_expr(p, Identifier)
+	ident.loc = loc_from_token(&current)
+	ident.name = current.value
+	ident.loc.end = prev_end_offset(p)
+	return ident_e
+}
+
+// parse_primary_lparen handles the `(` primary: empty-param arrow
+// `() =>`, parenthesised expression, and the cover grammar that
+// disambiguates arrow heads from grouping. Split out of
+// parse_primary_expr; still larger than the 70-line target.
+@(private = "file")
+parse_primary_lparen :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// Check for arrow function with empty params: () => ...
+	if is_next_token(p, .RParen) {
+		// Potential empty arrow function params. In TS / TSX `(): T =>`
+		// shape we need to drop into try_parse_ts_arrow_params so the
+		// return-type annotation is consumed; defer the eat-pair to the
+		// trial parser in that case.
+		if allow_ts_mode(p) {
+			// Peek past `()` to detect `: T =>`. Cheap byte-scan via
+			// looks_like_ts_arrow_params (already does this for the
+			// non-empty cases; the empty case lands here too because
+			// the byte-scan doesn't depend on the token kind).
+			if looks_like_ts_arrow_params(p) {
+				if arrow := try_parse_ts_arrow_params(p, current); arrow != nil {
+					return arrow
+				}
+			}
+		}
+		eat(p) // consume (
+		eat(p) // consume )
+		if is_token(p, .Arrow) {
+			// This is () => ... - return a marker for empty params
+			seq, seq_e := new_expr(p, SequenceExpression)
+			seq.loc = loc_from_token(&current)
+			seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
+			return seq_e
+		}
+		// Not an arrow, return nil (empty parens not valid expression)
+		report_error_coded(p, .K2040_UnexpectedToken, "Empty parenthesized expression")
+		return nil
+	}
+
+	// TS trial-parse (K4): `(x: T) => x`, `(...rest: T[]) => ...`, etc.
+	// The `:Type` annotation on a parameter is not valid JS syntax inside
+	// plain paren-grouping, so parse_expr_with_prec would fail. When in
+	// TS / TSX mode and the `(` clearly opens arrow parameters (rest
+	// marker, or `Identifier :`), trial-parse as function parameters and
+	// build the arrow directly. On failure we roll back cleanly and fall
+	// through to the normal paren-grouping path.
+	if allow_ts_mode(p) && looks_like_ts_arrow_params(p) {
+		if arrow := try_parse_ts_arrow_params(p, current); arrow != nil {
+			return arrow
+		}
+	}
+
+	// Regular parenthesized expression. Use Comma precedence to handle
+	// (x, y) => ... arrow function case.
+	// Record the `(` position BEFORE eating it. parse_arrow_function reads
+	// pending_paren_start when the next token turns out to be `=>` so the
+	// arrow span starts AT the paren, matching OXC/Acorn/Babel. A nested
+	// `(` would overwrite the outer's stamp - harmless because the inner
+	// is consumed and cleared before the outer reaches `=>`.
+	paren_start := cur_loc(p).start
+	eat(p)
+	// Save and clear pending_paren_start so nested expressions don't use this paren.
+	// We'll restore it below only if the next token is Arrow (for arrow function params).
+	prev_pending_paren := p.pending_paren_start
+	p.pending_paren_start = max(u32)
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false  // 'in' is always valid inside parentheses
+	// Parens reset the in-RHS context so `(#x in y)` parses cleanly
+	// even when the surrounding expression is the RHS of another `in`.
+	prev_in_in_rhs := p.ctx.in_in_rhs
+	p.ctx.in_in_rhs = false
+	expr := parse_expr_with_prec(p, .Comma)
+	p.ctx.in_in_rhs = prev_in_in_rhs
+	p.ctx.no_in = prev_no_in
+	if expr == nil {
+		return nil
+	}
+	paren_expr_had_trailing_comma := false
+	if p.lexer != nil && is_token(p, .RParen) {
+		src := p.lexer.source_bytes
+		k := int(cur_offset(p)) - 1
+		for k >= 0 {
+			c := src[k]
+			if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+				k -= 1
+				continue
+			}
+			paren_expr_had_trailing_comma = c == ','
+			break
+		}
+	}
+	if !expect_token(p, .RParen) {
+		return nil
+	}
+	if paren_expr_had_trailing_comma && !is_token(p, .Arrow) {
+		report_error_coded(p, .K3065_TrailingCommaInvalid, "Parenthesized expressions may not have a trailing comma")
+	}
+	if _, is_spread_expr := expr.(^SpreadElement); is_spread_expr && !is_token(p, .Arrow) {
+		report_error_coded(p, .K3042_RestSpreadMisuse, "Expected `=>` after parenthesized rest parameter")
+	}
+	// Note: OXC/Acorn do NOT adjust the inner expression span to
+	// include the parentheses in most cases. The parentheses are
+	// syntactic, not semantic - the inner expression keeps its own
+	// natural span. pending_paren_start handles the special cases
+	// (arrow functions, call expressions).
+	// Set pending_paren_start for this paren. Used by arrow function
+	// parameters, CallExpressions, and MemberExpressions whose object
+	// was parenthesized. OXC includes `(` in the span of calls,
+	// member access, and arrow functions that follow `(expr)`.
+	if is_token(p, .Arrow) || is_token(p, .LParen) || is_token(p, .Dot) ||
+	   is_token(p, .LBracket) || is_token(p, .OptionalChain) {
+		p.pending_paren_start = paren_start
+	} else {
+		p.pending_paren_start = prev_pending_paren
+	}
+
+	// EST-3 / OPT-3 `--preserve-parens`: wrap the inner expression in
+	// a ParenthesizedExpression node matching Acorn/OXC's shape. Skip
+	// when `=>` follows - that path is cover-for-arrow-params and the
+	// downstream arrow builder expects the raw inner expression to
+	// lower to FunctionParameter via expr_to_pattern.
+	if p.preserve_parens && !is_token(p, .Arrow) {
+		paren_node, paren_node_e := new_expr(p, ParenthesizedExpression)
+		paren_node.loc.start = paren_start
+		paren_node.loc.end = prev_end_offset(p)
+		paren_node.expression = expr
+		wrapped := paren_node_e
+		p.last_paren_expr = wrapped
+		return wrapped
+	}
+	// Stamp the bare inner expression as paren-wrapped so a subsequent
+	// `=` triggers the AssignmentTargetType check in parse_assignment_expr.
+	// Skip the stamp when `=>` follows: that path is the arrow-param
+	// cover production, where the parens belong to the arrow's parameter
+	// list, not to a value-grouping parenthesisation.
+	if !is_token(p, .Arrow) {
+		p.last_paren_expr = expr
+		// SpreadElement/RestElement inside `(...)` without `=>`
+		// is invalid — rest/spread in parens is only the
+		// cover grammar for arrow function parameters.
+		if expr_contains_spread(expr) {
+			report_error_coded(p, .K3042_RestSpreadMisuse, "Unexpected spread/rest element outside of arrow parameters")
+		}
+	}
+	return expr
+}
+
+// parse_primary_langle handles a leading `<`: TSX generic-arrow vs
+// JSX element disambiguation, TS type assertions, and the JS error
+// case. Split out of parse_primary_expr.
+@(private = "file")
+parse_primary_langle :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	// Dispatch depends on language mode:
+	//   TS  → TS type assertion `<Type>expr` or generic arrow
+	//          `<T>(x) => x`. No JSX ambiguity in pure TS mode.
+	//   TSX → Genuine ambiguity. OXC/TS-ESTree rule:
+	//          * `<T,>` (trailing comma) → generic arrow.
+	//          * `<T extends ...>` → try generic arrow.
+	//          * `<Type>expr` type-assertions are FORBIDDEN in .tsx
+	//            (use `expr as Type` instead). Fall through to JSX.
+	//          * Anything else → JSX element / fragment.
+	//   JSX → JSX element / fragment (no TS types).
+	//   JS  → syntax error (comparison needs a LHS operand).
+	if p.lang == .TSX {
+		// TSX Phase C: try generic arrow when trailing comma
+		// or `extends` follows the type parameter identifier.
+		// A 2-token speculative peek (no consume): peek past `<`
+		// to the first token; if it's an Identifier, peek again
+		// to see what follows.
+   ensure_nxt(p)
+		nxt_kind := p.lexer.nxt.kind
+		// Type-parameter modifiers (`const`, `in`) lex as keyword tokens,
+		// not Identifier. `<const T ...>` and `<in T ...>` are
+		// unambiguously type-parameter lists (no JSX element name is a
+		// reserved word). `out` is contextual — still lexes as Identifier
+		// and falls through to the existing path. Closes oxc-3443.tsx.
+		if nxt_kind == .Const || nxt_kind == .In {
+			lt_start := cur_loc(p)
+			snap2 := lexer_snapshot(p)
+			result := parse_ts_generic_arrow(p, lt_start)
+			if result != nil && len(p.errors) == snap2.errors_len {
+				return result
+			}
+			lexer_restore(p, snap2)
+		}
+		if nxt_kind == .Identifier {
+			snap := lexer_snapshot(p)
+			eat(p)  // consume `<`
+			eat(p)  // consume the identifier
+			after := p.cur_type
+			lexer_restore(p, snap)
+			// Trailing comma `<T,>` or `extends` / `=` signal → try
+			// as generic arrow. On failure fall through to JSX.
+			if after == .Comma || after == .Extends || after == .Assign {
+				lt_start := cur_loc(p)
+				snap2 := lexer_snapshot(p)
+				result := parse_ts_generic_arrow(p, lt_start)
+				if result != nil && len(p.errors) == snap2.errors_len {
+					return result
+				}
+				lexer_restore(p, snap2)
+			}
+		}
+		// Fall through to JSX (covers tags, fragments, and the
+		// forbidden-in-TSX `<Type>expr` form which JSX will
+		// reject as a malformed element).
+		return parse_jsx_element_or_fragment(p)
+	}
+	if allow_jsx_mode(p) {  // .JSX only (not .TSX - handled above)
+		return parse_jsx_element_or_fragment(p)
+	}
+	if allow_ts_mode(p) {
+		// .mts/.cts early check: for the simple `<Identifier>`
+		// case (no trailing comma, extends, or assign), report the
+		// error HERE before parsing so it's always the first error
+		// on the line (body errors come later). Only for .mts/.cts
+		// path detection; explicit disallowAmbiguousJSXLike uses the
+		// post-parse check inside parse_ts_lt_expression.
+   ensure_nxt(p)
+		if p.is_node_ts_module && p.lexer != nil && p.lexer.nxt.kind == .Identifier {
+			snap := lexer_snapshot(p)
+			eat(p)  // consume `<`
+			eat(p)  // consume the identifier
+			after := p.cur_type
+			lexer_restore(p, snap)
+			if after == .RAngle {
+				report_error_coded_span(p, .K4053_TSOnlyInJS, u32(cur_offset(p)), u32(cur_offset(p)), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`")
+			}
+		}
+		return parse_ts_lt_expression(p)
+	}
+	report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '<' at expression start")
+	return nil
+}
+
 parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 	current := snap_current(p)
 
@@ -13442,84 +13910,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 
 	#partial switch current.type {
 	case .Import:
-		// Check for dynamic import: import(specifier)
-		if is_next_token(p, .LParen) {
-			return parse_dynamic_import(p, "")
-		}
-		// Check for import.<property> forms:
-		//   import.meta             - MetaProperty (§13.3.12)
-		//   import.defer(specifier) - Phase Imports (stage-3, import-defer)
-		//   import.source(specifier)- Phase Imports (stage-3, import-source)
-		if is_next_token(p, .Dot) {
-			eat(p) // consume import
-			if !expect_token(p, .Dot) {
-				return nil
-			}
-			meta_name := parse_identifier(p)
-
-			// Phase-import call form: import.defer(...) / import.source(...).
-			// Only matches when the property is a known phase AND the next
-			// token is `(` - otherwise falls through to MetaProperty so an
-			// error surfaces for the bare form.
-			if is_token(p, .LParen) &&
-			   (meta_name.name == "defer" || meta_name.name == "source") {
-				// Hand off to parse_dynamic_import_tail so the import()
-				// grammar (AssignmentExpression ,opt [, AssignmentExpression
-				// ,opt ]) is shared. Start-loc is the `import` keyword
-				// (current, before eat); the helper uses prev_end_offset for
-				// the closing paren.
-				return parse_dynamic_import_tail(p, loc_from_token(&current), meta_name.name)
-			}
-
-			// §Grammar Notation: the `meta` in `import.meta` must not
-			// contain Unicode escape sequences.
-			if meta_name.name == "meta" {
-				// Check the raw source for escape sequences: parse_identifier
-				// uses the cooked name but raw source may have \uXXXX.
-				span_bytes := p.lexer.source_bytes[meta_name.loc.start:meta_name.loc.end]
-				for b in span_bytes {
-					if b == '\\' {
-						report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, "'import.meta' property name must not contain Unicode escape sequences")
-						break
-					}
-				}
-			}
-			// §13.3.12 - The only valid meta property for `import` is
-			// `import.meta`.  `import.then`, `import.foo`, etc. are
-			// SyntaxErrors.
-			if meta_name.name != "meta" {
-				msg := fmt.tprintf("The only valid meta property for import is import.meta (got 'import.%s')", meta_name.name)
-				report_error_coded(p, .K3023_ImportMetaOrDynamicImportInvalid, msg)
-			}
-			meta_prop, meta_prop_e := new_expr(p, MetaProperty)
-			meta_prop.loc = loc_from_token(&current)
-			meta_prop.meta = Identifier{
-				loc  = loc_from_token(&current),
-				name = "import",
-			}
-			meta_prop.property = Identifier{
-				loc  = meta_name.loc,
-				name = meta_name.name,
-			}
-			meta_prop.loc.end = prev_end_offset(p)
-			p.has_module_syntax = true
-			// `import.meta` is Module syntax. In script sourceType it's a
-			// SyntaxError per ECMA-262 §13.3.12.
-			if st, have := p.force_source_type.(SourceType); have && st == .Script {
-				report_error_coded(p, .K3022_ModuleSyntaxInScript, "'import.meta' is only valid in module code")
-			}
-			// Collect ESM import.meta record
-			esm_import_meta := ESMImportMeta{
-				start = meta_prop.loc.start,
-				end = meta_prop.loc.end,
-			}
-			bump_append(&p.importMetas, esm_import_meta)
-			return meta_prop_e
-		}
-		// Static import - not valid in expression context
-		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected import in expression context")
-		return nil
-
+		return parse_primary_import(p)
 	case .This:
 		eat(p)
 		this, this_e := new_expr(p, ThisExpression)
@@ -13591,144 +13982,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return parse_primary_literal_expr(p, &current)
 
 	case .Async:
-		// async function expression or arrow function
-		// Lookahead to check what follows async
-		next := peek_token(p)
-		// ECMA-262 §15.8 / §15.9 Restricted Productions: no LineTerminator
-		// between `async` and the following `function` / BindingIdentifier /
-		// `(`. If there is one, the grammar rule fails and ASI treats `async`
-		// as a bare IdentifierReference; the lookahead token starts a new
-		// statement/expression.
-		// §Grammar Notation: terminal symbols must not contain Unicode escape
-		// sequences. `\u0061sync` is NOT the `async` keyword. Detect by
-		// checking the token's has_escape flag.
-		if current.has_escape {
-			// Escaped async: `\u0061sync function f(){}` is a SyntaxError
-			// because the `async` keyword must appear literally. Report and
-			// fall through to treat it as an identifier.
-			report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
-			eat(p)
-			ident, ident_e := new_expr(p, Identifier)
-			ident.loc = loc_from_token(&current)
-			// `"async"` is a compile-time literal whose `raw_data` lives in the
-			// binary's RODATA segment - outside both the source-bytes range and
-			// the parser arena range. raw_transfer's rewrite_string then writes
-			// a garbage offset for the field, and the binary buffer surfaces
-			// the Identifier with `name=""`. JSON path is correct (it just
-			// prints the live Odin string), so the bug stayed silent until W5
-			// extended verify_integration to walk Identifier names through every
-			// reachable expression slot. Source slice is in-source, so
-			// rewrite_string's source-base branch fires and produces a
-			// well-formed offset.
-			ident.name = current.value
-			ident.loc.end = prev_end_offset(p)
-			return ident_e
-		}
-		async_lt_break := next.had_line_terminator
-		async_arrow_ctx_kw := false  // async <contextual-kw> => x
-		if !async_lt_break && next.type == .Function {
-			// async function() {} - function expression
-			return parse_function_expression(p)
-		} else if !async_lt_break && next.type != .Identifier && next.type != .LParen &&
-		          is_identifier_like_token(next.type) {
-			// `async <contextual-kw>`: ambiguous between async-arrow
-			//   `async of => x`   (async arrow with `of` as binding)
-			// and bare-async + for-of head
-			//   `for await (async of x)`   (`async` is the LHS Identifier)
-			// Disambiguate via SOURCE-BYTE lookahead: scan past the next
-			// token to see whether the following non-whitespace bytes are
-			// `=>`. If yes, commit to the arrow path; otherwise let the
-			// `.Async`-as-Identifier fall-through below run, which keeps
-			// the for-await-of test (head-lhs-async.js) parsing.
-			if p.lexer != nil {
-				src := p.lexer.source_bytes
-				i := int(next.raw_end)
-				src_len := len(src)
-				for i < src_len {
-					ch := src[i]
-					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i += 1; continue }
-					break
-				}
-				if i + 1 < src_len && src[i] == '=' && src[i+1] == '>' {
-					async_arrow_ctx_kw = true
-				}
-			}
-		}
-		if !async_lt_break && (next.type == .Identifier || next.type == .LParen || async_arrow_ctx_kw ||
-		   (allow_ts_mode(p) && next.type == .LAngle)) {
-			// This might be an async arrow function: async x => x or async () => {}
-			if next.type == .Identifier || async_arrow_ctx_kw {
-				// async x => ...
-				// Snapshot before consuming both tokens. If `=>` doesn't
-				// follow the param identifier, roll back so only `async`
-				// is consumed as a bare IdentifierReference. Without this,
-				// `async functionX ()` loses `functionX` entirely.
-				snap_async := lexer_snapshot(p)
-				snap_errs := len(p.errors)
-				eat(p) // consume async
-				param_ident := parse_identifier(p)
-				if is_token(p, .Arrow) {
-					return parse_async_arrow_function(p, param_ident)
-				}
-				// Not an arrow — roll back to just after `async`, let the
-				// LHS-tail / expression parser handle the next tokens.
-				lexer_restore(p, snap_async)
-				if len(p.errors) > snap_errs {
-					resize(&p.errors, snap_errs)
-				}
-				eat(p) // re-consume only `async`
-				ident, ident_e := new_expr(p, Identifier)
-				ident.loc = loc_from_token(&current)
-				ident.name = current.value
-				ident.loc.end = prev_end_offset(p)
-				return ident_e
-			} else if next.type == .LParen {
-				// `async (...)` is ambiguous: an async arrow head, OR a
-				// regular call to `async`. Source-byte lookahead at the
-				// matching `)` decides: if `=>` follows, it's an arrow;
-				// otherwise treat `async` as a plain IdentifierReference
-				// and let the LHS-tail parser build the CallExpression.
-				// Test262: annexB/language/expressions/assignmenttargettype/
-				// cover-callexpression-and-asyncarrowhead.js.
-				is_arrow_head := async_paren_is_arrow_head(p, current, next)
-				if is_arrow_head {
-					eat(p) // consume async
-					return parse_async_arrow_with_parens(p, current)
-				}
-				// Fall through: `async` will be re-parsed as a bare
-				// IdentifierReference below; the LHS-tail loop then
-				// consumes `(...)` as a CallExpression.
-			} else if allow_ts_mode(p) && next.type == .LAngle {
-				// TS async generic arrow: `async <T>(a: T): T => a`.
-				// Trial-parse: consume `async`, parse `<T>` as type params,
-				// then delegate to the paren-params path. On failure, roll
-				// back and treat `async` as a plain identifier.
-				snap := lexer_snapshot(p)
-				eat(p) // consume async
-				type_params := parse_ts_type_parameters(p)
-				if is_token(p, .LParen) {
-					arrow := parse_async_arrow_with_parens(p, current)
-					if arrow != nil {
-						// Attach the type parameters.
-						if ae, ok := arrow^.(^ArrowFunctionExpression); ok && ae != nil {
-							ae.type_parameters = type_params
-						}
-						if len(p.errors) == snap.errors_len {
-							return arrow
-						}
-					}
-				}
-				lexer_restore(p, snap)
-			}
-		}
-		// async as identifier
-		eat(p)
-		ident, ident_e := new_expr(p, Identifier)
-		ident.loc = loc_from_token(&current)
-		ident.name = current.value
-		ident.loc.end = prev_end_offset(p)
-		return ident_e
-
+		return parse_primary_async(p)
 	case .Identifier, .Get, .Set, .From, .Of, .As, .Let, .Static, .Constructor,
 	     .Assert, .Asserts, .Abstract, .Declare, .Readonly, .Override,
 	     .Keyof, .Infer, .Is, .Satisfies, .Never, .Unique, .Namespace, .Module,
@@ -13798,144 +14052,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return id_expr
 
 	case .LParen:
-		// Check for arrow function with empty params: () => ...
-		if is_next_token(p, .RParen) {
-			// Potential empty arrow function params. In TS / TSX `(): T =>`
-			// shape we need to drop into try_parse_ts_arrow_params so the
-			// return-type annotation is consumed; defer the eat-pair to the
-			// trial parser in that case.
-			if allow_ts_mode(p) {
-				// Peek past `()` to detect `: T =>`. Cheap byte-scan via
-				// looks_like_ts_arrow_params (already does this for the
-				// non-empty cases; the empty case lands here too because
-				// the byte-scan doesn't depend on the token kind).
-				if looks_like_ts_arrow_params(p) {
-					if arrow := try_parse_ts_arrow_params(p, current); arrow != nil {
-						return arrow
-					}
-				}
-			}
-			eat(p) // consume (
-			eat(p) // consume )
-			if is_token(p, .Arrow) {
-				// This is () => ... - return a marker for empty params
-				seq, seq_e := new_expr(p, SequenceExpression)
-				seq.loc = loc_from_token(&current)
-				seq.expressions = make([dynamic]^Expression, 0, 4, p.allocator)
-				return seq_e
-			}
-			// Not an arrow, return nil (empty parens not valid expression)
-			report_error_coded(p, .K2040_UnexpectedToken, "Empty parenthesized expression")
-			return nil
-		}
-
-		// TS trial-parse (K4): `(x: T) => x`, `(...rest: T[]) => ...`, etc.
-		// The `:Type` annotation on a parameter is not valid JS syntax inside
-		// plain paren-grouping, so parse_expr_with_prec would fail. When in
-		// TS / TSX mode and the `(` clearly opens arrow parameters (rest
-		// marker, or `Identifier :`), trial-parse as function parameters and
-		// build the arrow directly. On failure we roll back cleanly and fall
-		// through to the normal paren-grouping path.
-		if allow_ts_mode(p) && looks_like_ts_arrow_params(p) {
-			if arrow := try_parse_ts_arrow_params(p, current); arrow != nil {
-				return arrow
-			}
-		}
-
-		// Regular parenthesized expression. Use Comma precedence to handle
-		// (x, y) => ... arrow function case.
-		// Record the `(` position BEFORE eating it. parse_arrow_function reads
-		// pending_paren_start when the next token turns out to be `=>` so the
-		// arrow span starts AT the paren, matching OXC/Acorn/Babel. A nested
-		// `(` would overwrite the outer's stamp - harmless because the inner
-		// is consumed and cleared before the outer reaches `=>`.
-		paren_start := cur_loc(p).start
-		eat(p)
-		// Save and clear pending_paren_start so nested expressions don't use this paren.
-		// We'll restore it below only if the next token is Arrow (for arrow function params).
-		prev_pending_paren := p.pending_paren_start
-		p.pending_paren_start = max(u32)
-		prev_no_in := p.ctx.no_in
-		p.ctx.no_in = false  // 'in' is always valid inside parentheses
-		// Parens reset the in-RHS context so `(#x in y)` parses cleanly
-		// even when the surrounding expression is the RHS of another `in`.
-		prev_in_in_rhs := p.ctx.in_in_rhs
-		p.ctx.in_in_rhs = false
-		expr := parse_expr_with_prec(p, .Comma)
-		p.ctx.in_in_rhs = prev_in_in_rhs
-		p.ctx.no_in = prev_no_in
-		if expr == nil {
-			return nil
-		}
-		paren_expr_had_trailing_comma := false
-		if p.lexer != nil && is_token(p, .RParen) {
-			src := p.lexer.source_bytes
-			k := int(cur_offset(p)) - 1
-			for k >= 0 {
-				c := src[k]
-				if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-					k -= 1
-					continue
-				}
-				paren_expr_had_trailing_comma = c == ','
-				break
-			}
-		}
-		if !expect_token(p, .RParen) {
-			return nil
-		}
-		if paren_expr_had_trailing_comma && !is_token(p, .Arrow) {
-			report_error_coded(p, .K3065_TrailingCommaInvalid, "Parenthesized expressions may not have a trailing comma")
-		}
-		if _, is_spread_expr := expr.(^SpreadElement); is_spread_expr && !is_token(p, .Arrow) {
-			report_error_coded(p, .K3042_RestSpreadMisuse, "Expected `=>` after parenthesized rest parameter")
-		}
-		// Note: OXC/Acorn do NOT adjust the inner expression span to
-		// include the parentheses in most cases. The parentheses are
-		// syntactic, not semantic - the inner expression keeps its own
-		// natural span. pending_paren_start handles the special cases
-		// (arrow functions, call expressions).
-		// Set pending_paren_start for this paren. Used by arrow function
-		// parameters, CallExpressions, and MemberExpressions whose object
-		// was parenthesized. OXC includes `(` in the span of calls,
-		// member access, and arrow functions that follow `(expr)`.
-		if is_token(p, .Arrow) || is_token(p, .LParen) || is_token(p, .Dot) ||
-		   is_token(p, .LBracket) || is_token(p, .OptionalChain) {
-			p.pending_paren_start = paren_start
-		} else {
-			p.pending_paren_start = prev_pending_paren
-		}
-
-		// EST-3 / OPT-3 `--preserve-parens`: wrap the inner expression in
-		// a ParenthesizedExpression node matching Acorn/OXC's shape. Skip
-		// when `=>` follows - that path is cover-for-arrow-params and the
-		// downstream arrow builder expects the raw inner expression to
-		// lower to FunctionParameter via expr_to_pattern.
-		if p.preserve_parens && !is_token(p, .Arrow) {
-			paren_node, paren_node_e := new_expr(p, ParenthesizedExpression)
-			paren_node.loc.start = paren_start
-			paren_node.loc.end = prev_end_offset(p)
-			paren_node.expression = expr
-			wrapped := paren_node_e
-			p.last_paren_expr = wrapped
-			return wrapped
-		}
-		// Stamp the bare inner expression as paren-wrapped so a subsequent
-		// `=` triggers the AssignmentTargetType check in parse_assignment_expr.
-		// Skip the stamp when `=>` follows: that path is the arrow-param
-		// cover production, where the parens belong to the arrow's parameter
-		// list, not to a value-grouping parenthesisation.
-		if !is_token(p, .Arrow) {
-			p.last_paren_expr = expr
-			// SpreadElement/RestElement inside `(...)` without `=>`
-			// is invalid — rest/spread in parens is only the
-			// cover grammar for arrow function parameters.
-			if expr_contains_spread(expr) {
-				report_error_coded(p, .K3042_RestSpreadMisuse, "Unexpected spread/rest element outside of arrow parameters")
-			}
-		}
-		return expr
-
+		return #force_inline parse_primary_lparen(p)
 	case .LBracket:
 		return parse_array_expr(p)
 
@@ -14001,87 +14118,7 @@ parse_primary_expr :: proc(p: ^Parser) -> ^Expression {
 		return regex_e
 
 	case .LAngle:
-		// Dispatch depends on language mode:
-		//   TS  → TS type assertion `<Type>expr` or generic arrow
-		//          `<T>(x) => x`. No JSX ambiguity in pure TS mode.
-		//   TSX → Genuine ambiguity. OXC/TS-ESTree rule:
-		//          * `<T,>` (trailing comma) → generic arrow.
-		//          * `<T extends ...>` → try generic arrow.
-		//          * `<Type>expr` type-assertions are FORBIDDEN in .tsx
-		//            (use `expr as Type` instead). Fall through to JSX.
-		//          * Anything else → JSX element / fragment.
-		//   JSX → JSX element / fragment (no TS types).
-		//   JS  → syntax error (comparison needs a LHS operand).
-		if p.lang == .TSX {
-			// TSX Phase C: try generic arrow when trailing comma
-			// or `extends` follows the type parameter identifier.
-			// A 2-token speculative peek (no consume): peek past `<`
-			// to the first token; if it's an Identifier, peek again
-			// to see what follows.
-   ensure_nxt(p)
-			nxt_kind := p.lexer.nxt.kind
-			// Type-parameter modifiers (`const`, `in`) lex as keyword tokens,
-			// not Identifier. `<const T ...>` and `<in T ...>` are
-			// unambiguously type-parameter lists (no JSX element name is a
-			// reserved word). `out` is contextual — still lexes as Identifier
-			// and falls through to the existing path. Closes oxc-3443.tsx.
-			if nxt_kind == .Const || nxt_kind == .In {
-				lt_start := cur_loc(p)
-				snap2 := lexer_snapshot(p)
-				result := parse_ts_generic_arrow(p, lt_start)
-				if result != nil && len(p.errors) == snap2.errors_len {
-					return result
-				}
-				lexer_restore(p, snap2)
-			}
-			if nxt_kind == .Identifier {
-				snap := lexer_snapshot(p)
-				eat(p)  // consume `<`
-				eat(p)  // consume the identifier
-				after := p.cur_type
-				lexer_restore(p, snap)
-				// Trailing comma `<T,>` or `extends` / `=` signal → try
-				// as generic arrow. On failure fall through to JSX.
-				if after == .Comma || after == .Extends || after == .Assign {
-					lt_start := cur_loc(p)
-					snap2 := lexer_snapshot(p)
-					result := parse_ts_generic_arrow(p, lt_start)
-					if result != nil && len(p.errors) == snap2.errors_len {
-						return result
-					}
-					lexer_restore(p, snap2)
-				}
-			}
-			// Fall through to JSX (covers tags, fragments, and the
-			// forbidden-in-TSX `<Type>expr` form which JSX will
-			// reject as a malformed element).
-			return parse_jsx_element_or_fragment(p)
-		}
-		if allow_jsx_mode(p) {  // .JSX only (not .TSX - handled above)
-			return parse_jsx_element_or_fragment(p)
-		}
-		if allow_ts_mode(p) {
-			// .mts/.cts early check: for the simple `<Identifier>`
-			// case (no trailing comma, extends, or assign), report the
-			// error HERE before parsing so it's always the first error
-			// on the line (body errors come later). Only for .mts/.cts
-			// path detection; explicit disallowAmbiguousJSXLike uses the
-			// post-parse check inside parse_ts_lt_expression.
-   ensure_nxt(p)
-			if p.is_node_ts_module && p.lexer != nil && p.lexer.nxt.kind == .Identifier {
-				snap := lexer_snapshot(p)
-				eat(p)  // consume `<`
-				eat(p)  // consume the identifier
-				after := p.cur_type
-				lexer_restore(p, snap)
-				if after == .RAngle {
-					report_error_coded_span(p, .K4053_TSOnlyInJS, u32(cur_offset(p)), u32(cur_offset(p)), "This syntax is reserved in files with the .mts or .cts extension. Add a trailing comma, as in `<T,>() => ...`")
-				}
-			}
-			return parse_ts_lt_expression(p)
-		}
-		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '<' at expression start")
-		return nil
+		return parse_primary_langle(p)
 	case:
 		// Unknown token type
 		return nil
