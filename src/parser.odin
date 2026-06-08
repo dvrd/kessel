@@ -11821,70 +11821,60 @@ parse_assignment_expression :: proc(p: ^Parser) -> ^Expression {
 	return parse_expr_with_prec(p, .Assignment)
 }
 
-parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
-	prev_private_in_allowed := p.ctx.private_in_allowed
-	p.ctx.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
-	left := parse_unary_expr(p)
-	p.ctx.private_in_allowed = prev_private_in_allowed
-	if left == nil {
-		return nil
+// parse_expr_yield_lhs_restricted enforces §14.4 / §15.5: a bare (non-
+// parenthesised) YieldExpression cannot be the operand of a conditional /
+// binary / logical / coalescing operator. Returns true when the caller must
+// stop and return `left` as-is. Extracted from parse_expr_with_prec to keep
+// that proc under the 70-line limit; called #force_inline so the hot path
+// codegen is unchanged. The common (non-yield) case is a single type-assert
+// then an immediate `false` return.
+@(private = "file")
+parse_expr_yield_lhs_restricted :: proc(p: ^Parser, left: ^Expression) -> bool {
+	_, is_yield := left.(^YieldExpression)
+	if !is_yield {
+		return false
 	}
-
-	// §14.4 / §15.5 - YieldExpression is an AssignmentExpression, not a
-	// ShortCircuitExpression. It cannot be the subject of binary,
-	// logical, coalescing, or conditional operators (unless parenthesised).
-	// Assignment operators are allowed (they call parse_assignment_expr which
-	// separately validates the target). The comma operator is always allowed
-	// (e.g. `yield u, r.push(u)` is a SequenceExpression).
-	if _, is_yield := left.(^YieldExpression); is_yield {
-		// Detect whether the YieldExpression was parenthesised. With
-		// --preserve-parens off, `(yield n)` is stripped to a bare
-		// YieldExpression node; we recover the paren context by scanning
-		// backwards from the span start, identical to the `**` and `??`
-		// checks above.
-		yield_start := int(loc_from_expr(left).start)
-		paren_wrapped := is_paren_wrapped_at(p, yield_start)
-		if !paren_wrapped {
-			next_prec := precedence_for_token(p.cur_type)
-			// §12.6 ASI: when there's a LineTerminator between the
-			// YieldExpression and the next operator token, the YieldExpression
-			// is a complete statement. The next operator becomes the start of
-			// the next statement (which may be a syntax error in its own right,
-			// e.g. `+ 1` as a stmt is valid; `/ 1 /g` parses as a regex).
-			// Critical for the Babel `es2015/yield/regexp` fixture where
-			//   `yield<nl>/ 1 /g`
-			// must parse as `yield;` followed by a regex statement, not as
-			// `yield / 1 / g` (a binary chain). OXC + V8 + SpiderMonkey all
-			// apply ASI here.
-			if cur_has_newline(p) {
-				return left
-			}
-			// .Conditional (5) and above covers ?, ||, &&, ??, |, ^, &,
-			// ==, <, <<, +, *, **, etc. All forbidden as yield LHS without
-			// parens. Assignment operators (.Assignment=4) are below the
-			// threshold - let them through so parse_assignment_expr can
-			// validate the target (e.g. `(yield) = 1` should be caught there).
-			if int(next_prec) >= int(Precedence.Conditional) {
-				// Structural parse error: by §14.4 / §15.5,
-				// YieldExpression is at AssignmentExpression precedence
-				// and cannot serve as operand to a conditional / binary /
-				// logical / coalescing operator without parentheses. The
-				// parser must return early here (return left below) to
-				// avoid building a malformed binary-expression AST that
-				// the post-parse semantic checker can't detect.
-				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
-					"'yield' expression cannot be used as an operand of a conditional or binary operator")
-			}
-			// Return early for all operators EXCEPT comma (sequence) and
-			// assignment (target validation needed in parse_assignment_expr).
-			is_assign_like := int(next_prec) == int(Precedence.Assignment)
-			if p.cur_type != .Comma && !is_assign_like {
-				return left
-			}
-		}
+	// Detect whether the YieldExpression was parenthesised. With
+	// --preserve-parens off, `(yield n)` is stripped to a bare
+	// YieldExpression node; we recover the paren context by scanning
+	// backwards from the span start, identical to the `**` and `??` checks.
+	yield_start := int(loc_from_expr(left).start)
+	if is_paren_wrapped_at(p, yield_start) {
+		return false
 	}
+	next_prec := precedence_for_token(p.cur_type)
+	// §12.6 ASI: a LineTerminator between the YieldExpression and the next
+	// operator token ends the statement. The next operator starts the next
+	// statement (Babel `es2015/yield/regexp`: `yield<nl>/ 1 /g` is `yield;`
+	// then a regex, not a binary chain). OXC + V8 + SpiderMonkey apply ASI.
+	if cur_has_newline(p) {
+		return true
+	}
+	// .Conditional (5) and above covers ?, ||, &&, ??, |, ^, &, ==, <, <<,
+	// +, *, ** etc. All forbidden as yield LHS without parens. Assignment
+	// operators (.Assignment=4) are below the threshold - let them through
+	// so parse_assignment_expr can validate the target (`(yield) = 1`).
+	if int(next_prec) >= int(Precedence.Conditional) {
+		report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+			"'yield' expression cannot be used as an operand of a conditional or binary operator")
+	}
+	// Stop for all operators EXCEPT comma (sequence) and assignment (target
+	// validation needed in parse_assignment_expr).
+	is_assign_like := int(next_prec) == int(Precedence.Assignment)
+	if p.cur_type != .Comma && !is_assign_like {
+		return true
+	}
+	return false
+}
 
-	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
+// parse_expr_ts_type_postfix consumes a chain of TypeScript `expr as Type`
+// and `expr satisfies Type` postfixes, wrapping `left` in TSAsExpression /
+// TSSatisfiesExpression nodes. In a JS file the operator is reported as a
+// TS-only construct but still parsed for error recovery. Extracted from
+// parse_expr_with_prec; called #force_inline to preserve hot-path codegen.
+@(private = "file")
+parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
+	left := left
 	for is_token(p, .As) || is_token(p, .Satisfies) {
 		if !allow_ts_mode(p) {
 			if is_token(p, .Satisfies) {
@@ -11913,6 +11903,27 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			left = sat_expr_e
 		}
 	}
+	return left
+}
+
+parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
+	prev_private_in_allowed := p.ctx.private_in_allowed
+	p.ctx.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
+	left := parse_unary_expr(p)
+	p.ctx.private_in_allowed = prev_private_in_allowed
+	if left == nil {
+		return nil
+	}
+
+	// §14.4 / §15.5 - YieldExpression cannot be the subject of binary,
+	// logical, coalescing, or conditional operators (unless parenthesised).
+	// The guard returns true when the caller must stop and return `left`.
+	if #force_inline parse_expr_yield_lhs_restricted(p, left) {
+		return left
+	}
+
+	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
+	left = #force_inline parse_expr_ts_type_postfix(p, left)
 
 	for {
 		if left == nil {
