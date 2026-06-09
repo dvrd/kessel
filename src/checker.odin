@@ -1437,101 +1437,108 @@ ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_d
 	// rule does not apply (TSC only fires TS2434 on non-ambient classes).
 	if is_dts { return }
 
-	// Helper: extract the identifier name from a namespace.
-	ns_name :: proc(m: ^TSModuleDeclaration) -> (string, u32, bool) {
-		if m == nil || m.id == nil { return "", 0, false }
-		if ident, is := m.id^.(^Identifier); is && ident != nil {
-			return ident.name, u32(ident.loc.start), true
-		}
-		return "", 0, false
+	// One classification pass over the body. Each statement is at most one
+	// of: an instantiated non-declare namespace, or a class / function
+	// declaration. The original code re-walked the body with three nested
+	// per-statement `#partial switch` ladders (namespace extraction, a
+	// backward class/function scan, and a forward class/function scan), so
+	// the union was unwrapped O(n^2) times. This prescan unwraps each
+	// statement once into a flat `NsOrderEntry`; the ordering scans below
+	// then index the flat array, preserving the exact emission behaviour.
+	//
+	// `cf_any` holds the binding name of ANY class / function (declare or
+	// not) — the backward "already merged above" scan uses it. `cf_value`
+	// holds the name only for NON-declare class / functions — the forward
+	// "merged below" scan uses it, because a `declare class` following the
+	// namespace does not trigger TS2434. The two fields differ solely by the
+	// declare guard, matching the asymmetry of the original two scans.
+	NsOrderEntry :: struct {
+		ns_name:  string,
+		ns_loc:   u32,
+		cf_any:   string,
+		cf_value: string,
 	}
-
-	// For each statement: if it's an instantiated non-declare namespace,
-	// scan the remaining statements for a non-declare class/function with
-	// the same name that appears later.
-	for i in 0..<len(body) {
-		stmt := body[i]
-		if stmt == nil { continue }
-		// Extract namespace from bare or exported statement.
-		mod: ^TSModuleDeclaration = nil
+	classify :: proc(stmt: ^Statement) -> (e: NsOrderEntry) {
+		if stmt == nil { return }
 		#partial switch v in stmt^ {
-		case ^TSModuleDeclaration:   mod = v
+		case ^ClassDeclaration:
+			if v != nil {
+				if id, ok := v.id.(BindingIdentifier); ok {
+					e.cf_any = id.name
+					if !v.declare { e.cf_value = id.name }
+				}
+			}
+		case ^FunctionDeclaration:
+			if v != nil {
+				if id, ok := v.id.(BindingIdentifier); ok {
+					e.cf_any = id.name
+					if !v.declare { e.cf_value = id.name }
+				}
+			}
+		case ^TSModuleDeclaration:
+			if v != nil && !v.declare && ts_namespace_is_instantiated(v) && v.id != nil {
+				if ident, is := v.id^.(^Identifier); is && ident != nil {
+					e.ns_name = ident.name
+					e.ns_loc  = u32(ident.loc.start)
+				}
+			}
 		case ^ExportNamedDeclaration:
 			if v != nil {
 				if d, have := v.declaration.(^Declaration); have && d != nil {
-					if m, ok := d^.(^TSModuleDeclaration); ok { mod = m }
-				}
-			}
-		}
-		if mod == nil || mod.declare { continue }
-		if !ts_namespace_is_instantiated(mod) { continue }
-		name, ns_loc, has_name := ns_name(mod)
-		if !has_name { continue }
-
-		// Check if a class/function with this name already appeared BEFORE
-		// the namespace. If so, the namespace augments the prior declaration
-		// and the ordering rule doesn't apply.
-		already_seen := false
-		for j in 0..<i {
-			s2 := body[j]
-			if s2 == nil { continue }
-			#partial switch v2 in s2^ {
-			case ^ClassDeclaration:
-				if v2 != nil { if id, ok := v2.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
-			case ^FunctionDeclaration:
-				if v2 != nil { if id, ok := v2.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
-			case ^ExportNamedDeclaration:
-				if v2 != nil {
-					if d, have := v2.declaration.(^Declaration); have && d != nil {
-						#partial switch inner in d^ {
-						case ^ClassDeclaration:    if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
-						case ^FunctionDeclaration: if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok && id.name == name { already_seen = true } }
-						}
-					}
-				}
-			}
-		}
-		if already_seen { continue }
-
-		// Scan forward for a class/function with the same name.
-		for j in i+1..<len(body) {
-			s2 := body[j]
-			if s2 == nil { continue }
-			#partial switch v2 in s2^ {
-			case ^ClassDeclaration:
-				if v2 == nil || v2.declare { continue }
-				if id, ok := v2.id.(BindingIdentifier); ok && id.name == name {
-					ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
-					break
-				}
-			case ^FunctionDeclaration:
-				if v2 == nil || v2.declare { continue }
-				if id, ok := v2.id.(BindingIdentifier); ok && id.name == name {
-					ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
-					break
-				}
-			case ^ExportNamedDeclaration:
-				if v2 == nil { continue }
-				if d, have := v2.declaration.(^Declaration); have && d != nil {
 					#partial switch inner in d^ {
 					case ^ClassDeclaration:
-						if inner != nil && !inner.declare {
-							if id, ok := inner.id.(BindingIdentifier); ok && id.name == name {
-								ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
+						if inner != nil {
+							if id, ok := inner.id.(BindingIdentifier); ok {
+								e.cf_any = id.name
+								if !inner.declare { e.cf_value = id.name }
 							}
 						}
 					case ^FunctionDeclaration:
-						if inner != nil && !inner.declare {
-							if id, ok := inner.id.(BindingIdentifier); ok && id.name == name {
-								ck_report_coded(c, ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
+						if inner != nil {
+							if id, ok := inner.id.(BindingIdentifier); ok {
+								e.cf_any = id.name
+								if !inner.declare { e.cf_value = id.name }
+							}
+						}
+					case ^TSModuleDeclaration:
+						if inner != nil && !inner.declare && ts_namespace_is_instantiated(inner) && inner.id != nil {
+							if ident, is := inner.id^.(^Identifier); is && ident != nil {
+								e.ns_name = ident.name
+								e.ns_loc  = u32(ident.loc.start)
 							}
 						}
 					}
 				}
+			}
+		}
+		return
+	}
+
+	n := len(body)
+	entries := make([]NsOrderEntry, n, context.temp_allocator)
+	for i in 0 ..< n { entries[i] = classify(body[i]) }
+
+	// For each instantiated non-declare namespace: it is a TS2434 error iff a
+	// NON-declare class / function with the same name appears LATER and none
+	// with that name (declare or not) appeared EARLIER (an earlier
+	// declaration means the namespace merely augments it).
+	for i in 0 ..< n {
+		name := entries[i].ns_name
+		if name == "" { continue }
+		already_seen := false
+		for j in 0 ..< i {
+			if entries[j].cf_any == name { already_seen = true; break }
+		}
+		if already_seen { continue }
+		for j in i + 1 ..< n {
+			if entries[j].cf_value == name {
+				ck_report_coded(c, entries[i].ns_loc, .K4023_NamespaceMergeOrder, "A namespace declaration cannot be located prior to a class or function with which it is merged")
+				break
 			}
 		}
 	}
 }
+
 
 // ts_namespace_is_instantiated — returns true if the namespace has any
 // value-producing declarations (var, function, class, enum, nested
