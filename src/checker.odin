@@ -887,8 +887,12 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 				ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Interface declarations are only valid at the top level of a module or namespace")
 			}
 			ck_check_ts_interface_member_dups(c, v.body)
-			ck_check_ts1268_index_sig_param_type(c, v.body)
-			ck_check_ts2374_dup_index_sig(c, v.body)
+			// Collect the body's index signatures once, then run both the
+			// TS1268 (param-type form) and TS2374 (duplicate) checks over the
+			// shared slice instead of re-walking the body per check (item 9).
+			idx_sigs := ck_collect_interface_index_sigs(v.body, context.temp_allocator)
+			ck_check_ts1268_index_sig_param_type(c, idx_sigs)
+			ck_check_ts2374_dup_index_sig(c, idx_sigs)
 			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
 				ck_check_ts_type_param_dups(c, tp)
 			}
@@ -3043,15 +3047,32 @@ ck_pattern_display_name :: proc(pat: Pattern) -> string {
 	return "<pattern>"
 }
 
-// ck_check_ts1268_index_sig_param_type — TS1268 "An index signature
-// parameter type must be 'string', 'number', 'symbol', or a template
-// literal type." Walks an interface/class body for TSIndexSignature
-// members and validates each parameter's type annotation.
-ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody) {
+// ck_collect_interface_index_sigs — single walk over a TSInterfaceBody
+// returning its TSIndexSignature members in source order. Shared by the
+// TS1268 (param-type form) and TS2374 (duplicate index signature) checks
+// so the body is classified once instead of being re-walked per check
+// (item 9: one classification prescan -> per-check evaluators). Emission
+// order is preserved because each evaluator still iterates the collected
+// signatures in body order, so the first-error recorded per fixture is
+// identical to the prior two-full-walks form.
+ck_collect_interface_index_sigs :: proc(body: TSInterfaceBody, alloc: mem.Allocator) -> []TSIndexSignature {
+	out: [dynamic]TSIndexSignature
+	out.allocator = alloc
 	for sig in body.body {
 		if sig == nil { continue }
-		idx, is_idx := sig^.(TSIndexSignature)
-		if !is_idx { continue }
+		if idx, is_idx := sig^.(TSIndexSignature); is_idx {
+			append(&out, idx)
+		}
+	}
+	return out[:]
+}
+
+// ck_check_ts1268_index_sig_param_type — TS1268 "An index signature
+// parameter type must be 'string', 'number', 'symbol', or a template
+// literal type." Validates each parameter's type annotation across the
+// pre-collected index signatures of an interface/class body.
+ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, sigs: []TSIndexSignature) {
+	for idx in sigs {
 		for param in idx.parameters {
 			ta, has_ta := param.type_annotation.(^TSTypeAnnotation)
 			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
@@ -3077,14 +3098,11 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 // type 'X'." Walks an interface/class body. If two or more TSIndexSignature
 // members have parameters with the same key type (string, number, symbol),
 // the second and subsequent are flagged.
-ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
+ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, sigs: []TSIndexSignature) {
 	seen_string := false
 	seen_number := false
 	seen_symbol := false
-	for sig in body.body {
-		if sig == nil { continue }
-		idx, is_idx := sig^.(TSIndexSignature)
-		if !is_idx { continue }
+	for idx in sigs {
 		for param in idx.parameters {
 			ta, has_ta := param.type_annotation.(^TSTypeAnnotation)
 			if !has_ta || ta == nil || ta.type_annotation == nil { continue }
