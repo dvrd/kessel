@@ -34,12 +34,11 @@ import "core:strings"
 // 100KB+). A static 65536-byte buffer covers every real-world case in a
 // single write; longer runs fall back to a chunked loop that's still
 // O(n/CHUNK) eprintf calls instead of O(n).
-@(private="file") REPEAT_CHUNK_SIZE :: 4096
-@(private="file") repeat_space_chunk: [REPEAT_CHUNK_SIZE]byte = #partial { 0 = ' ' }
-@(private="file") repeat_caret_chunk: [REPEAT_CHUNK_SIZE]byte = #partial { 0 = '^' }
-@(private="file") repeat_chunks_initialized := false
+REPEAT_CHUNK_SIZE :: 4096
+repeat_space_chunk: [REPEAT_CHUNK_SIZE]byte = #partial { 0 = ' ' }
+repeat_caret_chunk: [REPEAT_CHUNK_SIZE]byte = #partial { 0 = '^' }
+repeat_chunks_initialized := false
 
-@(private="file")
 ensure_repeat_chunks :: proc() {
 	if repeat_chunks_initialized { return }
 	for i in 0..<REPEAT_CHUNK_SIZE {
@@ -49,7 +48,6 @@ ensure_repeat_chunks :: proc() {
 	repeat_chunks_initialized = true
 }
 
-@(private="file")
 emit_repeated :: proc(b: byte, n: int) {
 	if n <= 0 { return }
 	ensure_repeat_chunks()
@@ -64,14 +62,14 @@ emit_repeated :: proc(b: byte, n: int) {
 
 // ANSI escape sequences. Kept inline (not constants) so a future caller
 // can build a different palette without restructuring the renderer.
-@(private="file") ANSI_RESET     :: "\x1b[0m"
-@(private="file") ANSI_BOLD      :: "\x1b[1m"
-@(private="file") ANSI_DIM       :: "\x1b[2m"
-@(private="file") ANSI_RED       :: "\x1b[31m"
-@(private="file") ANSI_YELLOW    :: "\x1b[33m"
-@(private="file") ANSI_BLUE      :: "\x1b[34m"
-@(private="file") ANSI_BOLD_RED  :: "\x1b[1;31m"
-@(private="file") ANSI_BOLD_YELLOW :: "\x1b[1;33m"
+ANSI_RESET     :: "\x1b[0m"
+ANSI_BOLD      :: "\x1b[1m"
+ANSI_DIM       :: "\x1b[2m"
+ANSI_RED       :: "\x1b[31m"
+ANSI_YELLOW    :: "\x1b[33m"
+ANSI_BLUE      :: "\x1b[34m"
+ANSI_BOLD_RED  :: "\x1b[1;31m"
+ANSI_BOLD_YELLOW :: "\x1b[1;33m"
 
 // render_pretty_diagnostics writes a rustc-style block per diagnostic
 // to stderr. Caller passes the source bytes, the file path (for the
@@ -92,7 +90,6 @@ render_pretty_diagnostics :: proc(
 	}
 }
 
-@(private="file")
 render_one :: proc(
 	source:       string,
 	path:         string,
@@ -170,7 +167,6 @@ render_one :: proc(
 // render_snippet draws the source-line gutter + caret for the diagnostic
 // span. Single-line spans get a contiguous caret underline; multi-line
 // spans show start + ellipsis + end.
-@(private="file")
 render_snippet :: proc(
 	source:       string,
 	line_offsets: []u32,
@@ -231,7 +227,6 @@ render_snippet :: proc(
 // emit_gutter writes the `   |` (or `   | <suffix>`) prefix shared by
 // every snippet line. `suffix` is appended after the bar (e.g. "..."
 // for the elision row). The gutter itself renders dim when colored.
-@(private="file")
 emit_gutter :: proc(width: int, suffix: string, use_color: bool) {
 	for _ in 0..<width { fmt.eprintf(" ") }
 	if use_color {
@@ -246,7 +241,6 @@ emit_gutter :: proc(width: int, suffix: string, use_color: bool) {
 
 // render_source_line prints `<n> | <source-line text>\n`. Pads the
 // line number with spaces (NOT zero-pad — Odin's `%*d` zero-pads).
-@(private="file")
 render_source_line :: proc(source: string, line_offsets: []u32, line: u32, gutter_w: int, use_color: bool) {
 	if int(line) < 1 || int(line) > len(line_offsets) { return }
 	start := line_offsets[line-1]
@@ -293,7 +287,6 @@ render_source_line :: proc(source: string, line_offsets: []u32, line: u32, gutte
 	fmt.eprintf("\n")
 }
 
-@(private="file")
 source_line_len :: proc(source: string, line_offsets: []u32, line: u32) -> u32 {
 	if int(line) < 1 || int(line) > len(line_offsets) { return 0 }
 	start := line_offsets[line-1]
@@ -309,7 +302,6 @@ source_line_len :: proc(source: string, line_offsets: []u32, line: u32) -> u32 {
 	return end - start
 }
 
-@(private="file")
 digit_count :: proc(n: u32) -> int {
 	if n < 10      { return 1 }
 	if n < 100     { return 2 }
@@ -321,5 +313,4 @@ digit_count :: proc(n: u32) -> int {
 }
 
 // Referenced explicitly so `strings` stays imported for future helpers.
-@(private="file")
 _unused :: proc() { _ = strings.Builder{} }

@@ -111,7 +111,6 @@ sourcemap_record :: #force_inline proc(sm: ^SourceMap, gen_offset, src_offset: u
 // Spec: each value is split into 5-bit groups, low-bit-first; the high
 // bit of each digit is the continuation flag; the LSB of the FIRST digit
 // is the sign bit. Encoded as base64 (A-Z a-z 0-9 + /).
-@(private = "file")
 B64 := [64]byte{
 	'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P',
 	'Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d','e','f',
@@ -176,7 +175,6 @@ vlq_encode_into :: proc(buf: ^[dynamic]byte, value: int) {
 // Convert a byte offset into (line, col_utf16) for a buffer with the
 // given line-offset table. Lines are 0-based, columns are UTF-16 code
 // units (BMP \u2192 1 unit, supplementary \u2192 2 units).
-@(private = "file")
 offset_to_zero_based_line_col_u16 :: proc(buf: string, line_offsets: []u32, offset: u32) -> (line, col: u32) {
 	// Binary search for the largest line_offset <= offset.
 	if len(line_offsets) == 0 || offset == 0 {
@@ -218,7 +216,6 @@ offset_to_zero_based_line_col_u16 :: proc(buf: string, line_offsets: []u32, offs
 
 // Build a line-offset table for `buf` in one linear scan. Same shape as
 // the lexer's table: indices into `buf` where each line starts.
-@(private = "file")
 build_line_offsets :: proc(buf: string) -> []u32 {
 	out := make([dynamic]u32, 1, max(64, len(buf) / 32))
 	out[0] = 0
@@ -231,7 +228,6 @@ build_line_offsets :: proc(buf: string) -> []u32 {
 }
 
 // Encode the recorded mappings into a `mappings` VLQ string.
-@(private = "file")
 encode_mappings :: proc(sm: ^SourceMap, gen_buf: string) -> string {
 	gen_line_offsets := build_line_offsets(gen_buf)
 	defer delete(gen_line_offsets)
@@ -320,7 +316,6 @@ sourcemap_to_json :: proc(
 // backslash, double-quote, control bytes < 0x20 (escaped as `\u00XX`),
 // and the JSON-line-terminator pair U+2028 / U+2029 which are valid in
 // JS but illegal mid-string in strict-mode JSON consumers.
-@(private = "file")
 write_json_string :: proc(sb: ^strings.Builder, s: string) {
 	strings.write_byte(sb, '"')
 	hex := "0123456789abcdef"

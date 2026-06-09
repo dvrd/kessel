@@ -115,7 +115,6 @@ cli_config_default :: proc() -> CliConfig {
 // resolve_color_from_env reads `KESSEL_COLOR` and returns the resolved
 // default. Accepts only "1" (on) or "0" (off). Empty / unset returns
 // the baseline default (`true`). Any other value is a startup error.
-@(private="file")
 resolve_color_from_env :: proc() -> bool {
 	val, has := os.lookup_env("KESSEL_COLOR", context.temp_allocator)
 	if !has || len(val) == 0 {

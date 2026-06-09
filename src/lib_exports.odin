@@ -60,7 +60,6 @@ KesselParseResult :: struct {
 	buf_len: i32,
 }
 
-@(private="file")
 kessel_lang_from_i32 :: proc(lang: i32) -> Maybe(Lang) {
 	switch lang {
 	case 0: return .JS
@@ -71,7 +70,6 @@ kessel_lang_from_i32 :: proc(lang: i32) -> Maybe(Lang) {
 	}
 }
 
-@(private="file")
 kessel_source_type_from_i32 :: proc(source_type: i32) -> Maybe(SourceType) {
 	switch source_type {
 	case 0: return .Script
@@ -80,12 +78,10 @@ kessel_source_type_from_i32 :: proc(source_type: i32) -> Maybe(SourceType) {
 	}
 }
 
-@(private="file")
 kessel_bool_from_i32 :: #force_inline proc(v: i32) -> bool {
 	return v != 0
 }
 
-@(private="file")
 kessel_maybe_bool_from_i32 :: proc(v: i32) -> Maybe(bool) {
 	switch v {
 	case 0: return false
@@ -94,7 +90,6 @@ kessel_maybe_bool_from_i32 :: proc(v: i32) -> Maybe(bool) {
 	}
 }
 
-@(private="file")
 kessel_parse_binary_with_config :: proc(source: string, label: string, config: ParseConfig, show_semantic_errors: bool) -> KesselParseResult {
 	context = runtime.default_context()
 

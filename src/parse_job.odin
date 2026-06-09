@@ -199,7 +199,6 @@ ParseJob :: struct {
 // of the four parse_* procs in main.odin spelled these out, with subtle
 // drift (e.g. raw paths missed the .d.mts / .d.cts suffixes).
 
-@(private="file")
 resolve_dts_from_path :: proc(path: string) -> bool {
 	return strings.has_suffix(path, ".d.ts") ||
 	       strings.has_suffix(path, ".d.mts") ||
@@ -209,7 +208,6 @@ resolve_dts_from_path :: proc(path: string) -> bool {
 // CommonJS files are wrapped in a function at runtime; top-level `return`
 // is grammatically legal. The `.cjs` and `.cts` suffixes are the canonical
 // signals.
-@(private="file")
 resolve_commonjs_from_path :: proc(path: string) -> bool {
 	return strings.has_suffix(path, ".cjs") ||
 	       strings.has_suffix(path, ".cts")
@@ -219,7 +217,6 @@ resolve_commonjs_from_path :: proc(path: string) -> bool {
 // this BEFORE the first prefetched token so Annex B HTML-like comments
 // (`<!--`, `-->`) - legal only in script source per ECMA-262 §B.1.3 -
 // are gated correctly.
-@(private="file")
 resolve_lex_source_type :: proc(cfg: ParseConfig) -> SourceType {
 	if st, ok := cfg.source_type_override.?; ok { return st }
 	return .Script
@@ -229,7 +226,6 @@ resolve_lex_source_type :: proc(cfg: ParseConfig) -> SourceType {
 // today, but kept as a separate helper because the eventual semantic
 // checker may want to diverge (e.g. promote Script -> Module post-parse
 // rather than at the lexer entry point).
-@(private="file")
 resolve_initial_source_type :: proc(cfg: ParseConfig) -> SourceType {
 	if st, ok := cfg.source_type_override.?; ok { return st }
 	if cfg.strict_source_type { return .Script }
@@ -240,7 +236,6 @@ resolve_initial_source_type :: proc(cfg: ParseConfig) -> SourceType {
 // path. The 256x source headroom matches the existing parse_file /
 // parse_file_to_disk / raw_transfer_file shape; bench paths use a
 // tighter formula and pass a borrowed arena.
-@(private="file")
 arena_reserve_for_source :: proc(source_len: int) -> uint {
 	return uint(max(source_len * 256, 16 * 1024 * 1024))
 }
@@ -340,7 +335,6 @@ parse_job_open_borrowed_arena :: proc(job: ^ParseJob, path: string, config: Pars
 
 // Resolve lang / dts / source-type from the path + config. Single
 // source of truth - keeps the four entry points consistent.
-@(private="file")
 parse_job_resolve :: proc(job: ^ParseJob) {
 	// Lang: explicit override wins, else extension.
 	if l, ok := job.config.lang_override.?; ok {

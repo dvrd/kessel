@@ -192,7 +192,6 @@ binary_emitter_destroy :: proc(be: ^BinaryEmitter, alloc: mem.Allocator) {
 }
 
 // Ensure buf has room for n more bytes. Grow by doubling if needed.
-@(private="file")
 be_ensure :: #force_inline proc(be: ^BinaryEmitter, n: int) {
 	if be.pos + n > len(be.buf) {
 		resize(&be.buf, max(len(be.buf) * 2, be.pos + n))
@@ -203,14 +202,12 @@ be_ensure :: #force_inline proc(be: ^BinaryEmitter, n: int) {
 // Low-level write helpers
 // ============================================================================
 
-@(private="file")
 bw_u8 :: #force_inline proc(be: ^BinaryEmitter, v: u8) {
 	be_ensure(be, 1)
 	be.buf[be.pos] = v
 	be.pos += 1
 }
 
-@(private="file")
 bw_u16 :: #force_inline proc(be: ^BinaryEmitter, v: u16) {
 	be_ensure(be, 2)
 	p := be.pos
@@ -219,7 +216,6 @@ bw_u16 :: #force_inline proc(be: ^BinaryEmitter, v: u16) {
 	be.pos = p + 2
 }
 
-@(private="file")
 bw_u32 :: #force_inline proc(be: ^BinaryEmitter, v: u32) {
 	be_ensure(be, 4)
 	// Single unaligned little-endian store; u32le byte-swaps only on
@@ -228,14 +224,12 @@ bw_u32 :: #force_inline proc(be: ^BinaryEmitter, v: u32) {
 	be.pos += 4
 }
 
-@(private="file")
 bw_f64 :: #force_inline proc(be: ^BinaryEmitter, v: f64) {
 	be_ensure(be, 8)
 	(^u64le)(&be.buf[be.pos])^ = u64le(transmute(u64)v)
 	be.pos += 8
 }
 
-@(private="file")
 bw_bool :: #force_inline proc(be: ^BinaryEmitter, v: bool) {
 	be_ensure(be, 1)
 	be.buf[be.pos] = 1 if v else 0
@@ -243,7 +237,6 @@ bw_bool :: #force_inline proc(be: ^BinaryEmitter, v: bool) {
 }
 
 // Intern a string and write its index as u32.
-@(private="file")
 bw_string_ref :: proc(be: ^BinaryEmitter, s: string) {
 	if idx, ok := be.string_map[s]; ok {
 		bw_u32(be, idx)
@@ -259,7 +252,6 @@ bw_string_ref :: proc(be: ^BinaryEmitter, s: string) {
 // Node emission — writes [type_id: u8] [start: u32] [end: u32] then fields
 // ============================================================================
 
-@(private="file")
 bin_node_header :: proc(be: ^BinaryEmitter, type_id: BinNodeType, loc: Loc) {
 	bw_u8(be, u8(type_id))
 	bw_u32(be, loc.start)
@@ -810,7 +802,6 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 // JSX binary emission helpers
 // ============================================================================
 
-@(private="file")
 bin_emit_jsx_elem_name :: proc(be: ^BinaryEmitter, name: JSXElementName) {
 	switch n in name {
 	case JSXIdentifier:
@@ -830,7 +821,6 @@ bin_emit_jsx_elem_name :: proc(be: ^BinaryEmitter, name: JSXElementName) {
 	}
 }
 
-@(private="file")
 bin_emit_jsx_member_object :: proc(be: ^BinaryEmitter, obj: JSXMemberObject) {
 	switch o in obj {
 	case JSXIdentifier:
@@ -844,7 +834,6 @@ bin_emit_jsx_member_object :: proc(be: ^BinaryEmitter, obj: JSXMemberObject) {
 	}
 }
 
-@(private="file")
 bin_emit_jsx_attr_name :: proc(be: ^BinaryEmitter, name: JSXAttributeName) {
 	switch n in name {
 	case JSXIdentifier:
@@ -859,7 +848,6 @@ bin_emit_jsx_attr_name :: proc(be: ^BinaryEmitter, name: JSXAttributeName) {
 	}
 }
 
-@(private="file")
 bin_emit_jsx_opening :: proc(be: ^BinaryEmitter, oe: ^JSXOpeningElement) {
 	bin_node_header(be, .JSXOpeningElement, oe.loc)
 	bw_bool(be, oe.self_closing)
@@ -883,7 +871,6 @@ bin_emit_jsx_opening :: proc(be: ^BinaryEmitter, oe: ^JSXOpeningElement) {
 	}
 }
 
-@(private="file")
 bin_emit_jsx_child :: proc(be: ^BinaryEmitter, child: JSXChild) {
 	switch c in child {
 	case ^JSXElement:
@@ -938,7 +925,6 @@ bin_emit_jsx_child :: proc(be: ^BinaryEmitter, child: JSXChild) {
 	}
 }
 
-@(private="file")
 bin_emit_property :: proc(be: ^BinaryEmitter, prop: Property) {
 	// SpreadElement path: parser stores spread as Property { key: nil, value: ^SpreadElement }.
 	// Emit as a bare SpreadElement node, matching the JSON emitter.
@@ -973,7 +959,6 @@ bin_emit_property :: proc(be: ^BinaryEmitter, prop: Property) {
 	bin_emit_expression(be, prop.value)
 }
 
-@(private="file")
 bin_emit_obj_pat_prop :: proc(be: ^BinaryEmitter, prop: ObjectPatternProperty) {
 	bin_node_header(be, .Property, prop.loc)
 	bw_u8(be, 0) // kind: always 'init' for pattern properties
@@ -1012,7 +997,6 @@ bin_emit_obj_pat_prop :: proc(be: ^BinaryEmitter, prop: ObjectPatternProperty) {
 	bin_emit_pattern(be, prop.value)
 }
 
-@(private="file")
 bin_emit_declaration :: proc(be: ^BinaryEmitter, decl: ^Declaration) {
 	if decl == nil { bw_u8(be, u8(BinValType.NullNode)); return }
 	#partial switch d in decl^ {
@@ -1027,7 +1011,6 @@ bin_emit_declaration :: proc(be: ^BinaryEmitter, decl: ^Declaration) {
 	}
 }
 
-@(private="file")
 bin_emit_export_default_def :: proc(be: ^BinaryEmitter, def: ^ExportDefaultDef) {
 	if def == nil { bw_u8(be, u8(BinValType.NullNode)); return }
 	switch d in def^ {
@@ -1038,7 +1021,6 @@ bin_emit_export_default_def :: proc(be: ^BinaryEmitter, def: ^ExportDefaultDef) 
 	}
 }
 
-@(private="file")
 bin_emit_var_decl :: proc(be: ^BinaryEmitter, s: ^VariableDeclaration) {
 	bin_node_header(be, .VariableDeclaration, s.loc)
 	bw_u8(be, u8(s.kind))
@@ -1055,7 +1037,6 @@ bin_emit_var_decl :: proc(be: ^BinaryEmitter, s: ^VariableDeclaration) {
 	}
 }
 
-@(private="file")
 bin_emit_export_spec_name :: proc(be: ^BinaryEmitter, name: ExportSpecifierName) {
 	switch n in name {
 	case IdentifierName:
@@ -1073,21 +1054,18 @@ bin_emit_export_spec_name :: proc(be: ^BinaryEmitter, name: ExportSpecifierName)
 // Shared helpers for function / class emission
 // ============================================================================
 
-@(private="file")
 bin_emit_block :: proc(be: ^BinaryEmitter, block: BlockStatement) {
 	bin_node_header(be, .BlockStatement, block.loc)
 	bw_u32(be, u32(len(block.body)))
 	for child in block.body { bin_emit_statement(be, child) }
 }
 
-@(private="file")
 bin_emit_function_body :: proc(be: ^BinaryEmitter, body: FunctionBody) {
 	bin_node_header(be, .BlockStatement, body.loc)
 	bw_u32(be, u32(len(body.body)))
 	for child in body.body { bin_emit_statement(be, child) }
 }
 
-@(private="file")
 bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^FunctionExpression) {
 	bin_node_header(be, type_id, fn.loc)
 	if bid, ok := fn.id.(BindingIdentifier); ok {
@@ -1103,7 +1081,6 @@ bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^Fu
 	bin_emit_function_body(be, fn.body)
 }
 
-@(private="file")
 bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
 	bin_emit_pattern(be, param.pattern)
 	if def, ok := param.default_val.(^Expression); ok && def != nil {
@@ -1114,7 +1091,6 @@ bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
 	}
 }
 
-@(private="file")
 bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 	bin_node_header(be, type_id, class.loc)
 	if bid, ok := class.id.(BindingIdentifier); ok {
@@ -1136,7 +1112,6 @@ bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 	}
 }
 
-@(private="file")
 bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 	#partial switch elem.kind {
 	case .StaticBlock:

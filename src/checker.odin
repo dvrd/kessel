@@ -251,7 +251,6 @@ init_checker :: proc(alloc: mem.Allocator) -> Checker {
 // detection is parser-owned. The checker still reaches the same
 // scope-bearing AST locations for other semantic checks, but it must
 // not call back into parser.odin or emit duplicate binding diagnostics.
-@(private="file")
 ck_run_scope_check :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement, is_block_scope: bool) {
 	_ = c
 	_ = ctx
@@ -345,7 +344,6 @@ check_program :: proc(c: ^Checker, program: ^Program, lang: Lang = .JS, force_st
 
 // directives_have_use_strict scans a directive prologue (Program- or
 // FunctionBody-level) for the literal `"use strict"` token.
-@(private="file")
 directives_have_use_strict :: proc(dirs: []Directive) -> bool {
 	for d in dirs {
 		if d.value.value == "use strict" { return true }
@@ -362,7 +360,6 @@ directives_have_use_strict :: proc(dirs: []Directive) -> bool {
 // parser.odin's empty `directives = make([dynamic]Directive, 0, 0, ...)`
 // initialisations at lines 3938 / 4350. So we walk the body's leading
 // ExpressionStatement-with-directive run.
-@(private="file")
 fn_body_lifts_strict :: proc(body: FunctionBody) -> bool {
 	for stmt in body.body {
 		if stmt == nil { return false }
@@ -397,7 +394,6 @@ checker_run_for_job :: proc(job: ^ParseJob) {
 // Helpers — error reporting + label resolution
 // ============================================================================
 
-@(private="file")
 ck_report :: proc(c: ^Checker, loc_offset: u32, message: string) {
 	bump_append(&c.errors, ParseError{
 		start   = loc_offset,
@@ -411,7 +407,6 @@ ck_report :: proc(c: ^Checker, loc_offset: u32, message: string) {
 // checker sites only have a single offset; widening to real spans is a
 // separate sweep. The diagnostic gets the severity from the message
 // table so warnings (when we introduce them) reach the right channel.
-@(private="file")
 ck_report_coded :: proc(c: ^Checker, loc_offset: u32, code: ErrorCode, message: string) {
 	info := error_info(code)
 	bump_append(&c.errors, ParseError{
@@ -443,7 +438,6 @@ checker_append_error :: proc(c: ^Checker, loc: LexerLoc, message: string) {
 // Bounded loop: the chain length is at most the AST depth, which is
 // already bounded by the parser. Each step either descends one
 // LabelledStatement layer or returns. No recursion needed.
-@(private="file")
 label_is_iteration_target :: proc(stmt: ^Statement) -> bool {
 	s := stmt
 	for s != nil {
@@ -461,10 +455,9 @@ label_is_iteration_target :: proc(stmt: ^Statement) -> bool {
 	return false
 }
 
-// label_in_scope — does `name` refer to a LabelledStatement currently
+// ck_label_in_scope — does `name` refer to a LabelledStatement currently
 // in scope (above the floor)?  Returns the matching label entry.
-@(private="file")
-label_in_scope :: proc(ctx: ^CheckerContext, name: string) -> (CheckerLabel, bool) {
+ck_label_in_scope :: proc(ctx: ^CheckerContext, name: string) -> (CheckerLabel, bool) {
 	// Scan top-down so the innermost enclosing label wins (matters for
 	// shadowing diagnostics in future slices; today every visible label
 	// is unique within its function — duplicate-label check will land
@@ -486,13 +479,11 @@ label_in_scope :: proc(ctx: ^CheckerContext, name: string) -> (CheckerLabel, boo
 // flag for the body's lexical scope only) but never lower it (a body
 // inside an already-strict scope can't escape strict by lacking the
 // directive). The save/restore pattern naturally implements both rules.
-@(private="file")
 CheckerScopeSave :: struct {
 	scope:     CheckerScope,
 	label_len: int,
 }
 
-@(private="file")
 ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 	saved := CheckerScopeSave{
 		scope     = ctx.scope,
@@ -504,7 +495,6 @@ ck_enter_function :: proc(ctx: ^CheckerContext) -> CheckerScopeSave {
 	return saved
 }
 
-@(private="file")
 ck_exit_function :: proc(ctx: ^CheckerContext, saved: CheckerScopeSave) {
 	ctx.scope = saved.scope
 	// Truncate any labels pushed inside the function body that weren't
@@ -530,7 +520,6 @@ CkFnKind :: enum {
 // Statement walker
 // ============================================================================
 
-@(private="file")
 ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	if stmt == nil { return }
 	// §16.2.1 — only the IMMEDIATE call from `check_program` carries the
@@ -543,7 +532,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	case ^BreakStatement:
 		if v == nil { return }
 		if lbl, have := v.label.(LabelIdentifier); have {
-			if entry, ok := label_in_scope(ctx, lbl.name); !ok {
+			if entry, ok := ck_label_in_scope(ctx, lbl.name); !ok {
 				_ = entry
 				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
 			}
@@ -556,7 +545,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	case ^ContinueStatement:
 		if v == nil { return }
 		if lbl, have := v.label.(LabelIdentifier); have {
-			entry, ok := label_in_scope(ctx, lbl.name)
+			entry, ok := ck_label_in_scope(ctx, lbl.name)
 			if !ok {
 				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
 			} else if !entry.is_iteration {
@@ -959,7 +948,6 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	}
 }
 
-@(private="file")
 ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) {
 	if d == nil { return }
 	#partial switch inner in d^ {
@@ -1006,7 +994,6 @@ ck_walk_export_decl :: proc(c: ^Checker, ctx: ^CheckerContext, d: ^Declaration) 
 // Handles both shapes the parser produces:
 //   * `namespace M { ... }`     → body = TSModuleBlock
 //   * `namespace A.B { ... }`   → body = TSModuleDeclaration (nested)
-@(private="file")
 ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDeclaration) {
 	if m == nil { return }
 	body_opt, have := m.body.(^TSModuleBody)
@@ -1055,7 +1042,6 @@ ck_walk_ts_module_decl :: proc(c: ^Checker, ctx: ^CheckerContext, m: ^TSModuleDe
 // `var` declarations (Annex B.3.4.4 web-compat). The cross-declaration
 // duplicate-name check (a let in one block clashing with a let in the
 // same block from a different statement) is parser-owned.
-@(private="file")
 ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 	if decl == nil { return }
 	switch decl.kind {
@@ -1113,7 +1099,6 @@ ck_check_var_decl_lexical_dups :: proc(c: ^Checker, decl: ^VariableDeclaration) 
 // V1 scope: top-level Program body only. Nested block / function /
 // namespace bodies are handled by follow-up slices.
 
-@(private="file")
 DeclMergeKind :: enum u8 {
 	Var, Let, Const,
 	Class, Function, Enum, ConstEnum, Namespace,
@@ -1121,10 +1106,8 @@ DeclMergeKind :: enum u8 {
 	Import, ImportType, ImportEquals,
 }
 
-@(private="file")
 DeclMergeSet :: bit_set[DeclMergeKind; u16]
 
-@(private="file")
 DeclMergeEntry :: struct {
 	kinds:         DeclMergeSet,
 	ambient_kinds: DeclMergeSet,  // subset of `kinds` declared with `declare` modifier
@@ -1151,7 +1134,6 @@ DeclMergeEntry :: struct {
 // would double-report. The walker still skips Class / Function /
 // Enum / Import in TS mode, which is exactly the surface this proc
 // covers.
-@(private="file")
 ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> bool {
 	// Canonicalise so we only need to write each pair once: the
 	// smaller-ordinal kind is `x`, the larger is `y`.
@@ -1272,7 +1254,6 @@ ts_decl_merge_pair_legal :: proc(a, b: DeclMergeKind, both_ambient: bool) -> boo
 // TSInterfaceDeclaration.declare / VariableDeclaration.declare).
 // Ambient declarations may merge across kinds in cases that
 // non-ambient ones cannot (e.g. `declare class C + declare function C`).
-@(private="file")
 ts_decl_merge_add :: proc(
 	c: ^Checker,
 	seen: ^map[string]DeclMergeEntry,
@@ -1309,7 +1290,6 @@ ts_decl_merge_add :: proc(
 // statement (or its inner Declaration if it's an export wrapper) and
 // add it to `seen`. Recurses ONE level into ExportNamedDeclaration so
 // `export class C {}; export class C {}` still triggers.
-@(private="file")
 ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stmt: ^Statement) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
@@ -1447,7 +1427,6 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 // like var, function, class, enum) must appear AFTER the class/function
 // it merges with, not before. Non-instantiated namespaces (empty or
 // type-only: interfaces, type aliases) may appear in any order.
-@(private="file")
 ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_dts: bool = false) {
 	if c == nil || len(body) == 0 { return }
 	// In .d.ts files all declarations are implicitly ambient; the ordering
@@ -1554,7 +1533,6 @@ ck_check_ts2434_namespace_ordering :: proc(c: ^Checker, body: []^Statement, is_d
 // value-producing declarations (var, function, class, enum, nested
 // instantiated namespace). Type-only namespaces (interfaces, type
 // aliases, empty) return false.
-@(private="file")
 ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 	if m == nil { return false }
 	body_opt, have := m.body.(^TSModuleBody)
@@ -1599,7 +1577,6 @@ ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 // ck_check_ts_decl_merge_body — walks ONE body level (no recursion)
 // and reports TS "Duplicate identifier" for any pair that violates
 // the merge rules. Caller-supplied body slice represents one scope.
-@(private="file")
 ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement, is_dts: bool = false) {
 	if c == nil || len(body) == 0 { return }
 	seen: map[string]DeclMergeEntry
@@ -1643,7 +1620,6 @@ ck_check_ts_decl_merge_body :: proc(c: ^Checker, body: []^Statement, is_dts: boo
 // identifiers + string / numeric literal keys are all valid method
 // names; computed keys are excluded (they can't form overload chains
 // because TS can't statically prove their identity).
-@(private="file")
 elem_overload_name :: proc(elem: ClassElement) -> (string, bool) {
 	if elem.computed || elem.key == nil { return "", false }
 	#partial switch k in elem.key^ {
@@ -1666,7 +1642,6 @@ elem_overload_name :: proc(elem: ClassElement) -> (string, bool) {
 // detect by checking the body source span: an absent body has a
 // zero-extent default-initialised loc, an empty `{}` body has a
 // nonzero span covering the braces.
-@(private="file")
 method_fn_has_body :: #force_inline proc(fn: ^FunctionExpression) -> bool {
 	return fn != nil && fn.body.loc.end > fn.body.loc.start
 }
@@ -1680,7 +1655,6 @@ method_fn_has_body :: #force_inline proc(fn: ^FunctionExpression) -> bool {
 //   - PropertyDefinition (kind == .Method but value is a non-function
 //     expression — a class field with an initialiser)
 //   - abstract methods (no impl needed; abstract is the suppressor)
-@(private="file")
 elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression, bool) {
 	if elem.kind != .Method && elem.kind != .Constructor { return nil, false }
 	if elem.abstract { return nil, false }
@@ -1693,7 +1667,6 @@ elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression,
 
 // ck_check_ts_class_overloads — walks class members left-to-right;
 // emits TS2391 / TS2389 per the overload-chain rules above.
-@(private="file")
 ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	if c == nil || len(body.body) == 0 { return }
 
@@ -1876,7 +1849,6 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 //
 // Static and instance members live in DISJOINT slots: `static x` and
 // `x` never collide.
-@(private="file")
 ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 	if c == nil || cls == nil || len(cls.body.body) == 0 { return }
 
@@ -2072,7 +2044,6 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 // signatures (constructors with no_body = true) cannot have parameter
 // properties (accessibility / readonly / override on params). Only the
 // implementation constructor (with a body) may have these.
-@(private="file")
 ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression, funcs: []^FunctionExpression) {
 	if c == nil || cls == nil { return }
 	for elem, i in cls.body.body {
@@ -2104,7 +2075,6 @@ ck_check_ts_constructor_modifiers :: proc(c: ^Checker, cls: ^ClassExpression, fu
 // Example:
 //   class D { y: number; constructor(public y: number) {} }  → TS2300
 //   class C { y: number; constructor(y: number) {} }         → OK (no modifier)
-@(private="file")
 ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpression, funcs: []^FunctionExpression) {
 	if c == nil || cls == nil { return }
 	field_names: map[string]bool
@@ -2165,7 +2135,6 @@ ck_check_ts_constructor_param_property_dups :: proc(c: ^Checker, cls: ^ClassExpr
 // `enum E { x, y, x }` — duplicate enum member names are TS2300.
 // Both Identifier and StringLiteral keys are checked. Computed
 // member names are excluded (can't reason statically).
-@(private="file")
 ck_check_ts_enum_member_dups :: proc(c: ^Checker, decl: ^TSEnumDeclaration) {
 	if c == nil || decl == nil || len(decl.body.members) < 2 { return }
 	seen: map[string]u32
@@ -2205,7 +2174,6 @@ ck_check_ts_enum_member_dups :: proc(c: ^Checker, decl: ^TSEnumDeclaration) {
 // `type Q<P, P>` and so on are all TS2300 errors. Detects via a
 // single-pass on the TSTypeParameterDeclaration's params — emit on
 // each entry that duplicates an earlier one.
-@(private="file")
 ck_check_ts_type_param_dups :: proc(c: ^Checker, tp: ^TSTypeParameterDeclaration) {
 	// OXC does not enforce TS2300 type-param dups — type-checker concern.
 }
@@ -2225,7 +2193,6 @@ ck_check_ts_type_param_dups :: proc(c: ^Checker, tp: ^TSTypeParameterDeclaration
 // callable types, and method overloads are the canonical way to
 // express union return types.
 //
-@(private="file")
 ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
 	// OXC does not enforce TS2300 interface member dups — type-checker concern.
 }
@@ -2273,7 +2240,6 @@ ck_check_ts_interface_member_dups :: proc(c: ^Checker, body: TSInterfaceBody) {
 // looking through one ExportNamedDeclaration wrapper. Returns the
 // underlying FunctionDeclaration plus a stable name-loc for diagnostics.
 // `nil, false` for any non-function statement.
-@(private="file")
 fn_decl_extract :: proc(stmt: ^Statement) -> (fn: ^FunctionDeclaration, ok: bool) {
 	if stmt == nil { return nil, false }
 	#partial switch v in stmt^ {
@@ -2296,7 +2262,6 @@ fn_decl_extract :: proc(stmt: ^Statement) -> (fn: ^FunctionDeclaration, ok: bool
 // fn_decl_overload_name — overloadable name + name-loc for a
 // FunctionDeclaration. Anonymous declarations (legal only as
 // `export default function() {}`) cannot participate in chains.
-@(private="file")
 fn_decl_overload_name :: proc(fn: ^FunctionDeclaration) -> (name: string, at: u32, ok: bool) {
 	if fn == nil { return "", 0, false }
 	id, have := fn.id.(BindingIdentifier)
@@ -2324,7 +2289,6 @@ TsFnDecl :: struct {
 // list. Allocates the result on the caller-provided allocator (always
 // temp_allocator here). Mirrors exactly the per-statement classification
 // the two consumer passes used to compute independently.
-@(private="file")
 ts_collect_fn_decls :: proc(body: []^Statement, alloc: mem.Allocator) -> []TsFnDecl {
 	decls := make([]TsFnDecl, len(body), alloc)
 	for stmt, i in body {
@@ -2355,7 +2319,6 @@ ts_collect_fn_decls :: proc(body: []^Statement, alloc: mem.Allocator) -> []TsFnD
 // oxc-semantic to keep babel positive fixtures clean and still emit
 // TS2391 / TS2389 wherever an impl IS present and the chain is
 // inconsistent (FunctionDeclaration4.ts / 6.ts shape).
-@(private="file")
 ck_check_ts_func_overloads :: proc(c: ^Checker, decls: []TsFnDecl) {
 	if c == nil || len(decls) == 0 { return }
 
@@ -2476,7 +2439,6 @@ ck_check_ts_func_overloads :: proc(c: ^Checker, decls: []TsFnDecl) {
 // ck_check_ts2384_ambient_mismatch — TS2384 "Overload signatures must all
 // be ambient or non-ambient." Scans a body for same-name function
 // declarations where some are `declare` and some are not.
-@(private="file")
 ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
 	if c == nil || len(body) == 0 { return }
 
@@ -2519,7 +2481,6 @@ ck_check_ts2384_ambient_mismatch :: proc(c: ^Checker, body: []^Statement) {
 	}
 }
 
-@(private="file")
 ck_check_ts_dup_func_impls :: proc(c: ^Checker, decls: []TsFnDecl) {
 	if c == nil || len(decls) == 0 { return }
 
@@ -2550,7 +2511,6 @@ ck_check_ts_dup_func_impls :: proc(c: ^Checker, decls: []TsFnDecl) {
 // RestElement so that destructured `let { a, b: [c] }` tracks a, b, c.
 // v2 addition: replaces the v1 bare-Identifier-only
 // collection so `let {[a]: a}` and `let [x2 = x2]` are caught.
-@(private="file")
 ck_ubd_collect_bindings :: proc(pattern: Pattern, decls: ^map[string]u32) {
 	#partial switch p in pattern {
 	case ^Identifier:
@@ -2586,7 +2546,6 @@ ck_ubd_collect_bindings :: proc(pattern: Pattern, decls: ^map[string]u32) {
 // Does NOT walk the binding names themselves (they're declarations, not
 // references). Used by the UBD walker to flag refs like `let {[a]: a}`
 // where the computed key is a value-position use before the declaration.
-@(private="file")
 ck_ubd_walk_pattern_values :: proc(c: ^Checker, pattern: Pattern, decls: ^map[string]u32, self_name: string, closure_depth: int) {
 	#partial switch p in pattern {
 	case ^ObjectPattern:
@@ -2645,7 +2604,6 @@ ck_ubd_walk_pattern_values :: proc(c: ^Checker, pattern: Pattern, decls: ^map[st
 // class-DEFINITION time (not deferred-by-closure), so they must be
 // checked for use-before-decl violations. Instance members are NOT
 // walked — their bodies are evaluated when CALLED, not when defined.
-@(private="file")
 ck_ubd_walk_class_statics :: proc(c: ^Checker, body: ClassBody, decls: ^map[string]u32) {
 	for elem in body.body {
 		// Decorators on every element run at class-definition time.
@@ -2707,7 +2665,6 @@ ck_ubd_walk_class_statics :: proc(c: ^Checker, body: ClassBody, decls: ^map[stri
 //     recursion (called from `ck_walk_stmt` for every block body), so we
 //     don't need to descend into them ourselves — we just need to check
 //     refs at THIS scope level.
-@(private="file")
 ck_check_ts_use_before_decl :: proc(c: ^Checker, body: []^Statement) {
 	if c == nil || len(body) == 0 { return }
 
@@ -2752,7 +2709,6 @@ ck_check_ts_use_before_decl :: proc(c: ^Checker, body: []^Statement) {
 // v2: walks pattern value positions (computed keys,
 // default values), self-init initializers, and ClassDeclaration static
 // members + decorators.
-@(private="file")
 ck_ubd_walk_stmt :: proc(c: ^Checker, stmt: ^Statement, decls: ^map[string]u32) {
 	if stmt == nil { return }
 	#partial switch s in stmt^ {
@@ -2907,7 +2863,6 @@ ck_ubd_walk_stmt :: proc(c: ^Checker, stmt: ^Statement, decls: ^map[string]u32) 
 // ck_ubd_binding_name — return the first Identifier binding name from a
 // pattern, or "" if the pattern doesn't start with a bare Identifier.
 // Used for self-init detection (`let x = x + 1` — "x" is the self-name).
-@(private="file")
 ck_ubd_binding_name :: proc(pattern: Pattern) -> string {
 	if id, ok := pattern.(^Identifier); ok && id != nil {
 		return id.name
@@ -2924,7 +2879,6 @@ ck_ubd_binding_name :: proc(pattern: Pattern) -> string {
 //     of offset (unless inside a closure). Used for self-init detection.
 //   closure_depth — incremented when entering a function/arrow/class body.
 //     When > 0, self_name refs are deferred (not flagged).
-@(private="file")
 ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32, self_name: string, closure_depth: int) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -3075,7 +3029,6 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 // chain check, the duplicate-function-implementation check, AND the
 // ck_pattern_display_name — short display name for a Pattern.
 // For BindingIdentifier: just the name. For destructuring: first bound name.
-@(private="file")
 ck_pattern_display_name :: proc(pat: Pattern) -> string {
 	#partial switch p in pat {
 	case ^Identifier:
@@ -3094,7 +3047,6 @@ ck_pattern_display_name :: proc(pat: Pattern) -> string {
 // parameter type must be 'string', 'number', 'symbol', or a template
 // literal type." Walks an interface/class body for TSIndexSignature
 // members and validates each parameter's type annotation.
-@(private="file")
 ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody) {
 	for sig in body.body {
 		if sig == nil { continue }
@@ -3125,7 +3077,6 @@ ck_check_ts1268_index_sig_param_type :: proc(c: ^Checker, body: TSInterfaceBody)
 // type 'X'." Walks an interface/class body. If two or more TSIndexSignature
 // members have parameters with the same key type (string, number, symbol),
 // the second and subsequent are flagged.
-@(private="file")
 ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
 	seen_string := false
 	seen_number := false
@@ -3166,7 +3117,6 @@ ck_check_ts2374_dup_index_sig :: proc(c: ^Checker, body: TSInterfaceBody) {
 // the same name in one scope, their type parameter lists must match:
 // same count, same names, same constraints (structural compare of the
 // source text is sufficient — OXC does the same).
-@(private="file")
 ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 	// First interface with each name: store (name → type-param-count).
 	InterfaceInfo :: struct {
@@ -3247,7 +3197,6 @@ ck_check_ts2428_interface_merge :: proc(c: ^Checker, body: []^Statement) {
 // module/import/export declarations. Disallowed: if, while, for, switch,
 // try, throw, return, expression statements, blocks, do, labeled, with,
 // debugger, empty statements.
-@(private="file")
 ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allow_empty: bool) {
 	for stmt in body {
 		if stmt == nil { continue }
@@ -3316,7 +3265,6 @@ ck_check_ts1036_ambient_statements :: proc(c: ^Checker, body: []^Statement, allo
 // be used in an already ambient context." Walks the body of a
 // `declare namespace/module` or a `.d.ts` namespace body. Any child
 // declaration that carries an explicit `declare` modifier is flagged.
-@(private="file")
 ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
 	for stmt in body {
 		if stmt == nil { continue }
@@ -3386,7 +3334,6 @@ ck_check_ts1038_nested_declare :: proc(c: ^Checker, body: []^Statement) {
 // Walks Program.body in .d.ts files. Any top-level statement that is
 // not `declare`, `export`, or a type-only declaration (interface, type)
 // is flagged.
-@(private="file")
 ck_check_ts1046_dts_top_level :: proc(c: ^Checker, program: ^Program) {
 	if program == nil { return }
 	for stmt in program.body {
@@ -3421,7 +3368,6 @@ ck_check_ts1046_dts_top_level :: proc(c: ^Checker, program: ^Program) {
 
 // use-before-declaration (TS2448) check on the same body slice.
 // No-op outside TS / TSX.
-@(private="file")
 ck_check_ts_body_decls :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement, is_block_scope: bool = false) {
 	if ctx.lang != .TS && ctx.lang != .TSX { return }
 	if len(body) == 0 { return }
@@ -3488,7 +3434,6 @@ ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDecla
 // Expression walker
 // ============================================================================
 
-@(private="file")
 ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -3972,7 +3917,6 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	}
 }
 
-@(private="file")
 ck_walk_jsx_child :: proc(c: ^Checker, ctx: ^CheckerContext, child: JSXChild) {
 	#partial switch v in child {
 	case ^JSXElement:
@@ -3992,7 +3936,6 @@ ck_walk_jsx_child :: proc(c: ^Checker, ctx: ^CheckerContext, child: JSXChild) {
 	}
 }
 
-@(private="file")
 ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeItem) {
 	#partial switch a in attr {
 	case JSXAttribute:
@@ -4012,7 +3955,6 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 // Function / class boundary walks
 // ============================================================================
 
-@(private="file")
 ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression,
                         kind: CkFnKind = .Plain, derived_ctor: bool = false) {
 	if fn == nil { return }
@@ -4245,7 +4187,6 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 // already true on entry). If a future slice needs to visit patterns
 // from a non-param context (e.g. for-of left-hand destructuring), the
 // caller is responsible for setting ctx.in_params accordingly.
-@(private="file")
 ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 	if pat == nil { return }
 	switch pp in pat {
@@ -4289,7 +4230,6 @@ ck_walk_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 // FunctionExpression double type-assertion. Behaviour-identical: the same
 // checks run under the same gates at the call site — only the redundant
 // per-pass re-resolution is removed (item 8, fewer cache misses on bodies).
-@(private="file")
 ck_class_member_funcs :: proc(cls: ^ClassExpression) -> []^FunctionExpression {
 	if cls == nil { return nil }
 	out := make([]^FunctionExpression, len(cls.body.body), context.temp_allocator)
@@ -4303,7 +4243,6 @@ ck_class_member_funcs :: proc(cls: ^ClassExpression) -> []^FunctionExpression {
 	return out
 }
 
-@(private="file")
 ck_check_class_whole :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	// Single classification pass shared by the constructor-scanning checks.
 	member_funcs := ck_class_member_funcs(cls)
@@ -4349,7 +4288,6 @@ ck_check_class_whole :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpre
 	}
 }
 
-@(private="file")
 ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
 	// TS2414 — class name cannot be a predefined type name.
@@ -4503,7 +4441,6 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 //     entry (the field init runs in a synthetic non-async non-generator
 //     function, but `new.target` and break/continue do not propagate so
 //     we don't need a function_depth bump).
-@(private="file")
 ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: ClassElement, has_extends: bool, extends_null := false) {
 	val, have := elem.value.(^Expression)
 	if !have || val == nil { return }
@@ -4593,7 +4530,6 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 // either a `return <expr>` or a `throw`. Recurses into control-flow
 // blocks but NOT into nested functions/methods/arrows.
 // Used for TS2378 getter-must-return.
-@(private="file")
 ck_body_has_return_value :: proc(body: []^Statement) -> bool {
 	for stmt in body {
 		if stmt == nil { continue }
@@ -4711,7 +4647,6 @@ ck_check_setter_return_value :: proc(c: ^Checker, body: []^Statement) {
 // to ObjectPatterns (where Annex B.3.1 makes the duplicate legal).
 // Post-parse the AST already distinguishes ObjectExpression from
 // ObjectPattern, so the pending machinery is unnecessary here.
-@(private="file")
 ck_check_object_proto_dups :: proc(c: ^Checker, obj: ^ObjectExpression) {
 	if obj == nil { return }
 	proto_seen := false
@@ -4743,7 +4678,6 @@ ck_check_object_proto_dups :: proc(c: ^Checker, obj: ^ObjectExpression) {
 // expression when it is a literal value (StringLiteral, NumericLiteral,
 // or UnaryExpression wrapping one of those). Used for COMPUTED keys
 // where Identifier references are variable lookups, not literal names.
-@(private="file")
 property_key_to_name_literal :: proc(key: ^Expression) -> string {
 	if key == nil { return "" }
 	#partial switch k in key^ {
@@ -4772,7 +4706,6 @@ property_key_to_name_literal :: proc(key: ^Expression) -> string {
 // property_key_to_name extracts a canonical property name from a
 // non-computed key expression. Handles Identifier, StringLiteral,
 // NumericLiteral. For computed keys use property_key_to_name_literal.
-@(private="file")
 property_key_to_name :: proc(key: ^Expression) -> string {
 	if key == nil { return "" }
 	#partial switch k in key^ {
@@ -4803,7 +4736,6 @@ PropertySeen :: enum u8 {
 //
 // Only active in TS / TSX mode. Computed keys that cannot be statically
 // evaluated are ignored.
-@(private="file")
 ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: ^ObjectExpression) {
 	if obj == nil { return }
 	if ctx.lang != .TS && ctx.lang != .TSX { return }
@@ -4875,7 +4807,6 @@ ck_check_object_duplicate_props :: proc(c: ^Checker, ctx: ^CheckerContext, obj: 
 // §14.12.1 — a SwitchStatement may have at most one DefaultClause.
 // Locations anchor at the `default` keyword (which the parser stores
 // as the case's loc.start; SwitchCase.test == nil signals default).
-@(private="file")
 ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 	if sw == nil { return }
 	default_seen := false
@@ -4901,7 +4832,6 @@ ck_check_switch_default_dups :: proc(c: ^Checker, sw: ^SwitchStatement) {
 // enforce inline; preserving it here matches OXC's typescript-eslint
 // behaviour and keeps the corpus's "Duplicate constructor" cluster at
 // zero kessel-only-rejects.
-@(private="file")
 ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression, funcs: []^FunctionExpression) {
 	if cls == nil { return }
 	ts_mode := ck_is_ts(ctx)
@@ -4939,7 +4869,6 @@ ck_check_class_constructors :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^Cla
 // §13.5.1 — `delete o.#priv` / `delete this.#priv` is ALWAYS a
 // SyntaxError, regardless of strict / sloppy mode. Private slots
 // cannot be removed. Diagnostic anchors at the unary operator.
-@(private="file")
 ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
 	if e == nil { return }
 	if e.operator != .Delete { return }
@@ -4980,7 +4909,6 @@ ck_check_unary_delete_private :: proc(c: ^Checker, e: ^UnaryExpression) {
 // is a SyntaxError in strict mode. Re-uses the same shape detector
 // the parser uses, kept in src/parser.odin so the lexer and checker
 // agree on what a "legacy zero-prefixed integer" looks like.
-@(private="file")
 ck_check_legacy_octal_number :: proc(c: ^Checker, ctx: ^CheckerContext, num: ^NumericLiteral) {
 	if num == nil { return }
 	if !ctx.strict_mode { return }
@@ -4995,7 +4923,6 @@ ck_check_legacy_octal_number :: proc(c: ^Checker, ctx: ^CheckerContext, num: ^Nu
 // every string in strict scope, including the directive prologue
 // itself (so `function f(){ "\1"; "use strict"; }` retroactively
 // reports the offender, matching the parser's hand-rolled scan).
-@(private="file")
 ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^StringLiteral) {
 	if str == nil { return }
 	if !ctx.strict_mode { return }
@@ -5007,7 +4934,6 @@ ck_check_string_octal_escape :: proc(c: ^Checker, ctx: ^CheckerContext, str: ^St
 // `0123n` is a SyntaxError regardless of strict / sloppy mode.
 // (`0o123n` is the modern form.) The raw text retains the trailing
 // `n`; `is_legacy_zero_prefixed_integer` strips it before matching.
-@(private="file")
 ck_check_legacy_octal_bigint :: proc(c: ^Checker, big: ^BigIntLiteral) {
 	if big == nil { return }
 	if !is_legacy_zero_prefixed_integer(big.raw) { return }
@@ -5020,7 +4946,6 @@ ck_check_legacy_octal_bigint :: proc(c: ^Checker, big: ^BigIntLiteral) {
 // `ctx.in_tagged_template` flag short-circuits the check. The parser's
 // behaviour is to fire ONCE per template (anchored at the template),
 // not once per quasi.
-@(private="file")
 ck_check_template_octal :: proc(c: ^Checker, ctx: ^CheckerContext, tmpl: ^TemplateLiteral) {
 	if tmpl == nil { return }
 	if ctx.in_tagged_template { return }
@@ -5043,7 +4968,6 @@ ck_check_template_octal :: proc(c: ^Checker, ctx: ^CheckerContext, tmpl: ^Templa
 // AssignmentPattern, RestElement) and writes the bound names into the
 // passed-in `[dynamic]string`. The walker visits each declarator's
 // initialiser separately, so we don't need to recurse here.
-@(private="file")
 ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 	if decl == nil { return }
 	switch decl.kind {
@@ -5088,7 +5012,6 @@ ck_check_var_decl_let_binding :: proc(c: ^Checker, decl: ^VariableDeclaration) {
 // It does NOT recurse into nested functions/arrows/classes (those
 // have their own `this` binding). Control-flow analysis is NOT
 // performed — we only check the sequential case.
-@(private="file")
 ck_check_this_before_super :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^Statement) {
 	// Only enforce in TS/TSX mode. In JS, accessing `this` before `super()`
 	// is a runtime ReferenceError, not a parse-time error.
@@ -5134,7 +5057,6 @@ ck_check_this_before_super :: proc(c: ^Checker, ctx: ^CheckerContext, body: []^S
 // stmt_find_this — finds the first `this` in the top-level expressions of
 // a statement. Handles ExpressionStatement, VariableDeclaration (init
 // expressions), ReturnStatement. Does not recurse into nested blocks.
-@(private="file")
 stmt_find_this :: proc(stmt: ^Statement) -> u32 {
 	if stmt == nil { return 0 }
 	#partial switch v in stmt^ {
@@ -5160,7 +5082,6 @@ stmt_find_this :: proc(stmt: ^Statement) -> u32 {
 // stmt_contains_super_call — does this statement (or any nested block)
 // contain a `super()` call? Recurses into if/else, try/catch, blocks,
 // switch, loops. Stops at function/arrow/class boundaries.
-@(private="file")
 stmt_contains_super_call :: proc(stmt: ^Statement) -> bool {
 	if stmt == nil { return false }
 	#partial switch v in stmt^ {
@@ -5217,7 +5138,6 @@ stmt_contains_super_call :: proc(stmt: ^Statement) -> bool {
 	return false
 }
 
-@(private="file")
 ck_report_this_before_super :: proc(c: ^Checker, this_loc: u32) {
 	ck_report_coded(c, this_loc, .K3033_SuperInvalidContext, "'super' must be called before accessing 'this' in the constructor of a derived class")
 }
@@ -5225,7 +5145,6 @@ ck_report_this_before_super :: proc(c: ^Checker, this_loc: u32) {
 // expr_find_this — returns the source offset of the first ThisExpression
 // in the expression tree, or 0 if none found. Stops at function/arrow/
 // class boundaries (those have their own `this`).
-@(private="file")
 expr_find_this :: proc(e: ^Expression) -> u32 {
 	if e == nil { return 0 }
 	#partial switch v in e^ {
@@ -5285,7 +5204,6 @@ expr_find_this :: proc(e: ^Expression) -> u32 {
 
 // expr_is_or_contains_super_call — true if the expression IS or CONTAINS
 // a `super(...)` CallExpression. Stops at function/arrow/class boundaries.
-@(private="file")
 expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
 	if e == nil { return false }
 	#partial switch v in e^ {
@@ -5345,7 +5263,6 @@ expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
 
 // expr_extract_super_call — extracts the CallExpression from an expression
 // that is a `super(...)` call (possibly wrapped in parens / assignment).
-@(private="file")
 expr_extract_super_call :: proc(e: ^Expression) -> ^CallExpression {
 	if e == nil { return nil }
 	#partial switch v in e^ {
@@ -5366,7 +5283,6 @@ expr_extract_super_call :: proc(e: ^Expression) -> ^CallExpression {
 // methods, non-derived constructors, top-level code) it's a SyntaxError.
 // The diagnostic anchors at the call expression's open-paren-ish span
 // start (matching the parser's old anchor at the `super(` token).
-@(private="file")
 ck_check_super_call :: proc(c: ^Checker, ctx: ^CheckerContext, call: ^CallExpression) {
 	if call == nil || call.callee == nil { return }
 	if _, is_super := call.callee^.(^Super); !is_super { return }
@@ -5380,7 +5296,6 @@ ck_check_super_call :: proc(c: ^Checker, ctx: ^CheckerContext, call: ^CallExpres
 // arrow-only nesting still rejects). The check fires when we encounter
 // a MetaProperty whose meta = `new` and property = `target` outside any
 // non-arrow function body (function_depth == 0).
-@(private="file")
 ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty) {
 	if mp == nil { return }
 	if mp.meta.name != "new" || mp.property.name != "target" { return }
@@ -5413,7 +5328,6 @@ ck_check_new_target :: proc(c: ^Checker, ctx: ^CheckerContext, mp: ^MetaProperty
 // The walker only reaches ^Identifier through expression positions (not
 // declaration `id` fields, which use Pattern), so the check fires for
 // IdentifierReferences only.
-@(private="file")
 ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
 	if id == nil || id.name != "arguments" { return }
 	if ctx.in_class_static_block {
@@ -5445,7 +5359,6 @@ ck_check_identifier_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Id
 // ck_check_ts1016_required_after_optional — TS1016 "A required parameter
 // cannot follow an optional parameter." When a parameter has `?` (optional),
 // all subsequent non-rest parameters must also be optional or have defaults.
-@(private="file")
 ck_check_ts1016_required_after_optional :: proc(c: ^Checker, params: []FunctionParameter) {
 	seen_optional := false
 	for param in params {
@@ -5482,7 +5395,6 @@ ck_check_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^Functi
 // do), so we sniff body[0]'s ExpressionStatement.expression as a
 // StringLiteral with value == "use strict". Matches the parser's
 // post-hoc check shape (parse_arrow_function and parse_async_arrow_with_parens).
-@(private="file")
 ck_check_arrow_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^ArrowFunctionExpression) {
 	if fn == nil { return }
 	block, is_block := fn.body.(^BlockStatement)
@@ -5514,7 +5426,6 @@ ck_check_arrow_strict_directive_with_nonsimple_params :: proc(c: ^Checker, fn: ^
 // `was_top_level` is the snapshot of `ctx.at_top_level` taken at the
 // start of the surrounding `ck_walk_stmt` call — it's true ONLY when
 // the statement is being walked directly from `check_program`.
-@(private="file")
 ck_check_import_export_position :: proc(
 	c: ^Checker,
 	ctx: ^CheckerContext,
@@ -5558,7 +5469,6 @@ ck_check_import_export_position :: proc(
 // The parser fires this at parse_assignment_expr; the AST preserves
 // AssignmentExpression.{left, operator}, so re-running
 // `is_valid_assignment_target` post-parse reproduces the diagnostic.
-@(private="file")
 ck_check_assignment_invalid_lhs :: proc(c: ^Checker, e: ^AssignmentExpression) {
 	if e == nil || e.left == nil { return }
 	if e.operator == .Assign { return } // covered by parser-side report_error
@@ -5587,7 +5497,6 @@ ck_check_assignment_invalid_lhs :: proc(c: ^Checker, e: ^AssignmentExpression) {
 // modulo lex-time information; the parser-side `let` / `static` / `yield`
 // branch is folded in here. `await` and `enum` are checked separately by
 // callers because they have their own diagnostic strings.
-@(private="file")
 is_strict_reserved_simple_name :: proc(name: string) -> bool {
 	switch name {
 	case "implements", "interface", "package", "private",
@@ -5601,7 +5510,6 @@ is_strict_reserved_simple_name :: proc(name: string) -> bool {
 // built-in primitive type that cannot be reused as a class, interface,
 // or enum name (TS2414 / TS2427 / TS2431). Mirrors TSC's reserved
 // primitive-type name list.
-@(private="file")
 is_ts_predefined_type_name :: proc(name: string) -> bool {
 	switch name {
 	case "any", "number", "boolean", "string", "undefined",
@@ -5622,7 +5530,6 @@ is_ts_predefined_type_name :: proc(name: string) -> bool {
 //
 // `enum` as a class name stays a parser-side structural error
 // (parse_class_declaration's `report_error`); not migrated.
-@(private="file")
 ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) {
 	if cls == nil { return }
 	id, has_id := cls.id.(BindingIdentifier)
@@ -5662,7 +5569,6 @@ ck_check_class_name :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpres
 // Walks only the immediate identifier (no recursion into nested patterns;
 // `({await} = ...) => ...` puts `await` in a nested ObjectPattern, where
 // scope-bind machinery in the parser still owns the diagnostic).
-@(private="file")
 ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pattern) {
 	if pat == nil { return }
 	id, is_id := pat.(^Identifier)
@@ -5751,7 +5657,6 @@ ck_check_arrow_param_pattern :: proc(c: ^Checker, ctx: ^CheckerContext, pat: Pat
 //
 // Module-only — Script-mode imports/exports are caught by
 // ck_check_import_export_position. Script programs short-circuit here.
-@(private="file")
 ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Program) {
 	if program == nil { return }
 	if program.type != .Module { return }
@@ -5856,7 +5761,6 @@ ck_check_export_dups :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Progra
 // from nested blocks/loops/if/switch bodies. `var` hoists through all
 // statement-level nesting (blocks, for, if, switch, with, try, labeled)
 // but NOT through function boundaries.
-@(private="file")
 ck_collect_hoisted_vars :: proc(body: []^Statement, names: ^map[string]bool) {
 	for stmt in body {
 		if stmt == nil { continue }
@@ -5922,7 +5826,6 @@ ck_collect_hoisted_vars :: proc(body: []^Statement, names: ^map[string]bool) {
 // exports can reference). Mirrors parser.odin's old
 // `collect_module_top_level_names` helper which lived alongside
 // `verify_export_locals` in the parser.
-@(private="file")
 ck_collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string]bool) {
 	for stmt in body {
 		if stmt == nil { continue }
@@ -6003,7 +5906,6 @@ ck_collect_module_top_level_names :: proc(body: []^Statement, names: ^map[string
 // The parser still owns the structural sub-rule "a string literal
 // cannot be used as an exported binding without `from`" — that's a
 // shape error, not a name-resolution error.
-@(private="file")
 ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
 	if program == nil { return }
 	if program.type != .Module { return }
@@ -6041,7 +5943,6 @@ ck_check_export_local_defined :: proc(c: ^Checker, program: ^Program) {
 // Single pass over the Program body: detects whether both regular
 // exports and export-assignments exist. If so, reports on every
 // export node (both regular and assignment).
-@(private="file")
 ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 	if program == nil { return }
 	if program.type != .Module { return }
@@ -6087,7 +5988,6 @@ ck_check_ts_export_assignment :: proc(c: ^Checker, program: ^Program) {
 // trivially knowable (no need to reach into ck_walk_stmt). We do NOT
 // recurse into nested blocks: `using` inside a function body in a
 // Script is fine; only top-level Script position is rejected.
-@(private="file")
 ck_check_using_at_script_top :: proc(c: ^Checker, ctx: ^CheckerContext, program: ^Program) {
 	if program == nil { return }
 	if program.type != .Script { return }
@@ -6120,7 +6020,6 @@ ck_check_using_at_script_top :: proc(c: ^Checker, ctx: ^CheckerContext, program:
 //
 // Walks past LabeledStatement layers; fires when the inner statement
 // is a FunctionDeclaration AND we passed at least one label on the way.
-@(private="file")
 ck_check_if_labelled_function :: proc(c: ^Checker, body: ^Statement) {
 	s := body
 	label_count := 0
@@ -6154,7 +6053,6 @@ ck_check_if_labelled_function :: proc(c: ^Checker, body: ^Statement) {
 // labelled-statement-in-iteration construct. The check unwraps any
 // LabeledStatement layers (`label1: label2: function f() {}`) before
 // inspecting the inner statement.
-@(private="file")
 ck_check_single_stmt_function :: proc(c: ^Checker, body: ^Statement) {
 	s := body
 	for s != nil {
@@ -6179,7 +6077,6 @@ ck_check_single_stmt_function :: proc(c: ^Checker, body: ^Statement) {
 // collecting `var` BoundNames into the passed-in ScopeMap. Function
 // declarations are scope boundaries (their own VarScope) and are NOT
 // recursed into, matching the parser's behaviour.
-@(private="file")
 scope_hoist_vars_no_parser :: proc(stmt: ^Statement, vars: ^ScopeMap) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
@@ -6230,7 +6127,6 @@ scope_hoist_vars_no_parser :: proc(stmt: ^Statement, vars: ^ScopeMap) {
 // maps for clashes externally). Mirrors only the cases the checker
 // needs: VariableDeclaration (let/const/using/await using → lex; var
 // → vars), FunctionDeclaration (always lex), ClassDeclaration (lex).
-@(private="file")
 scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool, strict := true) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
@@ -6290,7 +6186,6 @@ scope_process_statement_no_parser :: proc(stmt: ^Statement, lex, vars: ^ScopeMap
 // bound names.
 //
 // `kind_str` selects the diagnostic noun: "in" / "of" / "loop".
-@(private="file")
 ck_check_for_head_body_shadow :: proc(c: ^Checker, decl: ^VariableDeclaration,
                                        body: ^Statement, kind_str: string) {
 	if decl == nil || body == nil { return }
@@ -6329,7 +6224,6 @@ ck_check_for_head_body_shadow :: proc(c: ^Checker, decl: ^VariableDeclaration,
 // BoundNames may not collide with LexicallyDeclaredNames of the catch
 // body. `catch (e) { let e; }` is a SyntaxError. Mirrors parser.odin's
 // old inline check (parse_catch_clause).
-@(private="file")
 ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: CatchClause) {
 	param, have := h.param.(Pattern)
 	if !have || param == nil { return }
@@ -6375,7 +6269,6 @@ ck_check_catch_param_body_shadow :: proc(c: ^Checker, ctx: ^CheckerContext, h: C
 // Mirrors parser.odin's old `check_params_vs_body_lex` proc; the
 // caller passes the parsed param list and body slice directly so the
 // checker doesn't need to introspect FunctionExpression internals.
-@(private="file")
 ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, body: []^Statement, strict := true) {
 	if len(params) == 0 || len(body) == 0 { return }
 	param_names: [dynamic]string
@@ -6400,7 +6293,6 @@ ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, bo
 
 // ck_expr_has_identifier_ref — walk expression tree looking for
 // Identifier with given name. Skips closures (function/arrow/class).
-@(private="file")
 ck_expr_has_identifier_ref :: proc(expr: ^Expression, name: string, alloc: mem.Allocator) -> bool {
 	if expr == nil { return false }
 	#partial switch e in expr^ {
@@ -6452,7 +6344,6 @@ ck_expr_has_identifier_ref :: proc(expr: ^Expression, name: string, alloc: mem.A
 //   3. No initializer in the head, except the Annex B sloppy-mode
 //      `for (var x = INIT in y) ;` carve-out (single Var declarator,
 //      Identifier binding, for-in form).
-@(private="file")
 ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
                                 left_expr: Maybe(^Expression),
                                 left_decl: Maybe(^VariableDeclaration),
@@ -6524,7 +6415,6 @@ ck_check_for_in_of_head :: proc(c: ^Checker, ctx: ^CheckerContext,
 // ParenthesizedExpression layers (only present when --preserve-parens
 // is on) so `delete (x)` is rejected too. Member access, computed,
 // and arbitrary non-reference operands stay legal.
-@(private="file")
 ck_check_unary_delete_local :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^UnaryExpression) {
 	if e == nil || e.operator != .Delete || !ctx.strict_mode { return }
 	if e.argument == nil { return }
@@ -6545,7 +6435,6 @@ ck_check_unary_delete_local :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^Unary
 // clause's binding pattern must be unique. `catch ({a, a}) {}` and
 // `catch ([x, x]) {}` etc. are SyntaxErrors. Re-uses parser.odin's
 // pattern-name collector.
-@(private="file")
 ck_check_catch_param_dups :: proc(c: ^Checker, h: CatchClause) {
 	param, have := h.param.(Pattern)
 	if !have || param == nil { return }
@@ -6568,7 +6457,6 @@ ck_check_catch_param_dups :: proc(c: ^Checker, h: CatchClause) {
 // PrivateIdentifier names for a class body. Used by ck_walk_class to
 // push the set onto the private-name stack before walking elements.
 // Mirrors parser.odin's `pn_collect_class_names`.
-@(private="file")
 ck_collect_class_private_names :: proc(body: ClassBody, alloc: mem.Allocator) -> map[string]bool {
 	names: map[string]bool
 	names.allocator = alloc
@@ -6584,7 +6472,6 @@ ck_collect_class_private_names :: proc(body: ClassBody, alloc: mem.Allocator) ->
 // ck_private_name_in_scope — walk the private-name stack top-down
 // (innermost class first) looking for `name`. Returns true if the
 // name is declared in an enclosing class body.
-@(private="file")
 ck_private_name_in_scope :: proc(ctx: ^CheckerContext, name: string) -> bool {
 	for i := len(ctx.private_name_stack) - 1; i >= 0; i -= 1 {
 		if _, ok := ctx.private_name_stack[i][name]; ok { return true }
@@ -6598,7 +6485,6 @@ ck_private_name_in_scope :: proc(ctx: ^CheckerContext, name: string) -> bool {
 // malformed hashbang etc.) are skipped; the parser already reports a
 // structural error there and the resolution check would only emit a
 // duplicate diagnostic.
-@(private="file")
 ck_check_private_name_resolved :: proc(c: ^Checker, ctx: ^CheckerContext, pid: ^PrivateIdentifier) {
 	if pid == nil || len(pid.name) == 0 { return }
 	if ck_private_name_in_scope(ctx, pid.name) { return }
@@ -6626,7 +6512,6 @@ ck_check_private_name_resolved :: proc(c: ^Checker, ctx: ^CheckerContext, pid: ^
 // name has both a getter and setter and they're the only entries, we
 // also verify their static-ness matches. All other shapes count as
 // outright duplicates.
-@(private="file")
 ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is_ts: bool = false) {
 	if cls == nil { return }
 	PrivateRecord :: struct {
@@ -6714,7 +6599,6 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is
 // strict_override`; `force_non_simple` mirrors `force_when_non_simple
 // && !params_are_simple(params)`. Callers from ck_walk_function pick
 // the right combination based on the function flavour.
-@(private="file")
 ck_check_duplicate_param_names :: proc(c: ^Checker, fn_loc: u32,
                                        params: []FunctionParameter,
                                        is_strict: bool,
@@ -6745,7 +6629,6 @@ ck_check_duplicate_param_names :: proc(c: ^Checker, fn_loc: u32,
 
 // CkBindingFlavour selects the diagnostic phrasing for the
 // strict-mode binding-identifier check below.
-@(private="file")
 CkBindingFlavour :: enum {
 	Parameter,    // "Parameter name 'NAME' is not allowed in strict mode"
 	Generic,      // "'NAME' cannot be used as a binding name in strict mode"
@@ -6772,7 +6655,6 @@ CkBindingFlavour :: enum {
 // when it parsed the binding identifier. Removing the checker leg
 // would break that case, so we keep both for now and accept the
 // duplicate diagnostic on the enclosing-strict path.
-@(private="file")
 ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBindingFlavour) {
 	if pat == nil { return }
 	switch v in pat {
@@ -6812,7 +6694,6 @@ ck_check_strict_binding_pattern :: proc(c: ^Checker, pat: Pattern, flavour: CkBi
 
 // ck_check_strict_param_pattern — thin wrapper preserving the
 // parameter-flavoured diagnostic for callers who want the old name.
-@(private="file")
 ck_check_strict_param_pattern :: proc(c: ^Checker, pat: Pattern) {
 	ck_check_strict_binding_pattern(c, pat, .Parameter)
 }
@@ -6823,7 +6704,6 @@ ck_check_strict_param_pattern :: proc(c: ^Checker, pat: Pattern) {
 // ArrayExpression / ObjectExpression / SpreadElement / nested
 // AssignmentExpression default-init). Mirrors parser.odin's
 // `report_strict_eval_arguments_in_target`.
-@(private="file")
 ck_check_strict_eval_arguments_in_target :: proc(c: ^Checker, expr: ^Expression) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -6861,7 +6741,6 @@ ck_check_strict_eval_arguments_in_target :: proc(c: ^Checker, expr: ^Expression)
 // `++`/`--` (prefix or postfix) may not be applied to `eval` or
 // `arguments` IdentifierReference. Mirrors
 // `report_strict_update_on_eval_or_arguments`.
-@(private="file")
 ck_check_strict_update_eval_arguments :: proc(c: ^Checker, ctx: ^CheckerContext, arg: ^Expression) {
 	if !ctx.strict_mode || arg == nil { return }
 	ident, is_id := arg^.(^Identifier)
@@ -6884,13 +6763,11 @@ ck_check_strict_update_eval_arguments :: proc(c: ^Checker, ctx: ^CheckerContext,
 // Note: when called for a function name we use a function-name-flavoured
 // diagnostic via the `is_function_name` flag (the parser said
 // "Function name 'NAME' is not allowed in strict mode").
-@(private="file")
 CkBindingPosition :: enum {
 	Generic,        // var/let/const declarator id, catch param, ImportSpecifier.local
 	FunctionName,   // FunctionDeclaration.id / FunctionExpression.id
 }
 
-@(private="file")
 ck_check_binding_identifier_strict :: proc(c: ^Checker, ctx: ^CheckerContext,
                                           name: string, off: u32,
                                           pos: CkBindingPosition = .Generic) {
@@ -6919,7 +6796,6 @@ ck_check_binding_identifier_strict :: proc(c: ^Checker, ctx: ^CheckerContext,
 // position (ck_walk_expr's ^Identifier case). Note `await` reaches
 // this proc only through escaped forms; the unescaped `.Await` token
 // never produces an ^Identifier AST node.
-@(private="file")
 ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
 	if !ctx.strict_mode || id == nil { return }
 	if !is_strict_reserved_simple_name(id.name) { return }
@@ -6931,7 +6807,6 @@ ck_check_identifier_reference_strict :: proc(c: ^Checker, ctx: ^CheckerContext, 
 // `await` is reserved in module code (the [+Await] grammar parameter is
 // set). Recurses through destructuring patterns so `var { await } = obj;`,
 // `var [await] = arr;` and `var { x: await } = obj;` all fire.
-@(private="file")
 ck_check_module_await_binding :: proc(c: ^Checker, pat: Pattern) {
 	#partial switch p in pat {
 	case ^Identifier:
@@ -6980,7 +6855,6 @@ ck_check_module_await_binding :: proc(c: ^Checker, pat: Pattern) {
 // positions (handled by ck_check_module_await_binding) and to escaped
 // forms in restricted contexts.
 //
-@(private="file")
 ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id: ^Identifier) {
 	if id == nil || id.name != "await" { return }
 	if !id.has_escape { return }
@@ -6992,7 +6866,6 @@ ck_check_identifier_await_reserved :: proc(c: ^Checker, ctx: ^CheckerContext, id
 // ck_check_import_specifier_local — §16.2.2 — ImportedBinding is a
 // BindingIdentifier in strict mode (module code). `eval` and
 // `arguments` are forbidden.
-@(private="file")
 ck_check_import_specifier_local :: proc(c: ^Checker, name: string, off: u32) {
 	if is_eval_or_arguments(name) {
 		msg := fmt.tprintf("'%s' cannot be used as an import binding name", name)
@@ -7003,7 +6876,6 @@ ck_check_import_specifier_local :: proc(c: ^Checker, name: string, off: u32) {
 // ck_walk_import_decl — visits each ImportSpecifierSpec to apply
 // §16.2.2 to the binding-identifier `local` field. Called from the
 // ImportDeclaration branch of ck_walk_stmt.
-@(private="file")
 ck_walk_import_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^ImportDeclaration) {
 	if decl == nil { return }
 	for spec in decl.specifiers {
@@ -7023,7 +6895,6 @@ ck_walk_import_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^ImportDecl
 // strict mode may not name eval/arguments (covers destructured forms).
 // Wrapper around ck_check_strict_eval_arguments_in_target gated on
 // strict mode and the for-head LHS expression position.
-@(private="file")
 ck_check_for_in_of_init_eval_args :: proc(c: ^Checker, ctx: ^CheckerContext, left_expr: Maybe(^Expression)) {
 	if !ctx.strict_mode { return }
 	e, have := left_expr.(^Expression)
@@ -7036,7 +6907,6 @@ ck_check_for_in_of_init_eval_args :: proc(c: ^Checker, ctx: ^CheckerContext, lef
 // CheckerContext label stack which uses the checker's allocator.
 // ============================================================================
 
-@(private="file")
 bump_append_ck :: proc(ctx: ^CheckerContext, label: CheckerLabel) {
 	append(&ctx.labels, label)
 }
