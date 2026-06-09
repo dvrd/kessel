@@ -594,6 +594,289 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	return parse_ts_postfix(p, r, start)
 }
 
+parse_ts_tuple_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS tuple type, with support for variadic and optional/named elements:
+	//   plain      `[T, U]`
+	//   variadic   `[A, ...B[]]`,  `[...A, B]`,  `[...Elements, "abc"]`
+	//   optional   `[T?, U]`  (TSOptionalType, postfix on the element)
+	//   named      `[a: string, b?: number]`  (TSNamedTupleMember)
+	// The inner loop must use a dedicated tuple-element parser rather
+	// than parse_ts_type directly, since plain parse_ts_type doesn't
+	// recognise the leading `...` or `name:` / `name?:` prefix.
+	eat(p) // consume `[`
+	// Re-allow conditional types inside brackets (tuple elements).
+	saved_disallow_ct := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
+	// Suppress JSDoc nullable `?` consumption in parse_ts_postfix
+	// so that postfix `?` on tuple elements produces TSOptionalType.
+	saved_in_tuple := p.ts_in_tuple_type
+	p.ts_in_tuple_type = true
+	types := make([dynamic]^TSType, 0, 4, p.allocator)
+	optional_seen := false
+	for !is_token(p, .RBracket) && !is_token(p, .EOF) {
+		// Reject empty tuple element positions: `[number,,]`.
+		if is_token(p, .Comma) {
+			report_error_coded(p, .K2003_ExpectedTypeElement, "Expected tuple element type, got ','")
+			eat(p)
+			continue
+		}
+		elem_start := cur_loc(p)
+		elev: ^TSType
+		if is_token(p, .Dot3) {
+			eat(p) // consume `...`
+			// Labeled rest tuple element `...name: T[]`. Detect via
+			// 1-token lookahead - a label is an Identifier whose next
+			// token is `:`. Wrap the resulting TSRestType inside a
+			// TSNamedTupleMember to match OXC's ESTree shape (see
+			// namedTupleMembers.ts WithOptAndRest / RecusiveRest).
+    ensure_nxt(p)
+			if p.cur_type == .Identifier && p.lexer.nxt.kind == .Colon {
+				rest_label_tok := snap_current(p)
+				eat(p) // consume label
+				eat(p) // consume `:`
+				rest_inner := parse_ts_type(p)
+				rest := new_node(p, TSRestType)
+				rest.loc = elem_start
+				rest.type_annotation = rest_inner
+				rest.loc.end = prev_end_offset(p)
+				rest_t := new_node(p, TSType); rest_t^ = rest
+				named_rest := new_node(p, TSNamedTupleMember)
+				named_rest.loc = elem_start
+				named_rest.label = BindingIdentifier{
+					loc = loc_from_token(&rest_label_tok),
+					name = rest_label_tok.value,
+				}
+				named_rest.element_type = rest_t
+				named_rest.optional = false
+				named_rest.loc.end = prev_end_offset(p)
+				elev = new_node(p, TSType); elev^ = named_rest
+			} else {
+				inner := parse_ts_type(p)
+				rest := new_node(p, TSRestType)
+				rest.loc = elem_start
+				rest.type_annotation = inner
+				rest.loc.end = prev_end_offset(p)
+				elev = new_node(p, TSType); elev^ = rest
+			}
+		} else {
+			// Named tuple element `name: T` or `name?: T` - detected
+			// via 1-2 token lookahead. TS allows keywords as tuple
+			// labels: `[function: T, string: U, void?: V]`. Accept
+			// any identifier-like or keyword token that's followed by
+			// `:` or `?:`.
+			named := false
+			if p.cur_type == .Identifier || is_keyword_usable_as_property_name(p.cur_type) {
+     ensure_nxt(p)
+				nxt := p.lexer.nxt.kind
+				if nxt == .Colon { named = true }
+				if nxt == .Question {
+					snap := lexer_snapshot(p)
+					eat(p) // ident
+					eat(p) // ?
+					if p.cur_type == .Colon { named = true }
+					lexer_restore(p, snap)
+				}
+			}
+			if named {
+				label_tok := snap_current(p)
+				eat(p) // consume label identifier
+				optional := false
+				if is_token(p, .Question) { optional = true; eat(p) }
+				expect_token(p, .Colon)
+				inner := parse_ts_type(p)
+				if inner != nil {
+					if _, is_opt_type := inner^.(^TSOptionalType); is_opt_type {
+						report_error_coded(p, .K4051_TSDeclarationStructure, "A labeled tuple element cannot use postfix optional type syntax")
+					}
+				}
+				if optional {
+					optional_seen = true
+				} else if optional_seen {
+					report_error_coded(p, .K4051_TSDeclarationStructure, "A required tuple element cannot follow an optional element")
+				}
+				named_member := new_node(p, TSNamedTupleMember)
+				named_member.loc = elem_start
+				named_member.label = BindingIdentifier{loc = loc_from_token(&label_tok), name = label_tok.value}
+				named_member.element_type = inner
+				named_member.optional = optional
+				named_member.loc.end = prev_end_offset(p)
+				elev = new_node(p, TSType); elev^ = named_member
+			} else {
+				elev = parse_ts_type(p)
+				// Postfix `?` on a tuple element - TSOptionalType.
+				if elev != nil && is_token(p, .Question) {
+					eat(p)
+					opt := new_node(p, TSOptionalType)
+					opt.loc = elem_start
+					opt.type_annotation = elev
+					opt.loc.end = prev_end_offset(p)
+					elev = new_node(p, TSType); elev^ = opt
+					optional_seen = true
+				} else if optional_seen {
+					report_error_coded(p, .K4051_TSDeclarationStructure, "A required tuple element cannot follow an optional element")
+				}
+			}
+		}
+		if elev != nil { bump_append(&types, elev) }
+		if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RBracket)
+	p.ts_disallow_conditional_types = saved_disallow_ct
+	p.ts_in_tuple_type = saved_in_tuple
+	tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = tup
+	// Same chain as the LBrace branch above - `[T, U][]` (array of tuples)
+	// and `[T, U][N]` (indexed access into a tuple) need parse_ts_postfix.
+	return parse_ts_postfix(p, r, start)
+}
+
+parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS import type: `import("module").Member<TArgs>`
+	// Grammar (TS 4.6+):
+	//   ImportType: typeof? import ( StringLiteral ImportTypeAttributes? )
+	//                 ( . QualifiedName )? TypeArguments?
+	// Used to reference types from other modules without a top-level
+	// `import` statement - the canonical form in `.d.ts` libraries
+	// (oxc-parser/src-js/index.d.ts: `get program(): import("@oxc-
+	// project/types").Program`).
+	eat(p) // consume `import`
+	if !expect_token(p, .LParen) { return nil }
+	arg_type := parse_ts_type(p)
+	// The argument must be a string literal type.  `import(foo)` with
+	// a non-string argument is a SyntaxError.
+	if arg_type != nil {
+		if _, is_lit := arg_type^.(^TSLiteralType); !is_lit {
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "String literal expected in import type")
+		}
+	}
+	// `with { ... }` import-type attributes - stage-3 since TS 5.3.
+	// Eat permissively without strict shape validation; the type
+	// checker handles semantics.
+	if is_token(p, .Comma) {
+		eat(p)
+		// After the comma, `{` must follow (import-type attributes).
+		// `import("foo", )` with trailing comma is a SyntaxError.
+		if is_token(p, .RParen) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
+		}
+		// Parse import-type options object: `{ with: { key: "value" } }`.
+		// Validate structural constraints that OXC/TSC enforce:
+		//   - The key must be the bare identifier `with` (no escapes,
+		//     not a string literal, not computed).
+		//   - Inner attribute keys must be plain identifiers or string
+		//     literals (no computed properties).
+		//   - No spread elements in the inner object.
+		if is_token(p, .LBrace) {
+			eat(p) // consume outer {
+			// Validate the `with` key.
+			if is_token(p, .With) {
+				// Good: bare `with` keyword.
+			} else if is_token(p, .Identifier) && cur_value_eq(p, "with") {
+				// `w\u0069th` — escaped form of `with`.
+				if cur_has_escape(p) {
+					report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
+				}
+			} else if is_token(p, .String) {
+				// `"with"` as string literal key.
+				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
+			}
+			eat(p) // consume key (with / identifier / string)
+			if is_token(p, .Colon) { eat(p) } // consume :
+			// Inner value: `{ type: "json" }`. Validate contents.
+			if is_token(p, .LBrace) {
+				eat(p) // consume inner {
+				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+					if is_token(p, .Dot3) {
+						report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
+					}
+					if is_token(p, .LBracket) {
+						report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
+					}
+					// Validate the key: must be Identifier, String, or keyword-as-name.
+					// Numeric / BigInt literals as keys are invalid here.
+					if is_token(p, .Number) || is_token(p, .BigInt) {
+						report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
+					}
+					eat(p) // consume key
+					if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
+						report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ':' after import attribute key")
+					}
+					if is_token(p, .Colon) {
+						eat(p) // consume :
+						// Skip value tokens until comma or closing brace.
+						inner_depth := 0
+						for !is_token(p, .EOF) {
+							if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
+							else if is_token(p, .RBrace) || is_token(p, .RBracket) {
+								if inner_depth == 0 { break }
+								inner_depth -= 1
+							}
+							else if is_token(p, .Comma) && inner_depth == 0 {
+								break
+							}
+							eat(p)
+						}
+					}
+					if is_token(p, .Comma) { eat(p) } // consume comma
+				}
+				if is_token(p, .RBrace) { eat(p) } // consume inner }
+			} else {
+				// Non-object value — skip balanced.
+				depth := 0
+				for !is_token(p, .EOF) {
+					if is_token(p, .LBrace) { depth += 1 }
+					else if is_token(p, .RBrace) {
+						if depth == 0 { break }
+						depth -= 1
+					}
+					eat(p)
+				}
+			}
+			// Trailing comma before outer `}`.
+			match_token(p, .Comma)
+			if is_token(p, .RBrace) { eat(p) } // consume outer }
+		}
+	}
+	if !expect_token(p, .RParen) { return nil }
+	it := new_node(p, TSImportType)
+	it.loc = start
+	it.argument = arg_type
+	it.is_typeof = false
+	// Optional `.QualifiedName` (one or more `.`-separated identifiers).
+	if is_token(p, .Dot) {
+		eat(p)
+		qual_id := parse_identifier(p)
+		id_node, id_node_e := new_expr(p, Identifier)
+		id_node^ = qual_id
+		cur_qual := id_node_e
+		for is_token(p, .Dot) {
+			eat(p)
+			prop_id := parse_identifier(p)
+			prop_node, prop_node_e := new_expr(p, Identifier)
+			prop_node^ = prop_id
+			mem := new_node(p, MemberExpression)
+			mem.loc = it.loc
+			mem.object = cur_qual
+			mem.property = prop_node_e
+			mem.computed = false
+			mem.optional = false
+			mem.loc.end = prev_end_offset(p)
+			cur_qual = expression_from(p, mem)
+		}
+		it.qualifier = cur_qual
+	}
+	// Optional `<TArgs>` type arguments.
+	if is_open_angle_or_lshift(p) {
+		targs := parse_ts_type_arguments(p)
+		if targs != nil {
+			it.type_parameters = targs
+		}
+	}
+	it.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = it
+	return parse_ts_postfix(p, r, start)
+}
+
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	// `abstract new(...) => T` - TS abstract constructor type. `abstract`
@@ -726,139 +1009,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// initializer of a different declarator.
 		return parse_ts_postfix(p, parse_ts_type_object(p), start)
 	case .LBracket:
-		// TS tuple type, with support for variadic and optional/named elements:
-		//   plain      `[T, U]`
-		//   variadic   `[A, ...B[]]`,  `[...A, B]`,  `[...Elements, "abc"]`
-		//   optional   `[T?, U]`  (TSOptionalType, postfix on the element)
-		//   named      `[a: string, b?: number]`  (TSNamedTupleMember)
-		// The inner loop must use a dedicated tuple-element parser rather
-		// than parse_ts_type directly, since plain parse_ts_type doesn't
-		// recognise the leading `...` or `name:` / `name?:` prefix.
-		eat(p) // consume `[`
-		// Re-allow conditional types inside brackets (tuple elements).
-		saved_disallow_ct := p.ts_disallow_conditional_types
-		p.ts_disallow_conditional_types = 0
-		// Suppress JSDoc nullable `?` consumption in parse_ts_postfix
-		// so that postfix `?` on tuple elements produces TSOptionalType.
-		saved_in_tuple := p.ts_in_tuple_type
-		p.ts_in_tuple_type = true
-		types := make([dynamic]^TSType, 0, 4, p.allocator)
-		optional_seen := false
-		for !is_token(p, .RBracket) && !is_token(p, .EOF) {
-			// Reject empty tuple element positions: `[number,,]`.
-			if is_token(p, .Comma) {
-				report_error_coded(p, .K2003_ExpectedTypeElement, "Expected tuple element type, got ','")
-				eat(p)
-				continue
-			}
-			elem_start := cur_loc(p)
-			elev: ^TSType
-			if is_token(p, .Dot3) {
-				eat(p) // consume `...`
-				// Labeled rest tuple element `...name: T[]`. Detect via
-				// 1-token lookahead - a label is an Identifier whose next
-				// token is `:`. Wrap the resulting TSRestType inside a
-				// TSNamedTupleMember to match OXC's ESTree shape (see
-				// namedTupleMembers.ts WithOptAndRest / RecusiveRest).
-    ensure_nxt(p)
-				if p.cur_type == .Identifier && p.lexer.nxt.kind == .Colon {
-					rest_label_tok := snap_current(p)
-					eat(p) // consume label
-					eat(p) // consume `:`
-					rest_inner := parse_ts_type(p)
-					rest := new_node(p, TSRestType)
-					rest.loc = elem_start
-					rest.type_annotation = rest_inner
-					rest.loc.end = prev_end_offset(p)
-					rest_t := new_node(p, TSType); rest_t^ = rest
-					named_rest := new_node(p, TSNamedTupleMember)
-					named_rest.loc = elem_start
-					named_rest.label = BindingIdentifier{
-						loc = loc_from_token(&rest_label_tok),
-						name = rest_label_tok.value,
-					}
-					named_rest.element_type = rest_t
-					named_rest.optional = false
-					named_rest.loc.end = prev_end_offset(p)
-					elev = new_node(p, TSType); elev^ = named_rest
-				} else {
-					inner := parse_ts_type(p)
-					rest := new_node(p, TSRestType)
-					rest.loc = elem_start
-					rest.type_annotation = inner
-					rest.loc.end = prev_end_offset(p)
-					elev = new_node(p, TSType); elev^ = rest
-				}
-			} else {
-				// Named tuple element `name: T` or `name?: T` - detected
-				// via 1-2 token lookahead. TS allows keywords as tuple
-				// labels: `[function: T, string: U, void?: V]`. Accept
-				// any identifier-like or keyword token that's followed by
-				// `:` or `?:`.
-				named := false
-				if p.cur_type == .Identifier || is_keyword_usable_as_property_name(p.cur_type) {
-     ensure_nxt(p)
-					nxt := p.lexer.nxt.kind
-					if nxt == .Colon { named = true }
-					if nxt == .Question {
-						snap := lexer_snapshot(p)
-						eat(p) // ident
-						eat(p) // ?
-						if p.cur_type == .Colon { named = true }
-						lexer_restore(p, snap)
-					}
-				}
-				if named {
-					label_tok := snap_current(p)
-					eat(p) // consume label identifier
-					optional := false
-					if is_token(p, .Question) { optional = true; eat(p) }
-					expect_token(p, .Colon)
-					inner := parse_ts_type(p)
-					if inner != nil {
-						if _, is_opt_type := inner^.(^TSOptionalType); is_opt_type {
-							report_error_coded(p, .K4051_TSDeclarationStructure, "A labeled tuple element cannot use postfix optional type syntax")
-						}
-					}
-					if optional {
-						optional_seen = true
-					} else if optional_seen {
-						report_error_coded(p, .K4051_TSDeclarationStructure, "A required tuple element cannot follow an optional element")
-					}
-					named_member := new_node(p, TSNamedTupleMember)
-					named_member.loc = elem_start
-					named_member.label = BindingIdentifier{loc = loc_from_token(&label_tok), name = label_tok.value}
-					named_member.element_type = inner
-					named_member.optional = optional
-					named_member.loc.end = prev_end_offset(p)
-					elev = new_node(p, TSType); elev^ = named_member
-				} else {
-					elev = parse_ts_type(p)
-					// Postfix `?` on a tuple element - TSOptionalType.
-					if elev != nil && is_token(p, .Question) {
-						eat(p)
-						opt := new_node(p, TSOptionalType)
-						opt.loc = elem_start
-						opt.type_annotation = elev
-						opt.loc.end = prev_end_offset(p)
-						elev = new_node(p, TSType); elev^ = opt
-						optional_seen = true
-					} else if optional_seen {
-						report_error_coded(p, .K4051_TSDeclarationStructure, "A required tuple element cannot follow an optional element")
-					}
-				}
-			}
-			if elev != nil { bump_append(&types, elev) }
-			if !match_token(p, .Comma) { break }
-		}
-		expect_token(p, .RBracket)
-		p.ts_disallow_conditional_types = saved_disallow_ct
-		p.ts_in_tuple_type = saved_in_tuple
-		tup := new_node(p, TSTupleType); tup.loc = start; tup.element_types = types; tup.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = tup
-		// Same chain as the LBrace branch above - `[T, U][]` (array of tuples)
-		// and `[T, U][N]` (indexed access into a tuple) need parse_ts_postfix.
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_tuple_type(p, start)
 	case .Void:   return parse_ts_kw(p, .Void, start)
 	case .Null:   return parse_ts_kw(p, .Null, start)
 	case .This:   return parse_ts_kw(p, .This, start)
@@ -1113,150 +1264,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		r := new_node(p, TSType); r^ = node
 		return parse_ts_postfix(p, r, start)
 	case .Import:
-		// TS import type: `import("module").Member<TArgs>`
-		// Grammar (TS 4.6+):
-		//   ImportType: typeof? import ( StringLiteral ImportTypeAttributes? )
-		//                 ( . QualifiedName )? TypeArguments?
-		// Used to reference types from other modules without a top-level
-		// `import` statement - the canonical form in `.d.ts` libraries
-		// (oxc-parser/src-js/index.d.ts: `get program(): import("@oxc-
-		// project/types").Program`).
-		eat(p) // consume `import`
-		if !expect_token(p, .LParen) { return nil }
-		arg_type := parse_ts_type(p)
-		// The argument must be a string literal type.  `import(foo)` with
-		// a non-string argument is a SyntaxError.
-		if arg_type != nil {
-			if _, is_lit := arg_type^.(^TSLiteralType); !is_lit {
-				report_error_coded(p, .K2070_RequiredFormOrBinding, "String literal expected in import type")
-			}
-		}
-		// `with { ... }` import-type attributes - stage-3 since TS 5.3.
-		// Eat permissively without strict shape validation; the type
-		// checker handles semantics.
-		if is_token(p, .Comma) {
-			eat(p)
-			// After the comma, `{` must follow (import-type attributes).
-			// `import("foo", )` with trailing comma is a SyntaxError.
-			if is_token(p, .RParen) {
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
-			}
-			// Parse import-type options object: `{ with: { key: "value" } }`.
-			// Validate structural constraints that OXC/TSC enforce:
-			//   - The key must be the bare identifier `with` (no escapes,
-			//     not a string literal, not computed).
-			//   - Inner attribute keys must be plain identifiers or string
-			//     literals (no computed properties).
-			//   - No spread elements in the inner object.
-			if is_token(p, .LBrace) {
-				eat(p) // consume outer {
-				// Validate the `with` key.
-				if is_token(p, .With) {
-					// Good: bare `with` keyword.
-				} else if is_token(p, .Identifier) && cur_value_eq(p, "with") {
-					// `w\u0069th` — escaped form of `with`.
-					if cur_has_escape(p) {
-						report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
-					}
-				} else if is_token(p, .String) {
-					// `"with"` as string literal key.
-					report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
-				}
-				eat(p) // consume key (with / identifier / string)
-				if is_token(p, .Colon) { eat(p) } // consume :
-				// Inner value: `{ type: "json" }`. Validate contents.
-				if is_token(p, .LBrace) {
-					eat(p) // consume inner {
-					for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-						if is_token(p, .Dot3) {
-							report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
-						}
-						if is_token(p, .LBracket) {
-							report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
-						}
-						// Validate the key: must be Identifier, String, or keyword-as-name.
-						// Numeric / BigInt literals as keys are invalid here.
-						if is_token(p, .Number) || is_token(p, .BigInt) {
-							report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
-						}
-						eat(p) // consume key
-						if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
-							report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ':' after import attribute key")
-						}
-						if is_token(p, .Colon) {
-							eat(p) // consume :
-							// Skip value tokens until comma or closing brace.
-							inner_depth := 0
-							for !is_token(p, .EOF) {
-								if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
-								else if is_token(p, .RBrace) || is_token(p, .RBracket) {
-									if inner_depth == 0 { break }
-									inner_depth -= 1
-								}
-								else if is_token(p, .Comma) && inner_depth == 0 {
-									break
-								}
-								eat(p)
-							}
-						}
-						if is_token(p, .Comma) { eat(p) } // consume comma
-					}
-					if is_token(p, .RBrace) { eat(p) } // consume inner }
-				} else {
-					// Non-object value — skip balanced.
-					depth := 0
-					for !is_token(p, .EOF) {
-						if is_token(p, .LBrace) { depth += 1 }
-						else if is_token(p, .RBrace) {
-							if depth == 0 { break }
-							depth -= 1
-						}
-						eat(p)
-					}
-				}
-				// Trailing comma before outer `}`.
-				match_token(p, .Comma)
-				if is_token(p, .RBrace) { eat(p) } // consume outer }
-			}
-		}
-		if !expect_token(p, .RParen) { return nil }
-		it := new_node(p, TSImportType)
-		it.loc = start
-		it.argument = arg_type
-		it.is_typeof = false
-		// Optional `.QualifiedName` (one or more `.`-separated identifiers).
-		if is_token(p, .Dot) {
-			eat(p)
-			qual_id := parse_identifier(p)
-			id_node, id_node_e := new_expr(p, Identifier)
-			id_node^ = qual_id
-			cur_qual := id_node_e
-			for is_token(p, .Dot) {
-				eat(p)
-				prop_id := parse_identifier(p)
-				prop_node, prop_node_e := new_expr(p, Identifier)
-				prop_node^ = prop_id
-				mem := new_node(p, MemberExpression)
-				mem.loc = it.loc
-				mem.object = cur_qual
-				mem.property = prop_node_e
-				mem.computed = false
-				mem.optional = false
-				mem.loc.end = prev_end_offset(p)
-				cur_qual = expression_from(p, mem)
-			}
-			it.qualifier = cur_qual
-		}
-		// Optional `<TArgs>` type arguments.
-		if is_open_angle_or_lshift(p) {
-			targs := parse_ts_type_arguments(p)
-			if targs != nil {
-				it.type_parameters = targs
-			}
-		}
-		it.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = it
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_import_type(p, start)
 	case .Identifier: return parse_ts_identifier_type(p)
 	case .Await, .Yield,
 	     .Abstract, .Declare, .Override, .Readonly,
