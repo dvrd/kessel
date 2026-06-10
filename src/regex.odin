@@ -103,7 +103,9 @@ regex_validate_pattern :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_
 	// outside u/v, `\p`/`\P` are identity escapes per Annex B and
 	// the spec deliberately preserves backward compatibility.
 	if has_u || has_v {
-		regex_validate_property_escapes(v, pat_start, pat_end, has_v)
+		// regex_validate_u_mode_atoms folds in `\p{…}` property-escape
+		// validation via regex_check_property_escape (item 10), so the
+		// u/v path no longer needs a separate property-escape scan.
 		regex_validate_u_mode_atoms(v, pat_start, pat_end, has_v)
 	}
 	// Class-range early errors run u-mode-only. In v-mode `[A--B]` is
@@ -542,17 +544,11 @@ regex_check_u_escape :: proc(v: ^RegexValidator, src: []u8, start, pe: int, grou
 		// forms, no body to skip.
 		return start + 2
 	case 'p', 'P':
-		// `\p{…}` / `\P{…}` — the body is validated by
-		// regex_validate_property_escapes, but we MUST skip past the
-		// closing `}` here so the main u-mode walker doesn't see the
-		// braces and flag them as stray extended pattern characters.
-		j := start + 2
-		if j < pe && src[j] == '{' {
-			j += 1
-			for j < pe && src[j] != '}' { j += 1 }
-			if j < pe { j += 1 }
-		}
-		return j
+		// `\p{…}` / `\P{…}` — validate the property body AND skip past
+		// the closing `}` in one step. Folding the property validation
+		// into the escape dispatch means the u/v path makes a single
+		// body pass instead of a separate property-escape scan (item 10).
+		return regex_check_property_escape(v, src, start, pe, has_v)
 	case 'k':
 		// `\k<name>` — named back-reference, validated separately.
 		// Skip past the `<…>` body so braces / angle-brackets don't
@@ -1150,197 +1146,169 @@ regex_validate_class_ranges :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 // the structural body has been confirmed shape-valid.
 // ============================================================================
 
-regex_validate_property_escapes :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_v: bool) {
-	src := v.source
-	in_class := false
-	i := int(pat_start)
-	pe := int(pat_end)
-	for i < pe {
-		c := src[i]
-		// Mirror the simple bracket / escape skip used by the named-group
-		// pass — `\p` inside `[...]` is still subject to the same rules.
-		if c == '[' && !in_class { in_class = true; i += 1; continue }
-		if c == ']' && in_class  { in_class = false; i += 1; continue }
-		if c == '\\' && i + 1 < pe {
-			n := src[i + 1]
-			if n != 'p' && n != 'P' {
-				i += 2
-				continue
-			}
-			// `\p` / `\P` — Wave 1a checks.
-			esc_off := u32(i)
-			negated := n == 'P'
-			if i + 2 >= pe || src[i + 2] != '{' {
-				// Rule 1: `\p` not followed by `{`.
-				append(&v.errors, RegexDiagnostic{
-					offset = esc_off,
-					message = "Invalid Unicode property escape: expected '{' after \\p",
-				})
-				i += 2
-				continue
-			}
-			body_start := i + 3
-			j := body_start
-			eq_count := 0
-			eq_at := -1
-			bad_char := false
-			for j < pe && src[j] != '}' {
-				ch := src[j]
-				// Stop on chars that terminate a regex pattern; let the
-				// outer scanner / lex_regex emit its own "unterminated"
-				// or invalid-class diagnostic for the pattern as a
-				// whole. This loop only flags the property body.
-				if ch == '/' || ch == '\n' || ch == '\r' || ch == '\\' { break }
-				if ch == '=' {
-					eq_count += 1
-					if eq_at < 0 { eq_at = j }
-				} else if !is_property_body_char(ch) {
-					bad_char = true
-				}
-				j += 1
-			}
-			if j >= pe || src[j] != '}' {
-				// Rule 3: unterminated `\p{…`.
-				append(&v.errors, RegexDiagnostic{
-					offset = esc_off,
-					message = "Invalid Unicode property escape: missing closing '}'",
-				})
-				// Skip past `\p{` and continue — j is at the failing byte.
-				i = j
-				continue
-			}
-			body_end := j
-			// Rule 2: empty body.
-			if body_end == body_start {
-				append(&v.errors, RegexDiagnostic{
-					offset = esc_off,
-					message = "Invalid Unicode property escape: empty body",
-				})
-				i = body_end + 1
-				continue
-			}
-			// Rule 4: more than one `=`.
-			if eq_count > 1 {
-				append(&v.errors, RegexDiagnostic{
-					offset = esc_off,
-					message = "Invalid Unicode property escape: multiple '=' in body",
-				})
-				i = body_end + 1
-				continue
-			}
-			// Rule 7: bad chars in body (only emit once per escape).
-			if bad_char {
-				append(&v.errors, RegexDiagnostic{
-					offset = esc_off,
-					message = "Invalid Unicode property escape: invalid character in body",
-				})
-				i = body_end + 1
-				continue
-			}
-			if eq_count == 1 {
-				// Name = Value form.
-				name_start := body_start
-				name_end := eq_at
-				val_start := eq_at + 1
-				val_end := body_end
-				// Rule 5: empty name.
-				if name_end == name_start {
-					append(&v.errors, RegexDiagnostic{
-						offset = esc_off,
-						message = "Invalid Unicode property escape: empty property name",
-					})
-					i = body_end + 1
-					continue
-				}
-				// Rule 6: empty value.
-				if val_end == val_start {
-					append(&v.errors, RegexDiagnostic{
-						offset = esc_off,
-						message = "Invalid Unicode property escape: empty property value",
-					})
-					i = body_end + 1
-					continue
-				}
-				// Wave 1b — binary-property name with explicit value
-				// (`\p{ASCII=Y}/u`). The spec says binary properties
-				// MUST appear in lone form; pairing them with `=value`
-				// is a parse-time SyntaxError regardless of whether
-				// the value would otherwise be acceptable.
-				name := string(src[name_start:name_end])
-				if is_binary_unicode_property_name(name) {
-					append(&v.errors, RegexDiagnostic{
-						offset = esc_off,
-						message = "Invalid Unicode property escape: binary property cannot have a value",
-					})
-					i = body_end + 1
-					continue
-				}
-				// Wave 1b — non-binary name must be a recognised
-				// property name. Unknown name → SyntaxError.
-				if !is_nonbinary_unicode_property_name(name) {
-					append(&v.errors, RegexDiagnostic{
-						offset = esc_off,
-						message = "Invalid Unicode property escape: unknown property name",
-					})
-					i = body_end + 1
-					continue
-				}
-				// Phase G — validate the property value for
-				// General_Category. The GC value set is small and
-				// stable across Unicode versions; Script values are
-				// NOT validated here because the set grows with each
-				// Unicode release and an incomplete table would cause
-				// false rejections on newer script names.
-				value := string(src[val_start:val_end])
-				if name == "General_Category" || name == "gc" {
-					if !is_valid_gc_property_value(value) {
-						append(&v.errors, RegexDiagnostic{
-							offset = esc_off,
-							message = "Invalid Unicode property escape: unknown General_Category value",
-						})
-					}
-				}
-			} else {
-				// Lone form: must be a recognised binary property
-				// OR a General_Category value alias (`\p{Lu}`,
-				// `\p{Letter}`, `\p{L}`, …) OR — only under the v
-				// flag — a binary "of strings" property.
-				body := string(src[body_start:body_end])
-				if is_binary_unicode_property_name(body) ||
-					is_general_category_value(body) {
-					// ok
-				} else if is_property_of_strings(body) {
-					if !has_v {
-						// §22.2.1.5 — properties of strings are
-						// only legal under the v flag. The matching
-						// Test262 fixture set lives in
-						// property-escapes/generated/strings/.
-						append(&v.errors, RegexDiagnostic{
-							offset = esc_off,
-							message = "Invalid Unicode property escape: 'of strings' property requires the 'v' flag",
-						})
-					} else if negated {
-						// §22.2.1.5 — the negation form `\P` is
-						// not allowed for properties of strings
-						// because their match set contains
-						// length-≠2 strings; negation is undefined.
-						append(&v.errors, RegexDiagnostic{
-							offset = esc_off,
-							message = "Invalid Unicode property escape: '\\P{...}' cannot be a property of strings",
-						})
-					}
-				} else {
-					append(&v.errors, RegexDiagnostic{
-						offset = esc_off,
-						message = "Invalid Unicode property escape: unknown lone property name",
-					})
-				}
-			}
-			i = body_end + 1
-			continue
-		}
-		i += 1
+// regex_check_property_escape validates a single `\p{…}` / `\P{…}`
+// Unicode property escape anchored at `start` (which points at the
+// `\`; src[start+1] is 'p' or 'P') and returns the offset just past
+// it. Folded into the u/v-mode escape dispatch (regex_check_u_escape)
+// so the u/v path makes a single body pass instead of running a
+// separate property-escape scan (item 10).
+regex_check_property_escape :: proc(v: ^RegexValidator, src: []u8, start, pe: int, has_v: bool) -> int {
+	esc_off := u32(start)
+	negated := src[start + 1] == 'P'
+	if start + 2 >= pe || src[start + 2] != '{' {
+		// Rule 1: `\p` not followed by `{`.
+		append(&v.errors, RegexDiagnostic{
+			offset = esc_off,
+			message = "Invalid Unicode property escape: expected '{' after \\p",
+		})
+		return start + 2
 	}
+	body_start := start + 3
+	j := body_start
+	eq_count := 0
+	eq_at := -1
+	bad_char := false
+	for j < pe && src[j] != '}' {
+		ch := src[j]
+		// Stop on chars that terminate a regex pattern; let the outer
+		// scanner / lex_regex emit its own "unterminated" or invalid-
+		// class diagnostic for the pattern as a whole. This loop only
+		// flags the property body.
+		if ch == '/' || ch == '\n' || ch == '\r' || ch == '\\' { break }
+		if ch == '=' {
+			eq_count += 1
+			if eq_at < 0 { eq_at = j }
+		} else if !is_property_body_char(ch) {
+			bad_char = true
+		}
+		j += 1
+	}
+	if j >= pe || src[j] != '}' {
+		// Rule 3: unterminated `\p{…`. j is at the failing byte; let
+		// the caller resume there.
+		append(&v.errors, RegexDiagnostic{
+			offset = esc_off,
+			message = "Invalid Unicode property escape: missing closing '}'",
+		})
+		return j
+	}
+	body_end := j
+	// Rule 2: empty body.
+	if body_end == body_start {
+		append(&v.errors, RegexDiagnostic{
+			offset = esc_off,
+			message = "Invalid Unicode property escape: empty body",
+		})
+		return body_end + 1
+	}
+	// Rule 4: more than one `=`.
+	if eq_count > 1 {
+		append(&v.errors, RegexDiagnostic{
+			offset = esc_off,
+			message = "Invalid Unicode property escape: multiple '=' in body",
+		})
+		return body_end + 1
+	}
+	// Rule 7: bad chars in body (only emit once per escape).
+	if bad_char {
+		append(&v.errors, RegexDiagnostic{
+			offset = esc_off,
+			message = "Invalid Unicode property escape: invalid character in body",
+		})
+		return body_end + 1
+	}
+	if eq_count == 1 {
+		// Name = Value form.
+		name_start := body_start
+		name_end := eq_at
+		val_start := eq_at + 1
+		val_end := body_end
+		// Rule 5: empty name.
+		if name_end == name_start {
+			append(&v.errors, RegexDiagnostic{
+				offset = esc_off,
+				message = "Invalid Unicode property escape: empty property name",
+			})
+			return body_end + 1
+		}
+		// Rule 6: empty value.
+		if val_end == val_start {
+			append(&v.errors, RegexDiagnostic{
+				offset = esc_off,
+				message = "Invalid Unicode property escape: empty property value",
+			})
+			return body_end + 1
+		}
+		// Wave 1b — binary-property name with explicit value
+		// (`\p{ASCII=Y}/u`). The spec says binary properties MUST
+		// appear in lone form; pairing them with `=value` is a
+		// parse-time SyntaxError regardless of whether the value would
+		// otherwise be acceptable.
+		name := string(src[name_start:name_end])
+		if is_binary_unicode_property_name(name) {
+			append(&v.errors, RegexDiagnostic{
+				offset = esc_off,
+				message = "Invalid Unicode property escape: binary property cannot have a value",
+			})
+			return body_end + 1
+		}
+		// Wave 1b — non-binary name must be a recognised property
+		// name. Unknown name → SyntaxError.
+		if !is_nonbinary_unicode_property_name(name) {
+			append(&v.errors, RegexDiagnostic{
+				offset = esc_off,
+				message = "Invalid Unicode property escape: unknown property name",
+			})
+			return body_end + 1
+		}
+		// Phase G — validate the property value for General_Category.
+		// The GC value set is small and stable across Unicode versions;
+		// Script values are NOT validated here because the set grows
+		// with each Unicode release and an incomplete table would cause
+		// false rejections on newer script names.
+		value := string(src[val_start:val_end])
+		if name == "General_Category" || name == "gc" {
+			if !is_valid_gc_property_value(value) {
+				append(&v.errors, RegexDiagnostic{
+					offset = esc_off,
+					message = "Invalid Unicode property escape: unknown General_Category value",
+				})
+			}
+		}
+		return body_end + 1
+	}
+	// Lone form: must be a recognised binary property OR a
+	// General_Category value alias (`\p{Lu}`, `\p{Letter}`, `\p{L}`,
+	// …) OR — only under the v flag — a binary "of strings" property.
+	body := string(src[body_start:body_end])
+	if is_binary_unicode_property_name(body) ||
+	   is_general_category_value(body) {
+		// ok
+	} else if is_property_of_strings(body) {
+		if !has_v {
+			// §22.2.1.5 — properties of strings are only legal under
+			// the v flag. The matching Test262 fixture set lives in
+			// property-escapes/generated/strings/.
+			append(&v.errors, RegexDiagnostic{
+				offset = esc_off,
+				message = "Invalid Unicode property escape: 'of strings' property requires the 'v' flag",
+			})
+		} else if negated {
+			// §22.2.1.5 — the negation form `\P` is not allowed for
+			// properties of strings because their match set contains
+			// length-≠2 strings; negation is undefined.
+			append(&v.errors, RegexDiagnostic{
+				offset = esc_off,
+				message = "Invalid Unicode property escape: '\\P{...}' cannot be a property of strings",
+			})
+		}
+	} else {
+		append(&v.errors, RegexDiagnostic{
+			offset = esc_off,
+			message = "Invalid Unicode property escape: unknown lone property name",
+		})
+	}
+	return body_end + 1
 }
 
 // One byte of a UnicodePropertyName / UnicodePropertyValue body —
@@ -1878,7 +1846,7 @@ regex_validate_v_mode_class :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 // `\p{gc=uppercaseletter}/u` must reject because the value is not a
 // recognised General_Category value. The spec (§22.2.1.1) requires
 // case-sensitive exact matching — no loose matching, no folding.
-// This validator is called from regex_validate_property_escapes for
+// This validator is called from regex_check_property_escape for
 // the `Name=Value` form when the name resolves to General_Category.
 // ============================================================================
 
