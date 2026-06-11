@@ -4296,6 +4296,74 @@ try_consume_ts_class_index_signature :: proc(p: ^Parser, accessibility: ClassAcc
 	return true
 }
 
+// parse_class_accessor_keyword — `accessor` (Stage-3 decorators auto-accessor)
+// is contextual: it is the modifier only when the NEXT token can start a class
+// element name AND no LineTerminator intervenes. Otherwise it is a plain member
+// name (`accessor = 42;`, `accessor() {}`, ASI-style `accessor\n a;`). The
+// exclusion list mirrors the Stage-3 grammar production. Consumes the keyword
+// and returns true when it acts as the modifier.
+// Test262 staging/decorators/accessor-as-identifier.js.
+parse_class_accessor_keyword :: proc(p: ^Parser) -> bool {
+	if !is_token(p, .Accessor) { return false }
+	next := peek_token(p)
+	next_starts_name := next.type != .LParen && next.type != .Semi &&
+	                    next.type != .RBrace && next.type != .Assign &&
+	                    next.type != .Comma
+	// peek_token returns the next non-whitespace token; its had_line_terminator
+	// flag reflects whether a LT crossed BEFORE it, which is exactly the ASI
+	// condition between `accessor` and the next token.
+	if next_starts_name && !next.had_line_terminator {
+		eat(p)
+		return true
+	}
+	return false
+}
+
+// parse_class_async_keyword — `async` is the method modifier only when followed
+// by something that starts a method name with no intervening LineTerminator.
+// When `async` is followed by `(` or `<` it IS the method name (`async() {}`,
+// `async<T>() {}`). Consumes the keyword and returns true when it modifies.
+parse_class_async_keyword :: proc(p: ^Parser) -> bool {
+	if !is_token(p, .Async) { return false }
+	next := peek_token(p)
+	looks_like_async_method := next.type == .Identifier || next.type == .PrivateIdentifier ||
+		next.type == .LBracket || next.type == .String || next.type == .Number ||
+		next.type == .BigInt || next.type == .Mul ||
+		is_keyword_usable_as_property_name(next.type)
+	if looks_like_async_method && !next.had_line_terminator {
+		eat(p) // consume async
+		return true
+	}
+	return false
+}
+
+// parse_class_get_set_keyword — `get` / `set` are contextual keywords, valid as
+// plain class-member names too. The accessor promotion fires only when the next
+// token can begin a property name (identifier, string, computed-name `[`,
+// generator `*`, or any keyword usable as a property name). Tokens like `=`
+// (field init), `:` (TS type annotation), `?` (TS optional field), `,` `;` `(`
+// `}` keep `get` / `set` as the field name (`public get = function() {}`,
+// `set: boolean;`). On promotion, consumes the keyword and returns (.Get/.Set,
+// true); the `async get` combination is rejected here.
+parse_class_get_set_keyword :: proc(p: ^Parser, is_async: bool) -> (ClassElementKind, bool) {
+	if !is_token(p, .Get) && !is_token(p, .Set) { return .Method, false }
+	is_getter := is_token(p, .Get)
+	next := peek_token(p)
+	looks_like_accessor_name := next.type == .Identifier || next.type == .String ||
+		next.type == .Number || next.type == .BigInt || next.type == .LBracket ||
+		next.type == .Mul || next.type == .PrivateIdentifier ||
+		is_keyword_usable_as_property_name(next.type)
+	if !looks_like_accessor_name { return .Method, false }
+	kind := ClassElementKind.Set
+	if is_getter { kind = .Get }
+	if is_async {
+		report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+			"'async' modifier cannot be used here")
+	}
+	eat(p) // consume get/set keyword
+	return kind, true
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4327,77 +4395,16 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	is_private := false
 	is_accessor := false
 
-	// Check for `accessor` keyword (Stage-3 decorators auto-accessor):
-	//   accessor PropertyName Initializer_opt
-	// `accessor` is contextual - it's the auto-accessor keyword only when
-	// the NEXT token can start a class element name AND there's no
-	// LineTerminator between them. Otherwise it's a plain identifier name
-	// (field, method, or get/set accessor name). The exclusion list
-	// matches the Stage-3 grammar production:
-	//   - LParen / Semi / RBrace → method/field named `accessor` itself
-	//   - Assign / Comma           → field initializer or list `accessor = 42;`
-	//   - LineTerminator           → ASI-style bare field `accessor\n a;`
-	// Test262 staging/decorators/accessor-as-identifier.js.
-	if is_token(p, .Accessor) {
-		next := peek_token(p)
-		next_starts_name := next.type != .LParen && next.type != .Semi &&
-		                    next.type != .RBrace && next.type != .Assign &&
-		                    next.type != .Comma
-		// peek_token returns the next non-whitespace token; check its
-		// had_line_terminator flag to detect ASI between `accessor` and
-		// the next token. The peek result's flag reflects whether a LT
-		// crossed BEFORE that token, which is exactly the ASI condition.
-		next_on_same_line := !next.had_line_terminator
-		if next_starts_name && next_on_same_line {
-			is_accessor = true
-			eat(p)
-		}
+	// Contextual modifier keywords (`accessor`, `async`, `get` / `set`).
+	// Each helper decides whether the keyword acts as a modifier here (vs.
+	// being a plain member name) and consumes it when it does. Control flow
+	// stays in this parent: the helpers only report their decision.
+	is_accessor = parse_class_accessor_keyword(p)
+	if !is_accessor && parse_class_async_keyword(p) {
+		is_async = true
 	}
-
-	// Check for async keyword
-	if !is_accessor && is_token(p, .Async) {
-		// Only treat `async` as a modifier if followed by something that
-		// starts a method name AND there's no line terminator between them.
-		// When `async` is followed by `(` or `<` it IS the method name
-		// (e.g. `async() {}`, `async<T>() {}`).
-		next := peek_token(p)
-		looks_like_async_method := next.type == .Identifier || next.type == .PrivateIdentifier ||
-			next.type == .LBracket || next.type == .String || next.type == .Number ||
-			next.type == .BigInt || next.type == .Mul ||
-			is_keyword_usable_as_property_name(next.type)
-		if looks_like_async_method && !next.had_line_terminator {
-			is_async = true
-			eat(p) // consume async
-		}
-	}
-
-	// Check for get/set accessor keywords. `get` / `set` are contextual
-	// keywords - valid as plain class-member names too. The accessor
-	// promotion fires only when the next token can begin a property name
-	// (identifier, string, computed-name `[`, generator `*`, or any
-	// keyword usable as a property name). Tokens like `=` (field init),
-	// `:` (TS type annotation), `?` (TS optional field), `,` `;` `(` `}`
-	// (separators / immediate body) keep `get` / `set` as the field name
-	// (e.g. `public get = function() {}`, `set: boolean;`).
-	if is_token(p, .Get) || is_token(p, .Set) {
-		is_getter := is_token(p, .Get)
-		next := peek_token(p)
-		looks_like_accessor_name := next.type == .Identifier || next.type == .String ||
-			next.type == .Number || next.type == .BigInt || next.type == .LBracket ||
-			next.type == .Mul || next.type == .PrivateIdentifier ||
-			is_keyword_usable_as_property_name(next.type)
-		if looks_like_accessor_name {
-			if is_getter {
-				kind = .Get
-			} else {
-				kind = .Set
-			}
-			if is_async {
-				report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
-					"'async' modifier cannot be used here")
-			}
-			eat(p) // consume get/set keyword
-		}
+	if k, ok := parse_class_get_set_keyword(p, is_async); ok {
+		kind = k
 	}
 
 	// Check for generator method: *name()
