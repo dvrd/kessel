@@ -122,15 +122,16 @@ regex_validate_pattern :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_
 	// non-u mode too.
 	regex_validate_modifiers(v, pat_start, pat_end)
 
-	// Leading-quantifier early errors. Always-on. `/?/`, `/*/`, `/+/`,
-	// `/{2}/`, `/{2,}/`, `/{2,5}/` are all SyntaxErrors because the
-	// quantifier has no preceding Atom; same after `(` or `|`.
-	regex_validate_leading_quantifier(v, pat_start, pat_end)
-
-	// Lookbehind cannot be quantified in any mode (§22.2.1). Lookahead
-	// _can_ be quantified in non-u via Annex B, so the broader
-	// quantified-assertion rule lives in regex_validate_u_mode_atoms.
-	regex_validate_quantified_lookbehind(v, pat_start, pat_end)
+	// Quantifier structure early errors. Always-on, single scan (item 10):
+	//   * Leading quantifier — `/?/`, `/*/`, `/+/`, `/{2}/`, `/{2,}/`,
+	//     `/{2,5}/` are SyntaxErrors because the quantifier has no
+	//     preceding Atom; same after `(` or `|`.
+	//   * Quantified lookbehind — `(?<=…)` / `(?<!…)` cannot be quantified
+	//     in any mode (§22.2.1). Lookahead _can_ be quantified in non-u via
+	//     Annex B, so that broader rule lives in regex_validate_u_mode_atoms.
+	// Both rules share the same escape / character-class skipping, so one
+	// walk replaces the former two passes.
+	regex_validate_quantifier_structure(v, pat_start, pat_end)
 
 	// v-mode character class restrictions (§22.2.1 ClassSetExpression).
 	// Certain characters and double-punctuator sequences that were
@@ -727,164 +728,166 @@ regex_check_u_escape :: proc(v: ^RegexValidator, src: []u8, start, pe: int, grou
 // ============================================================================
 
 // ============================================================================
-// Phase B-e — leading quantifier rejection (§22.2.1).
+// Phase B-e / B-f — quantifier structure early errors (§22.2.1).
 //
-// `Quantifier :: { DecimalDigits } | { DecimalDigits , } | { N , M }` is
-// a postfix on Atom. With no Atom before it (start of pattern, after
-// `(`, after `|`) it's ungrammatical:
+// Two always-on rules share one scan over the pattern body:
 //
-//   /?/   /*/   /+/   /{2}/   /{2,}/   /{2,5}/  (a)|(?b)
+//   Leading quantifier: `Quantifier :: { N } | { N , } | { N , M }` (and the
+//   `?` / `*` / `+` postfixes) attach to an Atom. With no Atom before it
+//   (start of pattern, after `(`, after `|`) the quantifier is ungrammatical:
+//       /?/   /*/   /+/   /{2}/   /{2,}/   /{2,5}/   (a)|(?b)
+//   Bare `{x}/u` (non-quantifier braces) is handled by the u-mode extended-
+//   pattern-char rejection in regex_validate_u_mode_atoms; this rule only
+//   flags braces that DO form a quantifier shape (regex_is_braced_quantifier),
+//   since those are the only ones that look like a leading quantifier.
 //
-// Bare `{x}/u` (non-quantifier braces) is handled by the u-mode
-// extended-pattern-char rejection in regex_validate_u_mode_atoms; this
-// pass only flags the cases where the braces DO form a quantifier
-// shape, since those are the only ones that look like a quantifier and
-// thus can be "leading".
+//   Quantified lookbehind: `(?<=Disjunction)` / `(?<!Disjunction)` is non-
+//   quantifiable in EVERY mode (no Annex B carve-out, unlike lookahead).
+//   Test262: invalid-{optional,range}-{lookbehind,negative-lookbehind}.js.
+//
+// The two rules never fire at the same index — a quantifier right after a
+// closing `)` leaves expecting_atom = false (so the leading-quantifier rule
+// is silent there), and the leading-quantifier rule only fires when
+// expecting_atom = true. Lookbehind diagnostics are buffered and appended
+// after the leading-quantifier diagnostics so the combined output matches
+// the former two-pass emission order exactly (all leading-quantifier errors
+// in source order, then all lookbehind errors in source order).
 // ============================================================================
 
-regex_validate_leading_quantifier :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+// regex_open_is_lookbehind reports whether the `(` at src[i] opens a
+// lookbehind group `(?<=` or `(?<!`. Bytes at or past pe are never read.
+regex_open_is_lookbehind :: proc(src: []u8, i, pe: int) -> bool {
+	return i + 3 < pe && src[i + 1] == '?' && src[i + 2] == '<' &&
+		(src[i + 3] == '=' || src[i + 3] == '!')
+}
+
+// regex_skip_group_prefix advances past a `(?…)` group prefix, returning the
+// index of the first byte after the prefix terminator (`:`, `=`, `!`, or
+// `>`), or the index of the terminating `)` if the prefix is malformed. This
+// keeps the group discriminator characters (`?`, `<`, `=`, `!`, name) from
+// being mistaken for a leading quantifier's Atom. src[i] is `(`, src[i+1] `?`.
+regex_skip_group_prefix :: proc(src: []u8, i, pe: int) -> int {
+	j := i + 2
+	for j < pe {
+		ch := src[j]
+		if ch == ':' || ch == '=' || ch == '!' || ch == '>' {
+			j += 1
+			break
+		}
+		if ch == ')' { break }
+		j += 1
+	}
+	return j
+}
+
+// Mutable scan state shared by the quantifier-structure handlers below.
+// `expecting_atom` is true wherever the next non-class character would start
+// a fresh Atom (start of pattern, after `(`, after `|`); `stack` records the
+// is-lookbehind flag of each currently-open paren so a quantifier directly
+// after a `(?<=…)` / `(?<!…)` close can be rejected.
+QuantScan :: struct {
+	in_class:                   bool,
+	expecting_atom:             bool,
+	last_closed_was_lookbehind: bool,
+	depth:                      int,
+	stack:                      [64]bool,
+}
+
+// quant_scan_trivia consumes a leading escape (`\x`) or any byte inside a
+// `[…]` class at src[i], which are plain non-quantifier symbols for both
+// rules. Returns the advanced index and whether a byte was consumed (the
+// caller continues when consumed is true).
+quant_scan_trivia :: proc(s: ^QuantScan, src: []u8, i, pe: int) -> (next: int, consumed: bool) {
+	c := src[i]
+	if c == '\\' && i + 1 < pe {
+		s.expecting_atom = false; s.last_closed_was_lookbehind = false
+		return i + 2, true
+	}
+	if c == '[' && !s.in_class {
+		s.in_class = true; s.expecting_atom = false; s.last_closed_was_lookbehind = false
+		return i + 1, true
+	}
+	if c == ']' && s.in_class {
+		s.in_class = false; s.expecting_atom = false; s.last_closed_was_lookbehind = false
+		return i + 1, true
+	}
+	if s.in_class { return i + 1, true }
+	return i, false
+}
+
+// quant_scan_group handles `(`, `)`, `|`, and ordinary characters, updating
+// expecting_atom and the lookbehind stack. For a `(?…)` group it skips the
+// prefix so the discriminator chars can't read as a leading quantifier.
+// Returns the index the caller should resume scanning from.
+quant_scan_group :: proc(s: ^QuantScan, src: []u8, i, pe: int) -> int {
+	switch src[i] {
+	case '(':
+		if s.depth < len(s.stack) {
+			s.stack[s.depth] = regex_open_is_lookbehind(src, i, pe)
+			s.depth += 1
+		}
+		s.last_closed_was_lookbehind = false
+		s.expecting_atom = true
+		if i + 1 < pe && src[i + 1] == '?' {
+			return regex_skip_group_prefix(src, i, pe)
+		}
+	case ')':
+		if s.depth > 0 {
+			s.depth -= 1
+			s.last_closed_was_lookbehind = s.stack[s.depth]
+		} else {
+			s.last_closed_was_lookbehind = false
+		}
+		s.expecting_atom = false
+	case '|':
+		s.expecting_atom = true
+		s.last_closed_was_lookbehind = false
+	case:
+		s.expecting_atom = false
+		s.last_closed_was_lookbehind = false
+	}
+	return i + 1
+}
+
+regex_validate_quantifier_structure :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
 	src := v.source
 	pe := int(pat_end)
 	if int(pat_start) >= pe { return }
 
-	// `expecting_atom` is true whenever the next non-class character
-	// would start a fresh Atom: at the very start, after a `(`, or
-	// after a `|` (alternation branch start). In any other position the
-	// previous symbol can serve as the Atom for the quantifier.
-	in_class := false
-	expecting_atom := true
-	for i := int(pat_start); i < pe; {
-		c := src[i]
-		if c == '\\' && i + 1 < pe { i += 2; expecting_atom = false; continue }
-		if c == '[' && !in_class { in_class = true; i += 1; expecting_atom = false; continue }
-		if c == ']' && in_class  { in_class = false; i += 1; expecting_atom = false; continue }
-		if in_class { i += 1; continue }
+	s := QuantScan{expecting_atom = true}
 
-		if expecting_atom {
-			if c == '?' || c == '*' || c == '+' {
-				append(&v.errors, RegexDiagnostic{
-					offset = u32(i),
-					message = "Quantifier without preceding atom",
-				})
-				expecting_atom = false
-				i += 1
-				continue
-			}
-			if c == '{' && regex_is_braced_quantifier(src, i, pe) {
-				append(&v.errors, RegexDiagnostic{
-					offset = u32(i),
-					message = "Quantifier without preceding atom",
-				})
-				expecting_atom = false
-				i += 1
-				continue
-			}
-		}
-
-		switch c {
-		case '(':
-			// Skip past `(?…)` prefixes so the discriminator chars don't
-			// confuse the leading-quantifier check. Forms covered:
-			//   (?:   non-capturing group
-			//   (?=   (?!   lookahead / negative-lookahead
-			//   (?<=  (?<!  lookbehind / negative-lookbehind
-			//   (?<NAME>  named capture
-			//   (?ims-ims:  arithmetic modifier
-			// Each prefix terminates at the first `:`, `=`, `!`, or `>`
-			// (the latter only for named-group). After the prefix ends,
-			// the next character is the start of the group's content —
-			// expecting_atom = true.
-			if i + 1 < pe && src[i + 1] == '?' {
-				j := i + 2
-				for j < pe {
-					ch := src[j]
-					if ch == ':' || ch == '=' || ch == '!' || ch == '>' {
-						j += 1
-						break
-					}
-					if ch == ')' { break }
-					j += 1
-				}
-				i = j
-				expecting_atom = true
-				continue
-			}
-			expecting_atom = true
-		case '|':
-			expecting_atom = true
-		case:
-			expecting_atom = false
-		}
-		i += 1
-	}
-}
-
-// ============================================================================
-// Phase B-f — quantified lookbehind rejection.
-//
-// `Lookbehind :: ( ? <= Disjunction ) | ( ? <! Disjunction )`
-// is non-quantifiable in EVERY mode (no Annex B carve-out, unlike
-// lookahead). Test262: invalid-{optional,range}-{lookbehind,negative-
-// lookbehind}.js. Track open-paren stack with a flag for `(?<=` /
-// `(?<!`; on `)` of such a group, look at the very next character
-// and reject if it's a quantifier.
-// ============================================================================
-
-regex_validate_quantified_lookbehind :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
-	src := v.source
-	pe := int(pat_end)
-
-	StackEntry :: struct { is_lookbehind: bool }
-	stack: [64]StackEntry
-	depth := 0
-	last_closed_was_lookbehind := false
-	in_class := false
+	// Lookbehind diagnostics are buffered then flushed at the end so the
+	// emission order matches the prior two-pass form (see header comment).
+	lb_errors: [dynamic]RegexDiagnostic
+	lb_errors.allocator = context.temp_allocator
+	defer delete(lb_errors)
 
 	for i := int(pat_start); i < pe; {
+		next, consumed := quant_scan_trivia(&s, src, i, pe)
+		if consumed { i = next; continue }
 		c := src[i]
-		if c == '\\' && i + 1 < pe { i += 2; last_closed_was_lookbehind = false; continue }
-		if c == '[' && !in_class { in_class = true; i += 1; last_closed_was_lookbehind = false; continue }
-		if c == ']' && in_class  { in_class = false; i += 1; last_closed_was_lookbehind = false; continue }
-		if in_class { i += 1; continue }
-
-		if last_closed_was_lookbehind && (c == '?' || c == '*' || c == '+' || c == '{') {
-			append(&v.errors, RegexDiagnostic{
-				offset = u32(i),
-				message = "Invalid quantifier on lookbehind assertion",
+		// Leading quantifier — a quantifier where an Atom is expected.
+		if s.expecting_atom {
+			if c == '?' || c == '*' || c == '+' ||
+			   (c == '{' && regex_is_braced_quantifier(src, i, pe)) {
+				append(&v.errors, RegexDiagnostic{
+					offset = u32(i), message = "Quantifier without preceding atom",
+				})
+				s.expecting_atom = false; i += 1; continue
+			}
+		}
+		// Quantified lookbehind — a quantifier right after a `(?<=…)` /
+		// `(?<!…)` group closes. Mutually exclusive with the rule above.
+		if s.last_closed_was_lookbehind && (c == '?' || c == '*' || c == '+' || c == '{') {
+			append(&lb_errors, RegexDiagnostic{
+				offset = u32(i), message = "Invalid quantifier on lookbehind assertion",
 			})
-			last_closed_was_lookbehind = false
-			i += 1
-			continue
+			s.last_closed_was_lookbehind = false; i += 1; continue
 		}
-
-		if c == '(' {
-			is_lb := false
-			if i + 3 < pe && src[i + 1] == '?' && src[i + 2] == '<' &&
-			   (src[i + 3] == '=' || src[i + 3] == '!') {
-				is_lb = true
-			}
-			if depth < len(stack) {
-				stack[depth] = StackEntry{is_lookbehind = is_lb}
-				depth += 1
-			}
-			last_closed_was_lookbehind = false
-			i += 1
-			continue
-		}
-		if c == ')' {
-			if depth > 0 {
-				depth -= 1
-				last_closed_was_lookbehind = stack[depth].is_lookbehind
-			} else {
-				last_closed_was_lookbehind = false
-			}
-			i += 1
-			continue
-		}
-
-		last_closed_was_lookbehind = false
-		i += 1
+		i = quant_scan_group(&s, src, i, pe)
 	}
+
+	for e in lb_errors { append(&v.errors, e) }
 }
 
 // True iff src[off:pe] starts with a structurally-complete
