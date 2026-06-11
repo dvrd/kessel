@@ -117,21 +117,18 @@ regex_validate_pattern :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_
 		regex_validate_class_ranges(v, pat_start, pat_end)
 	}
 
-	// Arithmetic modifiers `(?ims-ims:body)` (ES2025 RegExp Modifier
-	// Sequence proposal). Always-on — the syntax is well-formed in
-	// non-u mode too.
-	regex_validate_modifiers(v, pat_start, pat_end)
-
-	// Quantifier structure early errors. Always-on, single scan (item 10):
+	// Always-on structural early errors, validated in ONE pass (item 10):
+	//   * Arithmetic modifiers `(?ims-ims:body)` (ES2025 RegExp Modifier
+	//     Sequence proposal) — well-formed in non-u mode too.
 	//   * Leading quantifier — `/?/`, `/*/`, `/+/`, `/{2}/`, `/{2,}/`,
 	//     `/{2,5}/` are SyntaxErrors because the quantifier has no
 	//     preceding Atom; same after `(` or `|`.
 	//   * Quantified lookbehind — `(?<=…)` / `(?<!…)` cannot be quantified
 	//     in any mode (§22.2.1). Lookahead _can_ be quantified in non-u via
 	//     Annex B, so that broader rule lives in regex_validate_u_mode_atoms.
-	// Both rules share the same escape / character-class skipping, so one
-	// walk replaces the former two passes.
-	regex_validate_quantifier_structure(v, pat_start, pat_end)
+	// All three share the same escape / character-class skipping, so one
+	// walk replaces the former three passes.
+	regex_validate_structure(v, pat_start, pat_end)
 
 	// v-mode character class restrictions (§22.2.1 ClassSetExpression).
 	// Certain characters and double-punctuator sequences that were
@@ -183,42 +180,10 @@ regex_validate_pattern :: proc(v: ^RegexValidator, pat_start, pat_end: u32, has_
 //   language/literals/regexp/early-err-modifiers-*.js
 // ============================================================================
 
-regex_validate_modifiers :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
-	src := v.source
-	pe := int(pat_end)
-	in_class := false
-	i := int(pat_start)
-	for i < pe {
-		c := src[i]
-		// AtomEscape — skip both bytes.
-		if c == '\\' && i + 1 < pe { i += 2; continue }
-		if c == '[' && !in_class { in_class = true; i += 1; continue }
-		if c == ']' && in_class  { in_class = false; i += 1; continue }
-		if in_class || c != '(' { i += 1; continue }
-		// `(` only — need `(?` next, otherwise plain group.
-		if i + 2 >= pe || src[i + 1] != '?' { i += 1; continue }
-		n := src[i + 2]
-		// Other `(?`-prefixed productions: non-capturing, lookahead /
-		// negative-lookahead, named-group / lookbehind / negative-
-		// lookbehind. Validated elsewhere; not modifiers.
-		if n == ':' || n == '=' || n == '!' || n == '<' { i += 1; continue }
-		// Modifier production starts at i. Consume + emit one diagnostic
-		// at most per malformed modifier; skip past the closing `:` or
-		// `)` so we don't double-report.
-		end := regex_check_modifier_sequence(v, src, i, pe)
-		if end > i + 2 {
-			i = end
-		} else {
-			i += 2
-		}
-	}
-}
-
 // Validate a single arithmetic modifier sequence anchored at `start`
-// (which points at the opening `(`). Emits one LexerError on failure
-// and returns the position just past the closing `:` (or wherever
-// the scan terminated) so the outer loop can resume.
-regex_check_modifier_sequence :: proc(v: ^RegexValidator, src: []u8, start, pe: int) -> int {
+// (which points at the opening `(`). Appends one diagnostic to `errors`
+// on failure. The caller controls scan advancement; this only emits.
+regex_check_modifier_sequence :: proc(errors: ^[dynamic]RegexDiagnostic, src: []u8, start, pe: int) {
 	// Two side-tracker bitmaps (ASCII letters only — indexed by
 	// `c & 0x7F`). The arithmetic modifier flags are spec-restricted
 	// to {i, m, s} so a 128-slot table is plenty.
@@ -334,16 +299,11 @@ regex_check_modifier_sequence :: proc(v: ^RegexValidator, src: []u8, start, pe: 
 	}
 
 	if bad {
-		append(&v.errors, RegexDiagnostic{
+		append(errors, RegexDiagnostic{
 			offset = u32(start),
 			message = "Invalid regular expression modifier sequence",
 		})
 	}
-
-	// Skip past the `:` (or stop where the scan died) so the outer
-	// pass doesn't re-enter this same modifier on the next iteration.
-	if j < pe && src[j] == ':' { return j + 1 }
-	return j
 }
 
 // ============================================================================
@@ -748,10 +708,11 @@ regex_check_u_escape :: proc(v: ^RegexValidator, src: []u8, start, pe: int, grou
 // The two rules never fire at the same index — a quantifier right after a
 // closing `)` leaves expecting_atom = false (so the leading-quantifier rule
 // is silent there), and the leading-quantifier rule only fires when
-// expecting_atom = true. Lookbehind diagnostics are buffered and appended
-// after the leading-quantifier diagnostics so the combined output matches
-// the former two-pass emission order exactly (all leading-quantifier errors
-// in source order, then all lookbehind errors in source order).
+// expecting_atom = true. Each concern's diagnostics are buffered and flushed
+// in [modifier][leading-quantifier][lookbehind] order so the combined output
+// matches the former three separate passes exactly (modifier errors first,
+// then all leading-quantifier errors in source order, then all lookbehind
+// errors in source order).
 // ============================================================================
 
 // regex_open_is_lookbehind reports whether the `(` at src[i] opens a
@@ -849,17 +810,24 @@ quant_scan_group :: proc(s: ^QuantScan, src: []u8, i, pe: int) -> int {
 	return i + 1
 }
 
-regex_validate_quantifier_structure :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
+regex_validate_structure :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
 	src := v.source
 	pe := int(pat_end)
 	if int(pat_start) >= pe { return }
 
 	s := QuantScan{expecting_atom = true}
 
-	// Lookbehind diagnostics are buffered then flushed at the end so the
-	// emission order matches the prior two-pass form (see header comment).
+	// Each concern's diagnostics are buffered then flushed in a fixed
+	// [modifier][leading-quantifier][lookbehind] order so the emission
+	// order matches the former three separate passes exactly (item 10).
+	mod_errors: [dynamic]RegexDiagnostic
+	lq_errors: [dynamic]RegexDiagnostic
 	lb_errors: [dynamic]RegexDiagnostic
+	mod_errors.allocator = context.temp_allocator
+	lq_errors.allocator = context.temp_allocator
 	lb_errors.allocator = context.temp_allocator
+	defer delete(mod_errors)
+	defer delete(lq_errors)
 	defer delete(lb_errors)
 
 	for i := int(pat_start); i < pe; {
@@ -870,7 +838,7 @@ regex_validate_quantifier_structure :: proc(v: ^RegexValidator, pat_start, pat_e
 		if s.expecting_atom {
 			if c == '?' || c == '*' || c == '+' ||
 			   (c == '{' && regex_is_braced_quantifier(src, i, pe)) {
-				append(&v.errors, RegexDiagnostic{
+				append(&lq_errors, RegexDiagnostic{
 					offset = u32(i), message = "Quantifier without preceding atom",
 				})
 				s.expecting_atom = false; i += 1; continue
@@ -884,9 +852,21 @@ regex_validate_quantifier_structure :: proc(v: ^RegexValidator, pat_start, pat_e
 			})
 			s.last_closed_was_lookbehind = false; i += 1; continue
 		}
+		// Arithmetic modifier sequence — `(?` not followed by a non-
+		// capturing / lookahead / lookbehind / named-group discriminator
+		// (`:`, `=`, `!`, `<`). Only emits; quant_scan_group below owns
+		// the structural advance (a modifier group skips like `(?:`).
+		if c == '(' && i + 2 < pe && src[i + 1] == '?' {
+			n := src[i + 2]
+			if n != ':' && n != '=' && n != '!' && n != '<' {
+				regex_check_modifier_sequence(&mod_errors, src, i, pe)
+			}
+		}
 		i = quant_scan_group(&s, src, i, pe)
 	}
 
+	for e in mod_errors { append(&v.errors, e) }
+	for e in lq_errors { append(&v.errors, e) }
 	for e in lb_errors { append(&v.errors, e) }
 }
 
