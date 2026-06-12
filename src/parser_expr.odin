@@ -4327,6 +4327,167 @@ check_span_for_inner_parens :: proc(p: ^Parser, span_start, span_end: int, src: 
 	}
 }
 
+// arrow_try_conditional_return_type handles the TS arrow-in-conditional
+// speculative parse: when an arrow concise body is followed by `:` inside
+// a ternary consequent, the `:` may begin a return-type annotation rather
+// than the ternary colon. Pattern: `cond ? v => (params) : RetType => body
+// : alt`. Returns the (possibly replaced) body; on a failed speculation it
+// restores the lexer and trims any speculative errors.
+arrow_try_conditional_return_type :: proc(p: ^Parser, body: ArrowFunctionBody) -> ArrowFunctionBody {
+	body := body
+	if allow_ts_mode(p) && p.conditional_depth > 0 && is_token(p, .Colon) {
+		snap := lexer_snapshot(p)
+		snap_errs := len(p.errors)
+		eat(p) // consume `:`
+		ret_type := parse_ts_type(p)
+		committed := false
+		if ret_type != nil && is_token(p, .Arrow) {
+			// Try: build inner arrow `(params): RetType => body`.
+			body_expr, _ := body.(^Expression)
+			p.pending_paren_start = loc_from_expr(body_expr).start
+			inner_arrow := parse_arrow_function(p, body_expr)
+			// Only commit if the inner arrow succeeded AND a ternary
+			// `:` still follows. OXC accepts `x ? y => e : z => e`
+			// as a valid ternary; Babel rejects it. We match OXC.
+			if inner_arrow != nil && len(p.errors) == snap_errs &&
+			   is_token(p, .Colon) {
+				if ia, ok := inner_arrow^.(^ArrowFunctionExpression); ok {
+					ann := new_node(p, TSTypeAnnotation)
+					ann.type_annotation = ret_type
+					ia.return_type = ann
+				}
+				body = inner_arrow
+				committed = true
+			}
+		}
+		if !committed {
+			lexer_restore(p, snap)
+			if len(p.errors) > snap_errs {
+				resize(&p.errors, snap_errs)
+			}
+		}
+	}
+	return body
+}
+
+// arrow_seq_element_to_param converts one element of a parenthesised
+// arrow parameter sequence `(a, b, ...rest) => body` into a
+// FunctionParameter and appends it. The enclosing for-loop in
+// parse_arrow_function owns iteration ("push ifs up, fors down"); this
+// leaf owns the per-element Expression->Pattern conversion and the
+// associated §15.3.1 strict-mode / rest-placement diagnostics. A bare
+// `return` here is the loop `continue` from the original inline switch.
+arrow_seq_element_to_param :: proc(p: ^Parser, expr_ptr: ^Expression, param_index: int, expr_count: int, params: ^[dynamic]FunctionParameter) {
+	#partial switch arg in expr_ptr^ {
+	case ^Identifier:
+		// §15.3.1 strict-mode checks for multi-param arrow.
+		if p.ctx.strict_mode {
+			if is_eval_or_arguments(arg.name) {
+				report_error_coded_span(p, .K3050_StrictModeReserved, u32(arg.loc.start), u32(arg.loc.start), fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
+			} else if is_strict_reserved_binding_name(arg.name) {
+				report_error_coded_span(p, .K3050_StrictModeReserved, u32(arg.loc.start), u32(arg.loc.start), fmt.tprintf("'%s' is a reserved identifier in strict mode", arg.name))
+			}
+		}
+		param_ident := new_node(p, Identifier)
+		param_ident^ = arg^
+		param := FunctionParameter{
+			loc     = arg.loc,
+			pattern = param_ident,
+		}
+		bump_append(params, param)
+	case ^SpreadElement:
+		// Rest parameter: (a, b, ...rest) => ... (multi-param case).
+		if param_index != expr_count - 1 {
+			report_error_coded(p, .K3040_RestNotLast, "Rest parameter must be last in arrow function parameters")
+		}
+		// The SpreadElement was built during the earlier
+		// parse_unary_expr pass over the paren-group; its span
+		// ALREADY covers `...<ident>` exactly. By the time we get
+		// here, the arrow body has also been parsed, so calling
+		// prev_end_offset(p) returns the BODY'S end - which was
+		// stamped onto rest.loc.end, blowing the RestElement's
+		// span out to cover the entire function (observed on chalk.js
+		// `(model, level, type, ...arguments_) => { ... }` where
+		// params[3].end jumped 458 bytes past the argument name).
+		// Reuse the SpreadElement's own span instead.
+		rest := new_node(p, RestElement)
+		rest.loc = arg.loc
+		ident_expr := arg.argument
+		if ident_expr != nil {
+			// Rest element argument can be a BindingIdentifier OR a
+			// nested BindingPattern (ObjectPattern / ArrayPattern) per
+			// §15.2.1 / §15.3.1 - BindingRestElement[Yield, Await]:
+			//   ... BindingIdentifier
+			//   ... BindingPattern
+			// Route through expr_to_pattern so destructuring rest
+			// targets like `(...rest)`, `(...[a, b])`, `(...{x, y})`
+			// are all carried through. Test262 language/expressions/
+			// arrow-function/scope-param-rest-elem-var-open.js.
+			if pat, ok := expr_to_pattern(p, ident_expr); ok {
+				rest.argument = pat
+			} else {
+				report_error_coded(p, .K3042_RestSpreadMisuse, "Expected identifier or pattern in rest parameter")
+			}
+		}
+		// arg.loc already spans `...<ident>` - keep it as-is.
+		param := FunctionParameter{
+			loc     = arg.loc,
+			pattern = rest,
+		}
+		bump_append(params, param)
+	case ^ObjectExpression:
+		// Convert ObjectExpression -> ObjectPattern via expr_to_pattern
+		// so nested properties, defaults, and rest elements are all
+		// carried through. The old path allocated an empty pattern,
+		// silently dropping every destructured field in multi-arrow
+		// params like `(a, {x=1}, b) => ...`.
+		if pat, ok := expr_to_pattern(p, expr_ptr); ok {
+			param := FunctionParameter{ loc = arg.loc, pattern = pat }
+			bump_append(params, param)
+		}
+	case ^ArrayExpression:
+		// Same fix as ObjectExpression above. The prior inline loop
+		// only understood bare Identifier elements, dropping any
+		// nested AssignmentExpression / SpreadElement / Pattern.
+		if pat, ok := expr_to_pattern(p, expr_ptr); ok {
+			param := FunctionParameter{ loc = arg.loc, pattern = pat }
+			bump_append(params, param)
+		}
+	case ^AssignmentExpression:
+		// Default parameter: `(a = 1, b = 2) => ...`. The sequence
+		// parser sees `a = 1` as an AssignmentExpression (operator `=`)
+		// which we convert into an ESTree AssignmentPattern whose
+		// `left` is the identifier/pattern and `right` is the default
+		// value. Previously this fell through to the "Expected
+		// identifier" error branch - breaking 34+ real-world files
+		// (chalk.js, zod.js, vue.global.js, tinymce.js, etc.) which
+		// use default params on arrow functions.
+		if arg.operator != .Assign {
+			report_error_coded(p, .K3043_DestructuringInvalid, "Arrow parameter default must use '=' operator")
+				return
+		}
+		assign_pat := new_node(p, AssignmentPattern)
+		assign_pat.loc = arg.loc
+		assign_pat.right = arg.right
+		// Left side: Identifier, ObjectPattern (from ObjectExpression),
+		// or ArrayPattern (from ArrayExpression). Convert via the same
+		// Expression→Pattern promotion the outer arms use.
+		lhs_pat, lhs_ok := expr_to_pattern(p, arg.left)
+		if !lhs_ok {
+			report_error_coded(p, .K2040_UnexpectedToken, "Invalid target in arrow parameter default")
+				return
+		}
+		assign_pat.left = lhs_pat
+		param := FunctionParameter{
+			loc     = arg.loc,
+			pattern = assign_pat,
+		}
+		bump_append(params, param)
+	case:
+		report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier in arrow function parameters")
+	}
+}
+
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
 
 	// §15.3.1 — ArrowParameters Contains check. The cover expression
@@ -4464,39 +4625,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 		// might be a return-type annotation (not the ternary colon).
 		// Pattern: `cond ? v => (params) : RetType => body : alt`.
 		// Speculatively try `(params) : Type => body` as a nested arrow.
-		if allow_ts_mode(p) && p.conditional_depth > 0 && is_token(p, .Colon) {
-			snap := lexer_snapshot(p)
-			snap_errs := len(p.errors)
-			eat(p) // consume `:`
-			ret_type := parse_ts_type(p)
-			committed := false
-			if ret_type != nil && is_token(p, .Arrow) {
-				// Try: build inner arrow `(params): RetType => body`.
-				body_expr, _ := body.(^Expression)
-				p.pending_paren_start = loc_from_expr(body_expr).start
-				inner_arrow := parse_arrow_function(p, body_expr)
-				// Only commit if the parse succeeded AND a `:` for the
-				// Only commit if the inner arrow succeeded AND a ternary
-				// `:` still follows. OXC accepts `x ? y => e : z => e`
-				// as a valid ternary; Babel rejects it. We match OXC.
-				if inner_arrow != nil && len(p.errors) == snap_errs &&
-				   is_token(p, .Colon) {
-					if ia, ok := inner_arrow^.(^ArrowFunctionExpression); ok {
-						ann := new_node(p, TSTypeAnnotation)
-						ann.type_annotation = ret_type
-						ia.return_type = ann
-					}
-					body = inner_arrow
-					committed = true
-				}
-			}
-			if !committed {
-				lexer_restore(p, snap)
-				if len(p.errors) > snap_errs {
-					resize(&p.errors, snap_errs)
-				}
-			}
-		}
+		body = arrow_try_conditional_return_type(p, body)
 	}
 
 	p.ctx.in_async = prev_async
@@ -4655,114 +4784,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 					// expr returns nil and the sequence captures a nil pointer for that
 					// slot. Without this guard, `expr_ptr^` segfaults.
 					if expr_ptr == nil { continue }
-					#partial switch arg in expr_ptr^ {
-					case ^Identifier:
-						// §15.3.1 strict-mode checks for multi-param arrow.
-						if p.ctx.strict_mode {
-							if is_eval_or_arguments(arg.name) {
-								report_error_coded_span(p, .K3050_StrictModeReserved, u32(arg.loc.start), u32(arg.loc.start), fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", arg.name))
-							} else if is_strict_reserved_binding_name(arg.name) {
-								report_error_coded_span(p, .K3050_StrictModeReserved, u32(arg.loc.start), u32(arg.loc.start), fmt.tprintf("'%s' is a reserved identifier in strict mode", arg.name))
-							}
-						}
-						param_ident := new_node(p, Identifier)
-						param_ident^ = arg^
-						param := FunctionParameter{
-							loc     = arg.loc,
-							pattern = param_ident,
-						}
-						bump_append(&params, param)
-					case ^SpreadElement:
-						// Rest parameter: (a, b, ...rest) => ... (multi-param case).
-						if param_index != len(e.expressions) - 1 {
-							report_error_coded(p, .K3040_RestNotLast, "Rest parameter must be last in arrow function parameters")
-						}
-						// The SpreadElement was built during the earlier
-						// parse_unary_expr pass over the paren-group; its span
-						// ALREADY covers `...<ident>` exactly. By the time we get
-						// here, the arrow body has also been parsed, so calling
-						// prev_end_offset(p) returns the BODY'S end - which was
-						// stamped onto rest.loc.end, blowing the RestElement's
-						// span out to cover the entire function (observed on chalk.js
-						// `(model, level, type, ...arguments_) => { ... }` where
-						// params[3].end jumped 458 bytes past the argument name).
-						// Reuse the SpreadElement's own span instead.
-						rest := new_node(p, RestElement)
-						rest.loc = arg.loc
-						ident_expr := arg.argument
-						if ident_expr != nil {
-							// Rest element argument can be a BindingIdentifier OR a
-							// nested BindingPattern (ObjectPattern / ArrayPattern) per
-							// §15.2.1 / §15.3.1 - BindingRestElement[Yield, Await]:
-							//   ... BindingIdentifier
-							//   ... BindingPattern
-							// Route through expr_to_pattern so destructuring rest
-							// targets like `(...rest)`, `(...[a, b])`, `(...{x, y})`
-							// are all carried through. Test262 language/expressions/
-							// arrow-function/scope-param-rest-elem-var-open.js.
-							if pat, ok := expr_to_pattern(p, ident_expr); ok {
-								rest.argument = pat
-							} else {
-								report_error_coded(p, .K3042_RestSpreadMisuse, "Expected identifier or pattern in rest parameter")
-							}
-						}
-						// arg.loc already spans `...<ident>` - keep it as-is.
-						param := FunctionParameter{
-							loc     = arg.loc,
-							pattern = rest,
-						}
-						bump_append(&params, param)
-					case ^ObjectExpression:
-						// Convert ObjectExpression -> ObjectPattern via expr_to_pattern
-						// so nested properties, defaults, and rest elements are all
-						// carried through. The old path allocated an empty pattern,
-						// silently dropping every destructured field in multi-arrow
-						// params like `(a, {x=1}, b) => ...`.
-						if pat, ok := expr_to_pattern(p, expr_ptr); ok {
-							param := FunctionParameter{ loc = arg.loc, pattern = pat }
-							bump_append(&params, param)
-						}
-					case ^ArrayExpression:
-						// Same fix as ObjectExpression above. The prior inline loop
-						// only understood bare Identifier elements, dropping any
-						// nested AssignmentExpression / SpreadElement / Pattern.
-						if pat, ok := expr_to_pattern(p, expr_ptr); ok {
-							param := FunctionParameter{ loc = arg.loc, pattern = pat }
-							bump_append(&params, param)
-						}
-					case ^AssignmentExpression:
-						// Default parameter: `(a = 1, b = 2) => ...`. The sequence
-						// parser sees `a = 1` as an AssignmentExpression (operator `=`)
-						// which we convert into an ESTree AssignmentPattern whose
-						// `left` is the identifier/pattern and `right` is the default
-						// value. Previously this fell through to the "Expected
-						// identifier" error branch - breaking 34+ real-world files
-						// (chalk.js, zod.js, vue.global.js, tinymce.js, etc.) which
-						// use default params on arrow functions.
-						if arg.operator != .Assign {
-							report_error_coded(p, .K3043_DestructuringInvalid, "Arrow parameter default must use '=' operator")
-							continue
-						}
-						assign_pat := new_node(p, AssignmentPattern)
-						assign_pat.loc = arg.loc
-						assign_pat.right = arg.right
-						// Left side: Identifier, ObjectPattern (from ObjectExpression),
-						// or ArrayPattern (from ArrayExpression). Convert via the same
-						// Expression→Pattern promotion the outer arms use.
-						lhs_pat, lhs_ok := expr_to_pattern(p, arg.left)
-						if !lhs_ok {
-							report_error_coded(p, .K2040_UnexpectedToken, "Invalid target in arrow parameter default")
-							continue
-						}
-						assign_pat.left = lhs_pat
-						param := FunctionParameter{
-							loc     = arg.loc,
-							pattern = assign_pat,
-						}
-						bump_append(&params, param)
-					case:
-						report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier in arrow function parameters")
-					}
+					arrow_seq_element_to_param(p, expr_ptr, param_index, len(e.expressions), &params)
 				}
 			}
 		}
