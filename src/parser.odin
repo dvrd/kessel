@@ -2258,6 +2258,16 @@ parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
 		// and is the message the negative-fixtures gate locks in.
 		return nil
 	}
+	return parse_decorator_suffixes(p, expr, start)
+}
+
+// parse_decorator_suffixes consumes the post-callee suffix chain of a decorator
+// expression — calls, member accesses, TS type arguments, optional chains,
+// tagged templates, and non-null assertions — starting from an already-parsed
+// callee `expr`. Extracted from parse_decorator_expression to keep that proc
+// under the 70-line limit; this is pure code motion (control flow unchanged).
+parse_decorator_suffixes :: proc(p: ^Parser, expr: ^Expression, start: Loc) -> ^Expression {
+	expr := expr
 	// TS type arguments are handled inside the loop below, together with
 	// calls and member accesses, so the decorator expression supports
 	// `@a.b<T>(x).c` etc.
