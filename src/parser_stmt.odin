@@ -1113,309 +1113,135 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	}
 	// Now check if this is for-in, for-of, or regular for
 	if is_token(p, .In) || is_token(p, .Of) {
-		// for-in or for-of
-		is_in := is_token(p, .In)
-		// §15.8.2 - `for await` is only legal with `of`, never `in`.
-		if is_in && await {
-			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted, "'await' can only be used in conjunction with 'for...of' statements")
-		}
-		eat(p) // consume in/of
-		// `for (x of /re/) {}` - after consuming the `of` keyword the next
-		// token is the iterator expression. A leading `/` is the start of
-		// a RegularExpressionLiteral here, but the lexer already classified
-		// it as `.Div` because `.Of` is no longer in can_start_regex (would
-		// otherwise mis-lex `var of=6; of/g/h;`). Relex on demand.
-		if p.cur_type == .Div || p.cur_type == .AssignDiv {
-			if p.lexer != nil {
-				relex_as_regex(p.lexer)
-				ft := p.lexer.cur
-				p.cur_type = ft.kind
-			}
-		}
+		return parse_for_in_of_tail(p, left_expr, left_decl, await, start)
+	}
 
-		// ECMA-262 §14.7.5.1 - for-in/of LeftHandSideExpression must have a
-		// simple AssignmentTargetType. `a = 1` is an AssignmentExpression,
-		// not a LeftHandSideExpression, so `for (a = 1 in b)` and
-		// `for (a = 1 of b)` are both SyntaxErrors. The one historical
-		// exception is Annex B.3.5: `for (var X = init in Expr) ...` (sloppy
-		// mode, `var` only, `in` only - never `of`, never strict, never
-		// `let`/`const`). Declarations carry their initializer on
-		// VariableDeclarator.init, not as an AssignmentExpression wrapper,
-		// so the Annex B case naturally reaches this point via `left_decl`
-		// and bypasses the error.
-		if left_expr != nil {
-			if ae, is_ae := left_expr.(^AssignmentExpression); is_ae && ae != nil {
-				kind_name := "of"
-				if is_in { kind_name = "in" }
-				msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
-				report_error_coded(p, .K2050_InvalidLHS, msg)
-			}
-			// §14.7.5.1 - the LHS of a for-of head cannot be the literal
-			// IdentifierReference `async` (avoids ambiguity with the
-			// CoverCallExpressionAndAsyncArrowHead production: `async of xs`
-			// is otherwise indistinguishable from `async (of xs)`). Per spec,
-			// the rule is a source-text lookahead `[lookahead ∉ { async of }]`,
-			// so it doesn't fire when `async` is escaped (`\u0061sync`) or
-			// parenthesized (`(async)`). It also doesn't fire for
-			// for-await-of (`for await (async of xs)` is legal).
-			if !is_in && !await {
-				if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "async" {
-					// Source-text lookahead: only the bare unescaped `async`
-					// identifier triggers. Detect escapes by scanning the raw
-					// slice. Detect parens by looking FORWARD from the
-					// identifier's end to the next non-whitespace byte: a `)`
-					// there means the identifier was the body of a
-					// CoverParenthesizedExpression (`(async)`), so the
-					// lookahead doesn't fire. A backward-walk to `(` would
-					// false-positive on the for-head's own opening paren.
-					span_start := id.loc.start
-					span_end := id.loc.end
-					has_escape := false
-					paren_wrapped := false
-					if p.lexer != nil && int(span_end) <= len(p.lexer.source_bytes) {
-						slice := p.lexer.source_bytes[span_start:span_end]
-						for b in slice { if b == '\\' { has_escape = true; break } }
-						i := int(span_end)
-						src_len := len(p.lexer.source_bytes)
-						for i < src_len {
-							ch := p.lexer.source_bytes[i]
-							if ch == ')' { paren_wrapped = true; break }
-							if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i += 1; continue }
-							break
-						}
-					}
-					if !has_escape && !paren_wrapped {
-						report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
-							"The left-hand side of a for-of loop may not be 'async'")
-					}
-				}
-			}
-			// §14.7.5.1 - the LHS of a for-of head cannot start with
-			// `let` (avoids ambiguity with `for (let x of ...)` which is
-			// a for-of with a LetDeclaration). `for (let.foo of [])`,
-			// `for (let().bar of [])` etc. are all SyntaxErrors.
-			if !is_in {
-				let_lhs := false
-				if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "let" {
-					let_lhs = true
-				} else if mem, ok2 := left_expr.(^MemberExpression); ok2 && mem != nil {
-					// `let.foo` or `let().bar` — check if the root is `let`.
-					root := left_expr
-					for {
-						if m, ok3 := root.(^MemberExpression); ok3 && m != nil {
-							root = m.object
-						} else if c, ok4 := root.(^CallExpression); ok4 && c != nil {
-							root = c.callee
-						} else if t, ok5 := root.(^TaggedTemplateExpression); ok5 && t != nil {
-							root = t.tag
-						} else {
-							break
-						}
-					}
-					if rid, ok3 := root.(^Identifier); ok3 && rid != nil && rid.name == "let" {
-						let_lhs = true
-					}
-				}
-				if let_lhs {
-					report_error_coded(p, .K3061_ForLoopLHS, "The left-hand side of a for-of loop may not start with 'let'")
-				}
-			}
-			// §14.7.5.1 - the LHS expression must have a valid
-			// AssignmentTargetType. `for (this of [])`, `for (1 of [])`,
-			// `for ((a + b) of [])` are all SyntaxErrors. is_destructure
-			// is true so Array / Object literals reinterpret as patterns.
-			// CallExpression is allowed in sloppy script (§Annex B.3.4) and
-			// the more general AssignmentTargetType handles the rest.
-			if _, is_ae := left_expr.(^AssignmentExpression); !is_ae {
-				if !is_valid_assignment_target(left_expr, true) {
-					kind_name := "of"
-					if is_in { kind_name = "in" }
-					msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
-					report_error_coded(p, .K2050_InvalidLHS, msg)
-				}
-				// CallExpression as for-in/of LHS in strict mode is
-				// rejected by the semantic checker
-				// (ck_check_for_in_of_head).
-			}
-			// §13.7.5.1 strict-mode eval/arguments as for-in/of LHS is
-			// rejected by the semantic checker
-			// (ck_check_for_in_of_init_eval_args).
-			_ = left_expr
-			// for-in/of LHS is an AssignmentTarget; when it's an object /
-			// array literal it reinterprets as a destructuring pattern
-			// (§13.15.5.2). Run expr_to_pattern to trigger the same
-			// CoverInitializedName clearing path the regular
-			// AssignmentExpression uses, so `for ({x = 1} of [{}])` stops
-			// reporting "Invalid shorthand property initializer". Gate on
-			// is_destructure_target_candidate so Annex B.3.4 `for (f() in x)`
-			// in sloppy mode doesn't trip the pattern-walker's error arm.
-			// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
-			// Check BEFORE expr_to_pattern so the LHS is still an
-			// ArrayExpression / ObjectExpression. The ES spec allows it,
-			// but TypeScript's compiler rejects it (TS2491).
-			if is_in && allow_ts_mode(p) && is_destructure_target_candidate(left_expr) {
-				report_error_coded(p, .K2040_UnexpectedToken, "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
-			}
-			if is_destructure_target_candidate(left_expr) {
-				_, _ = expr_to_pattern(p, left_expr)
-			}
-		}
+	return parse_for_classic_tail(p, left_expr, left_decl, await, start)
+}
 
-		// ECMA-262 Annex B.3.5 gate. A VariableDeclaration in a for-in/of
-		// head normally forbids initializers, but sloppy-mode `for (var
-		// BindingIdentifier = AssignmentExpression in Expr) Statement`
-		// survives for web-compat. Every other combination - strict mode,
-		// `let`/`const`/`using`, for-of, multiple declarators, a
-		// destructuring pattern, even a single declarator where the
-		// binding is a BindingPattern - is a SyntaxError per the core
-		// grammar restriction "It is a Syntax Error if DeclarationPart of
-		// ForDeclaration has an Initializer."
-		// Core grammar also only allows a SINGLE ForBinding /
-		// ForDeclaration in the for-in/of head - no comma-list - so even
-		// init-free `for (var x, y in z)` is a SyntaxError.
-		if left_decl != nil {
-			// §13.7.5.1 — `using` / `await using` is permitted only in
-			// for-of heads (not for-in), which is a parse-time constraint.
-			if is_in && (left_decl.kind == .Using || left_decl.kind == .AwaitUsing) {
-				kn := "using"
-				if left_decl.kind == .AwaitUsing { kn = "await using" }
-				msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
-				report_error_coded(p, .K3061_ForLoopLHS, msg)
-			}
-
-			// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
-			// The ES spec allows ForBinding :: BindingPattern in for-in,
-			// but TypeScript rejects it. Only fire in TS mode to avoid
-			// breaking test262.
-			if is_in && allow_ts_mode(p) && len(left_decl.declarations) >= 1 {
-				d_id := left_decl.declarations[0].id
-				is_pattern := false
-				if _, ok := d_id.(^ArrayPattern); ok { is_pattern = true }
-				if _, ok := d_id.(^ObjectPattern); ok { is_pattern = true }
-				if is_pattern {
-					report_error_coded_span(p, .K2040_UnexpectedToken, u32(left_decl.loc.start), u32(left_decl.loc.start), "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
-				}
-			}
-
-			// §13.7.5.1 — "only a single declarator" + "no initializer"
-			// rules.
-			// clusters.
-			// Annex B.3.5 web-compat carve-out: a sloppy-mode
-			// `for (var SimpleIdentifier = Expr in Expr) Statement` is
-			// legal. Every other combination is a SyntaxError:
-			//   * for-of always rejects init.
-			//   * Strict mode for-in rejects init.
-			//   * `let` / `const` / `using` / `await using` always reject.
-			//   * Multiple declarators (`for (var a, b of x)`) always
-			//     reject regardless of init.
-			//   * Destructuring pattern + init always rejects.
-			kind_str := "of"
-			if is_in { kind_str = "in" }
-			if len(left_decl.declarations) > 1 {
-				msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
-				report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
-			} else {
-				annex_b_ok := is_in && !p.ctx.strict_mode &&
-				              left_decl.kind == .Var &&
-				              len(left_decl.declarations) == 1
-				if annex_b_ok {
-					if _, is_id := left_decl.declarations[0].id.(^Identifier); !is_id {
-						annex_b_ok = false
-					}
-				}
-				if !annex_b_ok {
-					for d in left_decl.declarations {
-						if _, have_init := d.init.(^Expression); have_init {
-							msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
-							report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
-							break // one diagnostic per head, matching the checker
-						}
-					}
-				}
-			}
-
-			// TS2404 — type annotation on for-in/of variable.
-			// "The left-hand side of a 'for...in' statement cannot
-			// use a type annotation."
-			if allow_ts_mode(p) && len(left_decl.declarations) > 0 {
-				d := left_decl.declarations[0]
-				has_type_ann := false
-				#partial switch b in d.id {
-				case ^Identifier:  if b != nil { has_type_ann = b.type_annotation != nil }
-				case ^ObjectPattern: if b != nil { has_type_ann = b.type_annotation != nil }
-				case ^ArrayPattern:  if b != nil { has_type_ann = b.type_annotation != nil }
-				}
-				if has_type_ann {
-					msg := fmt.tprintf("The left-hand side of a 'for...%s' statement cannot use a type annotation.", kind_str)
-					report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
-				}
-			}
-		}
-
-		// §14.7.5 - for-in head accepts the full Expression (comma list
-		// allowed); for-of head accepts AssignmentExpression only. Picking
-		// the wrong production silently accepts `for (let x of [], [])`.
-		right: ^Expression
-		if is_in {
-			right = parse_expression(p)
-		} else {
-			right = parse_assignment_expression(p)
-		}
-		if right == nil {
-			return nil
-		}
-
-		if !expect_token(p, .RParen) {
-			// Error recovery: skip to closing ) for malformed for-in/of
-			for !is_token(p, .RParen) && !is_token(p, .EOF) {
-				recovery_eat(p)
-			}
-			match_token(p, .RParen)
-		}
-
-		prev_in_loop := p.ctx.in_loop
-		p.ctx.in_loop = true
-		// Increment block_depth so import/export inside a for-in/of single-
-		// statement body are rejected as nested positions (§16.2.1).
-		p.block_depth += 1
-		body := parse_statement_or_declaration(p)
-		p.block_depth -= 1
-		p.ctx.in_loop = prev_in_loop
-		if body == nil {
-			report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after for-in/of head")
-		}
-		report_statement_only_position(p, body, false)
-
-		if is_in {
-			// for-in - use separate fields for declaration vs expression
-			for_in, for_in_s := new_stmt(p, ForInStatement)
-			for_in.loc = start
-			if left_decl != nil {
-				for_in.left_decl = left_decl
-			} else {
-				for_in.left_expr = left_expr
-			}
-			for_in.right = right
-			for_in.body = body
-			for_in.loc.end = prev_end_offset(p)
-			return for_in_s
-		} else {
-			// for-of or for-await-of - use separate fields
-			for_of, for_of_s := new_stmt(p, ForOfStatement)
-			for_of.loc = start
-			if left_decl != nil {
-				for_of.left_decl = left_decl
-			} else {
-				for_of.left_expr = left_expr
-			}
-			for_of.right = right
-			for_of.body = body
-			for_of.await = await
-			for_of.loc.end = prev_end_offset(p)
-			return for_of_s
+// parse_for_in_of_tail builds the ForIn / ForOf node from an already-parsed
+// for-head LHS (left_expr OR left_decl). Cursor is on the `in` / `of` keyword.
+// Extracted from parse_for_statement to keep it under the 70-line limit; this
+// is pure code motion (control flow and diagnostics unchanged).
+parse_for_in_of_tail :: proc(p: ^Parser, left_expr: ^Expression, left_decl: ^VariableDeclaration, await: bool, start: Loc) -> ^Statement {
+	// for-in or for-of
+	is_in := is_token(p, .In)
+	// §15.8.2 - `for await` is only legal with `of`, never `in`.
+	if is_in && await {
+		report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted, "'await' can only be used in conjunction with 'for...of' statements")
+	}
+	eat(p) // consume in/of
+	// `for (x of /re/) {}` - after consuming the `of` keyword the next
+	// token is the iterator expression. A leading `/` is the start of
+	// a RegularExpressionLiteral here, but the lexer already classified
+	// it as `.Div` because `.Of` is no longer in can_start_regex (would
+	// otherwise mis-lex `var of=6; of/g/h;`). Relex on demand.
+	if p.cur_type == .Div || p.cur_type == .AssignDiv {
+		if p.lexer != nil {
+			relex_as_regex(p.lexer)
+			ft := p.lexer.cur
+			p.cur_type = ft.kind
 		}
 	}
 
+	// ECMA-262 §14.7.5.1 - for-in/of LeftHandSideExpression must have a
+	// simple AssignmentTargetType. `a = 1` is an AssignmentExpression,
+	// not a LeftHandSideExpression, so `for (a = 1 in b)` and
+	// `for (a = 1 of b)` are both SyntaxErrors. The one historical
+	// exception is Annex B.3.5: `for (var X = init in Expr) ...` (sloppy
+	// mode, `var` only, `in` only - never `of`, never strict, never
+	// `let`/`const`). Declarations carry their initializer on
+	// VariableDeclarator.init, not as an AssignmentExpression wrapper,
+	// so the Annex B case naturally reaches this point via `left_decl`
+	// and bypasses the error.
+	if left_expr != nil {
+		for_in_of_check_expr_lhs(p, left_expr, is_in, await)
+	}
+
+	// ECMA-262 Annex B.3.5 gate. A VariableDeclaration in a for-in/of
+	// head normally forbids initializers, but sloppy-mode `for (var
+	// BindingIdentifier = AssignmentExpression in Expr) Statement`
+	// survives for web-compat. Every other combination - strict mode,
+	// `let`/`const`/`using`, for-of, multiple declarators, a
+	// destructuring pattern, even a single declarator where the
+	// binding is a BindingPattern - is a SyntaxError per the core
+	// grammar restriction "It is a Syntax Error if DeclarationPart of
+	// ForDeclaration has an Initializer."
+	// Core grammar also only allows a SINGLE ForBinding /
+	// ForDeclaration in the for-in/of head - no comma-list - so even
+	// init-free `for (var x, y in z)` is a SyntaxError.
+	if left_decl != nil {
+		for_in_of_check_decl_lhs(p, left_decl, is_in)
+	}
+
+	// §14.7.5 - for-in head accepts the full Expression (comma list
+	// allowed); for-of head accepts AssignmentExpression only. Picking
+	// the wrong production silently accepts `for (let x of [], [])`.
+	right: ^Expression
+	if is_in {
+		right = parse_expression(p)
+	} else {
+		right = parse_assignment_expression(p)
+	}
+	if right == nil {
+		return nil
+	}
+
+	if !expect_token(p, .RParen) {
+		// Error recovery: skip to closing ) for malformed for-in/of
+		for !is_token(p, .RParen) && !is_token(p, .EOF) {
+			recovery_eat(p)
+		}
+		match_token(p, .RParen)
+	}
+
+	prev_in_loop := p.ctx.in_loop
+	p.ctx.in_loop = true
+	// Increment block_depth so import/export inside a for-in/of single-
+	// statement body are rejected as nested positions (§16.2.1).
+	p.block_depth += 1
+	body := parse_statement_or_declaration(p)
+	p.block_depth -= 1
+	p.ctx.in_loop = prev_in_loop
+	if body == nil {
+		report_error_coded(p, .K2022_ExpectedStatementBody, "Expected statement after for-in/of head")
+	}
+	report_statement_only_position(p, body, false)
+
+	if is_in {
+		// for-in - use separate fields for declaration vs expression
+		for_in, for_in_s := new_stmt(p, ForInStatement)
+		for_in.loc = start
+		if left_decl != nil {
+			for_in.left_decl = left_decl
+		} else {
+			for_in.left_expr = left_expr
+		}
+		for_in.right = right
+		for_in.body = body
+		for_in.loc.end = prev_end_offset(p)
+		return for_in_s
+	} else {
+		// for-of or for-await-of - use separate fields
+		for_of, for_of_s := new_stmt(p, ForOfStatement)
+		for_of.loc = start
+		if left_decl != nil {
+			for_of.left_decl = left_decl
+		} else {
+			for_of.left_expr = left_expr
+		}
+		for_of.right = right
+		for_of.body = body
+		for_of.await = await
+		for_of.loc.end = prev_end_offset(p)
+		return for_of_s
+	}
+}
+
+// parse_for_classic_tail builds the C-style ForStatement (init; test; update)
+// from an already-parsed for-head init (left_expr OR left_decl). Cursor is on
+// the first `;`. Extracted from parse_for_statement; pure code motion.
+parse_for_classic_tail :: proc(p: ^Parser, left_expr: ^Expression, left_decl: ^VariableDeclaration, await: bool, start: Loc) -> ^Statement {
 	// Regular for statement: for (init; test; update)
 	// Track init as either declaration or expression
 	init_decl: Maybe(^VariableDeclaration)
@@ -7064,3 +6890,208 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 	return arr
 }
 
+
+// for_in_of_check_expr_lhs validates an expression for-in/of LHS:
+// the §14.7.5.1 AssignmentTargetType rule, the `async` / `let` LHS
+// restrictions, TS2491, and the destructuring-pattern reinterpretation.
+// Extracted from parse_for_in_of_tail; pure code motion.
+for_in_of_check_expr_lhs :: proc(p: ^Parser, left_expr: ^Expression, is_in: bool, await: bool) {
+	if ae, is_ae := left_expr.(^AssignmentExpression); is_ae && ae != nil {
+		kind_name := "of"
+		if is_in { kind_name = "in" }
+		msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
+		report_error_coded(p, .K2050_InvalidLHS, msg)
+	}
+	// §14.7.5.1 - the LHS of a for-of head cannot be the literal
+	// IdentifierReference `async` (avoids ambiguity with the
+	// CoverCallExpressionAndAsyncArrowHead production: `async of xs`
+	// is otherwise indistinguishable from `async (of xs)`). Per spec,
+	// the rule is a source-text lookahead `[lookahead ∉ { async of }]`,
+	// so it doesn't fire when `async` is escaped (`\u0061sync`) or
+	// parenthesized (`(async)`). It also doesn't fire for
+	// for-await-of (`for await (async of xs)` is legal).
+	if !is_in && !await {
+		if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "async" {
+			// Source-text lookahead: only the bare unescaped `async`
+			// identifier triggers. Detect escapes by scanning the raw
+			// slice. Detect parens by looking FORWARD from the
+			// identifier's end to the next non-whitespace byte: a `)`
+			// there means the identifier was the body of a
+			// CoverParenthesizedExpression (`(async)`), so the
+			// lookahead doesn't fire. A backward-walk to `(` would
+			// false-positive on the for-head's own opening paren.
+			span_start := id.loc.start
+			span_end := id.loc.end
+			has_escape := false
+			paren_wrapped := false
+			if p.lexer != nil && int(span_end) <= len(p.lexer.source_bytes) {
+				slice := p.lexer.source_bytes[span_start:span_end]
+				for b in slice { if b == '\\' { has_escape = true; break } }
+				i := int(span_end)
+				src_len := len(p.lexer.source_bytes)
+				for i < src_len {
+					ch := p.lexer.source_bytes[i]
+					if ch == ')' { paren_wrapped = true; break }
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i += 1; continue }
+					break
+				}
+			}
+			if !has_escape && !paren_wrapped {
+				report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+					"The left-hand side of a for-of loop may not be 'async'")
+			}
+		}
+	}
+	// §14.7.5.1 - the LHS of a for-of head cannot start with
+	// `let` (avoids ambiguity with `for (let x of ...)` which is
+	// a for-of with a LetDeclaration). `for (let.foo of [])`,
+	// `for (let().bar of [])` etc. are all SyntaxErrors.
+	if !is_in {
+		let_lhs := false
+		if id, ok := left_expr.(^Identifier); ok && id != nil && id.name == "let" {
+			let_lhs = true
+		} else if mem, ok2 := left_expr.(^MemberExpression); ok2 && mem != nil {
+			// `let.foo` or `let().bar` — check if the root is `let`.
+			root := left_expr
+			for {
+				if m, ok3 := root.(^MemberExpression); ok3 && m != nil {
+					root = m.object
+				} else if c, ok4 := root.(^CallExpression); ok4 && c != nil {
+					root = c.callee
+				} else if t, ok5 := root.(^TaggedTemplateExpression); ok5 && t != nil {
+					root = t.tag
+				} else {
+					break
+				}
+			}
+			if rid, ok3 := root.(^Identifier); ok3 && rid != nil && rid.name == "let" {
+				let_lhs = true
+			}
+		}
+		if let_lhs {
+			report_error_coded(p, .K3061_ForLoopLHS, "The left-hand side of a for-of loop may not start with 'let'")
+		}
+	}
+	// §14.7.5.1 - the LHS expression must have a valid
+	// AssignmentTargetType. `for (this of [])`, `for (1 of [])`,
+	// `for ((a + b) of [])` are all SyntaxErrors. is_destructure
+	// is true so Array / Object literals reinterpret as patterns.
+	// CallExpression is allowed in sloppy script (§Annex B.3.4) and
+	// the more general AssignmentTargetType handles the rest.
+	if _, is_ae := left_expr.(^AssignmentExpression); !is_ae {
+		if !is_valid_assignment_target(left_expr, true) {
+			kind_name := "of"
+			if is_in { kind_name = "in" }
+			msg := fmt.tprintf("Invalid left-hand side in for-%s loop", kind_name)
+			report_error_coded(p, .K2050_InvalidLHS, msg)
+		}
+		// CallExpression as for-in/of LHS in strict mode is
+		// rejected by the semantic checker
+		// (ck_check_for_in_of_head).
+	}
+	// §13.7.5.1 strict-mode eval/arguments as for-in/of LHS is
+	// rejected by the semantic checker
+	// (ck_check_for_in_of_init_eval_args).
+	_ = left_expr
+	// for-in/of LHS is an AssignmentTarget; when it's an object /
+	// array literal it reinterprets as a destructuring pattern
+	// (§13.15.5.2). Run expr_to_pattern to trigger the same
+	// CoverInitializedName clearing path the regular
+	// AssignmentExpression uses, so `for ({x = 1} of [{}])` stops
+	// reporting "Invalid shorthand property initializer". Gate on
+	// is_destructure_target_candidate so Annex B.3.4 `for (f() in x)`
+	// in sloppy mode doesn't trip the pattern-walker's error arm.
+	// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
+	// Check BEFORE expr_to_pattern so the LHS is still an
+	// ArrayExpression / ObjectExpression. The ES spec allows it,
+	// but TypeScript's compiler rejects it (TS2491).
+	if is_in && allow_ts_mode(p) && is_destructure_target_candidate(left_expr) {
+		report_error_coded(p, .K2040_UnexpectedToken, "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+	}
+	if is_destructure_target_candidate(left_expr) {
+		_, _ = expr_to_pattern(p, left_expr)
+	}
+}
+
+// for_in_of_check_decl_lhs validates a declaration for-in/of LHS: the
+// using-in-for-in restriction, TS2491 destructuring, the single-declarator /
+// no-initializer (Annex B.3.5) rules, and the TS2404 type-annotation ban.
+// Extracted from parse_for_in_of_tail; pure code motion.
+for_in_of_check_decl_lhs :: proc(p: ^Parser, left_decl: ^VariableDeclaration, is_in: bool) {
+	// §13.7.5.1 — `using` / `await using` is permitted only in
+	// for-of heads (not for-in), which is a parse-time constraint.
+	if is_in && (left_decl.kind == .Using || left_decl.kind == .AwaitUsing) {
+		kn := "using"
+		if left_decl.kind == .AwaitUsing { kn = "await using" }
+		msg := fmt.tprintf("'%s' declaration is not allowed in a for-in loop", kn)
+		report_error_coded(p, .K3061_ForLoopLHS, msg)
+	}
+
+	// TS2491 — for-in LHS cannot be a destructuring pattern in TS.
+	// The ES spec allows ForBinding :: BindingPattern in for-in,
+	// but TypeScript rejects it. Only fire in TS mode to avoid
+	// breaking test262.
+	if is_in && allow_ts_mode(p) && len(left_decl.declarations) >= 1 {
+		d_id := left_decl.declarations[0].id
+		is_pattern := false
+		if _, ok := d_id.(^ArrayPattern); ok { is_pattern = true }
+		if _, ok := d_id.(^ObjectPattern); ok { is_pattern = true }
+		if is_pattern {
+			report_error_coded_span(p, .K2040_UnexpectedToken, u32(left_decl.loc.start), u32(left_decl.loc.start), "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
+		}
+	}
+
+	// §13.7.5.1 — "only a single declarator" + "no initializer"
+	// rules.
+	// clusters.
+	// Annex B.3.5 web-compat carve-out: a sloppy-mode
+	// `for (var SimpleIdentifier = Expr in Expr) Statement` is
+	// legal. Every other combination is a SyntaxError:
+	//   * for-of always rejects init.
+	//   * Strict mode for-in rejects init.
+	//   * `let` / `const` / `using` / `await using` always reject.
+	//   * Multiple declarators (`for (var a, b of x)`) always
+	//     reject regardless of init.
+	//   * Destructuring pattern + init always rejects.
+	kind_str := "of"
+	if is_in { kind_str = "in" }
+	if len(left_decl.declarations) > 1 {
+		msg := fmt.tprintf("Only a single declaration is allowed in a for-%s loop", kind_str)
+		report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
+	} else {
+		annex_b_ok := is_in && !p.ctx.strict_mode &&
+		              left_decl.kind == .Var &&
+		              len(left_decl.declarations) == 1
+		if annex_b_ok {
+			if _, is_id := left_decl.declarations[0].id.(^Identifier); !is_id {
+				annex_b_ok = false
+			}
+		}
+		if !annex_b_ok {
+			for d in left_decl.declarations {
+				if _, have_init := d.init.(^Expression); have_init {
+					msg := fmt.tprintf("for-%s loop variable declaration may not have an initializer", kind_str)
+					report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
+					break // one diagnostic per head, matching the checker
+				}
+			}
+		}
+	}
+
+	// TS2404 — type annotation on for-in/of variable.
+	// "The left-hand side of a 'for...in' statement cannot
+	// use a type annotation."
+	if allow_ts_mode(p) && len(left_decl.declarations) > 0 {
+		d := left_decl.declarations[0]
+		has_type_ann := false
+		#partial switch b in d.id {
+		case ^Identifier:  if b != nil { has_type_ann = b.type_annotation != nil }
+		case ^ObjectPattern: if b != nil { has_type_ann = b.type_annotation != nil }
+		case ^ArrayPattern:  if b != nil { has_type_ann = b.type_annotation != nil }
+		}
+		if has_type_ann {
+			msg := fmt.tprintf("The left-hand side of a 'for...%s' statement cannot use a type annotation.", kind_str)
+			report_error_coded_span(p, .K3061_ForLoopLHS, u32(left_decl.loc.start), u32(left_decl.loc.start), msg)
+		}
+	}
+}
