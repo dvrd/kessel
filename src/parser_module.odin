@@ -2395,139 +2395,121 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	return stmt
 }
 
-parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
-	// TS1319 — `export default` inside a namespace is invalid.
-	// Exception: inside string-named module declarations (`declare module "m" { ... }`).
-	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
-		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
+// report_export_default_function_tail flags an LHS-tail token that would
+// extend the `export default [async] function() {}` declaration into an
+// expression. Per §16.2.3 the FunctionDeclaration ends at `}`; a SAME-line
+// `(`/`[`/`.`/`` `tag` ``/`=>`/postfix `++`/`--` makes the production fail,
+// while a token on the NEXT line is a fresh statement (ASI applies at the
+// declaration boundary). Only same-line continuations are errors. Test262:
+// language/module-code/parse-err-invoke-anon-{fun,gen}-decl.js.
+report_export_default_function_tail :: proc(p: ^Parser) {
+	if cur_has_newline(p) { return }
+	#partial switch p.cur_type {
+	case .LParen, .LBracket, .Dot, .OptionalChain,
+	     .Template, .TemplateHead, .Arrow,
+	     .PlusPlus, .MinusMinus:
+		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after 'export default function' declaration")
 	}
+}
 
-	// ExportDefaultDef is union { ^Declaration, ^Expression }. The old code
-	// did transmute(^ExportDefaultDef)decl on a ^Statement union, which
-	// reinterpreted 16 bytes of Statement-union layout as a 16-byte
-	// ExportDefaultDef union - UB that happened to not crash only because
-	// the union tag slots sometimes aligned. Same class as the FunctionExpression
-	// and TryStatement UB fixes.
-	def := new_node(p, ExportDefaultDef)
-
-	if is_token(p, .Function) || (is_token(p, .Async) && is_next_token(p, .Function)) {
-		// export default [async] function() {}  - parsed as expression form.
-		// parse_function_declaration(is_expr=true) returns a ^Statement union
-		// wrapping a ^ExpressionStatement whose .expression is the FunctionExpression.
-		p.in_export_default = true
-		fn_stmt := parse_function_declaration(p, true)
-		p.in_export_default = false
-		if fn_stmt != nil {
-			if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
-				def^ = expr_stmt.expression
-			}
-		}
-		// §16.2.3 - `export default function() {}` is the
-		// HoistableDeclaration form, NOT an AssignmentExpression. So the
-		// FunctionDeclaration ends at `}`; LHS-tail tokens that would
-		// extend it as an expression (`()` call, `[x]` index, `.x`
-		// member, `` `tag` ``, `=>` arrow, postfix `++`/`--`) make the
-		// production fail. Whitespace / `;` / new statement starts (e.g.
-		// `if`) are fine - the function-decl `}` already terminates the
-		// declaration. Test262: language/module-code/parse-err-invoke-
-		// anon-{fun,gen}-decl.js (`function() {}()`).
-		// Only flag a continuation token as an error if it's on the
-		// SAME line. A `(`, `[`, etc. on the NEXT line is a new
-		// statement (ASI applies at the declaration boundary), not a
-		// postfix extension of the function expression.
-		if !cur_has_newline(p) {
-			#partial switch p.cur_type {
-			case .LParen, .LBracket, .Dot, .OptionalChain,
-			     .Template, .TemplateHead, .Arrow,
-			     .PlusPlus, .MinusMinus:
-				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after 'export default function' declaration")
-			}
-		}
-	} else if is_token(p, .Class) ||
-	          is_token(p, .At) ||
-	          (is_token(p, .Abstract) && is_next_token(p, .Class) && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0) {
-		// `export default class {}` / `export default @dec class {}`
-		// / `export default @dec abstract class {}`.
-		cls_stmt := parse_statement_or_declaration(p)
-		if cls_stmt != nil {
-			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
-				decl_union := new_node(p, Declaration)
-				decl_union^ = cls_decl
-				def^ = decl_union
-			}
-		}
-	} else if is_token(p, .Abstract) && is_next_token(p, .At) {
-		// `export default abstract @dec class C {}` is INVALID. Decorators
-		// must come before `abstract`, not after.
-		report_error_coded(p, .K4033_DecoratorOrder, "Decorators must precede the 'abstract' modifier on a class declaration")
-		cls_stmt := parse_statement_or_declaration(p)
-		if cls_stmt != nil {
-			if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
-				decl_union := new_node(p, Declaration)
-				decl_union^ = cls_decl
-				def^ = decl_union
-			}
-		}
-	} else if p.cur_type == .Identifier && cur_value_eq(p, "interface") &&
-	          allow_ts_mode(p) {
-		// `export default interface X { ... }` - TS-only form.
-		// `export default interface {}` - anonymous interface is rejected.
-  ensure_nxt(p)
-		if !is_next_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
-			report_error_coded(p, .K4051_TSDeclarationStructure, "Interface declaration must have a name")
-		}
-		iface_stmt := parse_ts_interface_declaration(p)
-		if iface_stmt != nil {
-			if iface, ok := iface_stmt^.(^TSInterfaceDeclaration); ok {
-				decl_union := new_node(p, Declaration)
-				decl_union^ = iface
-				def^ = decl_union
-			}
-		}
-	} else {
-		// §16.2.3 ExportDeclaration: `export default` accepts only
-		// AssignmentExpression, FunctionDeclaration, or ClassDeclaration.
-		// LexicalDeclaration (`const`, `let`) and VariableStatement (`var`)
-		// are NOT allowed after `export default`.
-		if p.cur_type == .Const || p.cur_type == .Var ||
-		   (p.cur_type == .Let && !cur_has_newline(p)) {
-			report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a variable declaration")
-		}
-		// `using` / `await using` may also appear as a plain expression
-		// here — `using` is a contextual keyword, so `export default using;`
-		// and `export default await using;` are valid expression forms
-		// where `using` is just an Identifier. Use the same 3-token
-		// lookahead helper as for-statement init parsing to distinguish
-		// declaration form from expression form, instead of guessing from
-		// the immediate next token only. Mirrors babel + OXC.
-		if is_token(p, .Using) && using_starts_decl(p) {
-			report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a using declaration")
-		}
-		ensure_nxt(p)
-		if is_token(p, .Await) && p.lexer.nxt.kind == .Using &&
-		   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 &&
-		   await_using_starts_decl(p) {
-			report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a using declaration")
-		}
-		expr := parse_assignment_expression(p)
-		if expr != nil {
-			def^ = expr
-		}
-		if !match_semicolon_or_asi(p) && !cur_has_newline(p) {
-			// `export default null null;` - second literal follows without separator.
-			#partial switch p.cur_type {
-			case .Null, .True, .False, .Number, .String, .BigInt:
-				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token following export default expression")
-			}
+// parse_export_default_function handles `export default [async] function`,
+// the §16.2.3 HoistableDeclaration form. parse_function_declaration(is_expr
+// = true) returns a ^Statement wrapping an ExpressionStatement whose
+// .expression is the FunctionExpression, so unwrap that as the default def.
+parse_export_default_function :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
+	p.in_export_default = true
+	fn_stmt := parse_function_declaration(p, true)
+	p.in_export_default = false
+	if fn_stmt != nil {
+		if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
+			def = expr_stmt.expression
 		}
 	}
+	report_export_default_function_tail(p)
+	return
+}
 
-	decl := new_node(p, ExportDefaultDeclaration)
-	decl.loc = start
-	decl.declaration = def
-	decl.loc.end = prev_end_offset(p)
+// default_export_class_decl parses `export default class {}` (also the
+// decorated `@dec class` / `@dec abstract class` forms) and wraps the
+// resulting ClassDeclaration in a Declaration union for the default export.
+default_export_class_decl :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
+	cls_stmt := parse_statement_or_declaration(p)
+	if cls_stmt != nil {
+		if cls_decl, ok := cls_stmt^.(^ClassDeclaration); ok {
+			decl_union := new_node(p, Declaration)
+			decl_union^ = cls_decl
+			def = decl_union
+		}
+	}
+	return
+}
 
-	// Collect ESM static export record for export default
+// parse_export_default_interface handles the TS-only `export default
+// interface X { ... }` form. An anonymous `export default interface {}` is
+// rejected (TS4051 — interface declarations must have a name).
+parse_export_default_interface :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
+	ensure_nxt(p)
+	if !is_next_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
+		report_error_coded(p, .K4051_TSDeclarationStructure, "Interface declaration must have a name")
+	}
+	iface_stmt := parse_ts_interface_declaration(p)
+	if iface_stmt != nil {
+		if iface, ok := iface_stmt^.(^TSInterfaceDeclaration); ok {
+			decl_union := new_node(p, Declaration)
+			decl_union^ = iface
+			def = decl_union
+		}
+	}
+	return
+}
+
+// report_export_default_expr_restrictions rejects the declaration forms that
+// §16.2.3 disallows after `export default` (only AssignmentExpression /
+// FunctionDeclaration / ClassDeclaration are permitted). `using` is a
+// contextual keyword, so a 3-token lookahead distinguishes the declaration
+// form from a plain `using` / `await using` identifier expression. Mirrors
+// babel + OXC.
+report_export_default_expr_restrictions :: proc(p: ^Parser) {
+	// §16.2.3 — LexicalDeclaration (`const`, `let`) and VariableStatement
+	// (`var`) are NOT allowed after `export default`.
+	if p.cur_type == .Const || p.cur_type == .Var ||
+	   (p.cur_type == .Let && !cur_has_newline(p)) {
+		report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a variable declaration")
+	}
+	if is_token(p, .Using) && using_starts_decl(p) {
+		report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a using declaration")
+	}
+	ensure_nxt(p)
+	if is_token(p, .Await) && p.lexer.nxt.kind == .Using &&
+	   (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 &&
+	   await_using_starts_decl(p) {
+		report_error_coded(p, .K3021_ExportDefaultRestrictions, "'export default' cannot be followed by a using declaration")
+	}
+}
+
+// parse_export_default_expr handles the §16.2.3 AssignmentExpression form.
+// Declaration forms are rejected up front (for recovery the trailing
+// expression is still parsed), and a dangling literal with no separator
+// (`export default null null;`) is flagged.
+parse_export_default_expr :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
+	report_export_default_expr_restrictions(p)
+	expr := parse_assignment_expression(p)
+	if expr != nil {
+		def = expr
+	}
+	if !match_semicolon_or_asi(p) && !cur_has_newline(p) {
+		// `export default null null;` - second literal follows without separator.
+		#partial switch p.cur_type {
+		case .Null, .True, .False, .Number, .String, .BigInt:
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token following export default expression")
+		}
+	}
+	return
+}
+
+// export_default_collect_esm records the ESM static-export entry for an
+// `export default` declaration (a single entry, named "default").
+export_default_collect_esm :: proc(p: ^Parser, decl: ^ExportDefaultDeclaration, start: Loc) {
 	p.has_module_syntax = true
 	esm_export := ESMStaticExport{
 		start = decl.loc.start,
@@ -2549,6 +2531,45 @@ parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
 		},
 	}
 	bump_append(&p.staticExports, esm_export)
+}
+
+parse_export_default :: proc(p: ^Parser, start: Loc) -> ^Statement {
+	// TS1319 — `export default` inside a namespace is invalid.
+	// Exception: inside string-named module declarations (`declare module "m" { ... }`).
+	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
+	}
+
+	// ExportDefaultDef is union { ^Declaration, ^Expression }; each default
+	// form below fills it in (see the parse_export_default_* helpers). The
+	// dispatch CONDITIONS stay here ("push ifs up"); each branch body is a
+	// leaf helper.
+	def := new_node(p, ExportDefaultDef)
+	if is_token(p, .Function) || (is_token(p, .Async) && is_next_token(p, .Function)) {
+		def^ = parse_export_default_function(p)
+	} else if is_token(p, .Class) ||
+	          is_token(p, .At) ||
+	          (is_token(p, .Abstract) && is_next_token(p, .Class) && (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0) {
+		// `export default class {}` / `@dec class` / `@dec abstract class`.
+		def^ = default_export_class_decl(p)
+	} else if is_token(p, .Abstract) && is_next_token(p, .At) {
+		// `export default abstract @dec class C {}` is INVALID. Decorators
+		// must come before `abstract`, not after.
+		report_error_coded(p, .K4033_DecoratorOrder, "Decorators must precede the 'abstract' modifier on a class declaration")
+		def^ = default_export_class_decl(p)
+	} else if p.cur_type == .Identifier && cur_value_eq(p, "interface") &&
+	          allow_ts_mode(p) {
+		def^ = parse_export_default_interface(p)
+	} else {
+		def^ = parse_export_default_expr(p)
+	}
+
+	decl := new_node(p, ExportDefaultDeclaration)
+	decl.loc = start
+	decl.declaration = def
+	decl.loc.end = prev_end_offset(p)
+
+	export_default_collect_esm(p, decl, start)
 
 	stmt := new_node(p, Statement)
 	stmt^ = (^ExportDefaultDeclaration)(decl)
