@@ -4190,6 +4190,46 @@ parse_class_get_set_keyword :: proc(p: ^Parser, is_async: bool) -> (ClassElement
 	return kind, true
 }
 
+// parse_class_field_optional_definite consumes a TS class-field shape
+// modifier that follows the member name: `?` (optional) or `!` (definite
+// assignment assertion). Both are look-ahead gated — the token is only a
+// field modifier when the FOLLOWING token is one that legally terminates
+// or continues a class field/method head; otherwise it belongs to the
+// next construct and is left on the cursor. Returns which modifier, if any,
+// was consumed. Pure leaf: only advances the cursor across the `?` / `!`.
+parse_class_field_optional_definite :: proc(p: ^Parser) -> (field_optional: bool, field_definite: bool) {
+	if is_token(p, .Question) {
+		// Consume `?` when we're clearly on a class field (next is `:` /
+		// `=` / `;` / `,` / `}`) OR on an optional class method (`?(...)`
+		// or `?<T>(...)`). The TS optional class member surface form
+		// `class C { method?() {} }` previously left the `?` on the
+		// cursor and tripped "Expected (, got ?" - closes the
+		// 14-file cluster of that exact error. Mirrors the `?:` field
+		// shape next to it.
+		ensure_nxt(p)
+		nxt := p.lexer.nxt.kind
+		if nxt == .Colon || nxt == .Assign || nxt == .Semi ||
+		   nxt == .Comma || nxt == .RBrace ||
+		   nxt == .LParen || nxt == .LAngle {
+			field_optional = true
+			eat(p)
+		}
+	} else if is_token(p, .Not) {
+		// `foo!:` / `foo!;` / `foo! = ...` - definite assignment assertion.
+		// The `:` form pairs with a type annotation; the bare forms (`p!;`,
+		// `p! = 1`, `p!,`) are TS shorthand for definite-without-annotation.
+		// `.Not` = logical-not token.
+		ensure_nxt(p)
+		nxt := p.lexer.nxt.kind
+		if nxt == .Colon || nxt == .Semi || nxt == .Assign ||
+		   nxt == .Comma || nxt == .RBrace {
+			field_definite = true
+			eat(p)
+		}
+	}
+	return
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4394,39 +4434,11 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	// generator method. Removing the post-name `*` consumption closes
 	// the babel "async\n *a(){}" no-asi fixture.)
 
-	// TS class field modifiers: `foo?:` (optional) or `foo!:` (definite assignment).
-	// These appear BEFORE the `:` type annotation and coexist with it.
-	field_optional := false
-	field_definite := false
-	if is_token(p, .Question) {
-		// Consume `?` when we're clearly on a class field (next is `:` /
-		// `=` / `;` / `,` / `}`) OR on an optional class method (`?(...)`
-		// or `?<T>(...)`). The TS optional class member surface form
-		// `class C { method?() {} }` previously left the `?` on the
-		// cursor and tripped "Expected (, got ?" - closes the
-		// 14-file cluster of that exact error. Mirrors the `?:` field
-		// shape next to it.
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		if nxt == .Colon || nxt == .Assign || nxt == .Semi ||
-		   nxt == .Comma || nxt == .RBrace ||
-		   nxt == .LParen || nxt == .LAngle {
-			field_optional = true
-			eat(p)
-		}
-	} else if is_token(p, .Not) {
-		// `foo!:` / `foo!;` / `foo! = ...` - definite assignment assertion.
-		// The `:` form pairs with a type annotation; the bare forms (`p!;`,
-		// `p! = 1`, `p!,`) are TS shorthand for definite-without-annotation.
-		// `.Not` = logical-not token.
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		if nxt == .Colon || nxt == .Semi || nxt == .Assign ||
-		   nxt == .Comma || nxt == .RBrace {
-			field_definite = true
-			eat(p)
-		}
-	}
+	// TS class field modifiers: `foo?:` (optional) or `foo!:` (definite
+	// assignment). These appear BEFORE the `:` type annotation and coexist
+	// with it. Detection (the `?` / `!` look-ahead + conditional consume)
+	// lives in a leaf helper; control flow stays here.
+	field_optional, field_definite := parse_class_field_optional_definite(p)
 
 	// TS class field type annotation: `foo: T`. Parsed before the field/method split.
 	// Getters/setters must have `()` before any return type annotation —
