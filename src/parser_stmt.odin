@@ -4230,6 +4230,81 @@ parse_class_field_optional_definite :: proc(p: ^Parser) -> (field_optional: bool
 	return
 }
 
+// parse_class_field_initializer parses the `= <expr>` initializer of a class
+// field, when present, and returns it (nil for a bare field declaration). The
+// caller has already determined this element is a field, not a method.
+// §15.7.10 ClassFieldDefinitionEvaluation: the initializer is the body of a
+// SYNTHETIC non-async, non-generator function whose [[HomeObject]] is the
+// class — so `super.x` is legal here but `super(...)` is not, and `await` /
+// `yield` are NOT treated specially. This helper owns the whole parse-context
+// save / parse / restore dance; control flow stays in the parent.
+parse_class_field_initializer :: proc(p: ^Parser, is_declare, is_readonly, is_abstract: bool) -> Maybe(^Expression) {
+	if !match_token(p, .Assign) {
+		return nil
+	}
+	// Class field initializer runs in a synthetic method with the
+	// class as [[HomeObject]] - `super.x` is legal in this
+	// position (ECMA-262 §15.7.5). But it is not a constructor, so
+	// `super(...)` is not legal; reset `in_derived_constructor`.
+	prev_in_method := p.ctx.in_method
+	p.ctx.in_method = true
+	prev_in_derived_ctor := p.ctx.in_derived_constructor
+	p.ctx.in_derived_constructor = false
+	// §15.7.10 ClassFieldDefinitionEvaluation: ClassFieldInitializer
+	// is the body of a SYNTHETIC non-async, non-generator function.
+	// `await` and `yield` MUST NOT be parsed as AwaitExpression /
+	// YieldExpression here, even when the enclosing function is
+	// async / generator. They become plain IdentifierReferences,
+	// which are then accepted-or-rejected by the standard
+	// reserved-word rules (`await` reserved in modules / static
+	// blocks; `yield` reserved in strict). Test262 staging/sm/
+	// fields/await-identifier-{script,module-3}.js.
+	prev_in_async := p.ctx.in_async
+	prev_in_generator := p.ctx.in_generator
+	prev_in_async_params := p.ctx.in_async_params
+	prev_in_generator_params := p.ctx.in_generator_params
+	prev_in_field_init := p.ctx.in_field_init
+	// §15.7.10 ClassFieldDefinitionEvaluation creates a new
+	// function for the field initialiser. That function has
+	// its own [~Await] scope — it does NOT inherit the
+	// [~Await] from an enclosing static block. So `await`
+	// as an identifier inside a nested class's field init
+	// is valid: `class C { static { class D { x = await } } }`
+	prev_in_static_block_fi := p.ctx.in_static_block
+	p.ctx.in_async = false
+	p.ctx.in_generator = false
+	p.ctx.in_async_params = false
+	p.ctx.in_generator_params = false
+	p.ctx.in_field_init = true
+	p.ctx.in_static_block = false
+	init_expr := parse_assignment_expression(p)
+	p.ctx.in_async = prev_in_async
+	p.ctx.in_generator = prev_in_generator
+	p.ctx.in_async_params = prev_in_async_params
+	p.ctx.in_generator_params = prev_in_generator_params
+	p.ctx.in_field_init = prev_in_field_init
+	p.ctx.in_static_block = prev_in_static_block_fi
+	p.ctx.in_method = prev_in_method
+	p.ctx.in_derived_constructor = prev_in_derived_ctor
+	if init_expr == nil {
+		return nil
+	}
+	// TS: `declare` fields must not have initializers,
+	// UNLESS both `declare` and `readonly` are present
+	// (OXC allows `declare readonly x = 1;`).
+	if (is_declare || p.ctx.in_ambient || p.source_is_dts) && !is_readonly {
+		report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
+	}
+	if is_abstract {
+		report_error_coded(p, .K4060_AbstractMethodForm, "Abstract property cannot have an initializer")
+	}
+	// §15.7.10 "arguments in field initializer": enforced by
+	// the semantic checker (ck_check_identifier_arguments),
+	// which walks every ^Identifier reachable from the field
+	// initializer expression with in_field_init = true.
+	return init_expr
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4466,71 +4541,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	                    // parameters for a method: `method\n<T>() {}`.
 	                    !(allow_ts_mode(p) && is_open_angle_or_lshift(p))
 	if !is_generator && (field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) || is_field_by_asi) {
-		// Class field with initializer or just declaration
-		value: Maybe(^Expression)
-
-		if match_token(p, .Assign) {
-			// Class field initializer runs in a synthetic method with the
-			// class as [[HomeObject]] - `super.x` is legal in this
-			// position (ECMA-262 §15.7.5). But it is not a constructor, so
-			// `super(...)` is not legal; reset `in_derived_constructor`.
-			prev_in_method := p.ctx.in_method
-			p.ctx.in_method = true
-			prev_in_derived_ctor := p.ctx.in_derived_constructor
-			p.ctx.in_derived_constructor = false
-			// §15.7.10 ClassFieldDefinitionEvaluation: ClassFieldInitializer
-			// is the body of a SYNTHETIC non-async, non-generator function.
-			// `await` and `yield` MUST NOT be parsed as AwaitExpression /
-			// YieldExpression here, even when the enclosing function is
-			// async / generator. They become plain IdentifierReferences,
-			// which are then accepted-or-rejected by the standard
-			// reserved-word rules (`await` reserved in modules / static
-			// blocks; `yield` reserved in strict). Test262 staging/sm/
-			// fields/await-identifier-{script,module-3}.js.
-			prev_in_async := p.ctx.in_async
-			prev_in_generator := p.ctx.in_generator
-			prev_in_async_params := p.ctx.in_async_params
-			prev_in_generator_params := p.ctx.in_generator_params
-			prev_in_field_init := p.ctx.in_field_init
-			// §15.7.10 ClassFieldDefinitionEvaluation creates a new
-			// function for the field initialiser. That function has
-			// its own [~Await] scope — it does NOT inherit the
-			// [~Await] from an enclosing static block. So `await`
-			// as an identifier inside a nested class's field init
-			// is valid: `class C { static { class D { x = await } } }`
-			prev_in_static_block_fi := p.ctx.in_static_block
-			p.ctx.in_async = false
-			p.ctx.in_generator = false
-			p.ctx.in_async_params = false
-			p.ctx.in_generator_params = false
-			p.ctx.in_field_init = true
-			p.ctx.in_static_block = false
-			init_expr := parse_assignment_expression(p)
-			p.ctx.in_async = prev_in_async
-			p.ctx.in_generator = prev_in_generator
-			p.ctx.in_async_params = prev_in_async_params
-			p.ctx.in_generator_params = prev_in_generator_params
-			p.ctx.in_field_init = prev_in_field_init
-			p.ctx.in_static_block = prev_in_static_block_fi
-			p.ctx.in_method = prev_in_method
-			p.ctx.in_derived_constructor = prev_in_derived_ctor
-			if init_expr != nil {
-				value = init_expr
-				// TS: `declare` fields must not have initializers,
-				// UNLESS both `declare` and `readonly` are present
-				// (OXC allows `declare readonly x = 1;`).
-				if (is_declare || p.ctx.in_ambient || p.source_is_dts) && !is_readonly {
-					report_error_coded(p, .K4050_AmbientContextRestriction, "Initializers are not allowed in ambient contexts")
-				}
-				if is_abstract {
-					report_error_coded(p, .K4060_AbstractMethodForm, "Abstract property cannot have an initializer")
-				}
-				// §15.7.10 "arguments in field initializer": enforced by
-				// the semantic checker (ck_check_identifier_arguments),
-				// which walks every ^Identifier reachable from the field
-				// initializer expression with in_field_init = true.
-			}
-		}
+		// Class field with initializer or just declaration. The initializer
+		// (if any) parses in a synthetic non-async / non-generator function
+		// scope per §15.7.10; the helper owns that context dance.
+		value := parse_class_field_initializer(p, is_declare, is_readonly, is_abstract)
 
 		// §15.7.1 ClassElement - a non-computed FieldDefinition (with or
 		// without an initializer) cannot be named "constructor". The
