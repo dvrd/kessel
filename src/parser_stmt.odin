@@ -1885,112 +1885,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	generator := match_token(p, .Mul)
 
-	id: Maybe(BindingIdentifier)
-
-	// For function names, only binding-identifier-capable tokens qualify.
-	// Property-name keywords (null, true, false, if, enum, class, etc.)
-	// are NOT valid as FunctionDeclaration / FunctionExpression names.
-	has_name := is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type)
-	if !is_expr || has_name {
-		if has_name {
-			current := snap_current(p)
-			id = BindingIdentifier{
-				loc  = loc_from_token(&current),
-				name = current.value,
-			}
-			// §15.8.1 / §15.5.1 / §15.9.1 - the BindingIdentifier of an
-			// AsyncFunctionExpression / GeneratorExpression /
-			// AsyncGeneratorExpression is parsed under [+Await] / [+Yield],
-			// so `await` / `yield` cannot be used as the function name in
-			// expression position. The Declaration form's binding is in the
-			// enclosing context.
-			if is_expr && async && current.value == "await" {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-					"'await' cannot be used as the name of an async function expression")
-			}
-			// OXC catches `(function*yield(){})` and
-			// `var x = function*yield(){}` etc. as parser-level errors,
-			// but NOT `export default function *yield() {}`. Match OXC:
-			// fire as a structural parse error unless we're in export-
-			// default context (where the strict-mode reservation kicks in
-			// at the semantic checker via
-			// ck_check_binding_identifier_strict on the function name).
-			if is_expr && generator && current.value == "yield" && !p.in_export_default {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-					"'yield' cannot be used as the name of a generator function expression")
-			}
-			// §15.7.1 — in strict mode, `yield` is a reserved word and
-			// cannot be used as a function name (either declaration or
-			// expression). Class bodies are implicitly strict.
-			if current.value == "yield" && p.ctx.strict_mode {
-				report_error_coded(p, .K3050_StrictModeReserved, "'yield' is a reserved identifier in strict mode")
-			}
-
-			// §12.6.1.1 contextual reservation - `await` / `yield` as a
-			// BindingIdentifier in the enclosing context. Fires for both
-			// declaration and expression forms when the enclosing scope is
-			// [+Await] / [+Yield] (covers `async function f() { function
-			// await() {} }`, module-top-level `class await {}` etc).
-			// FunctionExpression names live in the inner function's own
-			// scope (§15.7.1: BindingIdentifier of FunctionExpression is
-			// parsed under [~Yield, ~Await] when the function is a regular
-			// non-async non-generator). So `function yield() {}` inside a
-			// generator IS legal as long as the inner function is itself
-			// not a generator. Skip the contextual check for plain
-			// FunctionExpression names; the function-itself flags (async /
-			// generator) drive the FunctionExpression-name check above.
-			// §12.1.1 - `enum` is a FutureReservedWord that is always
-			// reserved (§12.1.3), regardless of strict mode. It may appear
-			// in can_be_binding_identifier for TS enum declarations, but it
-			// can never serve as a function or class name in JS. The lexer
-			// emits `enum` as .Identifier (contextual), so check by value.
-			if current.value == "enum" {
-				report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word and cannot be used as a function name")
-			}
-			if !is_expr {
-				if current.value == "await" {
-					await_reserved := await_is_reserved_here(p)
-					if !await_reserved {
-						if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
-						else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
-					}
-					if await_reserved {
-						report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-			"'await' cannot be used as a function name in module / async context")
-					}
-				}
-				// In generator context `yield` as a declaration name is a
-				// parser-level error (OXC catches it).
-				if current.value == "yield" {
-					if p.ctx.in_generator || p.ctx.in_generator_params {
-						report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-			"'yield' cannot be used as a function name in generator context")
-					}
-					// Strict-mode yield-as-decl-name is enforced by the
-					// semantic checker.
-				}
-			}
-			// Strict-mode FutureReservedWords as function name.
-			// `implements`, `interface`, `package`, `private`,
-			// `protected`, `public` — reserved in strict mode (§12.1.3).
-			// Skip in ambient/d.ts — `declare function static()` is valid.
-			// In JS, `static` is also reserved; in TS mode OXC allows it.
-			if p.ctx.strict_mode && !p.ctx.in_ambient && !p.source_is_dts {
-				is_reserved_fn_name := is_strict_reserved_name(current.value)
-				// `static` is reserved in strict JS but not in TS.
-				if !is_reserved_fn_name && !allow_ts_mode(p) {
-					is_reserved_fn_name = current.value == "static" || current.value == "let" || current.value == "yield"
-				}
-				if is_reserved_fn_name {
-					msg := fmt.tprintf("Function name '%s' is reserved in strict mode", current.value)
-					report_error_coded(p, .K3050_StrictModeReserved, msg)
-				}
-			}
-			eat(p)
-		} else if !is_expr {
-			report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
-		}
-	}
+	id := parse_function_decl_name(p, is_expr, async, generator)
 
 	// TypeScript generic type parameters: `function foo<T, U>(...)`
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
@@ -2321,6 +2216,137 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	stmt := new_node(p, Statement)
 	stmt^ = (^FunctionDeclaration)(decl)
 	return stmt
+}
+
+// parse_function_decl_name parses the optional BindingIdentifier of a
+// FunctionDeclaration / FunctionExpression and enforces the §15.x name
+// reservation early errors (await / yield / enum / strict-reserved). Returns
+// the parsed name, or nil for an anonymous function expression. Pure leaf:
+// control flow stays in parse_function_declaration.
+parse_function_decl_name :: proc(p: ^Parser, is_expr, async, generator: bool) -> Maybe(BindingIdentifier) {
+	id: Maybe(BindingIdentifier)
+
+	// For function names, only binding-identifier-capable tokens qualify.
+	// Property-name keywords (null, true, false, if, enum, class, etc.)
+	// are NOT valid as FunctionDeclaration / FunctionExpression names.
+	has_name := is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type)
+	if !is_expr || has_name {
+		if has_name {
+			current := snap_current(p)
+			id = BindingIdentifier{
+				loc  = loc_from_token(&current),
+				name = current.value,
+			}
+			check_function_name_reservations(p, &current, is_expr, async, generator)
+			eat(p)
+		} else if !is_expr {
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
+		}
+	}
+	return id
+}
+
+// check_function_name_reservations enforces the §15.x BindingIdentifier
+// reservation early errors for a function name token (await / yield / enum /
+// strict-reserved). Emit-only leaf; the name value + node are built by the
+// caller. `current` is the snapped name token.
+check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_expr, async, generator: bool) {
+	// §15.8.1 / §15.5.1 / §15.9.1 - the BindingIdentifier of an
+	// AsyncFunctionExpression / GeneratorExpression /
+	// AsyncGeneratorExpression is parsed under [+Await] / [+Yield],
+	// so `await` / `yield` cannot be used as the function name in
+	// expression position. The Declaration form's binding is in the
+	// enclosing context.
+	if is_expr && async && current.value == "await" {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as the name of an async function expression")
+	}
+	// OXC catches `(function*yield(){})` and
+	// `var x = function*yield(){}` etc. as parser-level errors,
+	// but NOT `export default function *yield() {}`. Match OXC:
+	// fire as a structural parse error unless we're in export-
+	// default context (where the strict-mode reservation kicks in
+	// at the semantic checker via
+	// ck_check_binding_identifier_strict on the function name).
+	if is_expr && generator && current.value == "yield" && !p.in_export_default {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'yield' cannot be used as the name of a generator function expression")
+	}
+	// §15.7.1 — in strict mode, `yield` is a reserved word and
+	// cannot be used as a function name (either declaration or
+	// expression). Class bodies are implicitly strict.
+	if current.value == "yield" && p.ctx.strict_mode {
+		report_error_coded(p, .K3050_StrictModeReserved, "'yield' is a reserved identifier in strict mode")
+	}
+
+	// §12.6.1.1 contextual reservation - `await` / `yield` as a
+	// BindingIdentifier in the enclosing context. Fires for both
+	// declaration and expression forms when the enclosing scope is
+	// [+Await] / [+Yield] (covers `async function f() { function
+	// await() {} }`, module-top-level `class await {}` etc).
+	// FunctionExpression names live in the inner function's own
+	// scope (§15.7.1: BindingIdentifier of FunctionExpression is
+	// parsed under [~Yield, ~Await] when the function is a regular
+	// non-async non-generator). So `function yield() {}` inside a
+	// generator IS legal as long as the inner function is itself
+	// not a generator. Skip the contextual check for plain
+	// FunctionExpression names; the function-itself flags (async /
+	// generator) drive the FunctionExpression-name check above.
+	// §12.1.1 - `enum` is a FutureReservedWord that is always
+	// reserved (§12.1.3), regardless of strict mode. It may appear
+	// in can_be_binding_identifier for TS enum declarations, but it
+	// can never serve as a function or class name in JS. The lexer
+	// emits `enum` as .Identifier (contextual), so check by value.
+	if current.value == "enum" {
+		report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word and cannot be used as a function name")
+	}
+	if !is_expr {
+		check_function_decl_name_context(p, current)
+	}
+	// Strict-mode FutureReservedWords as function name.
+	// `implements`, `interface`, `package`, `private`,
+	// `protected`, `public` — reserved in strict mode (§12.1.3).
+	// Skip in ambient/d.ts — `declare function static()` is valid.
+	// In JS, `static` is also reserved; in TS mode OXC allows it.
+	if p.ctx.strict_mode && !p.ctx.in_ambient && !p.source_is_dts {
+		is_reserved_fn_name := is_strict_reserved_name(current.value)
+		// `static` is reserved in strict JS but not in TS.
+		if !is_reserved_fn_name && !allow_ts_mode(p) {
+			is_reserved_fn_name = current.value == "static" || current.value == "let" || current.value == "yield"
+		}
+		if is_reserved_fn_name {
+			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", current.value)
+			report_error_coded(p, .K3050_StrictModeReserved, msg)
+		}
+	}
+}
+
+// check_function_decl_name_context enforces the declaration-context
+// (§12.6.1.1) `await` / `yield` BindingIdentifier reservations for a
+// FunctionDeclaration name. Split out of check_function_name_reservations
+// to keep both helpers under the 70-line limit. Emit-only leaf.
+check_function_decl_name_context :: proc(p: ^Parser, current: ^TokenSnap) {
+	if current.value == "await" {
+		await_reserved := await_is_reserved_here(p)
+		if !await_reserved {
+			if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+			else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+		}
+		if await_reserved {
+			report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+	"'await' cannot be used as a function name in module / async context")
+		}
+	}
+	// In generator context `yield` as a declaration name is a
+	// parser-level error (OXC catches it).
+	if current.value == "yield" {
+		if p.ctx.in_generator || p.ctx.in_generator_params {
+			report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+	"'yield' cannot be used as a function name in generator context")
+		}
+		// Strict-mode yield-as-decl-name is enforced by the
+		// semantic checker.
+	}
 }
 
 report_parameter_modifiers_disallowed :: proc(p: ^Parser, params: []FunctionParameter) {
