@@ -2675,6 +2675,218 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 	return expression_from(p, obj)
 }
 
+// parse_object_accessor_value parses an object-literal getter / setter
+// definition body (parameters, optional TS return-type annotation, and the
+// function body, with the §15.4 accessor-shape and §15.5/§15.6/§15.8 strict
+// param checks) and returns its FunctionExpression value, or nil on a parse
+// error. Extracted from parse_property to keep that dispatcher shorter and to
+// isolate the accessor-specific scoping (item 24). Behaviour-identical: the
+// caller still owns the get/set kind decision and the if/else-if dispatch.
+parse_object_accessor_value :: proc(p: ^Parser, is_setter, is_generator, is_async: bool, start: Loc, key: ^Expression) -> ^Expression {
+	// Getter or setter: get x() { } or set x(v) { }
+	// After parsing key, expect ( for method body
+	if is_generator {
+		report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+			"An accessor cannot be a generator")
+	}
+	// Capture location of ( for the FunctionExpression
+	fn_start := cur_loc(p)
+	// Must be a method with () after key
+	if !expect_token(p, .LParen) {
+		return nil
+	}
+	// Parse params (getters have empty params, setters have one param).
+	// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
+	// §15.8.1 - await-in-params guard for async accessors (rare but valid
+	// syntactic reach via `async get`/`async set` in extended proposals;
+	// keeps the invariant symmetric with method shorthand below).
+	prev_gp_obj_acc := p.ctx.in_generator_params
+	prev_ap_obj_acc := p.ctx.in_async_params
+	prev_sb_obj_acc := p.ctx.in_static_block
+	p.ctx.in_static_block = false
+	p.ctx.in_generator_params = is_generator
+	p.ctx.in_async_params = is_async
+	// `super.x` is legal inside an object-literal accessor parameter
+	// default (e.g. `{ get foo(x = super.bar()) {...} }`) because the
+	// param scope inherits the method's [[HomeObject]]. Set in_method
+	// BEFORE parse_function_params so the default-expression parse
+	// sees it. Save / restore mirrors the body-side scoping.
+	prev_in_method := p.ctx.in_method
+	p.ctx.in_method = true
+	prev_in_derived_ctor := p.ctx.in_derived_constructor
+	p.ctx.in_derived_constructor = false
+	params := parse_function_params(p)
+	p.ctx.in_generator_params = prev_gp_obj_acc
+	p.ctx.in_async_params = prev_ap_obj_acc
+	p.ctx.in_static_block = prev_sb_obj_acc
+	// Accessors always use UniqueFormalParameters (§14.3.1).
+	parser_check_dup_params(p, params[:], start.start, true, false)
+	if !expect_token(p, .RParen) {
+		return nil
+	}
+	// TypeScript return type annotation on object-literal accessor.
+	accessor_return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) && allow_ts_mode(p) {
+		accessor_return_type = parse_ts_return_type_annotation(p)
+	}
+	body := parse_function_body(p)
+	body_strict := p.last_body_strict
+	p.ctx.in_method = prev_in_method
+	p.ctx.in_derived_constructor = prev_in_derived_ctor
+
+	// Getters / setters always have UniqueFormalParameters
+	// (ECMA-262 §15.4.3 / §15.4.4).
+
+	// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+	// !IsSimpleParameterList for object-literal accessors. Setters
+	// always have exactly one parameter (enforce_accessor_param_shape
+	// above), so the only way the non-simple guard fires here is when
+	// that lone setter param is a destructuring / default / rest form.
+	if body_strict && !params_are_simple(params[:]) {
+		report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(fn_start.start), u32(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	}
+	// §13.1.1 — retroactive strict-mode param check for
+	// `set x(eval) { "use strict"; }` and friends.
+	if body_strict && !p.ctx.strict_mode {
+		report_strict_param_pattern_retro(p, params[:])
+	}
+
+	// §15.4.3 / §15.4.4 / §15.4.5 — PropertySetParameterList /
+	// PropertyGetParameter enforce exact arity AND parameter shape:
+	//   get  — zero parameters.
+	//   set  — exactly one non-rest parameter, no default initializer.
+	// Shared with the class-element accessor path. The default-initializer
+	// two contexts emit the same diagnostic surface (object literals were
+	// previously silent on `{ set foo(v=0) {} }` at parse time and the
+	// checker had to fire the message in --show-semantic-errors mode).
+	acc_key_loc: LexerLoc
+	if key != nil {
+		acc_key_loc = LexerLoc(get_expression_loc(key).start)
+	} else {
+		acc_key_loc = LexerLoc(fn_start.start)
+	}
+	enforce_accessor_param_shape(p, is_setter, params[:], acc_key_loc)
+
+	fn, fn_e := new_expr(p, FunctionExpression)
+	fn.loc = fn_start
+	fn.params = params
+	fn.body = body
+	fn.generator = is_generator
+	fn.async = is_async
+	fn.return_type = accessor_return_type
+	fn.loc.end = prev_end_offset(p)
+	return fn_e
+}
+
+// parse_object_method_value parses an object-literal method-shorthand
+// definition (optional TS type parameters, parameters, optional return-type
+// annotation, and body, with the UniqueFormalParameters duplicate check and
+// the §15.5/§15.6/§15.8 strict param checks) and returns its FunctionExpression
+// value, or nil on a parse error. Extracted from parse_property to keep that
+// dispatcher shorter (item 24). Behaviour-identical: the caller sets the
+// .Method kind and owns the if/else-if dispatch.
+parse_object_method_value :: proc(p: ^Parser, is_generator, is_async: bool, start: Loc) -> ^Expression {
+	// Method shorthand: foo() {}
+	// TS extension - generic method shorthand: foo<T>(a: T) { ... }
+	// Mirrors the same dance parse_class_element does at the
+	// `method_type_parameters` block.		// rejects in the "Expected }, got <" cluster (typescript
+	// fixtures like assignEveryTypeToAny.ts and
+	// optionalParameterRetainsNull.ts that use
+	// `{ f<T>(x: T) { return x; } }` shape).
+	// Capture location of ( (or `<`) for the FunctionExpression.
+	fn_start := cur_loc(p)
+	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
+		method_type_parameters = parse_ts_type_parameters(p)
+	}
+	if !expect_token(p, .LParen) {
+		return nil
+	}
+	// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
+	// §15.8.1 / §15.6.1 - await-in-params guard for async methods
+	// (including async generator method shorthand `async *m() {}`).
+	prev_gp_obj_meth := p.ctx.in_generator_params
+	prev_ap_obj_meth := p.ctx.in_async_params
+	// Static-block context does not extend into method parameters.
+	prev_sb_obj_meth := p.ctx.in_static_block
+	p.ctx.in_static_block = false
+	p.ctx.in_generator_params = is_generator
+	p.ctx.in_async_params = is_async
+	// `super.x` in a default param of an object-literal method shorthand
+	// is legal (param scope inherits [[HomeObject]]). Same async / gen
+	// context the body runs under has to apply to the params too -
+	// `await` and `yield` in default-param positions are gated by
+	// in_async_params / in_generator_params (already set above).
+	prev_in_generator := p.ctx.in_generator
+	prev_in_async := p.ctx.in_async
+	prev_in_method := p.ctx.in_method
+	prev_in_derived_ctor := p.ctx.in_derived_constructor
+	p.ctx.in_generator = is_generator
+	p.ctx.in_async = is_async
+	// Object-literal method shorthand - [[HomeObject]] is the object
+	// literal. `super.x` is legal inside. Object methods are not
+	// constructors, so `super(...)` is not legal.
+	p.ctx.in_method = true
+	p.ctx.in_derived_constructor = false
+	params := parse_function_params(p)
+	p.ctx.in_generator_params = prev_gp_obj_meth
+	p.ctx.in_async_params = prev_ap_obj_meth
+	p.ctx.in_static_block = prev_sb_obj_meth
+	// Method shorthand always uses UniqueFormalParameters (§14.3.1).
+	parser_check_dup_params(p, params[:], start.start, true, false)
+	if !expect_token(p, .RParen) {
+		return nil
+	}
+	// TS return-type annotation on plain method shorthand:
+	//   const o = { method(): void { ... }, async return(v: R): Promise<...> {} }
+	// Mirrors the same hook on the getter/setter branch a few lines
+	// above. Without this the `:` after `)` was parsed as the start of
+	// a property-key shape, ending the property and tripping `Expected
+	// {`. Closes ~22 OXC corpus rejects in the "Expected {, got :"
+	// cluster.
+	method_return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) && allow_ts_mode(p) {
+		method_return_type = parse_ts_return_type_annotation(p)
+	}
+	body := parse_function_body(p)
+	body_strict := p.last_body_strict
+	p.ctx.in_generator = prev_in_generator
+	p.ctx.in_async = prev_in_async
+	p.ctx.in_method = prev_in_method
+	p.ctx.in_derived_constructor = prev_in_derived_ctor
+
+	// Object-literal methods run under UniqueFormalParameters rules.
+
+	// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+	// !IsSimpleParameterList for object-literal methods.
+	if body_strict && !params_are_simple(params[:]) {
+		report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(fn_start.start), u32(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	}
+	// §13.1.1 — retroactive strict-mode param check (see the same
+	// hook on parse_function_declaration above). Object-literal
+	// method shorthand inherits the outer scope's strict_mode — it
+	// does not implicitly become strict like class methods do.
+	if body_strict && !p.ctx.strict_mode {
+		report_strict_param_pattern_retro(p, params[:])
+	}
+
+	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
+  if !p.ast_only {
+	check_params_vs_body_lex(p, params[:], body.body[:])
+  }
+
+	fn, fn_e := new_expr(p, FunctionExpression)
+	fn.loc = fn_start
+	fn.params = params
+	fn.body = body
+	fn.generator = is_generator
+	fn.async = is_async
+	fn.type_parameters = method_type_parameters
+	fn.return_type = method_return_type
+	fn.loc.end = prev_end_offset(p)
+	return fn_e
+}
+
 parse_property :: proc(p: ^Parser) -> ^Property {
 	start := cur_loc(p)
 
@@ -2835,205 +3047,20 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	shorthand := false
 
 	if is_getter || is_setter {
-		// Getter or setter: get x() { } or set x(v) { }
-		// After parsing key, expect ( for method body
-		if is_generator {
-			report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
-				"An accessor cannot be a generator")
-		}
+		kind = .Set
 		if is_getter {
 			kind = .Get
-		} else {
-			kind = .Set
 		}
-		// Capture location of ( for the FunctionExpression
-		fn_start := cur_loc(p)
-		// Must be a method with () after key
-		if !expect_token(p, .LParen) {
+		value = parse_object_accessor_value(p, is_setter, is_generator, is_async, start, key)
+		if value == nil {
 			return nil
 		}
-		// Parse params (getters have empty params, setters have one param).
-		// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
-		// §15.8.1 - await-in-params guard for async accessors (rare but valid
-		// syntactic reach via `async get`/`async set` in extended proposals;
-		// keeps the invariant symmetric with method shorthand below).
-		prev_gp_obj_acc := p.ctx.in_generator_params
-		prev_ap_obj_acc := p.ctx.in_async_params
-		prev_sb_obj_acc := p.ctx.in_static_block
-		p.ctx.in_static_block = false
-		p.ctx.in_generator_params = is_generator
-		p.ctx.in_async_params = is_async
-		// `super.x` is legal inside an object-literal accessor parameter
-		// default (e.g. `{ get foo(x = super.bar()) {...} }`) because the
-		// param scope inherits the method's [[HomeObject]]. Set in_method
-		// BEFORE parse_function_params so the default-expression parse
-		// sees it. Save / restore mirrors the body-side scoping.
-		prev_in_method := p.ctx.in_method
-		p.ctx.in_method = true
-		prev_in_derived_ctor := p.ctx.in_derived_constructor
-		p.ctx.in_derived_constructor = false
-		params := parse_function_params(p)
-		p.ctx.in_generator_params = prev_gp_obj_acc
-		p.ctx.in_async_params = prev_ap_obj_acc
-		p.ctx.in_static_block = prev_sb_obj_acc
-		// Accessors always use UniqueFormalParameters (§14.3.1).
-		parser_check_dup_params(p, params[:], start.start, true, false)
-		if !expect_token(p, .RParen) {
-			return nil
-		}
-		// TypeScript return type annotation on object-literal accessor.
-		accessor_return_type: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) && allow_ts_mode(p) {
-			accessor_return_type = parse_ts_return_type_annotation(p)
-		}
-		body := parse_function_body(p)
-		body_strict := p.last_body_strict
-		p.ctx.in_method = prev_in_method
-		p.ctx.in_derived_constructor = prev_in_derived_ctor
-
-		// Getters / setters always have UniqueFormalParameters
-		// (ECMA-262 §15.4.3 / §15.4.4).
-
-		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
-		// !IsSimpleParameterList for object-literal accessors. Setters
-		// always have exactly one parameter (enforce_accessor_param_shape
-		// above), so the only way the non-simple guard fires here is when
-		// that lone setter param is a destructuring / default / rest form.
-		if body_strict && !params_are_simple(params[:]) {
-			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(fn_start.start), u32(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
-		}
-		// §13.1.1 — retroactive strict-mode param check for
-		// `set x(eval) { "use strict"; }` and friends.
-		if body_strict && !p.ctx.strict_mode {
-			report_strict_param_pattern_retro(p, params[:])
-		}
-
-		// §15.4.3 / §15.4.4 / §15.4.5 — PropertySetParameterList /
-		// PropertyGetParameter enforce exact arity AND parameter shape:
-		//   get  — zero parameters.
-		//   set  — exactly one non-rest parameter, no default initializer.
-		// Shared with the class-element accessor path. The default-initializer
-		// two contexts emit the same diagnostic surface (object literals were
-		// previously silent on `{ set foo(v=0) {} }` at parse time and the
-		// checker had to fire the message in --show-semantic-errors mode).
-		acc_key_loc: LexerLoc
-		if key != nil {
-			acc_key_loc = LexerLoc(get_expression_loc(key).start)
-		} else {
-			acc_key_loc = LexerLoc(fn_start.start)
-		}
-		enforce_accessor_param_shape(p, is_setter, params[:], acc_key_loc)
-
-		fn, fn_e := new_expr(p, FunctionExpression)
-		fn.loc = fn_start
-		fn.params = params
-		fn.body = body
-		fn.generator = is_generator
-		fn.async = is_async
-		fn.return_type = accessor_return_type
-		fn.loc.end = prev_end_offset(p)
-		value = fn_e
 	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_open_angle_or_lshift(p)) {
-		// Method shorthand: foo() {}
-		// TS extension - generic method shorthand: foo<T>(a: T) { ... }
-		// Mirrors the same dance parse_class_element does at the
-		// `method_type_parameters` block.		// rejects in the "Expected }, got <" cluster (typescript
-		// fixtures like assignEveryTypeToAny.ts and
-		// optionalParameterRetainsNull.ts that use
-		// `{ f<T>(x: T) { return x; } }` shape).
 		kind = .Method
-		// Capture location of ( (or `<`) for the FunctionExpression.
-		fn_start := cur_loc(p)
-		method_type_parameters: Maybe(^TSTypeParameterDeclaration)
-		if allow_ts_mode(p) && is_open_angle_or_lshift(p) {
-			method_type_parameters = parse_ts_type_parameters(p)
-		}
-		if !expect_token(p, .LParen) {
+		value = parse_object_method_value(p, is_generator, is_async, start)
+		if value == nil {
 			return nil
 		}
-		// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
-		// §15.8.1 / §15.6.1 - await-in-params guard for async methods
-		// (including async generator method shorthand `async *m() {}`).
-		prev_gp_obj_meth := p.ctx.in_generator_params
-		prev_ap_obj_meth := p.ctx.in_async_params
-		// Static-block context does not extend into method parameters.
-		prev_sb_obj_meth := p.ctx.in_static_block
-		p.ctx.in_static_block = false
-		p.ctx.in_generator_params = is_generator
-		p.ctx.in_async_params = is_async
-		// `super.x` in a default param of an object-literal method shorthand
-		// is legal (param scope inherits [[HomeObject]]). Same async / gen
-		// context the body runs under has to apply to the params too -
-		// `await` and `yield` in default-param positions are gated by
-		// in_async_params / in_generator_params (already set above).
-		prev_in_generator := p.ctx.in_generator
-		prev_in_async := p.ctx.in_async
-		prev_in_method := p.ctx.in_method
-		prev_in_derived_ctor := p.ctx.in_derived_constructor
-		p.ctx.in_generator = is_generator
-		p.ctx.in_async = is_async
-		// Object-literal method shorthand - [[HomeObject]] is the object
-		// literal. `super.x` is legal inside. Object methods are not
-		// constructors, so `super(...)` is not legal.
-		p.ctx.in_method = true
-		p.ctx.in_derived_constructor = false
-		params := parse_function_params(p)
-		p.ctx.in_generator_params = prev_gp_obj_meth
-		p.ctx.in_async_params = prev_ap_obj_meth
-		p.ctx.in_static_block = prev_sb_obj_meth
-		// Method shorthand always uses UniqueFormalParameters (§14.3.1).
-		parser_check_dup_params(p, params[:], start.start, true, false)
-		if !expect_token(p, .RParen) {
-			return nil
-		}
-		// TS return-type annotation on plain method shorthand:
-		//   const o = { method(): void { ... }, async return(v: R): Promise<...> {} }
-		// Mirrors the same hook on the getter/setter branch a few lines
-		// above. Without this the `:` after `)` was parsed as the start of
-		// a property-key shape, ending the property and tripping `Expected
-		// {`. Closes ~22 OXC corpus rejects in the "Expected {, got :"
-		// cluster.
-		method_return_type: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) && allow_ts_mode(p) {
-			method_return_type = parse_ts_return_type_annotation(p)
-		}
-		body := parse_function_body(p)
-		body_strict := p.last_body_strict
-		p.ctx.in_generator = prev_in_generator
-		p.ctx.in_async = prev_in_async
-		p.ctx.in_method = prev_in_method
-		p.ctx.in_derived_constructor = prev_in_derived_ctor
-
-		// Object-literal methods run under UniqueFormalParameters rules.
-
-		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
-		// !IsSimpleParameterList for object-literal methods.
-		if body_strict && !params_are_simple(params[:]) {
-			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(fn_start.start), u32(fn_start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
-		}
-		// §13.1.1 — retroactive strict-mode param check (see the same
-		// hook on parse_function_declaration above). Object-literal
-		// method shorthand inherits the outer scope's strict_mode — it
-		// does not implicitly become strict like class methods do.
-		if body_strict && !p.ctx.strict_mode {
-			report_strict_param_pattern_retro(p, params[:])
-		}
-
-		// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
-  if !p.ast_only {
-		check_params_vs_body_lex(p, params[:], body.body[:])
-  }
-
-		fn, fn_e := new_expr(p, FunctionExpression)
-		fn.loc = fn_start
-		fn.params = params
-		fn.body = body
-		fn.generator = is_generator
-		fn.async = is_async
-		fn.type_parameters = method_type_parameters
-		fn.return_type = method_return_type
-		fn.loc.end = prev_end_offset(p)
-		value = fn_e
 	} else if match_token(p, .Colon) {
 		// Regular property with value. `async a: v` / `*a: v` are not valid
 		// data properties; `async` and `*` only modify method definitions.

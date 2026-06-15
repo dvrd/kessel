@@ -4305,56 +4305,33 @@ parse_class_field_initializer :: proc(p: ^Parser, is_declare, is_readonly, is_ab
 	return init_expr
 }
 
-parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
-	decorators := parse_decorators(p)
-	start := cur_loc(p)
-	if len(decorators) > 0 { start.start = decorators[0].loc.start }
+// ClassElementName carries the result of parsing a class member's key:
+// the key expression, the (possibly constructor-promoted) element kind, and
+// whether the key was computed. drop=true means the element should be swallowed
+// without materialising a node (a TS class index signature or a malformed
+// computed key) — the caller returns nil.
+ClassElementName :: struct {
+	key:      ^Expression,
+	kind:     ClassElementKind,
+	computed: bool,
+	drop:     bool,
+}
 
-	// Check for static block: static { ... }
-	if is_token(p, .Static) && is_next_token(p, .LBrace) {
-		if len(decorators) > 0 {
-			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
-		}
-		elem := parse_static_block(p, start)
-		if elem != nil { elem.decorators = decorators }
-		return elem
-	}
-
-	mods := parse_class_member_modifiers(p)
-	static_       := mods.static_
-	is_abstract   := mods.is_abstract
-	accessibility := mods.accessibility
-	access_name   := mods.access_name
-	is_readonly   := mods.is_readonly
-	is_override   := mods.is_override
-	is_declare    := mods.is_declare
-
-	kind := ClassElementKind.Method
-	is_async := false
-	is_generator := false
-	computed := false
+// parse_class_element_name parses a class member's key — the private / string /
+// numeric / bigint / identifier / computed-key dispatch — promoting `kind` to
+// .Constructor where the name warrants it and enforcing the §15.7.6 constructor
+// shape rules that are visible while the original modifiers and literal name are
+// still in hand. Control flow (the field/method split) stays in the caller.
+parse_class_element_name :: proc(
+	p: ^Parser,
+	kind_in: ClassElementKind,
+	static_, is_async, is_generator: bool,
+	accessibility: ClassAccessibility,
+	access_name: string,
+) -> ClassElementName {
+	kind := kind_in
 	is_private := false
-	is_accessor := false
-
-	// Contextual modifier keywords (`accessor`, `async`, `get` / `set`).
-	// Each helper decides whether the keyword acts as a modifier here (vs.
-	// being a plain member name) and consumes it when it does. Control flow
-	// stays in this parent: the helpers only report their decision.
-	is_accessor = parse_class_accessor_keyword(p)
-	if !is_accessor && parse_class_async_keyword(p) {
-		is_async = true
-	}
-	if k, ok := parse_class_get_set_keyword(p, is_async); ok {
-		kind = k
-	}
-
-	// Check for generator method: *name()
-	if !is_generator && is_token(p, .Mul) {
-		is_generator = true
-		eat(p) // consume *
-	}
-
-	// Parse method/property name
+	computed := false
 	key: ^Expression
 	if is_token(p, .PrivateIdentifier) {
 		// Private field or method: #field, #method
@@ -4476,7 +4453,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		// erroring - mirrors the existing pattern for elements that the parser
 		// intentionally drops (TS overload signatures don't materialize either).
 		if try_consume_ts_class_index_signature(p, accessibility, access_name) {
-			return nil
+			return ClassElementName{drop = true}
 		}
 		// Computed property: [expr]
 		computed = true
@@ -4495,12 +4472,71 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			}
 		}
 		if !expect_token(p, .RBracket) {
-			return nil
+			return ClassElementName{drop = true}
 		}
 	} else {
 		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method or property name")
+		return ClassElementName{drop = true}
+	}
+	return ClassElementName{key = key, kind = kind, computed = computed}
+}
+
+parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
+	decorators := parse_decorators(p)
+	start := cur_loc(p)
+	if len(decorators) > 0 { start.start = decorators[0].loc.start }
+
+	// Check for static block: static { ... }
+	if is_token(p, .Static) && is_next_token(p, .LBrace) {
+		if len(decorators) > 0 {
+			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
+		}
+		elem := parse_static_block(p, start)
+		if elem != nil { elem.decorators = decorators }
+		return elem
+	}
+
+	mods := parse_class_member_modifiers(p)
+	static_       := mods.static_
+	is_abstract   := mods.is_abstract
+	accessibility := mods.accessibility
+	access_name   := mods.access_name
+	is_readonly   := mods.is_readonly
+	is_override   := mods.is_override
+	is_declare    := mods.is_declare
+
+	kind := ClassElementKind.Method
+	is_async := false
+	is_generator := false
+	computed := false
+	is_accessor := false
+
+	// Contextual modifier keywords (`accessor`, `async`, `get` / `set`).
+	// Each helper decides whether the keyword acts as a modifier here (vs.
+	// being a plain member name) and consumes it when it does. Control flow
+	// stays in this parent: the helpers only report their decision.
+	is_accessor = parse_class_accessor_keyword(p)
+	if !is_accessor && parse_class_async_keyword(p) {
+		is_async = true
+	}
+	if k, ok := parse_class_get_set_keyword(p, is_async); ok {
+		kind = k
+	}
+
+	// Check for generator method: *name()
+	if !is_generator && is_token(p, .Mul) {
+		is_generator = true
+		eat(p) // consume *
+	}
+
+	// Parse method/property name (private / literal / identifier / computed).
+	name_res := parse_class_element_name(p, kind, static_, is_async, is_generator, accessibility, access_name)
+	if name_res.drop {
 		return nil
 	}
+	key := name_res.key
+	kind = name_res.kind
+	computed = name_res.computed
 
 	// (The generator `*` is parsed BEFORE the name above, around line
 	// 4354. There's no `name *` form in JS / TS - a stray `*` here
