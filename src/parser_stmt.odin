@@ -4600,6 +4600,84 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	return elem
 }
 
+// §15.4 / TS — shape rules for a class method after its signature is
+// parsed: type parameters, return type, and `declare` placement. The
+// constructor block is unguarded because its inputs (type parameters /
+// return type / `declare`) are only ever populated in TS mode; the
+// accessor block is TS-only.
+check_ts_method_modifiers :: proc(
+	p: ^Parser,
+	kind: ClassElementKind,
+	is_declare: bool,
+	method_type_parameters: Maybe(^TSTypeParameterDeclaration),
+	method_return_type: Maybe(^TSTypeAnnotation),
+) {
+	if kind == .Constructor {
+		if method_type_parameters != nil {
+			report_error_coded(p, .K4020_ConstructorTSModifier, "Type parameters cannot appear on a constructor declaration")
+		}
+		if _, has_return_type := method_return_type.?; has_return_type {
+			report_error_coded(p, .K4020_ConstructorTSModifier, "Type annotation cannot appear on a constructor declaration")
+		}
+		if is_declare {
+			report_error_coded(p, .K4020_ConstructorTSModifier, "'declare' modifier cannot appear on a constructor declaration")
+		}
+	}
+	// TS: getters cannot have type parameters. Setters cannot have type
+	// parameters or a return type annotation.
+	if allow_ts_mode(p) {
+		if kind == .Get && method_type_parameters != nil {
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'get' accessor cannot have type parameters")
+		}
+		if kind == .Set {
+			if method_type_parameters != nil {
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'set' accessor cannot have type parameters")
+			}
+			if _, has_return_type := method_return_type.?; has_return_type {
+				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'set' accessor cannot have a return type annotation")
+			}
+		}
+	}
+	if is_declare && (kind == .Get || kind == .Set || kind == .Method) {
+		report_error_coded(p, .K4032_ModifierMisplaced, "'declare' modifier cannot be used here")
+	}
+}
+
+// TS — a class method's parameter list may carry parameter-property
+// modifiers (`public` / `private` / `readonly` / ...) only on the
+// implementation constructor, and only on a plain identifier binding.
+check_param_property_modifiers :: proc(p: ^Parser, kind: ClassElementKind, params: []FunctionParameter) {
+	for param in params {
+		has_modifier := param.accessibility != .None || param.readonly || param.override_
+		if has_modifier {
+			if kind != .Constructor {
+				report_error_coded(p, .K4022_ParameterPropertyOnlyInCtor, "Parameter property modifiers are only allowed in constructors")
+			} else {
+				if _, is_ident := param.pattern.(^Identifier); !is_ident {
+					report_error_coded(p, .K3043_DestructuringInvalid, "A parameter property may not be declared using a binding pattern")
+				}
+			}
+		}
+	}
+}
+
+// TS2371 — a method with no implementation body (overload signature or
+// ambient method) may not carry parameter initializers or
+// parameter-property modifiers.
+check_no_body_param_properties :: proc(p: ^Parser, params: []FunctionParameter) {
+	for pr in params {
+		if _, has := pr.default_val.(^Expression); has {
+			report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "A parameter initializer is only allowed in a function or constructor implementation")
+		}
+		if pr.accessibility != .None {
+			report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "Parameter properties are only allowed in the implementation constructor")
+		}
+		if pr.readonly {
+			report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'readonly' parameter properties are only allowed in the implementation constructor")
+		}
+	}
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4785,18 +4863,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	params := parse_function_params(p)
 	p.ctx.in_derived_constructor = prev_ctor_params_derived
 	if allow_ts_mode(p) {
-		for param in params {
-			has_modifier := param.accessibility != .None || param.readonly || param.override_
-			if has_modifier {
-				if kind != .Constructor {
-					report_error_coded(p, .K4022_ParameterPropertyOnlyInCtor, "Parameter property modifiers are only allowed in constructors")
-				} else {
-					if _, is_ident := param.pattern.(^Identifier); !is_ident {
-						report_error_coded(p, .K3043_DestructuringInvalid, "A parameter property may not be declared using a binding pattern")
-					}
-				}
-			}
-		}
+		check_param_property_modifiers(p, kind, params[:])
 	}
 	p.ctx.in_method = prev_method_in_method
 	p.ctx.strict_mode = prev_strict_params
@@ -4827,35 +4894,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	if is_token(p, .Colon) && allow_ts_mode(p) {
 		method_return_type = parse_ts_return_type_annotation(p)
 	}
-	if kind == .Constructor {
-		if method_type_parameters != nil {
-			report_error_coded(p, .K4020_ConstructorTSModifier, "Type parameters cannot appear on a constructor declaration")
-		}
-		if _, has_return_type := method_return_type.?; has_return_type {
-			report_error_coded(p, .K4020_ConstructorTSModifier, "Type annotation cannot appear on a constructor declaration")
-		}
-		if is_declare {
-			report_error_coded(p, .K4020_ConstructorTSModifier, "'declare' modifier cannot appear on a constructor declaration")
-		}
-	}
-	// TS: getters cannot have type parameters. Setters cannot have type
-	// parameters or a return type annotation.
-	if allow_ts_mode(p) {
-		if kind == .Get && method_type_parameters != nil {
-			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'get' accessor cannot have type parameters")
-		}
-		if kind == .Set {
-			if method_type_parameters != nil {
-				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'set' accessor cannot have type parameters")
-			}
-			if _, has_return_type := method_return_type.?; has_return_type {
-				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A 'set' accessor cannot have a return type annotation")
-			}
-		}
-	}
-	if is_declare && (kind == .Get || kind == .Set || kind == .Method) {
-		report_error_coded(p, .K4032_ModifierMisplaced, "'declare' modifier cannot be used here")
-	}
+	check_ts_method_modifiers(p, kind, is_declare, method_type_parameters, method_return_type)
 
 	// For abstract methods and for TS overload signatures there's no body
 	// - just a semicolon. Overload signature (TS-A10):
@@ -4992,17 +5031,7 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 
 	// TS2371 / parameter property checks for overload / ambient methods.
 	if fn_expr.no_body && allow_ts_mode(p) {
-		for pr in params {
-			if _, has := pr.default_val.(^Expression); has {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "A parameter initializer is only allowed in a function or constructor implementation")
-			}
-			if pr.accessibility != .None {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "Parameter properties are only allowed in the implementation constructor")
-			}
-			if pr.readonly {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'readonly' parameter properties are only allowed in the implementation constructor")
-			}
-		}
+		check_no_body_param_properties(p, params[:])
 	}
 	fn_expr.loc.end = prev_end_offset(p)
 
