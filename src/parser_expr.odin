@@ -527,116 +527,132 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	return left
 }
 
+// parse_unary_prefix_op parses a §13.5 prefix UnaryExpression
+// (`+` / `-` / `~` / `!` / `typeof` / `void` / `delete` <UnaryExpression>).
+// Lifted out of parse_unary_expr's dispatch switch as pure code motion: the
+// operator token is still current on entry, and the helper always returns.
+parse_unary_prefix_op :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	eat(p)
+	argument := parse_unary_expr(p)
+	if argument == nil {
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after unary operator")
+		return nil
+	}
+	// §13.5 UnaryExpression : <op> UnaryExpression. YieldExpression
+	// is at AssignmentExpression precedence - the spec disallows it as
+	// the operand of a unary operator. Catches `void yield`, `!yield`,
+	// `typeof yield`, `delete yield`, `+yield`, `-yield`, `~yield` in a
+	// generator body. (`yield` outside a generator is an Identifier,
+	// which IS a valid UnaryExpression operand, so the check is fine.)
+	// A parenthesised `(yield)` promotes the expression to primary-
+	// expression level; with --preserve-parens off the wrapper is
+	// stripped, so we detect the paren by scanning backwards from
+	// the yield's span start, mirroring the binary-op checks above.
+	// (Test262 / OXC parity: `void (yield)` inside a generator is
+	// legal; only the bare-yield form is rejected.)
+	if y, is_yield := argument.(^YieldExpression); is_yield {
+		yield_start := int(y.loc.start)
+		paren_wrapped := is_paren_wrapped_at(p, yield_start)
+		if !paren_wrapped {
+			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+				"'yield' expression cannot be the operand of a unary operator")
+		}
+	}
+	if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
+		paren_wrapped := is_paren_wrapped_at(p, int(loc_from_expr(argument).start))
+		if !paren_wrapped {
+			report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
+		}
+	}
+	unary, unary_e := new_expr(p, UnaryExpression)
+	unary.loc = loc_from_token(&current)
+	unary.operator = token_to_unary_op(current.type)
+	unary.argument = argument
+	unary.prefix = true
+	unary.loc.end = prev_end_offset(p)
+	// §13.5.1.1 — `delete o.#priv` is a SyntaxError. PrivateNames
+	// have no observable [[Configurable]] state and the spec rejects
+	// the form outright. Promoted from the semantic checker
+	// (ck_check_unary_delete_private) so parser-only snaps reject the
+	// class/elements/syntax/early-errors/delete cluster.
+	if unary.operator == .Delete {
+		// Check both direct MemberExpression and ChainExpression-wrapped MemberExpression.
+		delete_arg := unary.argument
+		if chain, is_chain := delete_arg.(^ChainExpression); is_chain && chain != nil {
+			delete_arg = chain.expression
+		}
+		if me, is_member := delete_arg.(^MemberExpression); is_member && me != nil && me.property != nil {
+			if _, is_private := me.property^.(^PrivateIdentifier); is_private {
+				report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(unary.loc.start), u32(unary.loc.start), "Private fields cannot be deleted")
+			}
+		}
+		// §13.5.1.1 — in strict mode, `delete IdentifierReference`
+		// is a SyntaxError (the bare identifier cannot reference a
+		// configurable property). The argument must be a plain Identifier
+		// at this point; --preserve-parens off strips the paren wrapper
+		// so `delete (x)` and `delete x` both reach here.
+		if p.ctx.strict_mode {
+			if _, is_id := unary.argument.(^Identifier); is_id {
+				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(unary.loc.start), u32(unary.loc.start), "Deleting an unqualified identifier is not allowed in strict mode")
+			}
+		}
+	}
+	return unary_e
+}
+
+// parse_unary_prefix_update parses a §13.4 prefix UpdateExpression
+// (`++` / `--` <UnaryExpression>). Lifted out of parse_unary_expr's dispatch
+// switch as pure code motion: the operator token is still current on entry,
+// and the helper always returns.
+parse_unary_prefix_update :: proc(p: ^Parser) -> ^Expression {
+	current := snap_current(p)
+	eat(p)
+	argument := parse_unary_expr(p)
+	if argument == nil {
+		// ECMA-262 §12.4.1 - prefix UpdateExpression requires a
+		// UnaryExpression operand. `++;` / `--;` (no operand) and
+		// `x\n++;` / `x\n--;` (line terminator splits postfix into
+		// `x;` + bare `++;`) must be rejected. Test262 fixtures:
+		//   language/asi/S7.9_A5.1_T1.js               // x \n ++;
+		//   language/asi/S7.9_A5.3_T1.js               // x \n --;
+		//   language/expressions/postfix-increment/    // (4 tests)
+		//   language/expressions/postfix-decrement/    // (4 tests)
+		op := "++" if current.type == .PlusPlus else "--"
+		msg := fmt.tprintf("Unexpected token after prefix '%s'", op)
+		report_error_coded(p, .K2040_UnexpectedToken, msg)
+		return nil
+	}
+	update, update_e := new_expr(p, UpdateExpression)
+	update.loc = loc_from_token(&current)
+	update.operator = .Increment if current.type == .PlusPlus else .Decrement
+	update.argument = argument
+	update.prefix = true
+	update.loc.end = prev_end_offset(p)
+	if !is_simple_assignment_target(argument, !p.ctx.strict_mode) {
+		report_error_coded(p, .K2050_InvalidLHS, "Invalid left-hand side expression in prefix operation")
+	}
+	// §13.4.4 — in strict mode `++` / `--` may not target an
+	// IdentifierReference whose name is `eval` or `arguments`.
+	// Promoted from the semantic checker
+	// (ck_check_strict_update_eval_arguments).
+	if p.ctx.strict_mode {
+		if id, is_id := argument.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
+			msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
+			report_error_coded_span(p, .K3051_StrictModeProhibited, u32(id.loc.start), u32(id.loc.start), msg)
+		}
+	}
+	return update_e
+}
+
 // Merged unary + update + left-hand-side to reduce call depth (5→3 frames)
 parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 	#partial switch p.cur_type {
 	case .Plus, .Minus, .BitNot, .Not, .Typeof, .Void, .Delete:
-		current := snap_current(p)
-		eat(p)
-		argument := parse_unary_expr(p)
-		if argument == nil {
-			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after unary operator")
-			return nil
-		}
-		// §13.5 UnaryExpression : <op> UnaryExpression. YieldExpression
-		// is at AssignmentExpression precedence - the spec disallows it as
-		// the operand of a unary operator. Catches `void yield`, `!yield`,
-		// `typeof yield`, `delete yield`, `+yield`, `-yield`, `~yield` in a
-		// generator body. (`yield` outside a generator is an Identifier,
-		// which IS a valid UnaryExpression operand, so the check is fine.)
-		// A parenthesised `(yield)` promotes the expression to primary-
-		// expression level; with --preserve-parens off the wrapper is
-		// stripped, so we detect the paren by scanning backwards from
-		// the yield's span start, mirroring the binary-op checks above.
-		// (Test262 / OXC parity: `void (yield)` inside a generator is
-		// legal; only the bare-yield form is rejected.)
-		if y, is_yield := argument.(^YieldExpression); is_yield {
-			yield_start := int(y.loc.start)
-			paren_wrapped := is_paren_wrapped_at(p, yield_start)
-			if !paren_wrapped {
-				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
-					"'yield' expression cannot be the operand of a unary operator")
-			}
-		}
-		if _, is_arrow := argument.(^ArrowFunctionExpression); is_arrow {
-			paren_wrapped := is_paren_wrapped_at(p, int(loc_from_expr(argument).start))
-			if !paren_wrapped {
-				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Arrow function cannot be used as an unparenthesized operand")
-			}
-		}
-		unary, unary_e := new_expr(p, UnaryExpression)
-		unary.loc = loc_from_token(&current)
-		unary.operator = token_to_unary_op(current.type)
-		unary.argument = argument
-		unary.prefix = true
-		unary.loc.end = prev_end_offset(p)
-		// §13.5.1.1 — `delete o.#priv` is a SyntaxError. PrivateNames
-		// have no observable [[Configurable]] state and the spec rejects
-		// the form outright. Promoted from the semantic checker
-		// (ck_check_unary_delete_private) so parser-only snaps reject the
-		// class/elements/syntax/early-errors/delete cluster.
-		if unary.operator == .Delete {
-			// Check both direct MemberExpression and ChainExpression-wrapped MemberExpression.
-			delete_arg := unary.argument
-			if chain, is_chain := delete_arg.(^ChainExpression); is_chain && chain != nil {
-				delete_arg = chain.expression
-			}
-			if me, is_member := delete_arg.(^MemberExpression); is_member && me != nil && me.property != nil {
-				if _, is_private := me.property^.(^PrivateIdentifier); is_private {
-					report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(unary.loc.start), u32(unary.loc.start), "Private fields cannot be deleted")
-				}
-			}
-			// §13.5.1.1 — in strict mode, `delete IdentifierReference`
-			// is a SyntaxError (the bare identifier cannot reference a
-			// configurable property). The argument must be a plain Identifier
-			// at this point; --preserve-parens off strips the paren wrapper
-			// so `delete (x)` and `delete x` both reach here.
-			if p.ctx.strict_mode {
-				if _, is_id := unary.argument.(^Identifier); is_id {
-					report_error_coded_span(p, .K3051_StrictModeProhibited, u32(unary.loc.start), u32(unary.loc.start), "Deleting an unqualified identifier is not allowed in strict mode")
-				}
-			}
-		}
-		return unary_e
+		return parse_unary_prefix_op(p)
 
 	case .PlusPlus, .MinusMinus:
-		current := snap_current(p)
-		eat(p)
-		argument := parse_unary_expr(p)
-		if argument == nil {
-			// ECMA-262 §12.4.1 - prefix UpdateExpression requires a
-			// UnaryExpression operand. `++;` / `--;` (no operand) and
-			// `x\n++;` / `x\n--;` (line terminator splits postfix into
-			// `x;` + bare `++;`) must be rejected. Test262 fixtures:
-			//   language/asi/S7.9_A5.1_T1.js               // x \n ++;
-			//   language/asi/S7.9_A5.3_T1.js               // x \n --;
-			//   language/expressions/postfix-increment/    // (4 tests)
-			//   language/expressions/postfix-decrement/    // (4 tests)
-			op := "++" if current.type == .PlusPlus else "--"
-			msg := fmt.tprintf("Unexpected token after prefix '%s'", op)
-			report_error_coded(p, .K2040_UnexpectedToken, msg)
-			return nil
-		}
-		update, update_e := new_expr(p, UpdateExpression)
-		update.loc = loc_from_token(&current)
-		update.operator = .Increment if current.type == .PlusPlus else .Decrement
-		update.argument = argument
-		update.prefix = true
-		update.loc.end = prev_end_offset(p)
-		if !is_simple_assignment_target(argument, !p.ctx.strict_mode) {
-			report_error_coded(p, .K2050_InvalidLHS, "Invalid left-hand side expression in prefix operation")
-		}
-		// §13.4.4 — in strict mode `++` / `--` may not target an
-		// IdentifierReference whose name is `eval` or `arguments`.
-		// Promoted from the semantic checker
-		// (ck_check_strict_update_eval_arguments).
-		if p.ctx.strict_mode {
-			if id, is_id := argument.(^Identifier); is_id && id != nil && is_eval_or_arguments(id.name) {
-				msg := fmt.tprintf("Update of '%s' is not allowed in strict mode", id.name)
-				report_error_coded_span(p, .K3051_StrictModeProhibited, u32(id.loc.start), u32(id.loc.start), msg)
-			}
-		}
-		return update_e
+		return parse_unary_prefix_update(p)
 
 	case .Await:
 		// ECMA-262 §15.8 - `await` is only valid as an AwaitExpression
