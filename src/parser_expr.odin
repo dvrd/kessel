@@ -4515,6 +4515,83 @@ arrow_seq_element_to_param :: proc(p: ^Parser, expr_ptr: ^Expression, param_inde
 	}
 }
 
+// parse_arrow_function_body parses an arrow function's body — either a
+// `{ ... }` block FunctionBody or a concise expression body — and reports
+// whether the block form was used (drives ArrowFunctionExpression.expression).
+// The async / generator / static-block context must already be configured by
+// the caller (parse_arrow_function). Extracted as pure code motion to keep
+// parse_arrow_function within the per-function line budget.
+parse_arrow_function_body :: proc(p: ^Parser) -> (body: ArrowFunctionBody, is_block_body: bool) {
+	// Capture block-vs-expression BEFORE consuming either: afterwards the
+	// current token is no longer the '{' and the ESTree `expression` flag
+	// would otherwise always read false.
+	is_block_body = is_token(p, .LBrace)
+	if is_block_body {
+		// Block body - need to set in_function for return statement validation
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
+		// break/continue/labels don't cross arrow function boundaries.
+		prev_in_loop_arrow := p.ctx.in_loop
+		prev_in_switch_arrow := p.ctx.in_switch
+		prev_label_floor_arrow := p.ctx.label_floor
+		p.ctx.in_loop = false
+		p.ctx.in_switch = false
+		p.ctx.label_floor = len(p.label_stack)
+		// §15.3.1: arrow block body is a function-scope.
+		p.scope_fn_scope_next_block = true
+		block_stmt := parse_block_statement(p)
+		// Arrow block bodies support "use strict" directive prologues.
+		// Retroactively check for forbidden escapes in prologue strings.
+		if block_stmt != nil {
+			if bs, ok := block_stmt^.(^BlockStatement); ok && bs != nil {
+				check_arrow_body_strict_prologue(p, bs.body[:])
+			}
+		}
+		p.ctx.in_function = prev_in_function
+		p.ctx.in_loop = prev_in_loop_arrow
+		p.ctx.in_switch = prev_in_switch_arrow
+		resize(&p.label_stack, p.ctx.label_floor)
+		p.ctx.label_floor = prev_label_floor_arrow
+		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
+		if block_stmt != nil {
+			// parse_block_statement returns ^Statement wrapping ^BlockStatement.
+			// `cast(^BlockStatement)^Statement` here is the same UB class as Bug H:
+			// the Statement union's 16-byte header was being read as the start of
+			// BlockStatement's fields, so `body.body` iteration yielded garbage
+			// pointers (e.g. 0x14). Crash symptom: SIGSEGV in
+			// `get_statement_type_name` when emitting class methods that contain
+			// arrow functions with block bodies (tone.js and 11 others).
+			// Fix: extract the inner ^BlockStatement via union type assertion.
+			if bs, ok := block_stmt^.(^BlockStatement); ok {
+				body = bs
+			}
+		}
+	} else {
+		#partial switch p.cur_type {
+		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
+			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
+		}
+		// Expression body - also set in_function so nested `await` / `yield`
+		// / `return` within the expression are recognised as being inside
+		// this arrow, not at module top level. Previously only the block-body
+		// branch above did this, so `async () => expr_with_await` marked the
+		// file as a Module (via the top-level-await detector in
+		// parse_unary_expr `.Await`) even though the `await` was properly
+		// scoped to the async arrow.
+		prev_in_function := p.ctx.in_function
+		p.ctx.in_function = true
+		body = parse_assignment_expression(p)
+		p.ctx.in_function = prev_in_function
+		// TS arrow-in-conditional: when the concise body is a parenthesised
+		// expression inside a ternary consequent and `:` follows, the `:`
+		// might be a return-type annotation (not the ternary colon).
+		// Pattern: `cond ? v => (params) : RetType => body : alt`.
+		// Speculatively try `(params) : Type => body` as a nested arrow.
+		body = arrow_try_conditional_return_type(p, body)
+	}
+	return
+}
+
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
 
 	// §15.3.1 — ArrowParameters Contains check. The cover expression
@@ -4585,75 +4662,9 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	prev_static_block_arrow := p.ctx.in_static_block
 	p.ctx.in_static_block = false
 	defer p.ctx.in_static_block = prev_static_block_arrow
-	// Parse body. Capture block-vs-expression BEFORE consuming either,
-	// because after parse_block_statement / parse_assignment_expression
-	// the current token is no longer the '{' and the ESTree `expression`
-	// flag would otherwise always read false.
-	is_block_body := is_token(p, .LBrace)
-	body: ArrowFunctionBody
-	if is_block_body {
-		// Block body - need to set in_function for return statement validation
-		prev_in_function := p.ctx.in_function
-		p.ctx.in_function = true
-		// break/continue/labels don't cross arrow function boundaries.
-		prev_in_loop_arrow := p.ctx.in_loop
-		prev_in_switch_arrow := p.ctx.in_switch
-		prev_label_floor_arrow := p.ctx.label_floor
-		p.ctx.in_loop = false
-		p.ctx.in_switch = false
-		p.ctx.label_floor = len(p.label_stack)
-		// §15.3.1: arrow block body is a function-scope.
-		p.scope_fn_scope_next_block = true
-		block_stmt := parse_block_statement(p)
-		// Arrow block bodies support "use strict" directive prologues.
-		// Retroactively check for forbidden escapes in prologue strings.
-		if block_stmt != nil {
-			if bs, ok := block_stmt^.(^BlockStatement); ok && bs != nil {
-				check_arrow_body_strict_prologue(p, bs.body[:])
-			}
-		}
-		p.ctx.in_function = prev_in_function
-		p.ctx.in_loop = prev_in_loop_arrow
-		p.ctx.in_switch = prev_in_switch_arrow
-		resize(&p.label_stack, p.ctx.label_floor)
-		p.ctx.label_floor = prev_label_floor_arrow
-		// §15.3.1: arrow `{ FunctionBody }` is a function-scope, not a block-scope.
-		if block_stmt != nil {
-			// parse_block_statement returns ^Statement wrapping ^BlockStatement.
-			// `cast(^BlockStatement)^Statement` here is the same UB class as Bug H:
-			// the Statement union's 16-byte header was being read as the start of
-			// BlockStatement's fields, so `body.body` iteration yielded garbage
-			// pointers (e.g. 0x14). Crash symptom: SIGSEGV in
-			// `get_statement_type_name` when emitting class methods that contain
-			// arrow functions with block bodies (tone.js and 11 others).
-			// Fix: extract the inner ^BlockStatement via union type assertion.
-			if bs, ok := block_stmt^.(^BlockStatement); ok {
-				body = bs
-			}
-		}
-	} else {
-		#partial switch p.cur_type {
-		case .Semi, .Comma, .RParen, .RBracket, .RBrace, .EOF:
-			report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
-		}
-		// Expression body - also set in_function so nested `await` / `yield`
-		// / `return` within the expression are recognised as being inside
-		// this arrow, not at module top level. Previously only the block-body
-		// branch above did this, so `async () => expr_with_await` marked the
-		// file as a Module (via the top-level-await detector in
-		// parse_unary_expr `.Await`) even though the `await` was properly
-		// scoped to the async arrow.
-		prev_in_function := p.ctx.in_function
-		p.ctx.in_function = true
-		body = parse_assignment_expression(p)
-		p.ctx.in_function = prev_in_function
-		// TS arrow-in-conditional: when the concise body is a parenthesised
-		// expression inside a ternary consequent and `:` follows, the `:`
-		// might be a return-type annotation (not the ternary colon).
-		// Pattern: `cond ? v => (params) : RetType => body : alt`.
-		// Speculatively try `(params) : Type => body` as a nested arrow.
-		body = arrow_try_conditional_return_type(p, body)
-	}
+	// Parse the body (block or concise-expression form) under the context
+	// configured above.
+	body, is_block_body := parse_arrow_function_body(p)
 
 	p.ctx.in_async = prev_async
 	p.ctx.in_generator = prev_in_generator
