@@ -877,6 +877,71 @@ parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	return parse_ts_postfix(p, r, start)
 }
 
+// Extracted from parse_ts_primary_type (.Typeof case): parses a TS
+// type-query `typeof X` / `typeof X.Y.Z` / `typeof X<TArgs>` and the
+// `typeof import("...")` form. `start` is the `typeof` keyword Loc.
+parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS type-query: `typeof X` / `typeof X.Y.Z` / `typeof X<TArgs>`
+	// (the type-arguments form is TS 4.7+, used to instantiate generic
+	// type-of references). Must use a dedicated typeof-qualifier
+	// parser rather than parse_left_hand_side_expr, which would read
+	// `<` as JS less-than, breaking files like
+	//   var v: typeof A<B>;
+	// (parserTypeQuery8.ts) and the babel
+	//   typescript/types/typeof-type-parameters/input.ts
+	// fixture. Parse a dotted Identifier chain ourselves and
+	// optionally consume a TS type-arguments list after.
+	eat(p) // consume `typeof`
+	tq_expr: ^Expression
+	// `typeof import("...")` form must short-circuit BEFORE the
+	// identifier / property-name fall-through, because `.Import` is
+	// also in is_keyword_usable_as_property_name's whitelist (so an
+	// `obj.import` member access works in expression position).
+	if is_token(p, .Import) {
+		imp_ts := parse_ts_primary_type(p)
+		if imp_ts != nil {
+			#partial switch v in imp_ts^ {
+			case ^TSImportType:
+				if v != nil { v.is_typeof = true }
+			}
+		}
+		return imp_ts
+	}
+	// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
+	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||
+	   is_token(p, .Await) || is_token(p, .Yield) {
+		tq_cur := snap_current(p)
+		tq_id, tq_id_e := new_expr(p, Identifier); tq_id.loc = loc_from_token(&tq_cur); tq_id.name = tq_cur.value
+		eat(p)
+		tq_expr = tq_id_e
+		for is_token(p, .Dot) {
+			eat(p)
+			// `typeof A.` (trailing dot without property) is a
+			// SyntaxError. Check that an identifier follows.
+			if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
+				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected property name after '.'")
+				break
+			}
+			tq_prop := parse_identifier_name(p)
+			tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
+			tq_pid, tq_pid_e := new_expr(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
+			tq_mem.property = tq_pid_e; tq_mem.computed = false; tq_mem.optional = false
+			tq_mem.loc.end = prev_end_offset(p)
+			tq_expr = tq_mem_e
+		}
+	} else {
+		// Fallback - keep the legacy expression-style parse so any
+		// shape we don't handle here still produces a node.
+		tq_expr = parse_left_hand_side_expr(p)
+	}
+	node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = tq_expr
+	if is_open_angle_or_lshift(p) {
+		node.type_parameters = parse_ts_type_arguments(p)
+	}
+	node.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = node; return parse_ts_postfix(p, r, start)
+}
+
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 	start := cur_loc(p)
 	// `abstract new(...) => T` - TS abstract constructor type. `abstract`
@@ -1031,65 +1096,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		r := new_node(p, TSType); r^ = ref
 		return parse_ts_postfix(p, r, start)
 	case .Typeof:
-		// TS type-query: `typeof X` / `typeof X.Y.Z` / `typeof X<TArgs>`
-		// (the type-arguments form is TS 4.7+, used to instantiate generic
-		// type-of references). Must use a dedicated typeof-qualifier
-		// parser rather than parse_left_hand_side_expr, which would read
-		// `<` as JS less-than, breaking files like
-		//   var v: typeof A<B>;
-		// (parserTypeQuery8.ts) and the babel
-		//   typescript/types/typeof-type-parameters/input.ts
-		// fixture. Parse a dotted Identifier chain ourselves and
-		// optionally consume a TS type-arguments list after.
-		eat(p) // consume `typeof`
-		tq_expr: ^Expression
-		// `typeof import("...")` form must short-circuit BEFORE the
-		// identifier / property-name fall-through, because `.Import` is
-		// also in is_keyword_usable_as_property_name's whitelist (so an
-		// `obj.import` member access works in expression position).
-		if is_token(p, .Import) {
-			imp_ts := parse_ts_primary_type(p)
-			if imp_ts != nil {
-				#partial switch v in imp_ts^ {
-				case ^TSImportType:
-					if v != nil { v.is_typeof = true }
-				}
-			}
-			return imp_ts
-		}
-		// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
-		if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||
-		   is_token(p, .Await) || is_token(p, .Yield) {
-			tq_cur := snap_current(p)
-			tq_id, tq_id_e := new_expr(p, Identifier); tq_id.loc = loc_from_token(&tq_cur); tq_id.name = tq_cur.value
-			eat(p)
-			tq_expr = tq_id_e
-			for is_token(p, .Dot) {
-				eat(p)
-				// `typeof A.` (trailing dot without property) is a
-				// SyntaxError. Check that an identifier follows.
-				if !is_token(p, .Identifier) && !is_keyword_usable_as_property_name(p.cur_type) {
-					report_error_coded(p, .K2021_ExpectedIdentifier, "Expected property name after '.'")
-					break
-				}
-				tq_prop := parse_identifier_name(p)
-				tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
-				tq_pid, tq_pid_e := new_expr(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
-				tq_mem.property = tq_pid_e; tq_mem.computed = false; tq_mem.optional = false
-				tq_mem.loc.end = prev_end_offset(p)
-				tq_expr = tq_mem_e
-			}
-		} else {
-			// Fallback - keep the legacy expression-style parse so any
-			// shape we don't handle here still produces a node.
-			tq_expr = parse_left_hand_side_expr(p)
-		}
-		node := new_node(p, TSTypeQuery); node.loc = start; node.expr_name = tq_expr
-		if is_open_angle_or_lshift(p) {
-			node.type_parameters = parse_ts_type_arguments(p)
-		}
-		node.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node; return parse_ts_postfix(p, r, start)
+		return parse_ts_type_query(p, start)
 	case .Keyof:
 		eat(p); operand := parse_ts_primary_type(p)
 		node := new_node(p, TSTypeOperator); node.loc = start; node.operator = "keyof"; node.type_annotation = operand
