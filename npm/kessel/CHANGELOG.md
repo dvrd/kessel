@@ -4,6 +4,15 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.14.0] - 2026-06-17
+
+### Performance
+- perf(regex): fold arithmetic-modifier pass into the structure walker
+- perf(regex): fold leading-quantifier + lookbehind into one walker
+- perf(regex): fold property-escape pass into u-mode escape walker
+- perf(lexer): word-compare keyword suffix instead of byte-compare switch
+
+
 ## [0.13.0] - 2026-06-06
 
 ### Fixed
