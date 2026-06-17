@@ -2153,6 +2153,77 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	return spec
 }
 
+// parse_export_assignment handles the TS `export = <expr>;` legacy
+// CommonJS-style export assignment. Returns nil when the next token is not
+// `=`, so the caller can continue with the ES ExportDeclaration forms.
+// Lifted out of parse_export_declaration as pure code motion.
+parse_export_assignment :: proc(p: ^Parser, start: Loc) -> ^Statement {
+// `export = <expr>;` - TS legacy CommonJS-style export assignment.
+// `=` here is NOT a binding-init; it's a sentinel that introduces a
+// single expression-form export. The trailing semicolon (or ASI) is
+// part of the declaration; the span includes it. TS-only syntax.
+if is_token(p, .Assign) {
+	if !allow_ts_mode(p) {
+		report_error_coded(p, .K4010_TypeOnlyImportExportInvalid,
+			"'export =' is only allowed in TypeScript files")
+	}
+	// In explicit script mode, export-equals is module-level syntax.
+	if st, have := p.force_source_type.(SourceType); have && st == .Script {
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "'import' and 'export' may appear only with 'sourceType: module'")
+	}
+	// TS1203 — export assignment inside a namespace body.
+	if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "An export assignment cannot be used in a namespace")
+	}
+	eat(p) // consume `=`
+	expr := parse_assignment_expression(p)
+	if expr == nil {
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'export ='")
+	}
+	if !match_semicolon_or_asi(p) {
+		report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export assignment")
+	}
+	decl := new_node(p, TSExportAssignment)
+	decl.loc = start; decl.expression = expr
+	decl.loc.end = prev_end_offset(p)
+	stmt := new_node(p, Statement); stmt^ = decl; return stmt
+}
+	return nil
+}
+
+// parse_export_as_namespace handles the TS UMD-style `export as namespace
+// <Identifier>;` declaration. Returns nil when the form does not match, so
+// the caller can continue with the remaining export forms. Lifted out of
+// parse_export_declaration as pure code motion.
+parse_export_as_namespace :: proc(p: ^Parser, start: Loc) -> ^Statement {
+// `export as namespace <Identifier>;` - TS UMD-style declaration. `as`
+// here is a contextual keyword; it lexes as a regular identifier in JS
+// mode but parse_export_declaration is only entered for `export`, so
+// the identifier `as` followed by identifier `namespace` is the cue.
+if p.cur_type == .As && allow_ts_mode(p) {
+	nxt := peek_token(p)
+	if nxt.type == .Identifier && nxt.value == "namespace" {
+		// TS1235 — `export as namespace` is only valid at top level.
+		if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
+			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Global module exports may only appear at top level")
+		}
+		eat(p) // consume `as`
+		eat(p) // consume `namespace`
+		cur := snap_current(p)
+		id := Identifier{loc = loc_from_token(&cur), name = cur.value}
+		eat(p) // consume identifier
+		if !match_semicolon_or_asi(p) {
+			report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after 'export as namespace'")
+		}
+		decl := new_node(p, TSNamespaceExportDeclaration)
+		decl.loc = start; decl.id = id
+		decl.loc.end = prev_end_offset(p)
+		stmt := new_node(p, Statement); stmt^ = decl; return stmt
+	}
+}
+	return nil
+}
+
 parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume export
@@ -2212,35 +2283,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		return result_named
 	}
 
-	// `export = <expr>;` - TS legacy CommonJS-style export assignment.
-	// `=` here is NOT a binding-init; it's a sentinel that introduces a
-	// single expression-form export. The trailing semicolon (or ASI) is
-	// part of the declaration; the span includes it. TS-only syntax.
-	if is_token(p, .Assign) {
-		if !allow_ts_mode(p) {
-			report_error_coded(p, .K4010_TypeOnlyImportExportInvalid,
-				"'export =' is only allowed in TypeScript files")
-		}
-		// In explicit script mode, export-equals is module-level syntax.
-		if st, have := p.force_source_type.(SourceType); have && st == .Script {
-			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "'import' and 'export' may appear only with 'sourceType: module'")
-		}
-		// TS1203 — export assignment inside a namespace body.
-		if p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block {
-			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "An export assignment cannot be used in a namespace")
-		}
-		eat(p) // consume `=`
-		expr := parse_assignment_expression(p)
-		if expr == nil {
-			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'export ='")
-		}
-		if !match_semicolon_or_asi(p) {
-			report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export assignment")
-		}
-		decl := new_node(p, TSExportAssignment)
-		decl.loc = start; decl.expression = expr
-		decl.loc.end = prev_end_offset(p)
-		stmt := new_node(p, Statement); stmt^ = decl; return stmt
+	if stmt := parse_export_assignment(p, start); stmt != nil {
+		return stmt
 	}
 
 	// Past the TS-export-assign fork — this IS an ES ExportDeclaration.
@@ -2251,30 +2295,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	p.has_module_syntax = true
 	p.module_pre_scan_done = true
 
-	// `export as namespace <Identifier>;` - TS UMD-style declaration. `as`
-	// here is a contextual keyword; it lexes as a regular identifier in JS
-	// mode but parse_export_declaration is only entered for `export`, so
-	// the identifier `as` followed by identifier `namespace` is the cue.
-	if p.cur_type == .As && allow_ts_mode(p) {
-		nxt := peek_token(p)
-		if nxt.type == .Identifier && nxt.value == "namespace" {
-			// TS1235 — `export as namespace` is only valid at top level.
-			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
-				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Global module exports may only appear at top level")
-			}
-			eat(p) // consume `as`
-			eat(p) // consume `namespace`
-			cur := snap_current(p)
-			id := Identifier{loc = loc_from_token(&cur), name = cur.value}
-			eat(p) // consume identifier
-			if !match_semicolon_or_asi(p) {
-				report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after 'export as namespace'")
-			}
-			decl := new_node(p, TSNamespaceExportDeclaration)
-			decl.loc = start; decl.id = id
-			decl.loc.end = prev_end_offset(p)
-			stmt := new_node(p, Statement); stmt^ = decl; return stmt
-		}
+	if stmt := parse_export_as_namespace(p, start); stmt != nil {
+		return stmt
 	}
 
 	// `export type ...` - TS type-only export. Three forms:
