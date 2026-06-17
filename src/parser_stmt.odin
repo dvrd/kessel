@@ -4678,6 +4678,59 @@ check_no_body_param_properties :: proc(p: ^Parser, params: []FunctionParameter) 
 	}
 }
 
+// parse_class_method_params parses a class method's formal parameter list
+// under the class-method context. Class bodies are implicitly strict
+// (§15.7.3), so parameters parse with strict_mode = true; the generator /
+// async param guards (§15.5.1 / §15.6.1 / §15.8.1) and the derived-
+// constructor super-call eligibility are set for the parameter scope and
+// restored on exit so they do not leak into the surrounding class body.
+// `start_offset` is the element start used for the duplicate-parameter span.
+parse_class_method_params :: proc(p: ^Parser, kind: ClassElementKind, static_, is_async, is_generator: bool, start_offset: u32) -> [dynamic]FunctionParameter {
+	// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
+	// §15.8.1 / §15.6.1 - await-in-params guard for async methods (same
+	// rule for async generators). Same save/restore as
+	// parse_function_declaration.
+	prev_method_gen_params := p.ctx.in_generator_params
+	prev_method_async_params := p.ctx.in_async_params
+	p.ctx.in_generator_params = is_generator
+	p.ctx.in_async_params = is_async
+	// Static-block context does not extend into class method parameters.
+	prev_static_block_mparams := p.ctx.in_static_block
+	p.ctx.in_static_block = false
+	// Class body is implicitly strict (§15.7.3); method parameter
+	// parsing inherits strict mode so "yield" / "let" / etc. as param
+	// defaults surface as strict-mode IdentifierReference errors
+	// (§12.6.1.1).
+	prev_strict_params := p.ctx.strict_mode
+	p.ctx.strict_mode = true
+	// `super.x` in a class method's default-param initializer is legal
+	// (param scope inherits the method's [[HomeObject]]). Same
+	// in_method = true save / restore as the body parsing below.
+	prev_method_in_method := p.ctx.in_method
+	p.ctx.in_method = true
+	// `super(...)` in a derived constructor's default-param initializer
+	// is accepted by OXC (the param scope inherits the constructor's
+	// SuperCall eligibility). Set `in_derived_constructor` before params
+	// so super-call checking in parse_assignment_expr picks it up.
+	prev_ctor_params_derived := p.ctx.in_derived_constructor
+	if kind == .Constructor && !static_ && p.ctx.class_has_extends {
+		p.ctx.in_derived_constructor = true
+	}
+	params := parse_function_params(p)
+	p.ctx.in_derived_constructor = prev_ctor_params_derived
+	if allow_ts_mode(p) {
+		check_param_property_modifiers(p, kind, params[:])
+	}
+	p.ctx.in_method = prev_method_in_method
+	p.ctx.strict_mode = prev_strict_params
+	p.ctx.in_generator_params = prev_method_gen_params
+	p.ctx.in_async_params = prev_method_async_params
+	p.ctx.in_static_block = prev_static_block_mparams
+	// §15.5.1 / §15.6.1 — class methods are always strict.
+	parser_check_dup_params(p, params[:], start_offset, true, false)
+	return params
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4830,48 +4883,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		return nil
 	}
 
-	// §15.5.1 / §15.6.1 - yield-in-params guard for generator methods.
-	// §15.8.1 / §15.6.1 - await-in-params guard for async methods (same
-	// rule for async generators). Same save/restore as
-	// parse_function_declaration.
-	prev_method_gen_params := p.ctx.in_generator_params
-	prev_method_async_params := p.ctx.in_async_params
-	p.ctx.in_generator_params = is_generator
-	p.ctx.in_async_params = is_async
-	// Static-block context does not extend into class method parameters.
-	prev_static_block_mparams := p.ctx.in_static_block
-	p.ctx.in_static_block = false
-	// Class body is implicitly strict (§15.7.3); method parameter
-	// parsing inherits strict mode so "yield" / "let" / etc. as param
-	// defaults surface as strict-mode IdentifierReference errors
-	// (§12.6.1.1).
-	prev_strict_params := p.ctx.strict_mode
-	p.ctx.strict_mode = true
-	// `super.x` in a class method's default-param initializer is legal
-	// (param scope inherits the method's [[HomeObject]]). Same
-	// in_method = true save / restore as the body parsing below.
-	prev_method_in_method := p.ctx.in_method
-	p.ctx.in_method = true
-	// `super(...)` in a derived constructor's default-param initializer
-	// is accepted by OXC (the param scope inherits the constructor's
-	// SuperCall eligibility). Set `in_derived_constructor` before params
-	// so super-call checking in parse_assignment_expr picks it up.
-	prev_ctor_params_derived := p.ctx.in_derived_constructor
-	if kind == .Constructor && !static_ && p.ctx.class_has_extends {
-		p.ctx.in_derived_constructor = true
-	}
-	params := parse_function_params(p)
-	p.ctx.in_derived_constructor = prev_ctor_params_derived
-	if allow_ts_mode(p) {
-		check_param_property_modifiers(p, kind, params[:])
-	}
-	p.ctx.in_method = prev_method_in_method
-	p.ctx.strict_mode = prev_strict_params
-	p.ctx.in_generator_params = prev_method_gen_params
-	p.ctx.in_async_params = prev_method_async_params
-	p.ctx.in_static_block = prev_static_block_mparams
-	// §15.5.1 / §15.6.1 — class methods are always strict.
-	parser_check_dup_params(p, params[:], start.start, true, false)
+	// Parse the method's formal parameter list under the class-method
+	// context (always strict; in_method; generator/async param guards;
+	// derived-constructor super-call eligibility). The §15.5.1/§15.6.1/
+	// §15.8.1 flags are saved on entry and restored on exit by the helper
+	// so they do not leak into the surrounding class body.
+	params := parse_class_method_params(p, kind, static_, is_async, is_generator, start.start)
 
 	if !expect_token(p, .RParen) {
 		return nil
