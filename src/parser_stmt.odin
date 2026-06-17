@@ -4507,6 +4507,99 @@ parse_class_element_name :: proc(
 	return ClassElementName{key = key, kind = kind, computed = computed}
 }
 
+// Captured inputs for parse_class_field_element, gathered by the parent before
+// the field-vs-method split so the helper only constructs the FieldDefinition
+// node and does not touch control flow.
+ClassFieldParts :: struct {
+	start:           Loc,
+	key:             ^Expression,
+	type_annotation: Maybe(^TSTypeAnnotation),
+	decorators:      [dynamic]Decorator,
+	kind:            ClassElementKind,
+	accessibility:   ClassAccessibility,
+	computed:        bool,
+	static_:         bool,
+	is_accessor:     bool,
+	is_abstract:     bool,
+	is_declare:      bool,
+	is_readonly:     bool,
+	is_override:     bool,
+	optional:        bool,
+	definite:        bool,
+}
+
+// parse_class_field_element finishes a FieldDefinition ClassElement once the
+// parent has decided this element is a field (not a method): it parses the
+// optional `= <initializer>` (§15.7.10 synthetic function scope), enforces the
+// §15.7.1 constructor-name + trailing-semicolon early errors, and builds the
+// node. The field-vs-method dispatch stays in parse_class_element.
+parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassElement {
+	// Class field with initializer or just declaration. The initializer
+	// (if any) parses in a synthetic non-async / non-generator function
+	// scope per §15.7.10; the helper owns that context dance.
+	value := parse_class_field_initializer(p, parts.is_declare, parts.is_readonly, parts.is_abstract)
+
+	// §15.7.1 ClassElement - a non-computed FieldDefinition (with or
+	// without an initializer) cannot be named "constructor". The
+	// non-computed restriction matches the spec: `class { ['constructor'
+	// ] = 1 }` is allowed because the key is computed.
+	// OXC's parser skips this check for StringLiteral-keyed fields
+	// with an access modifier — `public "constructor" = 0;` is
+	// accepted, deferred to the type checker.  Identifier-keyed
+	// `public constructor;` is still caught.
+	if !parts.computed {
+		is_string_key := false
+		if parts.key != nil {
+			if _, ok := parts.key^.(^StringLiteral); ok { is_string_key = true }
+		}
+		skip := is_string_key && parts.accessibility != .None
+		if !skip {
+			name := class_element_prop_name(parts.key)
+			if name == "constructor" {
+				report_error_coded(p, .K3034_ConstructorShape, "Class field cannot be named 'constructor'")
+			}
+		}
+	}
+
+	// §15.7.1 ClassElement - FieldDefinition must be followed by `;` or
+	// a line terminator. `field = 1 /* comment */ method(){}` (no newline
+	// between initializer and next element) is a SyntaxError.
+	// Use a stricter check than can_insert_semicolon: in a class body,
+	// a newline before any token (including `[`) terminates the field.
+	if is_token(p, .Semi) {
+		eat(p)
+	} else if !is_token(p, .RBrace) && !is_token(p, .EOF) && !cur_has_newline(p) {
+		report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon or line terminator after class field")
+	}
+
+	elem := new_node(p, ClassElement)
+	elem.loc = parts.start
+	elem.key = parts.key
+	elem.value = value
+	elem.kind = parts.kind  // Still .Method but value is not a function
+	// Use the parsed `computed` flag so `static [propname]` fields
+	// emit with computed=true - the §15.7.1 "static prototype" check
+	// gates on !elem.computed, so the previous hardcoded `false` made
+	// `class { static ['prototype'] = 42 }` falsely error.
+	elem.computed = parts.computed
+	elem.static = parts.static_
+	elem.is_accessor = parts.is_accessor
+	elem.abstract = parts.is_abstract
+	elem.decorators = parts.decorators
+	elem.type_annotation = parts.type_annotation
+	elem.optional = parts.optional
+	if parts.is_accessor && parts.optional {
+		report_error_coded(p, .K4032_ModifierMisplaced, "An 'accessor' property cannot be declared optional")
+	}
+	elem.definite = parts.definite
+	elem.accessibility = parts.accessibility
+	elem.readonly = parts.is_readonly
+	elem.override_ = parts.is_override
+
+	elem.loc.end = prev_end_offset(p)
+	return elem
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4603,70 +4696,23 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	                    // parameters for a method: `method\n<T>() {}`.
 	                    !(allow_ts_mode(p) && is_open_angle_or_lshift(p))
 	if !is_generator && (field_type_ann != nil || is_token(p, .Assign) || is_token(p, .Semi) || is_token(p, .Comma) || is_token(p, .RBrace) || is_field_by_asi) {
-		// Class field with initializer or just declaration. The initializer
-		// (if any) parses in a synthetic non-async / non-generator function
-		// scope per §15.7.10; the helper owns that context dance.
-		value := parse_class_field_initializer(p, is_declare, is_readonly, is_abstract)
-
-		// §15.7.1 ClassElement - a non-computed FieldDefinition (with or
-		// without an initializer) cannot be named "constructor". The
-		// non-computed restriction matches the spec: `class { ['constructor'
-		// ] = 1 }` is allowed because the key is computed.
-		// OXC's parser skips this check for StringLiteral-keyed fields
-		// with an access modifier — `public "constructor" = 0;` is
-		// accepted, deferred to the type checker.  Identifier-keyed
-		// `public constructor;` is still caught.
-		if !computed {
-			is_string_key := false
-			if key != nil {
-				if _, ok := key^.(^StringLiteral); ok { is_string_key = true }
-			}
-			skip := is_string_key && accessibility != .None
-			if !skip {
-				name := class_element_prop_name(key)
-				if name == "constructor" {
-					report_error_coded(p, .K3034_ConstructorShape, "Class field cannot be named 'constructor'")
-				}
-			}
-		}
-
-		// §15.7.1 ClassElement - FieldDefinition must be followed by `;` or
-		// a line terminator. `field = 1 /* comment */ method(){}` (no newline
-		// between initializer and next element) is a SyntaxError.
-		// Use a stricter check than can_insert_semicolon: in a class body,
-		// a newline before any token (including `[`) terminates the field.
-		if is_token(p, .Semi) {
-			eat(p)
-		} else if !is_token(p, .RBrace) && !is_token(p, .EOF) && !cur_has_newline(p) {
-			report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon or line terminator after class field")
-		}
-
-		elem := new_node(p, ClassElement)
-		elem.loc = start
-		elem.key = key
-		elem.value = value
-		elem.kind = kind  // Still .Method but value is not a function
-		// Use the parsed `computed` flag so `static [propname]` fields
-		// emit with computed=true - the §15.7.1 "static prototype" check
-		// gates on !elem.computed, so the previous hardcoded `false` made
-		// `class { static ['prototype'] = 42 }` falsely error.
-		elem.computed = computed
-		elem.static = static_
-		elem.is_accessor = is_accessor
-		elem.abstract = is_abstract
-		elem.decorators = decorators
-		elem.type_annotation = field_type_ann
-		elem.optional = field_optional
-		if is_accessor && field_optional {
-			report_error_coded(p, .K4032_ModifierMisplaced, "An 'accessor' property cannot be declared optional")
-		}
-		elem.definite = field_definite
-		elem.accessibility = accessibility
-		elem.readonly = is_readonly
-		elem.override_ = is_override
-
-		elem.loc.end = prev_end_offset(p)
-		return elem
+		return parse_class_field_element(p, ClassFieldParts{
+			start           = start,
+			key             = key,
+			type_annotation = field_type_ann,
+			decorators      = decorators,
+			kind            = kind,
+			accessibility   = accessibility,
+			computed        = computed,
+			static_         = static_,
+			is_accessor     = is_accessor,
+			is_abstract     = is_abstract,
+			is_declare      = is_declare,
+			is_readonly     = is_readonly,
+			is_override     = is_override,
+			optional        = field_optional,
+			definite        = field_definite,
+		})
 	}
 
 	// It's a method - parse parameters and body. TS allows generic methods
