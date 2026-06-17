@@ -1447,6 +1447,95 @@ append_import_spec :: proc(specs: ^[dynamic]^ImportSpecifierSpec, spec: $T, allo
 	append(specs, u)
 }
 
+// parse_import_phase_keyword consumes a Phase-Imports stage-3 leading
+// contextual keyword (`defer` before `* as ns`, or `source` before a
+// default binding) and records it on decl.phase. Lifted out of
+// parse_import_declaration as pure code motion; no-op when absent.
+parse_import_phase_keyword :: proc(p: ^Parser, decl: ^ImportDeclaration) {
+// Phase Imports stage-3: §16.2 ImportDeclaration extended with
+//   import defer * as ns from "x"
+//   import source x from "x"
+// `defer` and `source` are contextual keywords - lex as .Identifier
+// here. Detect by peeking the next token: `defer` must be followed
+// by `*` (NameSpaceImport-only per the import-defer proposal);
+// `source` must be followed by an Identifier (default binding).
+if p.cur_type == .Identifier && cur_value_eq(p, "defer") {
+	if p.lexer != nil { ensure_nxt(p) }
+	if p.lexer != nil && p.lexer.nxt.kind == .Mul {
+		decl.phase = "defer"
+		eat(p) // consume `defer`
+	}
+} else if p.cur_type == .Identifier && cur_value_eq(p, "source") {
+	if p.lexer != nil { ensure_nxt(p) }
+	if p.lexer != nil && p.lexer.nxt.kind == .Identifier {
+		decl.phase = "source"
+		eat(p) // consume `source`
+  ensure_nxt(p)
+	} else if p.lexer != nil && p.lexer.nxt.kind == .From {
+		snap := lexer_snapshot(p)
+		eat(p) // consume `source`
+		ensure_nxt(p)
+		if p.lexer.nxt.kind == .From {
+			decl.phase = "source"
+		} else {
+			lexer_restore(p, snap)
+		}
+	}
+}
+}
+
+// parse_import_type_keyword consumes a TS `import type ...` leading
+// contextual keyword and records it on decl.import_kind, disambiguating
+// from a value import of a binding named `type`. Lifted out of
+// parse_import_declaration as pure code motion; no-op when absent.
+parse_import_type_keyword :: proc(p: ^Parser, decl: ^ImportDeclaration) {
+// TS `import type ...` - type-only import. `type` lexes as Identifier.
+// Disambiguate from `import type from "m"` (value import of default binding
+// named "type"): after `type`, the next token must be `{`, `*`, or an
+// identifier followed by `,`/`from` (but NOT `from` directly).
+if p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p) {
+	// §12.7.2 - contextual keyword `type` must not use Unicode escapes.
+	has_esc := cur_has_escape(p)
+  ensure_nxt(p)
+	nxt := p.lexer.nxt.kind
+	if nxt == .LBrace || nxt == .Mul {
+		if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
+		decl.import_kind = .Type
+		eat(p) // consume `type`
+	} else if nxt == .From || can_be_binding_identifier(nxt) {
+		// Could be `import type Foo from "m"` (type-only default) or
+		// `import type from "m"` (default import of "type"). Only flag as
+		// type-only when the identifier after `type` is NOT `from`.
+		// Exception: `import type from from "m"` — the first `from` is
+		// the binding name and `type` is the type-only keyword. Detect
+		// via 3-token lookahead: if nxt="from" and nxt+1="from", it's
+		// the type-only form. Matches OXC.
+   ensure_nxt(p)
+		nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
+		if nxt_val != "from" {
+			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
+			decl.import_kind = .Type
+			eat(p) // consume `type`
+		} else {
+			// nxt is "from" — check if the token AFTER that is also "from".
+			snap_tf := lexer_snapshot(p)
+			advance_token(p) // consume `type` → cur="from" (binding)
+			advance_token(p) // consume "from" → cur=third token
+			// `import type from from "m"` or `import type from = require(...)`
+			third_is_from := p.cur_type == .From ||
+			                 (p.cur_type == .Identifier && cur_value_eq(p, "from")) ||
+			                 p.cur_type == .Assign
+			lexer_restore(p, snap_tf)
+			if third_is_from {
+				if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
+				decl.import_kind = .Type
+				eat(p) // consume `type`
+			}
+		}
+	}
+}
+}
+
 parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume import
@@ -1473,82 +1562,9 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	decl.loc = start
 	decl.specifiers = make([dynamic]^ImportSpecifierSpec, 0, 4, p.allocator)
 
-	// Phase Imports stage-3: §16.2 ImportDeclaration extended with
-	//   import defer * as ns from "x"
-	//   import source x from "x"
-	// `defer` and `source` are contextual keywords - lex as .Identifier
-	// here. Detect by peeking the next token: `defer` must be followed
-	// by `*` (NameSpaceImport-only per the import-defer proposal);
-	// `source` must be followed by an Identifier (default binding).
-	if p.cur_type == .Identifier && cur_value_eq(p, "defer") {
-		if p.lexer != nil { ensure_nxt(p) }
-		if p.lexer != nil && p.lexer.nxt.kind == .Mul {
-			decl.phase = "defer"
-			eat(p) // consume `defer`
-		}
-	} else if p.cur_type == .Identifier && cur_value_eq(p, "source") {
-		if p.lexer != nil { ensure_nxt(p) }
-		if p.lexer != nil && p.lexer.nxt.kind == .Identifier {
-			decl.phase = "source"
-			eat(p) // consume `source`
-  ensure_nxt(p)
-		} else if p.lexer != nil && p.lexer.nxt.kind == .From {
-			snap := lexer_snapshot(p)
-			eat(p) // consume `source`
-			ensure_nxt(p)
-			if p.lexer.nxt.kind == .From {
-				decl.phase = "source"
-			} else {
-				lexer_restore(p, snap)
-			}
-		}
-	}
+	parse_import_phase_keyword(p, decl)
 
-	// TS `import type ...` - type-only import. `type` lexes as Identifier.
-	// Disambiguate from `import type from "m"` (value import of default binding
-	// named "type"): after `type`, the next token must be `{`, `*`, or an
-	// identifier followed by `,`/`from` (but NOT `from` directly).
-	if p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p) {
-		// §12.7.2 - contextual keyword `type` must not use Unicode escapes.
-		has_esc := cur_has_escape(p)
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		if nxt == .LBrace || nxt == .Mul {
-			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
-			decl.import_kind = .Type
-			eat(p) // consume `type`
-		} else if nxt == .From || can_be_binding_identifier(nxt) {
-			// Could be `import type Foo from "m"` (type-only default) or
-			// `import type from "m"` (default import of "type"). Only flag as
-			// type-only when the identifier after `type` is NOT `from`.
-			// Exception: `import type from from "m"` — the first `from` is
-			// the binding name and `type` is the type-only keyword. Detect
-			// via 3-token lookahead: if nxt="from" and nxt+1="from", it's
-			// the type-only form. Matches OXC.
-   ensure_nxt(p)
-			nxt_val := p.lexer.source[p.lexer.nxt.start:p.lexer.nxt.end]
-			if nxt_val != "from" {
-				if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
-				decl.import_kind = .Type
-				eat(p) // consume `type`
-			} else {
-				// nxt is "from" — check if the token AFTER that is also "from".
-				snap_tf := lexer_snapshot(p)
-				advance_token(p) // consume `type` → cur="from" (binding)
-				advance_token(p) // consume "from" → cur=third token
-				// `import type from from "m"` or `import type from = require(...)`
-				third_is_from := p.cur_type == .From ||
-				                 (p.cur_type == .Identifier && cur_value_eq(p, "from")) ||
-				                 p.cur_type == .Assign
-				lexer_restore(p, snap_tf)
-				if third_is_from {
-					if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
-					decl.import_kind = .Type
-					eat(p) // consume `type`
-				}
-			}
-		}
-	}
+	parse_import_type_keyword(p, decl)
 
 	// TS `import X = ...` / `import type X = ...` (TSImportEqualsDeclaration).
 	// Detect by `Identifier` followed by `=`. The `import type X = ...` form is
