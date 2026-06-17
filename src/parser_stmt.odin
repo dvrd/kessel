@@ -6373,6 +6373,112 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 	return nil
 }
 
+// parse_object_pattern_key parses a single object-pattern property key
+// (computed `[expr]`, string / numeric / bigint literal, or
+// identifier / usable-keyword name) and reports the §12.7.2 escaped-
+// reserved-word and §14.3.3 literal-key-needs-colon early errors. `ok`
+// is false when the caller must abort the pattern (`return nil`).
+parse_object_pattern_key :: proc(p: ^Parser) -> (key: Maybe(ObjectPatternPropertyKey), computed: bool, ok: bool) {
+	if is_token(p, .LBracket) {
+		// Computed property: [expr] - same `[` no_in carve-out as in
+		// parse_class_element / parse_property.
+		computed = true
+		eat(p)
+		prev_no_in_op := p.ctx.no_in
+		p.ctx.no_in = false
+		expr_key := parse_assignment_expression(p)
+		p.ctx.no_in = prev_no_in_op
+		if expr_key != nil {
+			key = (^Expression)(expr_key)
+		}
+		if !expect_token(p, .RBracket) {
+			return key, computed, false
+		}
+	} else if is_token(p, .String) {
+		// String key: `{ 'aria-label': x }`. Store as ^StringLiteral so
+		// the emitter can render a Literal node - previously stuffed into
+		// an IdentifierName whose `name` field contained the quoted raw
+		// source (`'aria-label'` literally), producing an Identifier with
+		// quoted name in the JSON and hiding the real string value from
+		// every downstream string-walker.
+		current := snap_current(p)
+		str_lit := new_node(p, StringLiteral)
+		str_lit.loc = loc_from_token(&current)
+		str_lit.value = current.literal.(string) or_else ""
+		str_lit.raw = current.value
+		str_lit.loc.end = cur_offset(p) + u32(len(current.value))
+		key = str_lit
+		eat(p)
+		// String-literal keys require `:` — they cannot be shorthand.
+		// `{ "while" }` is invalid; must be `{ "while": binding }`.
+		if !is_token(p, .Colon) {
+			report_error_coded(p, .K3043_DestructuringInvalid, "Expected ':' after string property key in destructuring pattern")
+		}
+	} else if is_token(p, .Number) {
+		// Numeric key: `{ 0: v, 1: w }` (§14.3.3 PropertyName :
+		// NumericLiteral path). Must be followed by `:` - numeric
+		// keys don't support shorthand.
+		current := snap_current(p)
+		num_lit := new_node(p, NumericLiteral)
+		num_lit.loc = loc_from_token(&current)
+		num_lit.raw = current.value
+		if v, ok := current.literal.(f64); ok {
+			num_lit.value = v
+		}
+		num_lit.loc.end = cur_offset(p) + u32(len(current.value))
+		key = num_lit
+		eat(p)
+	} else if is_token(p, .BigInt) {
+		// BigInt key: `{ 1n: v }` - same as numeric. Must be followed
+		// by `:`. Stored as ^Expression (the computed-key variant of
+		// the union) since ObjectPatternPropertyKey doesn't include
+		// BigIntLiteral directly. ESTree emit treats BigIntLiteral
+		// like other Literal kinds.
+		current := snap_current(p)
+		big, big_e := new_expr(p, BigIntLiteral)
+		big.loc = loc_from_token(&current)
+		big.raw = current.value
+		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+			big.value = current.value[:len(current.value)-1]
+		} else {
+			big.value = current.value
+		}
+		big.loc.end = cur_offset(p) + u32(len(current.value))
+		key = (^Expression)(big_e)
+		eat(p)
+	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		// Identifier or keyword used as key. When the property becomes
+		// a shorthand binding (`{ foo }` = `{ foo: foo }`), the key
+		// doubles as a BindingIdentifier - escaped-ReservedWord
+		// (§12.7.2) must reject. Capture has_escape now, report below
+		// only if the property ends up shorthand (explicit `key: val`
+		// / `key = init` forms make the key an IdentifierName position,
+		// where escapes stay legal).
+		key_had_escape := cur_has_escape(p)
+		id_name := IdentifierName{
+			loc  = cur_loc(p),
+			name = cur_value(p),
+		}
+		key = id_name
+		eat(p)
+		if key_had_escape && is_always_reserved_word_name(id_name.name) {
+			// The cooked name is a ReservedWord; any later use as
+			// shorthand or default-shorthand position is an error.
+			// Shorthand always reaches the `else` / `.Assign` arm below;
+			// explicit `:` forms exit via the type-annotated path and
+			// don't fire. Gate the diagnostic by peeking.
+			if !is_token(p, .Colon) {
+				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", id_name.name)
+				report_error_coded(p, .K3015_KeywordContainsEscape, msg)
+			}
+		}
+	} else {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected property key in object pattern")
+		return key, computed, false
+	}
+	return key, computed, true
+}
+
 parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 	start := cur_loc(p)
 
@@ -6424,104 +6530,8 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 		}
 
 		// Parse key
-		key: Maybe(ObjectPatternPropertyKey)
-		computed := false
-
-		if is_token(p, .LBracket) {
-			// Computed property: [expr] - same `[` no_in carve-out as in
-			// parse_class_element / parse_property.
-			computed = true
-			eat(p)
-			prev_no_in_op := p.ctx.no_in
-			p.ctx.no_in = false
-			expr_key := parse_assignment_expression(p)
-			p.ctx.no_in = prev_no_in_op
-			if expr_key != nil {
-				key = (^Expression)(expr_key)
-			}
-			if !expect_token(p, .RBracket) {
-				return nil
-			}
-		} else if is_token(p, .String) {
-			// String key: `{ 'aria-label': x }`. Store as ^StringLiteral so
-			// the emitter can render a Literal node - previously stuffed into
-			// an IdentifierName whose `name` field contained the quoted raw
-			// source (`'aria-label'` literally), producing an Identifier with
-			// quoted name in the JSON and hiding the real string value from
-			// every downstream string-walker.
-			current := snap_current(p)
-			str_lit := new_node(p, StringLiteral)
-			str_lit.loc = loc_from_token(&current)
-			str_lit.value = current.literal.(string) or_else ""
-			str_lit.raw = current.value
-			str_lit.loc.end = cur_offset(p) + u32(len(current.value))
-			key = str_lit
-			eat(p)
-			// String-literal keys require `:` — they cannot be shorthand.
-			// `{ "while" }` is invalid; must be `{ "while": binding }`.
-			if !is_token(p, .Colon) {
-				report_error_coded(p, .K3043_DestructuringInvalid, "Expected ':' after string property key in destructuring pattern")
-			}
-		} else if is_token(p, .Number) {
-			// Numeric key: `{ 0: v, 1: w }` (§14.3.3 PropertyName :
-			// NumericLiteral path). Must be followed by `:` - numeric
-			// keys don't support shorthand.
-			current := snap_current(p)
-			num_lit := new_node(p, NumericLiteral)
-			num_lit.loc = loc_from_token(&current)
-			num_lit.raw = current.value
-			if v, ok := current.literal.(f64); ok {
-				num_lit.value = v
-			}
-			num_lit.loc.end = cur_offset(p) + u32(len(current.value))
-			key = num_lit
-			eat(p)
-		} else if is_token(p, .BigInt) {
-			// BigInt key: `{ 1n: v }` - same as numeric. Must be followed
-			// by `:`. Stored as ^Expression (the computed-key variant of
-			// the union) since ObjectPatternPropertyKey doesn't include
-			// BigIntLiteral directly. ESTree emit treats BigIntLiteral
-			// like other Literal kinds.
-			current := snap_current(p)
-			big, big_e := new_expr(p, BigIntLiteral)
-			big.loc = loc_from_token(&current)
-			big.raw = current.value
-			if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
-				big.value = current.value[:len(current.value)-1]
-			} else {
-				big.value = current.value
-			}
-			big.loc.end = cur_offset(p) + u32(len(current.value))
-			key = (^Expression)(big_e)
-			eat(p)
-		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-			// Identifier or keyword used as key. When the property becomes
-			// a shorthand binding (`{ foo }` = `{ foo: foo }`), the key
-			// doubles as a BindingIdentifier - escaped-ReservedWord
-			// (§12.7.2) must reject. Capture has_escape now, report below
-			// only if the property ends up shorthand (explicit `key: val`
-			// / `key = init` forms make the key an IdentifierName position,
-			// where escapes stay legal).
-			key_had_escape := cur_has_escape(p)
-			id_name := IdentifierName{
-				loc  = cur_loc(p),
-				name = cur_value(p),
-			}
-			key = id_name
-			eat(p)
-			if key_had_escape && is_always_reserved_word_name(id_name.name) {
-				// The cooked name is a ReservedWord; any later use as
-				// shorthand or default-shorthand position is an error.
-				// Shorthand always reaches the `else` / `.Assign` arm below;
-				// explicit `:` forms exit via the type-annotated path and
-				// don't fire. Gate the diagnostic by peeking.
-				if !is_token(p, .Colon) {
-					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", id_name.name)
-					report_error_coded(p, .K3015_KeywordContainsEscape, msg)
-				}
-			}
-		} else {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected property key in object pattern")
+		key, computed, key_ok := parse_object_pattern_key(p)
+		if !key_ok {
 			return nil
 		}
 
