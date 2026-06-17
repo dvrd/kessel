@@ -2106,30 +2106,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	if body_strict && !p.ctx.strict_mode {
 		report_strict_param_pattern_retro(p, params[:])
 	}
-	// §12.6.1.1 — in strict mode (outer or body-promoted), the
-	// FunctionName BindingIdentifier may not be `eval` or `arguments`.
-	// Async functions are always strict (§15.8.1). Generator functions
-	// in strict context fire too. TS ambient (`declare`) functions are
-	// exempt: they have no body and are erased at compile time.
-	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.ctx.in_ambient && !p.source_is_dts {
-		if is_eval_or_arguments(id_v.name) {
-			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
-			report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_v.loc.start), u32(id_v.loc.start), msg)
-		}
-	}
-	// Retroactive strict-reserved function name check when body
-	// promotes to strict and the outer scope was sloppy.
-	// `function package() { 'use strict'; }` is a SyntaxError.
-	if id_v, has_id := id.?; has_id && body_strict && !p.ctx.strict_mode && !p.ctx.in_ambient && !p.source_is_dts {
-		is_reserved := is_strict_reserved_name(id_v.name)
-		if !is_reserved && !allow_ts_mode(p) {
-			is_reserved = id_v.name == "static" || id_v.name == "let" || id_v.name == "yield"
-		}
-		if is_reserved {
-			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
-			report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_v.loc.start), u32(id_v.loc.start), msg)
-		}
-	}
+	check_function_name_strict_retro(p, id, body_strict, strict_for_check, async)
 
 	// §15.2.1.1 / §15.5.1 - It is a Syntax Error if any element of the
 	// BoundNames of FormalParameters also occurs in the LexicallyDeclaredNames
@@ -2139,36 +2116,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	check_params_vs_body_lex(p, params[:], body.body[:])
  }
 
-	// TS2371 — overload / ambient signatures may not have parameter defaults.
-	// TS: parameter properties (public/private/protected/readonly) are only
-	// allowed in the implementation constructor, not in overload signatures.
-	if is_ts_no_body && allow_ts_mode(p) {
-		for pr in params {
-			if _, has := pr.default_val.(^Expression); has {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "A parameter initializer is only allowed in a function or constructor implementation")
-			}
-			if pr.accessibility != .None {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "Parameter properties are only allowed in the implementation constructor")
-			}
-			if pr.readonly {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'readonly' parameter properties are only allowed in the implementation constructor")
-			}
-			if pr.override_ {
-				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'override' parameter properties are only allowed in the implementation constructor")
-			}
-		}
-	}
-
-	// TS1689 — binding pattern parameters with `?` (optional) are only valid
-	// in overload / ambient signatures (no body). In implementation signatures
-	// (with body), `[]?` and `{}?` are errors.
-	if !is_ts_no_body && allow_ts_mode(p) {
-		for pr in params {
-			if pr.optional_destructuring {
-				report_error_coded_span(p, .K4063_OptionalAndInit, u32(pr.loc.start), u32(pr.loc.start), "A binding pattern parameter cannot be optional in an implementation signature")
-			}
-		}
-	}
+	check_ts_function_signature_params(p, params[:], is_ts_no_body)
 
 	if is_expr {
 		expr, expr_e := new_expr(p, FunctionExpression)
@@ -2216,6 +2164,75 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	stmt := new_node(p, Statement)
 	stmt^ = (^FunctionDeclaration)(decl)
 	return stmt
+}
+
+// check_function_name_strict_retro enforces the retroactive §12.6.1.1 /
+// §15.7.1 strict-mode function-name reservations (eval / arguments +
+// strict-reserved word) for the case where the body promoted to strict via
+// a "use strict" directive while the outer scope was sloppy. Emit-only leaf;
+// control flow stays in parse_function_declaration.
+check_function_name_strict_retro :: proc(p: ^Parser, id: Maybe(BindingIdentifier), body_strict, strict_for_check, async: bool) {
+	// §12.6.1.1 — in strict mode (outer or body-promoted), the
+	// FunctionName BindingIdentifier may not be `eval` or `arguments`.
+	// Async functions are always strict (§15.8.1). Generator functions
+	// in strict context fire too. TS ambient (`declare`) functions are
+	// exempt: they have no body and are erased at compile time.
+	if id_v, has_id := id.?; has_id && (strict_for_check || async) && !p.ctx.in_ambient && !p.source_is_dts {
+		if is_eval_or_arguments(id_v.name) {
+			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_v.loc.start), u32(id_v.loc.start), msg)
+		}
+	}
+	// Retroactive strict-reserved function name check when body
+	// promotes to strict and the outer scope was sloppy.
+	// `function package() { 'use strict'; }` is a SyntaxError.
+	if id_v, has_id := id.?; has_id && body_strict && !p.ctx.strict_mode && !p.ctx.in_ambient && !p.source_is_dts {
+		is_reserved := is_strict_reserved_name(id_v.name)
+		if !is_reserved && !allow_ts_mode(p) {
+			is_reserved = id_v.name == "static" || id_v.name == "let" || id_v.name == "yield"
+		}
+		if is_reserved {
+			msg := fmt.tprintf("Function name '%s' is reserved in strict mode", id_v.name)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(id_v.loc.start), u32(id_v.loc.start), msg)
+		}
+	}
+}
+
+// check_ts_function_signature_params enforces the TS parameter-property /
+// optional-destructuring rules that distinguish overload / ambient
+// signatures (no body) from implementation signatures. Emit-only leaf;
+// control flow stays in parse_function_declaration.
+check_ts_function_signature_params :: proc(p: ^Parser, params: []FunctionParameter, is_ts_no_body: bool) {
+	// TS2371 — overload / ambient signatures may not have parameter defaults.
+	// TS: parameter properties (public/private/protected/readonly) are only
+	// allowed in the implementation constructor, not in overload signatures.
+	if is_ts_no_body && allow_ts_mode(p) {
+		for pr in params {
+			if _, has := pr.default_val.(^Expression); has {
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "A parameter initializer is only allowed in a function or constructor implementation")
+			}
+			if pr.accessibility != .None {
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "Parameter properties are only allowed in the implementation constructor")
+			}
+			if pr.readonly {
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'readonly' parameter properties are only allowed in the implementation constructor")
+			}
+			if pr.override_ {
+				report_error_coded_span(p, .K4022_ParameterPropertyOnlyInCtor, u32(pr.loc.start), u32(pr.loc.start), "'override' parameter properties are only allowed in the implementation constructor")
+			}
+		}
+	}
+
+	// TS1689 — binding pattern parameters with `?` (optional) are only valid
+	// in overload / ambient signatures (no body). In implementation signatures
+	// (with body), `[]?` and `{}?` are errors.
+	if !is_ts_no_body && allow_ts_mode(p) {
+		for pr in params {
+			if pr.optional_destructuring {
+				report_error_coded_span(p, .K4063_OptionalAndInit, u32(pr.loc.start), u32(pr.loc.start), "A binding pattern parameter cannot be optional in an implementation signature")
+			}
+		}
+	}
 }
 
 // parse_function_decl_name parses the optional BindingIdentifier of a
