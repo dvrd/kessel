@@ -2755,14 +2755,13 @@ set_ts_sig_end :: proc(sig: ^TSSignature, end: u32) {
 	}
 }
 
-parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
-	start := cur_loc(p)
-	readonly := false
-	idx_readonly := false  // Special handling for readonly index signature
-
-	// TS type members permit `readonly` but not class/parameter modifiers.
-	// Consume the invalid prefix anyway so the following member shape is still
-	// parsed and the corpus smoke gate sees the parser-level error.
+// parse_ts_object_member_reject_modifiers consumes any invalid leading
+// class / parameter modifier prefix (static / override / const / default /
+// export / async / abstract / accessor / accessibility) on a TS type member.
+// TS type members permit `readonly` but not these; consume the invalid prefix
+// anyway, report the parser-level error, and advance so the following member
+// shape is still parsed (item 24 decomposition of parse_ts_object_member).
+parse_ts_object_member_reject_modifiers :: proc(p: ^Parser) {
 	for i := 0; i < 4; i += 1 {
 		modifier_name := ""
 		if is_token(p, .Static) {
@@ -2805,6 +2804,17 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		}
 		eat(p)
 	}
+}
+
+parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
+	start := cur_loc(p)
+	readonly := false
+	idx_readonly := false  // Special handling for readonly index signature
+
+	// TS type members permit `readonly` but not class/parameter modifiers.
+	// Consume the invalid prefix anyway so the following member shape is still
+	// parsed and the corpus smoke gate sees the parser-level error.
+	parse_ts_object_member_reject_modifiers(p)
 
 	// --- NEW: detect call signature `(...): T` or generic `<T>(...): T` ----------
 	//   The generic call signature form is used in TS overload sets like
