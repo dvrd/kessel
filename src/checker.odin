@@ -520,6 +520,166 @@ CkFnKind :: enum {
 // Statement walker
 // ============================================================================
 
+// ck_check_label_reservations enforces the §14.13.1 LabelIdentifier early
+// errors for a LabeledStatement: a plain FunctionDeclaration item is illegal
+// in strict mode, and `yield` / `await` / escaped contextual-reserved words
+// are reserved label names in their respective contexts. Pure check pass;
+// the parent owns the label-stack push / body walk / pop.
+ck_check_label_reservations :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^LabeledStatement) {
+	// §14.13.1 — in strict mode, a LabelledItem may not be a plain
+	// FunctionDeclaration. Async / generator decls are syntax errors
+	// regardless of strictness and stay a parser-side `report_error`.
+	if ctx.strict_mode && v.body != nil {
+		if fn, is_fn := v.body^.(^FunctionDeclaration); is_fn && fn != nil {
+			if !fn.async && !fn.generator {
+				ck_report_coded(c, u32(fn.loc.start), .K3051_StrictModeProhibited,
+					"Function declaration cannot be a labeled item in strict mode")
+			}
+		}
+	}
+	// §14.13.1 — LabelIdentifier is a BindingIdentifier disguise; the
+	// IdentifierReference reservation rules apply:
+	//   * `yield` reserved in strict mode (§12.7.2)
+	//   * `await` reserved in module code (§16.2.2)
+	//   * Escaped contextual-reserved words are reserved unconditionally
+	//     (§12.7.2; matches our parser's check_identifier_await_reserved).
+	if v.label.name == "yield" && ctx.strict_mode {
+		ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a label name in strict mode")
+	}
+	if v.label.name == "await" && ctx.source_type == .Module {
+		ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a label name in module code")
+	}
+	// §15.7.1 — ClassStaticBlock forbids `await` as a LabelIdentifier
+	// regardless of source type. Per test262 static-init-invalid-await.js:
+	//   class C { static { await: 0; } }   // SyntaxError
+	// The static-block body is parsed under [+Await] for the purpose of
+	// reserving `await` even in script files. The module-only branch
+	// above doesn't catch this for script-mode fixtures.
+	if v.label.name == "await" && ctx.in_class_static_block && ctx.source_type != .Module {
+		ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a label name in a class static block")
+	}
+	// Escaped reserved word as label — e.g. `aw\u0061it: 1;` in module
+	// (test262 labeled/value-await-module-escaped.js). The reservation
+	// is context-conditional: `await` is only reserved in modules /
+	// async, `yield` in strict / generators, `let`/`static` in strict.
+	// In a context where the cooked name ISN'T reserved, the escape
+	// is just a stylistic identifier choice and must be allowed (test262
+	// labeled/value-await-non-module-escaped.js + value-yield-non-strict-
+	// escaped.js). LabelIdentifier doesn't carry has_escape, so we probe
+	// the lexer source bytes for `\u` to detect the escaped form.
+	lbl_is_reserved := false
+	switch v.label.name {
+	case "await":  lbl_is_reserved = ctx.source_type == .Module || ctx.in_async
+	case "yield":  lbl_is_reserved = ctx.strict_mode || ctx.in_generator
+	case "let":    lbl_is_reserved = ctx.strict_mode
+	case "static": lbl_is_reserved = ctx.strict_mode
+	}
+	if lbl_is_reserved && len(c.source) > 0 {
+		src := c.source
+		lbl_start := int(v.label.loc.start)
+		lbl_end   := int(v.label.loc.end)
+		if lbl_start >= 0 && lbl_end > lbl_start && lbl_end <= len(src) {
+			if strings.contains(src[lbl_start:lbl_end], "\\u") {
+				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", v.label.name)
+				ck_report_coded(c, u32(v.label.loc.start), .K3015_KeywordContainsEscape, msg)
+			}
+		}
+	}
+}
+
+// ck_check_fn_decl_ambient enforces the TS1221 (generator) and TS1040 (async)
+// ambient-context restrictions on a FunctionDeclaration. The parent owns the
+// recursive ck_walk_function of the body.
+ck_check_fn_decl_ambient :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^FunctionDeclaration) {
+	// TS1221 — generators in ambient context (declare function* or .d.ts).
+	if ck_is_ts(ctx) && v.generator && (v.declare || ctx.is_dts) {
+		ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Generators are not allowed in an ambient context")
+	}
+	// TS1040 — async modifier in ambient context.
+	if ck_is_ts(ctx) && v.async && (v.declare || ctx.is_dts) {
+		ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "'async' modifier cannot be used in an ambient context")
+	}
+}
+
+// ck_check_ts_module_global enforces TS2669: `declare global {}` is only valid
+// directly nested in an external module or an ambient module declaration. The
+// parent owns descending into the namespace / module body.
+ck_check_ts_module_global :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^TSModuleDeclaration) {
+	// TS2669 — `declare global {}` is only valid directly nested in an
+	// external module (top-level of a module file) or inside an ambient
+	// module declaration (`declare module "..." {}`). Anywhere else
+	// (script top-level, inside a namespace, etc.) is an error.
+	if (v.global || v.kind == .Global) && ck_is_ts(ctx) {
+		global_ok := false
+		if ctx.is_dts {
+			// .d.ts files are ambient declaration files — `declare global`
+			// is always valid because the entire file is ambient context.
+			global_ok = true
+		} else if ctx.in_ambient_module_decl {
+			// Inside `declare module "..." {}` — always valid.
+			global_ok = true
+		} else if ctx.ts_namespace_depth == 0 && ctx.source_type == .Module {
+			// Top level of a module file — valid.
+			global_ok = true
+		}
+		if !global_ok {
+			ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Augmentations for the global scope can only be directly nested in external modules or ambient module declarations")
+		}
+	}
+}
+
+// ck_check_ts_interface_decl runs the TS interface-declaration early errors:
+// reserved name (TS4051), block-scope placement, member duplicates, the shared
+// index-signature checks (TS1268 / TS2374), and type-parameter duplicates.
+ck_check_ts_interface_decl :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^TSInterfaceDeclaration) {
+	if v == nil || !ck_is_ts(ctx) { return }
+	if is_ts_predefined_type_name(v.id.name) {
+		msg := fmt.tprintf("Interface name cannot be '%s'.", v.id.name)
+		ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
+	}
+	if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
+		ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Interface declarations are only valid at the top level of a module or namespace")
+	}
+	ck_check_ts_interface_member_dups(c, v.body)
+	// Collect the body's index signatures once, then run both the
+	// TS1268 (param-type form) and TS2374 (duplicate) checks over the
+	// shared slice instead of re-walking the body per check (item 9).
+	idx_sigs := ck_collect_interface_index_sigs(v.body, context.temp_allocator)
+	ck_check_ts1268_index_sig_param_type(c, idx_sigs)
+	ck_check_ts2374_dup_index_sig(c, idx_sigs)
+	if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
+		ck_check_ts_type_param_dups(c, tp)
+	}
+}
+
+// ck_check_ts_type_alias_decl runs the TS type-alias early errors: reserved
+// name (TS2457), block-scope placement, and type-parameter duplicates.
+ck_check_ts_type_alias_decl :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^TSTypeAliasDeclaration) {
+	if v == nil || !ck_is_ts(ctx) { return }
+	// TS2457 — type alias name cannot be a predefined type name.
+	if is_ts_predefined_type_name(v.id.name) {
+		msg := fmt.tprintf("Type alias name cannot be '%s'.", v.id.name)
+		ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
+	}
+	if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
+		ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Type aliases are only valid at the top level of a module or namespace")
+	}
+	if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
+		ck_check_ts_type_param_dups(c, tp)
+	}
+}
+
+// ck_check_ts_enum_decl runs the TS enum early errors: reserved name (TS4054)
+// and duplicate member names.
+ck_check_ts_enum_decl :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^TSEnumDeclaration) {
+	if v == nil || !ck_is_ts(ctx) { return }
+	if is_ts_predefined_type_name(v.id.name) {
+		msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
+		ck_report_coded(c, u32(v.id.loc.start), .K4054_EnumInvalid, msg)
+	}
+	ck_check_ts_enum_member_dups(c, v)
+}
+
 ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	if stmt == nil { return }
 	// §16.2.1 — only the IMMEDIATE call from `check_program` carries the
@@ -559,65 +719,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^LabeledStatement:
 		if v == nil { return }
-		// §14.13.1 — in strict mode, a LabelledItem may not be a plain
-		// FunctionDeclaration. Async / generator decls are syntax errors
-		// regardless of strictness and stay a parser-side `report_error`.
-		if ctx.strict_mode && v.body != nil {
-			if fn, is_fn := v.body^.(^FunctionDeclaration); is_fn && fn != nil {
-				if !fn.async && !fn.generator {
-					ck_report_coded(c, u32(fn.loc.start), .K3051_StrictModeProhibited,
-						"Function declaration cannot be a labeled item in strict mode")
-				}
-			}
-		}
-		// §14.13.1 — LabelIdentifier is a BindingIdentifier disguise; the
-		// IdentifierReference reservation rules apply:
-		//   * `yield` reserved in strict mode (§12.7.2)
-		//   * `await` reserved in module code (§16.2.2)
-		//   * Escaped contextual-reserved words are reserved unconditionally
-		//     (§12.7.2; matches our parser's check_identifier_await_reserved).
-		if v.label.name == "yield" && ctx.strict_mode {
-			ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a label name in strict mode")
-		}
-		if v.label.name == "await" && ctx.source_type == .Module {
-			ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a label name in module code")
-		}
-		// §15.7.1 — ClassStaticBlock forbids `await` as a LabelIdentifier
-		// regardless of source type. Per test262 static-init-invalid-await.js:
-		//   class C { static { await: 0; } }   // SyntaxError
-		// The static-block body is parsed under [+Await] for the purpose of
-		// reserving `await` even in script files. The module-only branch
-		// above doesn't catch this for script-mode fixtures.
-		if v.label.name == "await" && ctx.in_class_static_block && ctx.source_type != .Module {
-			ck_report_coded(c, u32(v.label.loc.start), .K3010_AwaitYieldAsBindingName, "'await' is reserved as a label name in a class static block")
-		}
-		// Escaped reserved word as label — e.g. `aw\u0061it: 1;` in module
-		// (test262 labeled/value-await-module-escaped.js). The reservation
-		// is context-conditional: `await` is only reserved in modules /
-		// async, `yield` in strict / generators, `let`/`static` in strict.
-		// In a context where the cooked name ISN'T reserved, the escape
-		// is just a stylistic identifier choice and must be allowed (test262
-		// labeled/value-await-non-module-escaped.js + value-yield-non-strict-
-		// escaped.js). LabelIdentifier doesn't carry has_escape, so we probe
-		// the lexer source bytes for `\u` to detect the escaped form.
-		lbl_is_reserved := false
-		switch v.label.name {
-		case "await":  lbl_is_reserved = ctx.source_type == .Module || ctx.in_async
-		case "yield":  lbl_is_reserved = ctx.strict_mode || ctx.in_generator
-		case "let":    lbl_is_reserved = ctx.strict_mode
-		case "static": lbl_is_reserved = ctx.strict_mode
-		}
-		if lbl_is_reserved && len(c.source) > 0 {
-			src := c.source
-			lbl_start := int(v.label.loc.start)
-			lbl_end   := int(v.label.loc.end)
-			if lbl_start >= 0 && lbl_end > lbl_start && lbl_end <= len(src) {
-				if strings.contains(src[lbl_start:lbl_end], "\\u") {
-					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", v.label.name)
-					ck_report_coded(c, u32(v.label.loc.start), .K3015_KeywordContainsEscape, msg)
-				}
-			}
-		}
+		ck_check_label_reservations(c, ctx, v)
 		// §14.13.1 — duplicate label declared in scope.
 		// §14.13.1 duplicate-label — migrated to parser.
 		entry := CheckerLabel{
@@ -795,14 +897,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^FunctionDeclaration:
 		if v != nil {
-			// TS1221 — generators in ambient context (declare function* or .d.ts).
-			if ck_is_ts(ctx) && v.generator && (v.declare || ctx.is_dts) {
-				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Generators are not allowed in an ambient context")
-			}
-			// TS1040 — async modifier in ambient context.
-			if ck_is_ts(ctx) && v.async && (v.declare || ctx.is_dts) {
-				ck_report_coded(c, u32(v.loc.start), .K4032_ModifierMisplaced, "'async' modifier cannot be used in an ambient context")
-			}
+			ck_check_fn_decl_ambient(c, ctx, v)
 			ck_walk_function(c, ctx, &v.expr)
 		}
 
@@ -848,27 +943,7 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSModuleDeclaration:
 		if v == nil { return }
-		// TS2669 — `declare global {}` is only valid directly nested in an
-		// external module (top-level of a module file) or inside an ambient
-		// module declaration (`declare module "..." {}`). Anywhere else
-		// (script top-level, inside a namespace, etc.) is an error.
-		if (v.global || v.kind == .Global) && ck_is_ts(ctx) {
-			global_ok := false
-			if ctx.is_dts {
-				// .d.ts files are ambient declaration files — `declare global`
-				// is always valid because the entire file is ambient context.
-				global_ok = true
-			} else if ctx.in_ambient_module_decl {
-				// Inside `declare module "..." {}` — always valid.
-				global_ok = true
-			} else if ctx.ts_namespace_depth == 0 && ctx.source_type == .Module {
-				// Top level of a module file — valid.
-				global_ok = true
-			}
-			if !global_ok {
-				ck_report_coded(c, u32(v.loc.start), .K4050_AmbientContextRestriction, "Augmentations for the global scope can only be directly nested in external modules or ambient module declarations")
-			}
-		}
+		ck_check_ts_module_global(c, ctx, v)
 		// TS namespace / module body. Most ECMA early errors don't apply
 		// across namespace boundaries (no break/continue/labels can
 		// escape), but TS-specific per-scope checks DO need to descend:
@@ -878,51 +953,15 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 		ck_walk_ts_module_decl(c, ctx, v)
 
 	case ^TSInterfaceDeclaration:
-		if v != nil && ck_is_ts(ctx) {
-			if is_ts_predefined_type_name(v.id.name) {
-				msg := fmt.tprintf("Interface name cannot be '%s'.", v.id.name)
-				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
-			}
-			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
-				ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Interface declarations are only valid at the top level of a module or namespace")
-			}
-			ck_check_ts_interface_member_dups(c, v.body)
-			// Collect the body's index signatures once, then run both the
-			// TS1268 (param-type form) and TS2374 (duplicate) checks over the
-			// shared slice instead of re-walking the body per check (item 9).
-			idx_sigs := ck_collect_interface_index_sigs(v.body, context.temp_allocator)
-			ck_check_ts1268_index_sig_param_type(c, idx_sigs)
-			ck_check_ts2374_dup_index_sig(c, idx_sigs)
-			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
-				ck_check_ts_type_param_dups(c, tp)
-			}
-		}
+		ck_check_ts_interface_decl(c, ctx, v)
 		return
 
 	case ^TSTypeAliasDeclaration:
-		if v != nil && ck_is_ts(ctx) {
-			// TS2457 — type alias name cannot be a predefined type name.
-			if is_ts_predefined_type_name(v.id.name) {
-				msg := fmt.tprintf("Type alias name cannot be '%s'.", v.id.name)
-				ck_report_coded(c, u32(v.id.loc.start), .K4051_TSDeclarationStructure, msg)
-			}
-			if ctx.block_nest_depth > 0 && ctx.ts_namespace_depth == 0 {
-				ck_report_coded(c, u32(v.loc.start), .K4051_TSDeclarationStructure, "Type aliases are only valid at the top level of a module or namespace")
-			}
-			if tp, has := v.type_parameters.(^TSTypeParameterDeclaration); has {
-				ck_check_ts_type_param_dups(c, tp)
-			}
-		}
+		ck_check_ts_type_alias_decl(c, ctx, v)
 		return
 
 	case ^TSEnumDeclaration:
-		if v != nil && ck_is_ts(ctx) {
-			if is_ts_predefined_type_name(v.id.name) {
-				msg := fmt.tprintf("Enum name cannot be '%s'.", v.id.name)
-				ck_report_coded(c, u32(v.id.loc.start), .K4054_EnumInvalid, msg)
-			}
-			ck_check_ts_enum_member_dups(c, v)
-		}
+		ck_check_ts_enum_decl(c, ctx, v)
 		return
 
 	case ^TSExportAssignment:
