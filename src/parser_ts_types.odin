@@ -970,101 +970,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		//     returnType }
 		return parse_ts_constructor_type(p, start, false)
 	case .LAngle:
-		// TS generic function type: `<T>(x: T) => U`. The `<` in type
-		// position has only one possible meaning - the start of TSFunctionType
-		// with type parameters. Without this, type annotations like
-		// `declare const f: <T>(x: T) => T` choke at `<` and the parser
-		// falls back to default-binding logic that
-		// reported "Expected '=', ',', or ';' after variable binding". In
-		// type-alias position (`type F = <T>(...) => T`) the same gap was
-		// hidden because the parser silently treated `<T>(...) => T` as a
-		// JS ArrowFunctionExpression in expression-statement position
-		// (the trailing `;` made the test pass exit-cleanly while the AST
-		// shape was wrong).		// "Expected '=', ',', or ';' after variable binding" cluster
-		type_params := parse_ts_type_parameters(p)
-		if !is_token(p, .LParen) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after generic type parameters in function type")
-			return nil
-		}
-		params := parse_ts_sig_params(p)
-		if !is_token(p, .Arrow) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in generic function type")
-			return nil
-		}
-		arrow_start := u32(cur_offset(p))
-		eat(p) // consume `=>`
-		ret_type := parse_ts_type_annotation_bare(p)
-		if ret_type != nil {
-			ret_type.loc.start = arrow_start
-		}
-		fn := new_node(p, TSFunctionType)
-		fn.loc = start
-		fn.type_parameters = type_params
-		fn.params = params
-		fn.return_type = ret_type
-		fn.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = fn
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_generic_function_type(p, start)
 	case .LParen:
-		// TS function type with named params: `(x: T, ...) => U`.
-		// Detected cheaply via 1-2 token lookahead because the outer type
-		// grammar has no ambiguity here - a `(` in a type position is
-		// either a function type, a paren-wrapped type, or (illegally) a
-		// tuple typo. Named params and rest params are only legal in a
-		// function type, so their presence is a definitive signal.
-		// Signals (all require =>-terminated form):
-		//   ()           - zero-arg function type (e.g. `() => void`).
-		//   (...         - rest parameter.
-		//   (Identifier : / (Identifier ?  - named param with annotation.
-		if looks_like_ts_function_type(p) {
-			params := parse_ts_sig_params(p)
-			if !is_token(p, .Arrow) {
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in function type")
-				return nil
-			}
-			// Capture the `=>` position BEFORE eating so the returnType's
-			// TSTypeAnnotation can start there. OXC's `TSFunctionType.returnType`
-			// TSTypeAnnotation spans `=> <inner>` - the wrapper's `start` is
-			// the `=>` offset, not the inner type's start. Previously Kessel
-			// started at the inner type, drifting 3-4 bytes on every function
-			// type annotation.
-			arrow_start := u32(cur_offset(p))
-			eat(p) // consume `=>`
-			ret_type := parse_ts_type_annotation_bare(p)
-			if ret_type != nil {
-				ret_type.loc.start = arrow_start
-			}
-			fn := new_node(p, TSFunctionType)
-			fn.loc = start
-			fn.params = params
-			fn.return_type = ret_type
-			fn.loc.end = prev_end_offset(p)
-			r := new_node(p, TSType); r^ = fn
-			return parse_ts_postfix(p, r, start)
-		}
-
-		// Parenthesized type: `(T)`. Note we deliberately DO NOT consume
-		// a trailing `=>` here as if it made the whole `(T) => U` a function
-		// type. TS function-type syntax requires NAMED parameters
-		// (`(x: T) => U`); the named-params branch is handled above by
-		// looks_like_ts_function_type. A bare `(T) => U` is therefore not a
-		// type production at this position - the `=>` belongs to an outer
-		// arrow expression whose return type is `(T)`. Test: TS
-		// `parseArrowFunctionWithFunctionReturnType.ts` (`<T>(): (() => T) =>
-		// null as any` - the outer `=>` belongs to the arrow function, the
-		// inner `() => T` is the parenthesized return type).
-		eat(p)
-		// Inside parentheses, conditional types are re-allowed (matching
-		// TypeScript's allowConditionalTypesAnd). This is critical for
-		// `(infer U extends number ? 1 : 0)` where the `?` should parse
-		// as a conditional type, not terminate the infer constraint.
-		saved_disallow := p.ts_disallow_conditional_types
-		p.ts_disallow_conditional_types = 0
-		inner := parse_ts_type(p)
-		p.ts_disallow_conditional_types = saved_disallow
-		expect_token(p, .RParen)
-		pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
+		return parse_ts_paren_or_function_type(p, start)
 	case .LBrace:
 		// TS object type literal `{ ... }`. Must thread through parse_ts_postfix
 		// so trailing `[]` (TSArrayType) and `[K]` (TSIndexedAccessType) attach
@@ -1129,96 +1037,9 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		}
 
 	case .Infer:
-		// TS1338: 'infer' is only valid in the extends clause of a conditional type.
-		if p.ts_in_conditional_extends == 0 && allow_ts_mode(p) {
-			report_error_coded(p, .K2040_UnexpectedToken, "'infer' declarations are only permitted in the 'extends' clause of a conditional type.")
-		}
-		eat(p); pn := parse_identifier(p)
-		node := new_node(p, TSInferType); node.loc = start
-		node.type_parameter.name = BindingIdentifier{loc = pn.loc, name = pn.name}
-		node.type_parameter.loc = pn.loc // span of the bare `V` - OXC shape
-		// TS 4.7+ constrained infer: `infer A extends B`. The `extends`
-		// here is the constraint on the inferred type parameter, NOT the
-		// outer conditional's extends. Ambiguity: `infer U extends C ?`
-		// could be a constrained infer followed by `?` (conditional type)
-		// or just `infer U` with `extends C ? T : F` as a conditional.
-		// Resolution (matches OXC / TypeScript 4.7+):
-		//   - If already in a disallow-conditional-types context, the
-		//     `extends` is always the constraint (no ambiguity).
-		//   - Otherwise, speculatively parse the constraint with
-		//     conditional types disabled. If `?` follows, backtrack:
-		//     the `extends` belongs to the outer conditional, not infer.
-		if is_token(p, .Extends) {
-			if p.ts_disallow_conditional_types > 0 {
-				// Already in a no-conditional context → constraint is unambiguous.
-				eat(p)
-				p.ts_disallow_conditional_types += 1
-				constraint_type := parse_ts_type(p)
-				p.ts_disallow_conditional_types -= 1
-				node.type_parameter.constraint = constraint_type
-			} else {
-				// Speculative parse: snapshot, parse constraint with
-				// conditional types disabled, then check for `?`.
-				snap := lexer_snapshot(p)
-				eat(p) // consume `extends`
-				p.ts_disallow_conditional_types += 1
-				constraint_type := parse_ts_type(p)
-				p.ts_disallow_conditional_types -= 1
-				if is_token(p, .Question) {
-					// `?` follows → backtrack. The `extends` belongs
-					// to the outer conditional type, not the infer
-					// constraint. Rewind and leave `infer U` bare.
-					// Note: we do NOT reclaim bump-pool memory because
-					// nodes allocated during the trial may be pointed at
-					// by other live structures; the arena reclaims them
-					// at parse-file teardown.
-					lexer_restore(p, snap)
-				} else {
-					// No `?` → constraint is real.
-					node.type_parameter.constraint = constraint_type
-				}
-			}
-		}
-		node.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node; return r
+		return parse_ts_infer_type(p, start)
 	case .Minus, .Plus:
-		// TS prefixed numeric / bigint literal type: `let y: -1 = -1;`,
-		// `let z: -1n = -1n`. ESTree shape: TSLiteralType whose literal is
-		// a UnaryExpression(operator="-", argument=Literal). Only `-` and
-		// `+` qualify, and only on a numeric or bigint literal. Anything
-		// else (e.g. `-x`, `-(1)`) is a parse error in TS type position.
-		op_tok := snap_current(p)
-		op_kind: UnaryOperator = op_tok.type == .Minus ? .Minus : .Plus
-		eat(p) // consume `-` / `+`
-		if p.cur_type != .Number && p.cur_type != .BigInt {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected numeric or bigint literal after unary operator in type")
-			return nil
-		}
-		lit_start := cur_loc(p)
-		lit_expr: ^Expression
-		if p.cur_type == .Number {
-			cur := snap_current(p); nl, nl_e := new_expr(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
-			if v, ok := cur.literal.(f64); ok { nl.value = v }
-			eat(p)
-			lit_expr = nl_e
-		} else {
-			cur := snap_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
-			if v, ok := cur.literal.(string); ok { bl.value = v }
-			eat(p)
-			lit_expr = expression_from(p, bl)
-		}
-		unary, unary_e := new_expr(p, UnaryExpression)
-		unary.loc = start
-		unary.operator = op_kind
-		unary.argument = lit_expr
-		unary.prefix = true
-		unary.loc.end = prev_end_offset(p)
-		_ = lit_start
-		node := new_node(p, TSLiteralType); node.loc = start
-		node.literal = unary_e
-		node.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_signed_literal_type(p, start)
 	case .Template:
 		// TS no-substitution template-literal type: `const x: `foo` = "foo"`.
 		// Shape: TSLiteralType whose literal is a TemplateLiteral with one
@@ -1237,39 +1058,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// Build TSTemplateLiteralType directly: alternating quasis and types.
 		return parse_ts_template_literal_type(p, start)
 	case .String, .Number, .BigInt, .True, .False:
-		// TS literal-type postfix chain: `"abc"[]`, `1[]`, `42n[]`, `true[]`,
-		// `1[][]`, `1 | 1[]`, etc. Must route through parse_ts_postfix
-		// so trailing `[]` / `[K]` attaches. Without it, `T = 1[]`
-		// reports "Expected '=', ',', or ';' after variable binding"
-		// at the `[` (the parser ended the type at the literal and tried to
-		// parse `[]` as a different declarator's initializer). Mirrors the
-		// same parse_ts_postfix wrapping used by .LBrace / .LBracket / kw
-		// cases above. One return path covers all four literal kinds; the
-		// inner switch only differs in the literal-node construction.
-		lit_expr: ^Expression
-		#partial switch p.cur_type {
-		case .String:
-			lit := parse_string_literal(p); le, le_e := new_expr(p, StringLiteral); le^ = lit
-			lit_expr = le_e
-		case .Number:
-			cur := snap_current(p); nl, nl_e := new_expr(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
-			if v, ok := cur.literal.(f64); ok { nl.value = v }
-			eat(p)
-			lit_expr = nl_e
-		case .BigInt:
-			// BigInt literal type: `const y: 12n = 12n`.
-			cur := snap_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
-			if v, ok := cur.literal.(string); ok { bl.value = v }
-			eat(p)
-			lit_expr = expression_from(p, bl)
-		case .True, .False:
-			val := p.cur_type == .True; eat(p)
-			bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
-			lit_expr = expression_from(p, bl)
-		}
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit_expr; node.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_literal_value_type(p, start)
 	case .Import:
 		return parse_ts_import_type(p, start)
 	case .Identifier: return parse_ts_identifier_type(p)
@@ -1323,6 +1112,237 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		return nil
 	}
 	return nil
+}
+
+parse_ts_generic_function_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS generic function type: `<T>(x: T) => U`. The `<` in type
+	// position has only one possible meaning - the start of TSFunctionType
+	// with type parameters. Without this, type annotations like
+	// `declare const f: <T>(x: T) => T` choke at `<` and the parser
+	// falls back to default-binding logic that
+	// reported "Expected '=', ',', or ';' after variable binding". In
+	// type-alias position (`type F = <T>(...) => T`) the same gap was
+	// hidden because the parser silently treated `<T>(...) => T` as a
+	// JS ArrowFunctionExpression in expression-statement position
+	// (the trailing `;` made the test pass exit-cleanly while the AST
+	// shape was wrong).		// "Expected '=', ',', or ';' after variable binding" cluster
+	type_params := parse_ts_type_parameters(p)
+	if !is_token(p, .LParen) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after generic type parameters in function type")
+		return nil
+	}
+	params := parse_ts_sig_params(p)
+	if !is_token(p, .Arrow) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in generic function type")
+		return nil
+	}
+	arrow_start := u32(cur_offset(p))
+	eat(p) // consume `=>`
+	ret_type := parse_ts_type_annotation_bare(p)
+	if ret_type != nil {
+		ret_type.loc.start = arrow_start
+	}
+	fn := new_node(p, TSFunctionType)
+	fn.loc = start
+	fn.type_parameters = type_params
+	fn.params = params
+	fn.return_type = ret_type
+	fn.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = fn
+	return parse_ts_postfix(p, r, start)
+}
+
+parse_ts_paren_or_function_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS function type with named params: `(x: T, ...) => U`.
+	// Detected cheaply via 1-2 token lookahead because the outer type
+	// grammar has no ambiguity here - a `(` in a type position is
+	// either a function type, a paren-wrapped type, or (illegally) a
+	// tuple typo. Named params and rest params are only legal in a
+	// function type, so their presence is a definitive signal.
+	// Signals (all require =>-terminated form):
+	//   ()           - zero-arg function type (e.g. `() => void`).
+	//   (...         - rest parameter.
+	//   (Identifier : / (Identifier ?  - named param with annotation.
+	if looks_like_ts_function_type(p) {
+		params := parse_ts_sig_params(p)
+		if !is_token(p, .Arrow) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '=>' in function type")
+			return nil
+		}
+		// Capture the `=>` position BEFORE eating so the returnType's
+		// TSTypeAnnotation can start there. OXC's `TSFunctionType.returnType`
+		// TSTypeAnnotation spans `=> <inner>` - the wrapper's `start` is
+		// the `=>` offset, not the inner type's start. Previously Kessel
+		// started at the inner type, drifting 3-4 bytes on every function
+		// type annotation.
+		arrow_start := u32(cur_offset(p))
+		eat(p) // consume `=>`
+		ret_type := parse_ts_type_annotation_bare(p)
+		if ret_type != nil {
+			ret_type.loc.start = arrow_start
+		}
+		fn := new_node(p, TSFunctionType)
+		fn.loc = start
+		fn.params = params
+		fn.return_type = ret_type
+		fn.loc.end = prev_end_offset(p)
+		r := new_node(p, TSType); r^ = fn
+		return parse_ts_postfix(p, r, start)
+	}
+
+	// Parenthesized type: `(T)`. Note we deliberately DO NOT consume
+	// a trailing `=>` here as if it made the whole `(T) => U` a function
+	// type. TS function-type syntax requires NAMED parameters
+	// (`(x: T) => U`); the named-params branch is handled above by
+	// looks_like_ts_function_type. A bare `(T) => U` is therefore not a
+	// type production at this position - the `=>` belongs to an outer
+	// arrow expression whose return type is `(T)`. Test: TS
+	// `parseArrowFunctionWithFunctionReturnType.ts` (`<T>(): (() => T) =>
+	// null as any` - the outer `=>` belongs to the arrow function, the
+	// inner `() => T` is the parenthesized return type).
+	eat(p)
+	// Inside parentheses, conditional types are re-allowed (matching
+	// TypeScript's allowConditionalTypesAnd). This is critical for
+	// `(infer U extends number ? 1 : 0)` where the `?` should parse
+	// as a conditional type, not terminate the infer constraint.
+	saved_disallow := p.ts_disallow_conditional_types
+	p.ts_disallow_conditional_types = 0
+	inner := parse_ts_type(p)
+	p.ts_disallow_conditional_types = saved_disallow
+	expect_token(p, .RParen)
+	pn := new_node(p, TSParenthesizedType); pn.loc = start; pn.type_annotation = inner; pn.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = pn; return parse_ts_postfix(p, r, start)
+}
+
+parse_ts_infer_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS1338: 'infer' is only valid in the extends clause of a conditional type.
+	if p.ts_in_conditional_extends == 0 && allow_ts_mode(p) {
+		report_error_coded(p, .K2040_UnexpectedToken, "'infer' declarations are only permitted in the 'extends' clause of a conditional type.")
+	}
+	eat(p); pn := parse_identifier(p)
+	node := new_node(p, TSInferType); node.loc = start
+	node.type_parameter.name = BindingIdentifier{loc = pn.loc, name = pn.name}
+	node.type_parameter.loc = pn.loc // span of the bare `V` - OXC shape
+	// TS 4.7+ constrained infer: `infer A extends B`. The `extends`
+	// here is the constraint on the inferred type parameter, NOT the
+	// outer conditional's extends. Ambiguity: `infer U extends C ?`
+	// could be a constrained infer followed by `?` (conditional type)
+	// or just `infer U` with `extends C ? T : F` as a conditional.
+	// Resolution (matches OXC / TypeScript 4.7+):
+	//   - If already in a disallow-conditional-types context, the
+	//     `extends` is always the constraint (no ambiguity).
+	//   - Otherwise, speculatively parse the constraint with
+	//     conditional types disabled. If `?` follows, backtrack:
+	//     the `extends` belongs to the outer conditional, not infer.
+	if is_token(p, .Extends) {
+		if p.ts_disallow_conditional_types > 0 {
+			// Already in a no-conditional context → constraint is unambiguous.
+			eat(p)
+			p.ts_disallow_conditional_types += 1
+			constraint_type := parse_ts_type(p)
+			p.ts_disallow_conditional_types -= 1
+			node.type_parameter.constraint = constraint_type
+		} else {
+			// Speculative parse: snapshot, parse constraint with
+			// conditional types disabled, then check for `?`.
+			snap := lexer_snapshot(p)
+			eat(p) // consume `extends`
+			p.ts_disallow_conditional_types += 1
+			constraint_type := parse_ts_type(p)
+			p.ts_disallow_conditional_types -= 1
+			if is_token(p, .Question) {
+				// `?` follows → backtrack. The `extends` belongs
+				// to the outer conditional type, not the infer
+				// constraint. Rewind and leave `infer U` bare.
+				// Note: we do NOT reclaim bump-pool memory because
+				// nodes allocated during the trial may be pointed at
+				// by other live structures; the arena reclaims them
+				// at parse-file teardown.
+				lexer_restore(p, snap)
+			} else {
+				// No `?` → constraint is real.
+				node.type_parameter.constraint = constraint_type
+			}
+		}
+	}
+	node.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = node; return r
+}
+
+parse_ts_signed_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS prefixed numeric / bigint literal type: `let y: -1 = -1;`,
+	// `let z: -1n = -1n`. ESTree shape: TSLiteralType whose literal is
+	// a UnaryExpression(operator="-", argument=Literal). Only `-` and
+	// `+` qualify, and only on a numeric or bigint literal. Anything
+	// else (e.g. `-x`, `-(1)`) is a parse error in TS type position.
+	op_tok := snap_current(p)
+	op_kind: UnaryOperator = op_tok.type == .Minus ? .Minus : .Plus
+	eat(p) // consume `-` / `+`
+	if p.cur_type != .Number && p.cur_type != .BigInt {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected numeric or bigint literal after unary operator in type")
+		return nil
+	}
+	lit_start := cur_loc(p)
+	lit_expr: ^Expression
+	if p.cur_type == .Number {
+		cur := snap_current(p); nl, nl_e := new_expr(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
+		if v, ok := cur.literal.(f64); ok { nl.value = v }
+		eat(p)
+		lit_expr = nl_e
+	} else {
+		cur := snap_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+		if v, ok := cur.literal.(string); ok { bl.value = v }
+		eat(p)
+		lit_expr = expression_from(p, bl)
+	}
+	unary, unary_e := new_expr(p, UnaryExpression)
+	unary.loc = start
+	unary.operator = op_kind
+	unary.argument = lit_expr
+	unary.prefix = true
+	unary.loc.end = prev_end_offset(p)
+	_ = lit_start
+	node := new_node(p, TSLiteralType); node.loc = start
+	node.literal = unary_e
+	node.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = node
+	return parse_ts_postfix(p, r, start)
+}
+
+parse_ts_literal_value_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
+	// TS literal-type postfix chain: `"abc"[]`, `1[]`, `42n[]`, `true[]`,
+	// `1[][]`, `1 | 1[]`, etc. Must route through parse_ts_postfix
+	// so trailing `[]` / `[K]` attaches. Without it, `T = 1[]`
+	// reports "Expected '=', ',', or ';' after variable binding"
+	// at the `[` (the parser ended the type at the literal and tried to
+	// parse `[]` as a different declarator's initializer). Mirrors the
+	// same parse_ts_postfix wrapping used by .LBrace / .LBracket / kw
+	// cases above. One return path covers all four literal kinds; the
+	// inner switch only differs in the literal-node construction.
+	lit_expr: ^Expression
+	#partial switch p.cur_type {
+	case .String:
+		lit := parse_string_literal(p); le, le_e := new_expr(p, StringLiteral); le^ = lit
+		lit_expr = le_e
+	case .Number:
+		cur := snap_current(p); nl, nl_e := new_expr(p, NumericLiteral); nl.loc = loc_from_token(&cur); nl.raw = cur.value
+		if v, ok := cur.literal.(f64); ok { nl.value = v }
+		eat(p)
+		lit_expr = nl_e
+	case .BigInt:
+		// BigInt literal type: `const y: 12n = 12n`.
+		cur := snap_current(p); bl := new_node(p, BigIntLiteral); bl.loc = loc_from_token(&cur); bl.raw = cur.value
+		if v, ok := cur.literal.(string); ok { bl.value = v }
+		eat(p)
+		lit_expr = expression_from(p, bl)
+	case .True, .False:
+		val := p.cur_type == .True; eat(p)
+		bl := new_node(p, BooleanLiteral); bl.loc = start; bl.value = val
+		lit_expr = expression_from(p, bl)
+	}
+	node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit_expr; node.loc.end = prev_end_offset(p)
+	r := new_node(p, TSType); r^ = node
+	return parse_ts_postfix(p, r, start)
 }
 
 parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
