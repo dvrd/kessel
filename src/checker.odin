@@ -3498,6 +3498,201 @@ ck_walk_var_decl :: proc(c: ^Checker, ctx: ^CheckerContext, decl: ^VariableDecla
 // Expression walker
 // ============================================================================
 
+// ck_walk_arrow_function runs the §15.3 arrow-function early errors and walks
+// the params + body. Arrow functions are a function boundary for
+// break/continue/labels but inherit [[HomeObject]] / field-init context, so
+// the param/body context juggling is involved enough to warrant its own proc.
+ck_walk_arrow_function :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^ArrowFunctionExpression) {
+	if e == nil { return }
+	// §15.3.1 / §15.9.1 — ContainsUseStrict + !IsSimpleParameterList
+	// early error for arrow functions. Arrow block bodies don't carry
+	// a populated `directives` array (parse_block_statement skips the
+	// directive-prologue setup), so the helper checks the first body
+	// statement's StringLiteral expression directly.
+	ck_check_arrow_strict_directive_with_nonsimple_params(c, e)
+	// Snapshot the OUTER async/generator context BEFORE ck_enter_function
+	// resets it. Arrow params are evaluated under the COMBINED context:
+	//   * `await` is reserved if the outer scope was async OR the arrow
+	//     itself is async (per parser's await_is_reserved_here);
+	//   * `yield` is reserved if the outer scope was a generator (arrows
+	//     can't be generators themselves).
+	outer_in_async := ctx.in_async
+	outer_in_gen   := ctx.in_generator
+	// Arrow function = function boundary for break/continue/labels.
+	saved := ck_enter_function(ctx)
+	// Arrows inherit [[HomeObject]] / field-init context from the
+	// enclosing scope (unlike regular functions), but `await` /
+	// `arguments` inside the arrow body are governed by the arrow's
+	// own async/generator flags, NOT by the outer field-init context.
+	ctx.in_field_init = false
+	// Arrow block-body "use strict" prologue: parse_block_statement does
+	// NOT set ExpressionStatement.directive (only parse_function_body /
+	// parse_program do), and the parser itself never lifts strict_mode
+	// for arrow block bodies. Match that behaviour here — arrow bodies
+	// inherit the surrounding strict mode but never lift it.
+	prev_static_blk := ctx.in_class_static_block
+	ctx.in_params       = true
+	ctx.params_is_arrow = true
+	ctx.in_async        = outer_in_async || e.async
+	ctx.in_generator    = outer_in_gen
+	// Arrow PARAMS are evaluated under the enclosing [+Await]
+	// context (so `static { (await => 0); }` correctly rejects
+	// the `await` arrow param). Keep in_class_static_block here.
+	// §15.2.1 / §10.2.1 — if the arrow body contains a `"use strict"`
+	// directive, the entire arrow function (including params) is
+	// strict-mode code. Lift strict_mode for the param checks.
+	prev_strict := ctx.strict_mode
+	arrow_body_lifts := false
+	if blk, is_blk := e.body.(^BlockStatement); is_blk && blk != nil && len(blk.body) > 0 {
+		es, eok := blk.body[0]^.(^ExpressionStatement)
+		if eok && es != nil {
+			if sl, sok := es.expression.(^StringLiteral); sok && sl != nil && sl.value == "use strict" {
+				arrow_body_lifts = true
+			}
+		}
+	}
+	if arrow_body_lifts { ctx.strict_mode = true }
+	// §15.3.1 / §15.9.1 — ArrowFunction params are ALWAYS
+	// UniqueFormalParameters, regardless of strict / sloppy or
+	// simple / non-simple. Match parser.odin's old
+	// `report_duplicate_param_names(params, true, true)` call by
+	// passing is_strict = true (so the "in strict mode" message
+	// fires) AND force_non_simple = true (to ensure the check runs
+	// even when the params are simple).
+	ck_check_duplicate_param_names(c, u32(e.loc.start), e.params[:], true, true)
+	for pr in e.params {
+		ck_check_arrow_param_pattern(c, ctx, pr.pattern)
+		if ctx.strict_mode && ctx.lang != .TS && ctx.lang != .TSX { ck_check_strict_param_pattern(c, pr.pattern) }
+		ck_walk_pattern(c, ctx, pr.pattern)
+		// Default values are evaluated in the caller's scope, not the
+		// arrow's param scope — yield/await in defaults are NOT param errors.
+		if d, have := pr.default_val.(^Expression); have && d != nil {
+			ctx.in_params = false
+			ck_walk_expr(c, ctx, d)
+			ctx.in_params = true
+		}
+	}
+	ctx.strict_mode     = prev_strict
+	ctx.in_params       = false
+	ctx.params_is_arrow = false
+	ctx.in_async        = e.async
+	ctx.in_generator    = false
+	// §15.7.5 / ContainsAwait static semantic: nested function /
+	// arrow BODY is its own [Await]-context boundary for the
+	// `ContainsAwait of ClassStaticBlockStatementList` rule. An
+	// `await` IdentifierReference (shorthand `{ await }` etc.)
+	// inside the arrow body is NOT an AwaitExpression in the
+	// static block's scope, so reset the flag for the body walk
+	// and restore on exit. Test262
+	// expressions/object/identifier-shorthand-static-init-await-valid.js.
+	ctx.in_class_static_block = false
+	defer ctx.in_class_static_block = prev_static_blk
+	prev_arrow_body := ctx.in_arrow_body
+	ctx.in_arrow_body = true
+	defer ctx.in_arrow_body = prev_arrow_body
+	#partial switch body in e.body {
+	case ^Expression:     if body != nil { ck_walk_expr(c, ctx, body) }
+	case ^BlockStatement:
+		if body != nil {
+			// Arrow block body is function-scope (§15.3.1).
+			ck_run_scope_check(c, ctx, body.body[:], false)
+			// §15.3.1 / §15.9.1 — BoundNames of FormalParameters may
+			// not occur in LexicallyDeclaredNames of FunctionBody.
+			// `(bar) => { let bar; }` is a SyntaxError. ck_walk_function
+			// already runs this for non-arrow shapes; mirror it here.
+			ck_check_params_vs_body_lex(c, e.params[:], body.body[:], ctx.strict_mode)
+			for s in body.body { ck_walk_stmt(c, ctx, s) }
+		}
+	}
+	ck_exit_function(ctx, saved)
+}
+
+// ck_walk_assignment_expr runs the §13.15 assignment early errors (invalid
+// LHS, strict eval/arguments target) and walks both sides, suppressing
+// object/array-literal-only checks when the LHS is a destructuring pattern.
+ck_walk_assignment_expr :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^AssignmentExpression) {
+	if e == nil { return }
+	ck_check_assignment_invalid_lhs(c, e)
+	// §13.15.1 — in strict mode, the LHS of any assignment may not
+	// name `eval` or `arguments` (covers destructured forms via the
+	// recursive helper).
+	if ctx.strict_mode {
+		ck_check_strict_eval_arguments_in_target(c, e.left)
+	}
+	// When the LHS is an ObjectExpression or ArrayExpression under a
+	// plain `=` operator, it's a destructuring assignment pattern.
+	// Suppress checks that only apply to true object/array literals
+	// (e.g., TS1117 duplicate properties) while walking the LHS.
+	if e.operator == .Assign {
+		is_destructure := false
+		if e.left != nil {
+			#partial switch _ in e.left^ {
+			case ^ObjectExpression, ^ArrayExpression:
+				is_destructure = true
+			}
+		}
+		if is_destructure {
+			prev := ctx.in_assignment_target
+			ctx.in_assignment_target = true
+			ck_walk_expr(c, ctx, e.left)
+			ctx.in_assignment_target = prev
+		} else {
+			ck_walk_expr(c, ctx, e.left)
+		}
+	} else {
+		ck_walk_expr(c, ctx, e.left)
+	}
+	ck_walk_expr(c, ctx, e.right)
+}
+
+// ck_walk_object_expr runs the duplicate-property / __proto__ checks (skipped
+// for destructuring-assignment LHS) and walks the object's computed keys and
+// property values, lifting [[HomeObject]] for method / accessor shapes.
+ck_walk_object_expr :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^ObjectExpression) {
+	if e == nil { return }
+	// Skip duplicate-property checks when this ObjectExpression is the
+	// LHS of a destructuring assignment `({a, b} = rhs)`. The parser
+	// stores the original ObjectExpression in AssignmentExpression.left;
+	// semantically it's an ObjectPattern where duplicate keys are legal.
+	if !ctx.in_assignment_target {
+		ck_check_object_proto_dups(c, e)
+		ck_check_object_duplicate_props(c, ctx, e)
+	}
+	// ObjectExpression interior is an uncovered context (same
+	// rationale as ArrayExpression above).
+	prev_skip := ctx.scope_skip
+	ctx.scope_skip = true
+	defer ctx.scope_skip = prev_skip
+	for prop in e.properties {
+		// Walk COMPUTED keys (their inner expression can reference
+		// arbitrary identifiers, including super/arguments/yield).
+		// Non-computed keys are name-bearing — the inner ^Identifier
+		// is a label, not an IdentifierReference, so walking it would
+		// false-fire the slice-6 `arguments` check on `{arguments: 1}`.
+		if prop.computed && prop.key != nil { ck_walk_expr(c, ctx, prop.key) }
+		if prop.value == nil { continue }
+		// §13.2.5.5 — object-literal methods / accessors carry an
+		// [[HomeObject]], so `super.x` is legal inside their bodies.
+		// Walk method-shaped values as `.Method` so in_method lifts;
+		// regular `kind = .Init` properties walk as plain expressions.
+		if prop.kind == .Init {
+			ck_walk_expr(c, ctx, prop.value)
+			continue
+		}
+		if fn, ok := prop.value^.(^FunctionExpression); ok && fn != nil {
+			ck_walk_function(c, ctx, fn, .Method, false)
+			// TS2408 — setters cannot return a value.
+			if prop.kind == .Set && ck_is_ts(ctx) {
+				ck_check_setter_return_value(c, fn.body.body[:])
+			}
+			// TS2378 — getters must return a value.
+			// OXC does not enforce TS2378. Disabled for parity.
+		} else {
+			ck_walk_expr(c, ctx, prop.value)
+		}
+	}
+}
+
 ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -3505,108 +3700,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		if e != nil { ck_walk_function(c, ctx, e) }
 
 	case ^ArrowFunctionExpression:
-		if e == nil { return }
-		// §15.3.1 / §15.9.1 — ContainsUseStrict + !IsSimpleParameterList
-		// early error for arrow functions. Arrow block bodies don't carry
-		// a populated `directives` array (parse_block_statement skips the
-		// directive-prologue setup), so the helper checks the first body
-		// statement's StringLiteral expression directly.
-		ck_check_arrow_strict_directive_with_nonsimple_params(c, e)
-		// Snapshot the OUTER async/generator context BEFORE ck_enter_function
-		// resets it. Arrow params are evaluated under the COMBINED context:
-		//   * `await` is reserved if the outer scope was async OR the arrow
-		//     itself is async (per parser's await_is_reserved_here);
-		//   * `yield` is reserved if the outer scope was a generator (arrows
-		//     can't be generators themselves).
-		outer_in_async := ctx.in_async
-		outer_in_gen   := ctx.in_generator
-		// Arrow function = function boundary for break/continue/labels.
-		saved := ck_enter_function(ctx)
-		// Arrows inherit [[HomeObject]] / field-init context from the
-		// enclosing scope (unlike regular functions), but `await` /
-		// `arguments` inside the arrow body are governed by the arrow's
-		// own async/generator flags, NOT by the outer field-init context.
-		ctx.in_field_init = false
-		// Arrow block-body "use strict" prologue: parse_block_statement does
-		// NOT set ExpressionStatement.directive (only parse_function_body /
-		// parse_program do), and the parser itself never lifts strict_mode
-		// for arrow block bodies. Match that behaviour here — arrow bodies
-		// inherit the surrounding strict mode but never lift it.
-		prev_static_blk := ctx.in_class_static_block
-		ctx.in_params       = true
-		ctx.params_is_arrow = true
-		ctx.in_async        = outer_in_async || e.async
-		ctx.in_generator    = outer_in_gen
-		// Arrow PARAMS are evaluated under the enclosing [+Await]
-		// context (so `static { (await => 0); }` correctly rejects
-		// the `await` arrow param). Keep in_class_static_block here.
-		// §15.2.1 / §10.2.1 — if the arrow body contains a `"use strict"`
-		// directive, the entire arrow function (including params) is
-		// strict-mode code. Lift strict_mode for the param checks.
-		prev_strict := ctx.strict_mode
-		arrow_body_lifts := false
-		if blk, is_blk := e.body.(^BlockStatement); is_blk && blk != nil && len(blk.body) > 0 {
-			es, eok := blk.body[0]^.(^ExpressionStatement)
-			if eok && es != nil {
-				if sl, sok := es.expression.(^StringLiteral); sok && sl != nil && sl.value == "use strict" {
-					arrow_body_lifts = true
-				}
-			}
-		}
-		if arrow_body_lifts { ctx.strict_mode = true }
-		// §15.3.1 / §15.9.1 — ArrowFunction params are ALWAYS
-		// UniqueFormalParameters, regardless of strict / sloppy or
-		// simple / non-simple. Match parser.odin's old
-		// `report_duplicate_param_names(params, true, true)` call by
-		// passing is_strict = true (so the "in strict mode" message
-		// fires) AND force_non_simple = true (to ensure the check runs
-		// even when the params are simple).
-		ck_check_duplicate_param_names(c, u32(e.loc.start), e.params[:], true, true)
-		for pr in e.params {
-			ck_check_arrow_param_pattern(c, ctx, pr.pattern)
-			if ctx.strict_mode && ctx.lang != .TS && ctx.lang != .TSX { ck_check_strict_param_pattern(c, pr.pattern) }
-			ck_walk_pattern(c, ctx, pr.pattern)
-			// Default values are evaluated in the caller's scope, not the
-			// arrow's param scope — yield/await in defaults are NOT param errors.
-			if d, have := pr.default_val.(^Expression); have && d != nil {
-				ctx.in_params = false
-				ck_walk_expr(c, ctx, d)
-				ctx.in_params = true
-			}
-		}
-		ctx.strict_mode     = prev_strict
-		ctx.in_params       = false
-		ctx.params_is_arrow = false
-		ctx.in_async        = e.async
-		ctx.in_generator    = false
-		// §15.7.5 / ContainsAwait static semantic: nested function /
-		// arrow BODY is its own [Await]-context boundary for the
-		// `ContainsAwait of ClassStaticBlockStatementList` rule. An
-		// `await` IdentifierReference (shorthand `{ await }` etc.)
-		// inside the arrow body is NOT an AwaitExpression in the
-		// static block's scope, so reset the flag for the body walk
-		// and restore on exit. Test262
-		// expressions/object/identifier-shorthand-static-init-await-valid.js.
-		ctx.in_class_static_block = false
-		defer ctx.in_class_static_block = prev_static_blk
-		prev_arrow_body := ctx.in_arrow_body
-		ctx.in_arrow_body = true
-		defer ctx.in_arrow_body = prev_arrow_body
-		#partial switch body in e.body {
-		case ^Expression:     if body != nil { ck_walk_expr(c, ctx, body) }
-		case ^BlockStatement:
-			if body != nil {
-				// Arrow block body is function-scope (§15.3.1).
-				ck_run_scope_check(c, ctx, body.body[:], false)
-				// §15.3.1 / §15.9.1 — BoundNames of FormalParameters may
-				// not occur in LexicallyDeclaredNames of FunctionBody.
-				// `(bar) => { let bar; }` is a SyntaxError. ck_walk_function
-				// already runs this for non-arrow shapes; mirror it here.
-				ck_check_params_vs_body_lex(c, e.params[:], body.body[:], ctx.strict_mode)
-				for s in body.body { ck_walk_stmt(c, ctx, s) }
-			}
-		}
-		ck_exit_function(ctx, saved)
+		ck_walk_arrow_function(c, ctx, e)
 
 	case ^ClassExpression:
 		if e != nil { ck_walk_class(c, ctx, e) }
@@ -3688,38 +3782,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		ctx.scope_skip = prev_skip
 
 	case ^AssignmentExpression:
-		if e == nil { return }
-		ck_check_assignment_invalid_lhs(c, e)
-		// §13.15.1 — in strict mode, the LHS of any assignment may not
-		// name `eval` or `arguments` (covers destructured forms via the
-		// recursive helper).
-		if ctx.strict_mode {
-			ck_check_strict_eval_arguments_in_target(c, e.left)
-		}
-		// When the LHS is an ObjectExpression or ArrayExpression under a
-		// plain `=` operator, it's a destructuring assignment pattern.
-		// Suppress checks that only apply to true object/array literals
-		// (e.g., TS1117 duplicate properties) while walking the LHS.
-		if e.operator == .Assign {
-			is_destructure := false
-			if e.left != nil {
-				#partial switch _ in e.left^ {
-				case ^ObjectExpression, ^ArrayExpression:
-					is_destructure = true
-				}
-			}
-			if is_destructure {
-				prev := ctx.in_assignment_target
-				ctx.in_assignment_target = true
-				ck_walk_expr(c, ctx, e.left)
-				ctx.in_assignment_target = prev
-			} else {
-				ck_walk_expr(c, ctx, e.left)
-			}
-		} else {
-			ck_walk_expr(c, ctx, e.left)
-		}
-		ck_walk_expr(c, ctx, e.right)
+		ck_walk_assignment_expr(c, ctx, e)
 
 	case ^SequenceExpression:
 		if e != nil { for s in e.expressions { ck_walk_expr(c, ctx, s) } }
@@ -3737,48 +3800,7 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		}
 
 	case ^ObjectExpression:
-		if e == nil { return }
-		// Skip duplicate-property checks when this ObjectExpression is the
-		// LHS of a destructuring assignment `({a, b} = rhs)`. The parser
-		// stores the original ObjectExpression in AssignmentExpression.left;
-		// semantically it's an ObjectPattern where duplicate keys are legal.
-		if !ctx.in_assignment_target {
-			ck_check_object_proto_dups(c, e)
-			ck_check_object_duplicate_props(c, ctx, e)
-		}
-		// ObjectExpression interior is an uncovered context (same
-		// rationale as ArrayExpression above).
-		prev_skip := ctx.scope_skip
-		ctx.scope_skip = true
-		defer ctx.scope_skip = prev_skip
-		for prop in e.properties {
-			// Walk COMPUTED keys (their inner expression can reference
-			// arbitrary identifiers, including super/arguments/yield).
-			// Non-computed keys are name-bearing — the inner ^Identifier
-			// is a label, not an IdentifierReference, so walking it would
-			// false-fire the slice-6 `arguments` check on `{arguments: 1}`.
-			if prop.computed && prop.key != nil { ck_walk_expr(c, ctx, prop.key) }
-			if prop.value == nil { continue }
-			// §13.2.5.5 — object-literal methods / accessors carry an
-			// [[HomeObject]], so `super.x` is legal inside their bodies.
-			// Walk method-shaped values as `.Method` so in_method lifts;
-			// regular `kind = .Init` properties walk as plain expressions.
-			if prop.kind == .Init {
-				ck_walk_expr(c, ctx, prop.value)
-				continue
-			}
-			if fn, ok := prop.value^.(^FunctionExpression); ok && fn != nil {
-				ck_walk_function(c, ctx, fn, .Method, false)
-				// TS2408 — setters cannot return a value.
-				if prop.kind == .Set && ck_is_ts(ctx) {
-					ck_check_setter_return_value(c, fn.body.body[:])
-				}
-				// TS2378 — getters must return a value.
-				// OXC does not enforce TS2378. Disabled for parity.
-			} else {
-				ck_walk_expr(c, ctx, prop.value)
-			}
-		}
+		ck_walk_object_expr(c, ctx, e)
 
 	case ^SpreadElement:
 		if e != nil { ck_walk_expr(c, ctx, e.argument) }
