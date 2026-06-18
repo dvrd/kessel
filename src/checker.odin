@@ -680,6 +680,50 @@ ck_check_ts_enum_decl :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^TSEnumDecla
 	ck_check_ts_enum_member_dups(c, v)
 }
 
+// ck_check_break_stmt runs the §13.9.1 break-target early errors:
+// a labelled break must resolve to a label in scope, and an unlabelled
+// break must sit inside an iteration or switch statement.
+ck_check_break_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^BreakStatement) {
+	if lbl, have := v.label.(LabelIdentifier); have {
+		if entry, ok := ck_label_in_scope(ctx, lbl.name); !ok {
+			_ = entry
+			ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
+		}
+	} else {
+		if ctx.iter_depth == 0 && ctx.switch_depth == 0 {
+			ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal break statement: not in a loop or switch")
+		}
+	}
+}
+
+// ck_check_continue_stmt runs the §13.8.1 continue-target early errors:
+// a labelled continue must resolve to a label that targets an iteration
+// statement, and an unlabelled continue must sit inside an iteration.
+ck_check_continue_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^ContinueStatement) {
+	if lbl, have := v.label.(LabelIdentifier); have {
+		entry, ok := ck_label_in_scope(ctx, lbl.name)
+		if !ok {
+			ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
+		} else if !entry.is_iteration {
+			ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal continue statement: label does not target an iteration statement")
+		}
+	} else {
+		if ctx.iter_depth == 0 {
+			ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal continue statement: not in a loop")
+		}
+	}
+}
+
+// ck_check_ts_import_equals_name runs the TS2438 early error: an import
+// alias name (`import X = ...`) cannot be a predefined type name.
+ck_check_ts_import_equals_name :: proc(c: ^Checker, ctx: ^CheckerContext, v: ^TSImportEqualsDeclaration) {
+	if !ck_is_ts(ctx) { return }
+	if is_ts_predefined_type_name(v.id.name) {
+		msg := fmt.tprintf("Import name cannot be '%s'.", v.id.name)
+		ck_report_coded(c, u32(v.id.loc.start), .K3020_ImportExportNameOrBinding, msg)
+	}
+}
+
 ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	if stmt == nil { return }
 	// §16.2.1 — only the IMMEDIATE call from `check_program` carries the
@@ -690,32 +734,10 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 	defer ctx.at_top_level = was_top_level
 	switch v in stmt^ {
 	case ^BreakStatement:
-		if v == nil { return }
-		if lbl, have := v.label.(LabelIdentifier); have {
-			if entry, ok := ck_label_in_scope(ctx, lbl.name); !ok {
-				_ = entry
-				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
-			}
-		} else {
-			if ctx.iter_depth == 0 && ctx.switch_depth == 0 {
-				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal break statement: not in a loop or switch")
-			}
-		}
+		if v != nil { ck_check_break_stmt(c, ctx, v) }
 
 	case ^ContinueStatement:
-		if v == nil { return }
-		if lbl, have := v.label.(LabelIdentifier); have {
-			entry, ok := ck_label_in_scope(ctx, lbl.name)
-			if !ok {
-				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Undefined label")
-			} else if !entry.is_iteration {
-				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal continue statement: label does not target an iteration statement")
-			}
-		} else {
-			if ctx.iter_depth == 0 {
-				ck_report_coded(c, u32(v.loc.start), .K3055_LabelOrLoopControl, "Illegal continue statement: not in a loop")
-			}
-		}
+		if v != nil { ck_check_continue_stmt(c, ctx, v) }
 
 	case ^LabeledStatement:
 		if v == nil { return }
@@ -974,13 +996,8 @@ ck_walk_stmt :: proc(c: ^Checker, ctx: ^CheckerContext, stmt: ^Statement) {
 
 	case ^TSImportEqualsDeclaration:
 		// TS2438 — import alias name cannot be a predefined type name.
-		if v != nil && ck_is_ts(ctx) {
-			if is_ts_predefined_type_name(v.id.name) {
-				msg := fmt.tprintf("Import name cannot be '%s'.", v.id.name)
-				ck_report_coded(c, u32(v.id.loc.start), .K3020_ImportExportNameOrBinding, msg)
-			}
-		}
 		// TS1392 import alias + import type — migrated to parser.
+		if v != nil { ck_check_ts_import_equals_name(c, ctx, v) }
 		return
 
 	case ^EmptyStatement, ^DebuggerStatement,
