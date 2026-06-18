@@ -2942,99 +2942,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	}
  ensure_nxt(p)
 	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Identifier {
-		// Check if this is an index signature by peeking for `:` after the identifier.
-		eat(p) // consume `[`.
-		is_index_sig := false
-		if is_token(p, .Identifier) {
-			ensure_nxt(p)
-			if p.lexer.nxt.kind == .Colon {
-				is_index_sig = true
-			} else if p.lexer.nxt.kind == .Question {
-				snap := lexer_snapshot(p)
-				eat(p) // identifier.
-				eat(p) // question mark.
-				is_index_sig = is_token(p, .Colon)
-				lexer_restore(p, snap)
-			}
-		}
-		if is_index_sig {
-			// Confirmed: index signature.
-			param_start := cur_loc(p)
-			param_name_tok := snap_current(p)
-			param_name_ident := new_node(p, Identifier)
-			param_name_ident.loc = loc_from_token(&param_name_tok)
-			param_name_ident.name = param_name_tok.value
-			eat(p) // consume identifier
-			if match_token(p, .Question) {
-				report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
-			}
-			colon_start := cur_loc(p)  // position of `:` before key type.
-			expect_token(p, .Colon)
-			idx_ann := parse_ts_type(p)
-			key_type_end := prev_end_offset(p)  // end of key type, before `]`.
-			expect_token(p, .RBracket)
-			val_ann: Maybe(^TSTypeAnnotation)
-			if is_token(p, .Colon) {
-				val_ann = parse_ts_type_annotation(p)
-			} else {
-				report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-			}
-
-			idx_sig := TSIndexSignature{
-				loc = start,
-				parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
-				type_annotation = val_ann,
-				readonly = idx_readonly,
-			}
-			// Build the sole parameter with correct span: ends at key-type end.
-			key_ann := new_node(p, TSTypeAnnotation)
-			key_ann.loc.start = colon_start.start
-			key_ann.loc.end   = key_type_end
-			key_ann.type_annotation = idx_ann
-			fp := TSFunctionParam{
-				loc = param_start,
-				pattern = param_name_ident,
-				type_annotation = key_ann,
-			}
-			fp.loc.end = key_type_end
-			bump_append(&idx_sig.parameters, fp)
-			// Consume optional semi/comma inside the function so the span includes
-			// the terminator (matching OXC). The caller also tries to match them
-			// but match_token is idempotent when the token is already consumed.
-			match_token(p, .Semi); match_token(p, .Comma)
-			idx_sig.loc.end = prev_end_offset(p)
-
-			sig := new_node(p, TSSignature)
-			sig^ = idx_sig
-			return sig
-		}
-		// Not an index signature - fall through as computed property.
-		// We already consumed `[`, so set computed = true and parse the rest.
-		key := parse_assignment_expression(p)
-		expect_token(p, .RBracket)
-		optional := match_token(p, .Question)
-
-		// Check if it's a method signature after computed property.
-		// `[expr]<T>(): U` — generic computed-key method, same fix as the
-		// non-computed path below. Match LAngle in addition to LParen.
-		if is_token(p, .LParen) || is_token(p, .LAngle) {
-			sig := new_node(p, TSSignature)
-			method := TSMethodSignature{loc = start, key = key, computed = true, optional = optional, kind = .Method}
-			if is_token(p, .LAngle) {
-				method.type_parameters = parse_ts_type_parameters(p)
-			}
-			method.params = parse_ts_sig_params(p)
-			if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
-			method.loc.end = prev_end_offset(p)
-			sig^ = method; return sig
-		}
-
-		// Property signature with computed property.
-		sig := new_node(p, TSSignature)
-		prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly}
-		if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
-		prop.loc.end = prev_end_offset(p)
-		sig^ = prop; return sig
+		return parse_ts_index_or_computed_member(p, start, readonly, idx_readonly)
 	}
 
 	// Handle readonly modifier for non-index-signature members.
@@ -3058,83 +2966,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	if ((is_token(p, .Get) || is_token(p, .Set)) ||
 	    (is_token(p, .Identifier) && (cur_value_eq(p, "get") || cur_value_eq(p, "set")))) &&
 	   nxt_allows_accessor {
-		accessor_kind := TSMethodSignatureKind.Get
-		if is_token(p, .Set) || (is_token(p, .Identifier) && cur_value_eq(p, "set")) {
-			accessor_kind = .Set
-		}
-		eat(p) // consume get/set modifier.
-
-		accessor_key: ^Expression
-		accessor_computed := false
-		if is_token(p, .LBracket) {
-			accessor_computed = true
-			eat(p)
-			accessor_key = parse_assignment_expression(p)
-			expect_token(p, .RBracket)
-		} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-			cur := snap_current(p)
-			id, id_e := new_expr(p, Identifier)
-			id.loc = loc_from_token(&cur)
-			id.name = cur.value
-			accessor_key = id_e
-			eat(p)
-		} else if is_token(p, .String) {
-			str := parse_string_literal(p)
-			sn, sn_e := new_expr(p, StringLiteral)
-			sn^ = str
-			accessor_key = sn_e
-		} else if is_token(p, .Number) {
-			cur := snap_current(p)
-			nm, nm_e := new_expr(p, NumericLiteral)
-			nm.loc = loc_from_token(&cur)
-			nm.raw = cur.value
-			if v, ok := cur.literal.(f64); ok { nm.value = v }
-			accessor_key = nm_e
-			eat(p)
-		} else {
-			return nil
-		}
-
-		if is_token(p, .LAngle) {
-			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "An accessor cannot have type parameters")
-			_ = parse_ts_type_parameters(p)
-		}
-		params := parse_ts_sig_params(p)
-		if accessor_kind == .Get {
-			if len(params) != 0 {
-				report_error_coded(p, .K4061_GetSetForm, "A get accessor cannot have parameters")
-			}
-		} else {
-			if len(params) != 1 {
-				report_error_coded(p, .K2070_RequiredFormOrBinding, "A set accessor must have exactly one parameter")
-			}
-			if len(params) == 1 {
-				if params[0].optional {
-					report_error_coded(p, .K4061_GetSetForm, "A set accessor parameter cannot be optional")
-				}
-				if _, is_rest := params[0].pattern.(^RestElement); is_rest {
-					report_error_coded(p, .K4040_TSRestInvalid, "A set accessor parameter cannot be a rest parameter")
-				}
-				if id, is_id := params[0].pattern.(^Identifier); is_id && id.name == "this" {
-					report_error_coded(p, .K4061_GetSetForm, "A set accessor cannot have a this parameter")
-				}
-			}
-		}
-		ret: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) {
-			ret = parse_ts_return_type_annotation(p)
-			if accessor_kind == .Set {
-				report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A set accessor cannot have a return type annotation")
-			}
-		}
-		method := TSMethodSignature{
-			loc = start, key = accessor_key, computed = accessor_computed,
-			optional = false, kind = accessor_kind, params = params, return_type = ret,
-		}
-		method.loc.end = prev_end_offset(p)
-		sig := new_node(p, TSSignature)
-		sig^ = method
-		return sig
+		return parse_ts_accessor_signature(p, start)
 	}
 
 	// Parse key for method or property signature.
@@ -3182,6 +3014,189 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
 	prop.loc.end = prev_end_offset(p)
 	sig^ = prop; return sig
+}
+
+// parse_ts_index_or_computed_member parses an index signature `[k: K]: V`,
+// or — when the `[...]` turns out to be a computed key — a computed method /
+// property signature. The `[` is consumed here; the caller routes via the
+// `LBracket`/`Identifier` lookahead and every path returns a built signature.
+parse_ts_index_or_computed_member :: proc(p: ^Parser, start: Loc, readonly: bool, idx_readonly: bool) -> ^TSSignature {
+	// Check if this is an index signature by peeking for `:` after the identifier.
+	eat(p) // consume `[`.
+	is_index_sig := false
+	if is_token(p, .Identifier) {
+		ensure_nxt(p)
+		if p.lexer.nxt.kind == .Colon {
+			is_index_sig = true
+		} else if p.lexer.nxt.kind == .Question {
+			snap := lexer_snapshot(p)
+			eat(p) // identifier.
+			eat(p) // question mark.
+			is_index_sig = is_token(p, .Colon)
+			lexer_restore(p, snap)
+		}
+	}
+	if is_index_sig {
+		// Confirmed: index signature.
+		param_start := cur_loc(p)
+		param_name_tok := snap_current(p)
+		param_name_ident := new_node(p, Identifier)
+		param_name_ident.loc = loc_from_token(&param_name_tok)
+		param_name_ident.name = param_name_tok.value
+		eat(p) // consume identifier
+		if match_token(p, .Question) {
+			report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
+		}
+		colon_start := cur_loc(p)  // position of `:` before key type.
+		expect_token(p, .Colon)
+		idx_ann := parse_ts_type(p)
+		key_type_end := prev_end_offset(p)  // end of key type, before `]`.
+		expect_token(p, .RBracket)
+		val_ann: Maybe(^TSTypeAnnotation)
+		if is_token(p, .Colon) {
+			val_ann = parse_ts_type_annotation(p)
+		} else {
+			report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
+		}
+
+		idx_sig := TSIndexSignature{
+			loc = start,
+			parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
+			type_annotation = val_ann,
+			readonly = idx_readonly,
+		}
+		// Build the sole parameter with correct span: ends at key-type end.
+		key_ann := new_node(p, TSTypeAnnotation)
+		key_ann.loc.start = colon_start.start
+		key_ann.loc.end   = key_type_end
+		key_ann.type_annotation = idx_ann
+		fp := TSFunctionParam{
+			loc = param_start,
+			pattern = param_name_ident,
+			type_annotation = key_ann,
+		}
+		fp.loc.end = key_type_end
+		bump_append(&idx_sig.parameters, fp)
+		// Consume optional semi/comma inside the function so the span includes
+		// the terminator (matching OXC). The caller also tries to match them
+		// but match_token is idempotent when the token is already consumed.
+		match_token(p, .Semi); match_token(p, .Comma)
+		idx_sig.loc.end = prev_end_offset(p)
+
+		sig := new_node(p, TSSignature)
+		sig^ = idx_sig
+		return sig
+	}
+	// Not an index signature - fall through as computed property.
+	// We already consumed `[`, so set computed = true and parse the rest.
+	key := parse_assignment_expression(p)
+	expect_token(p, .RBracket)
+	optional := match_token(p, .Question)
+
+	// Check if it's a method signature after computed property.
+	// `[expr]<T>(): U` — generic computed-key method, same fix as the
+	// non-computed path below. Match LAngle in addition to LParen.
+	if is_token(p, .LParen) || is_token(p, .LAngle) {
+		sig := new_node(p, TSSignature)
+		method := TSMethodSignature{loc = start, key = key, computed = true, optional = optional, kind = .Method}
+		if is_token(p, .LAngle) {
+			method.type_parameters = parse_ts_type_parameters(p)
+		}
+		method.params = parse_ts_sig_params(p)
+		if is_token(p, .Colon) { method.return_type = parse_ts_return_type_annotation(p) }
+		method.loc.end = prev_end_offset(p)
+		sig^ = method; return sig
+	}
+
+	// Property signature with computed property.
+	sig := new_node(p, TSSignature)
+	prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly}
+	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
+	prop.loc.end = prev_end_offset(p)
+	sig^ = prop; return sig
+}
+
+// parse_ts_accessor_signature parses a contextual `get` / `set` accessor
+// signature in a type member position, enforcing the §A.5 accessor-shape early
+// errors (no type params, get arity 0, set arity 1, no rest/this/optional).
+parse_ts_accessor_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
+	accessor_kind := TSMethodSignatureKind.Get
+	if is_token(p, .Set) || (is_token(p, .Identifier) && cur_value_eq(p, "set")) {
+		accessor_kind = .Set
+	}
+	eat(p) // consume get/set modifier.
+
+	accessor_key: ^Expression
+	accessor_computed := false
+	if is_token(p, .LBracket) {
+		accessor_computed = true
+		eat(p)
+		accessor_key = parse_assignment_expression(p)
+		expect_token(p, .RBracket)
+	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		cur := snap_current(p)
+		id, id_e := new_expr(p, Identifier)
+		id.loc = loc_from_token(&cur)
+		id.name = cur.value
+		accessor_key = id_e
+		eat(p)
+	} else if is_token(p, .String) {
+		str := parse_string_literal(p)
+		sn, sn_e := new_expr(p, StringLiteral)
+		sn^ = str
+		accessor_key = sn_e
+	} else if is_token(p, .Number) {
+		cur := snap_current(p)
+		nm, nm_e := new_expr(p, NumericLiteral)
+		nm.loc = loc_from_token(&cur)
+		nm.raw = cur.value
+		if v, ok := cur.literal.(f64); ok { nm.value = v }
+		accessor_key = nm_e
+		eat(p)
+	} else {
+		return nil
+	}
+
+	if is_token(p, .LAngle) {
+		report_error_coded(p, .K4052_AccessorOrTypeParamForm, "An accessor cannot have type parameters")
+		_ = parse_ts_type_parameters(p)
+	}
+	params := parse_ts_sig_params(p)
+	if accessor_kind == .Get {
+		if len(params) != 0 {
+			report_error_coded(p, .K4061_GetSetForm, "A get accessor cannot have parameters")
+		}
+	} else {
+		if len(params) != 1 {
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "A set accessor must have exactly one parameter")
+		}
+		if len(params) == 1 {
+			if params[0].optional {
+				report_error_coded(p, .K4061_GetSetForm, "A set accessor parameter cannot be optional")
+			}
+			if _, is_rest := params[0].pattern.(^RestElement); is_rest {
+				report_error_coded(p, .K4040_TSRestInvalid, "A set accessor parameter cannot be a rest parameter")
+			}
+			if id, is_id := params[0].pattern.(^Identifier); is_id && id.name == "this" {
+				report_error_coded(p, .K4061_GetSetForm, "A set accessor cannot have a this parameter")
+			}
+		}
+	}
+	ret: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) {
+		ret = parse_ts_return_type_annotation(p)
+		if accessor_kind == .Set {
+			report_error_coded(p, .K4052_AccessorOrTypeParamForm, "A set accessor cannot have a return type annotation")
+		}
+	}
+	method := TSMethodSignature{
+		loc = start, key = accessor_key, computed = accessor_computed,
+		optional = false, kind = accessor_kind, params = params, return_type = ret,
+	}
+	method.loc.end = prev_end_offset(p)
+	sig := new_node(p, TSSignature)
+	sig^ = method
+	return sig
 }
 
 get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
