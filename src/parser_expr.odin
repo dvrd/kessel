@@ -4608,83 +4608,7 @@ parse_arrow_function_body :: proc(p: ^Parser) -> (body: ArrowFunctionBody, is_bl
 	return
 }
 
-parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
-
-	// §15.3.1 — ArrowParameters Contains check. The cover expression
-	// was parsed under the surrounding generator/async context, so a
-	// `yield` / `await` produced a real YieldExpression / AwaitExpression
-	// instead of an identifier. When committing to arrow params, those
-	// nodes are SyntaxErrors per the [Yield] / [Await] grammar params on
-	// CoverParenthesizedExpressionAndArrowParameterList.
-	if left != nil && (p.ctx.in_generator || p.ctx.in_async || is_async) {
-		walk_arrow_cover_for_yield_await(p, left, p.ctx.in_generator, p.ctx.in_async || is_async)
-	}
-	start: Loc
-	if left != nil {
-		start = loc_from_expr(left)
-		// If a `(` was opened immediately before this expression, use its
-		// position as the arrow's start - matches ESTree/OXC/Acorn span
-		// semantics (`(x, y) => ...` spans the entire parenthesised form).
-		// A stamp of 0 means no paren was seen (bare identifier arrow
-		// `x => ...`); in that case keep the identifier's own start.
-		// Check if this is empty params - if so, don't adjust based on outer paren
-		is_empty_params_local := false
-		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
-			is_empty_params_local = true
-		}
-		if !is_empty_params_local && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.start {
-			start.start = p.pending_paren_start
-		}
-	} else {
-		start = cur_loc(p)
-	}
-	// Save for double-paren detection before clearing.
-	saved_paren_start := p.pending_paren_start
-	// For empty params, don't clear pending_paren_start yet - let CallExpression use it
-	is_empty_params := false
-	if left != nil {
-		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
-			is_empty_params = true
-		}
-	}
-	if !is_empty_params {
-		p.pending_paren_start = max(u32)
-	}
-
-	// left should be parameters (identifier or parenthesized expression)
-	// nil left means empty params: () => ...
-	eat(p) // consume =>
-
-	// §15.3.1 Contains check is enforced by the semantic checker on the
-	// finished AST: ck_walk_expr's ^ArrowFunctionExpression case sets
-	// in_params=true, params_is_arrow=true around the params walk, and
-	// ck_walk_pattern + the YieldExpression / AwaitExpression cases
-	// emit the diagnostic. No retroactive cover-walk needed here.
-
-	// Set async context for body parsing
-	prev_async := p.ctx.in_async
-	if is_async {
-		p.ctx.in_async = true
-	}
-	// §15.3.4: ArrowFunction ConciseBody is parsed with [~Yield, ~Await]
-	// (unless the arrow itself is async, in which case [~Yield, +Await]).
-	// Arrow functions don't have their own [[Generator]] status, so
-	// `yield` inside a non-generator arrow in a generator function is
-	// just an identifier, not a YieldExpression. Reset `in_generator`
-	// so the expression parser treats `yield` as an identifier.
-	prev_in_generator := p.ctx.in_generator
-	p.ctx.in_generator = false
-	// Static block context does NOT propagate into arrow function bodies.
-	prev_static_block_arrow := p.ctx.in_static_block
-	p.ctx.in_static_block = false
-	defer p.ctx.in_static_block = prev_static_block_arrow
-	// Parse the body (block or concise-expression form) under the context
-	// configured above.
-	body, is_block_body := parse_arrow_function_body(p)
-
-	p.ctx.in_async = prev_async
-	p.ctx.in_generator = prev_in_generator
-
+arrow_build_params :: proc(p: ^Parser, left: ^Expression, saved_paren_start: u32) -> [dynamic]FunctionParameter {
 	// Convert left to parameters
 	params := make([dynamic]FunctionParameter, 0, 4, p.allocator)
 
@@ -4855,6 +4779,88 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Invalid expression for arrow function parameters")
 		}
 	}
+	return params
+}
+
+parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
+
+	// §15.3.1 — ArrowParameters Contains check. The cover expression
+	// was parsed under the surrounding generator/async context, so a
+	// `yield` / `await` produced a real YieldExpression / AwaitExpression
+	// instead of an identifier. When committing to arrow params, those
+	// nodes are SyntaxErrors per the [Yield] / [Await] grammar params on
+	// CoverParenthesizedExpressionAndArrowParameterList.
+	if left != nil && (p.ctx.in_generator || p.ctx.in_async || is_async) {
+		walk_arrow_cover_for_yield_await(p, left, p.ctx.in_generator, p.ctx.in_async || is_async)
+	}
+	start: Loc
+	if left != nil {
+		start = loc_from_expr(left)
+		// If a `(` was opened immediately before this expression, use its
+		// position as the arrow's start - matches ESTree/OXC/Acorn span
+		// semantics (`(x, y) => ...` spans the entire parenthesised form).
+		// A stamp of 0 means no paren was seen (bare identifier arrow
+		// `x => ...`); in that case keep the identifier's own start.
+		// Check if this is empty params - if so, don't adjust based on outer paren
+		is_empty_params_local := false
+		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
+			is_empty_params_local = true
+		}
+		if !is_empty_params_local && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.start {
+			start.start = p.pending_paren_start
+		}
+	} else {
+		start = cur_loc(p)
+	}
+	// Save for double-paren detection before clearing.
+	saved_paren_start := p.pending_paren_start
+	// For empty params, don't clear pending_paren_start yet - let CallExpression use it
+	is_empty_params := false
+	if left != nil {
+		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
+			is_empty_params = true
+		}
+	}
+	if !is_empty_params {
+		p.pending_paren_start = max(u32)
+	}
+
+	// left should be parameters (identifier or parenthesized expression)
+	// nil left means empty params: () => ...
+	eat(p) // consume =>
+
+	// §15.3.1 Contains check is enforced by the semantic checker on the
+	// finished AST: ck_walk_expr's ^ArrowFunctionExpression case sets
+	// in_params=true, params_is_arrow=true around the params walk, and
+	// ck_walk_pattern + the YieldExpression / AwaitExpression cases
+	// emit the diagnostic. No retroactive cover-walk needed here.
+
+	// Set async context for body parsing
+	prev_async := p.ctx.in_async
+	if is_async {
+		p.ctx.in_async = true
+	}
+	// §15.3.4: ArrowFunction ConciseBody is parsed with [~Yield, ~Await]
+	// (unless the arrow itself is async, in which case [~Yield, +Await]).
+	// Arrow functions don't have their own [[Generator]] status, so
+	// `yield` inside a non-generator arrow in a generator function is
+	// just an identifier, not a YieldExpression. Reset `in_generator`
+	// so the expression parser treats `yield` as an identifier.
+	prev_in_generator := p.ctx.in_generator
+	p.ctx.in_generator = false
+	// Static block context does NOT propagate into arrow function bodies.
+	prev_static_block_arrow := p.ctx.in_static_block
+	p.ctx.in_static_block = false
+	defer p.ctx.in_static_block = prev_static_block_arrow
+	// Parse the body (block or concise-expression form) under the context
+	// configured above.
+	body, is_block_body := parse_arrow_function_body(p)
+
+	p.ctx.in_async = prev_async
+	p.ctx.in_generator = prev_in_generator
+
+	// Convert left to parameters (nil left ⇒ empty params, empty-paren case).
+	params := arrow_build_params(p, left, saved_paren_start)
 	// if left is nil, params stays empty (empty parentheses case)
 
 	// §15.2.1.1 — params vs body lex check for arrow functions.
