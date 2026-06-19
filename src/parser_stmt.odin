@@ -7022,45 +7022,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			continue
 		}
 
-		// Check for rest element:
-		//   BindingRestElement : ... BindingIdentifier
-		//                      | ... BindingPattern   (§14.3.3)
+		// Rest element (§14.3.3). Must be last; takes no Initializer.
 		if is_token(p, .Dot3) {
-			rest_start := cur_loc(p) // Capture location of ... before eating
-			eat(p) // consume ...
-
-			rest := new_node(p, RestElement)
-			rest.loc = rest_start
-
-			if is_token(p, .LBracket) {
-				nested := parse_array_pattern(p)
-				if nested == nil { return nil }
-				rest.argument = nested
-			} else if is_token(p, .LBrace) {
-				nested := parse_object_pattern(p)
-				if nested == nil { return nil }
-				rest.argument = nested
-			} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-				// Reserved words cannot be rest binding targets:
-				// `[ ...void ]`, `[ ...null ]` etc.
-				if is_reserved_word_for_binding(p.cur_type) {
-					report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
-						fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur_value(p)))
-				}
-				arl := cur_loc(p); arn := cur_value(p)
-				eat(p)
-				rest_ident := new_node(p, Identifier)
-				rest_ident.loc = arl
-				rest_ident.name = arn
-				rest.argument = rest_ident
-			} else {
-				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier or pattern after ... in array pattern")
-				return nil
-			}
-			rest.loc.end = prev_end_offset(p)
-
+			rest, ok := parse_array_pattern_rest(p)
+			if !ok { return nil }
 			bump_append(&elements, Maybe(Pattern)(rest))
-
 			// Rest element must be last - and cannot take an Initializer
 			// (§14.3.3: no `= default` on BindingRestElement).
 			if !is_token(p, .RBracket) && !is_token(p, .EOF) {
@@ -7069,109 +7035,17 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 			break
 		}
 
-		// Parse regular element
+		// Parse regular element.
 		if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-			// Simple identifier binding, possibly with default value.
-			// Apply the reserved-binding check that parse_binding_pattern
-			// runs for top-level bindings: `await` is reserved as a binding
-			// name inside async / module / class-static-block contexts, and
-			// `yield` is reserved inside generator bodies. Test262: language/
-			// statements/variable/dstr/ary-ptrn-elem-id-static-init-await-
-			// invalid.js (`class C { static { var [await] = []; } }`).
-			// Plain `await` / `yield` use dedicated TokenTypes (.Await /
-			// .Yield); only escaped forms reach .Identifier with the cooked
-			// reserved-word value. Gate the string compares on has_escape
-			// so they stay off the hot path for every ordinary identifier
-			// in a destructuring binding.
-			dstr_await_reserved := await_is_reserved_here(p)
-			if !dstr_await_reserved {
-				if st, have := p.force_source_type.(SourceType); have && st == .Module { dstr_await_reserved = true }
-				else if p.in_module_top_level || p.has_module_syntax { dstr_await_reserved = true }
-			}
-			if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "await"))) &&
-			   dstr_await_reserved {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
-			}
-			if (p.cur_type == .Yield || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "yield"))) &&
-			   yield_is_reserved_here(p) {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in this context")
-			}
-			// Strict-mode reserved words as array-pattern element binding.
-			if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
-				if is_strict_reserved_binding_name(cur_value(p)) {
-					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-					report_error_coded(p, .K3050_StrictModeReserved, msg)
-				}
-			}
-			eil := cur_loc(p); ein := cur_value(p)
-			eat(p)
-			ident := new_node(p, Identifier)
-			ident.loc = eil
-			ident.name = ein
-
-			// Check for default value: [x = defaultValue]
-			// Restore no_in=false inside the default expression so that
-			// `for (let [x = 'a' in {}] in ...)` parses the `in` as
-			// a binary operator in the default, not the for-in separator.
-			if match_token(p, .Assign) {
-				prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-				default_val := parse_assignment_expression(p)
-				p.ctx.no_in = prev_no_in
-				assign := new_node(p, AssignmentPattern)
-				assign.loc = eil
-				assign.left = ident
-				assign.right = default_val
-				assign.loc.end = prev_end_offset(p)
-				bump_append(&elements, Maybe(Pattern)(assign))
-			} else {
-				bump_append(&elements, Maybe(Pattern)(ident))
-			}
+			bump_append(&elements, Maybe(Pattern)(parse_array_pattern_ident_element(p)))
 		} else if is_token(p, .LBrace) {
-			// Nested object pattern, possibly with an Initializer:
-			//   BindingElement : BindingPattern Initializer_opt  (§14.3.3)
-			// Mirrors parse_object_pattern's nested-LBrace branch so
-			// `[{x} = {x: 1}]` wraps in AssignmentPattern just like the
-			// object-shorthand case does for `{a: {x} = {x: 1}}`.
 			nested := parse_object_pattern(p)
-			if nested == nil {
-				return nil
-			}
-			val: Pattern = nested
-			if match_token(p, .Assign) {
-				prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-				default_val := parse_assignment_expression(p)
-				p.ctx.no_in = prev_no_in
-				assign := new_node(p, AssignmentPattern)
-				assign.loc = get_pattern_loc(nested)
-				assign.left = nested
-				assign.right = default_val
-				assign.loc.end = prev_end_offset(p)
-				val = assign
-			}
-			bump_append(&elements, Maybe(Pattern)(val))
+			if nested == nil { return nil }
+			bump_append(&elements, Maybe(Pattern)(parse_array_pattern_nested_default(p, nested)))
 		} else if is_token(p, .LBracket) {
-			// Nested array pattern, possibly with an Initializer.
-			// Same spec rule as the LBrace branch above - closes the
-			// Test262 language/statements/class/dstr/* cases where
-			// `[[x, y, z] = [4, 5, 6]]` appears in a method parameter
-			// list.
 			nested := parse_array_pattern(p)
-			if nested == nil {
-				return nil
-			}
-			val: Pattern = nested
-			if match_token(p, .Assign) {
-				prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-				default_val := parse_assignment_expression(p)
-				p.ctx.no_in = prev_no_in
-				assign := new_node(p, AssignmentPattern)
-				assign.loc = get_pattern_loc(nested)
-				assign.left = nested
-				assign.right = default_val
-				assign.loc.end = prev_end_offset(p)
-				val = assign
-			}
-			bump_append(&elements, Maybe(Pattern)(val))
+			if nested == nil { return nil }
+			bump_append(&elements, Maybe(Pattern)(parse_array_pattern_nested_default(p, nested)))
 		} else {
 			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected pattern in array pattern")
 			return nil
@@ -7189,6 +7063,127 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 	arr.elements = elements[:]
 	arr.loc.end = prev_end_offset(p)
 	return arr
+}
+
+// parse_array_pattern_rest parses a `... BindingIdentifier | BindingPattern`
+// rest element (§14.3.3). Returns (rest, true) on success; on a syntax error
+// it reports and returns (nil, false) so the caller bails. The rest-not-last
+// and break control flow stays in the caller ("push ifs up").
+parse_array_pattern_rest :: proc(p: ^Parser) -> (Pattern, bool) {
+	rest_start := cur_loc(p) // Capture location of ... before eating
+	eat(p) // consume ...
+
+	rest := new_node(p, RestElement)
+	rest.loc = rest_start
+
+	if is_token(p, .LBracket) {
+		nested := parse_array_pattern(p)
+		if nested == nil { return nil, false }
+		rest.argument = nested
+	} else if is_token(p, .LBrace) {
+		nested := parse_object_pattern(p)
+		if nested == nil { return nil, false }
+		rest.argument = nested
+	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		// Reserved words cannot be rest binding targets:
+		// `[ ...void ]`, `[ ...null ]` etc.
+		if is_reserved_word_for_binding(p.cur_type) {
+			report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
+				fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur_value(p)))
+		}
+		arl := cur_loc(p); arn := cur_value(p)
+		eat(p)
+		rest_ident := new_node(p, Identifier)
+		rest_ident.loc = arl
+		rest_ident.name = arn
+		rest.argument = rest_ident
+	} else {
+		report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier or pattern after ... in array pattern")
+		return nil, false
+	}
+	rest.loc.end = prev_end_offset(p)
+	return rest, true
+}
+
+// parse_array_pattern_ident_element parses a single identifier binding element
+// with its early-error checks and an optional `= default` Initializer. Returns
+// either the bare Identifier or an AssignmentPattern wrapping it.
+parse_array_pattern_ident_element :: proc(p: ^Parser) -> Pattern {
+	// Simple identifier binding, possibly with default value.
+	// Apply the reserved-binding check that parse_binding_pattern
+	// runs for top-level bindings: `await` is reserved as a binding
+	// name inside async / module / class-static-block contexts, and
+	// `yield` is reserved inside generator bodies. Test262: language/
+	// statements/variable/dstr/ary-ptrn-elem-id-static-init-await-
+	// invalid.js (`class C { static { var [await] = []; } }`).
+	// Plain `await` / `yield` use dedicated TokenTypes (.Await /
+	// .Yield); only escaped forms reach .Identifier with the cooked
+	// reserved-word value. Gate the string compares on has_escape
+	// so they stay off the hot path for every ordinary identifier
+	// in a destructuring binding.
+	dstr_await_reserved := await_is_reserved_here(p)
+	if !dstr_await_reserved {
+		if st, have := p.force_source_type.(SourceType); have && st == .Module { dstr_await_reserved = true }
+		else if p.in_module_top_level || p.has_module_syntax { dstr_await_reserved = true }
+	}
+	if (p.cur_type == .Await || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "await"))) &&
+	   dstr_await_reserved {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
+	}
+	if (p.cur_type == .Yield || (p.cur_type == .Identifier && cur_has_escape(p) && cur_value_eq(p, "yield"))) &&
+	   yield_is_reserved_here(p) {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in this context")
+	}
+	// Strict-mode reserved words as array-pattern element binding.
+	if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
+		if is_strict_reserved_binding_name(cur_value(p)) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
+			report_error_coded(p, .K3050_StrictModeReserved, msg)
+		}
+	}
+	eil := cur_loc(p); ein := cur_value(p)
+	eat(p)
+	ident := new_node(p, Identifier)
+	ident.loc = eil
+	ident.name = ein
+
+	// Check for default value: [x = defaultValue]
+	// Restore no_in=false inside the default expression so that
+	// `for (let [x = 'a' in {}] in ...)` parses the `in` as
+	// a binary operator in the default, not the for-in separator.
+	if match_token(p, .Assign) {
+		prev_no_in := p.ctx.no_in; p.ctx.no_in = false
+		default_val := parse_assignment_expression(p)
+		p.ctx.no_in = prev_no_in
+		assign := new_node(p, AssignmentPattern)
+		assign.loc = eil
+		assign.left = ident
+		assign.right = default_val
+		assign.loc.end = prev_end_offset(p)
+		return assign
+	}
+	return ident
+}
+
+// parse_array_pattern_nested_default wraps an already-parsed nested object /
+// array BindingPattern in an AssignmentPattern when an `= Initializer` follows
+// (§14.3.3 BindingElement : BindingPattern Initializer_opt). Mirrors
+// parse_object_pattern's nested branch so `[{x} = {x: 1}]` and
+// `[[x, y, z] = [4, 5, 6]]` parse identically.
+parse_array_pattern_nested_default :: proc(p: ^Parser, nested: Pattern) -> Pattern {
+	val: Pattern = nested
+	if match_token(p, .Assign) {
+		prev_no_in := p.ctx.no_in; p.ctx.no_in = false
+		default_val := parse_assignment_expression(p)
+		p.ctx.no_in = prev_no_in
+		assign := new_node(p, AssignmentPattern)
+		assign.loc = get_pattern_loc(nested)
+		assign.left = nested
+		assign.right = default_val
+		assign.loc.end = prev_end_offset(p)
+		val = assign
+	}
+	return val
 }
 
 
