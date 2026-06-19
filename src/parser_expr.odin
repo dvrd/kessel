@@ -3966,6 +3966,282 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 // Deep-conversion of object/array destructuring internals (e.g. nested
 // `{a: {b}} = {}`) is handled by later parse passes - this helper only needs
 // to produce the outer Pattern wrapper.
+// clear_pending_offsets_in_span removes every offset in `list` that falls
+// within [span_start, span_end). When an ObjectExpression is promoted to an
+// ObjectPattern, pending CoverInitializedName / duplicate-__proto__
+// diagnostics whose offsets land inside the object become legal in pattern
+// context (§13.2.5.1 / §13.15.5.2 / Annex B.3.1), so they are swallowed in
+// place. Compacts the slice without allocating.
+clear_pending_offsets_in_span :: proc(list: ^[dynamic]u32, span_start: u32, span_end: u32) {
+	if len(list) == 0 { return }
+	write := 0
+	for off in list {
+		if off >= span_start && off < span_end {
+			continue
+		}
+		list[write] = off
+		write += 1
+	}
+	resize(list, write)
+}
+
+// expr_to_pattern_object_rest converts an object-spread element (`{...x}`)
+// into a RestElement ObjectPatternProperty and appends it to `op`, enforcing
+// the §13.15.5 rest-last / no-trailing-comma / no-binding-pattern rules and the
+// TS rest-argument restrictions. Extracted from expr_to_pattern_object to keep
+// that loop body under the 70-line limit (item 24).
+expr_to_pattern_object_rest :: proc(p: ^Parser, op: ^ObjectPattern, e: ^ObjectExpression, spread: ^SpreadElement, idx, prop_count: int) {
+	// §13.15.5 Object destructuring: BindingRestProperty must be the last
+	// element of the ObjectBindingPattern. `for ({...rest, b} of ...)` is a
+	// SyntaxError.
+	if idx != prop_count - 1 {
+		report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in object pattern")
+	} else if p.lexer != nil {
+		src := p.lexer.source_bytes
+		search_start := int(spread.loc.end)
+		search_end := int(e.loc.end)
+		if search_end > len(src) { search_end = len(src) }
+		for k := search_start; k < search_end; k += 1 {
+			c := src[k]
+			if c == '}' { break }
+			if c == ',' {
+				report_error_coded(p, .K3041_RestForm, "Rest property may not have a trailing comma")
+				break
+			}
+		}
+	}
+	if _, is_array := spread.argument.(^ArrayExpression); is_array {
+		report_error_coded(p, .K3041_RestForm, "Rest property may not be a binding pattern")
+	}
+	if _, is_object := spread.argument.(^ObjectExpression); is_object {
+		report_error_coded(p, .K3041_RestForm, "Rest property may not be a binding pattern")
+	}
+	// TS `as T` on a rest argument: `{ ...{} as T}` is invalid because the
+	// inner expression `{}` is not a valid assignment target. But `{ ...a as
+	// T}` is valid (unwraps to `a`). Only check when there IS a TS assertion
+	// wrapping a literal.
+	if spread.argument != nil {
+		has_ts_wrap := false
+		unwrapped := spread.argument
+		if ae, is_as := unwrapped^.(^TSAsExpression); is_as {
+			unwrapped = ae.expression; has_ts_wrap = true
+		}
+		if ta, is_ta := unwrapped^.(^TSTypeAssertion); is_ta {
+			unwrapped = ta.expression; has_ts_wrap = true
+		}
+		if has_ts_wrap && unwrapped != nil {
+			if _, is_obj := unwrapped^.(^ObjectExpression); is_obj {
+				report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest operator's argument")
+			}
+			if _, is_arr := unwrapped^.(^ArrayExpression); is_arr {
+				report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest operator's argument")
+			}
+		}
+	}
+	inner, inner_ok := expr_to_pattern(p, spread.argument)
+	if inner_ok {
+		rest := new_node(p, RestElement)
+		rest.loc = spread.loc
+		rest.argument = inner
+		pp := ObjectPatternProperty{
+			loc = spread.loc,
+			key = nil,
+			value = rest,
+		}
+		bump_append(&op.properties, pp)
+	}
+}
+
+// expr_to_pattern_object_prop converts one non-spread ObjectExpression.Property
+// into an ObjectPatternProperty (value -> AssignmentPattern / nested pattern,
+// key -> ObjectPatternPropertyKey). Returns ok=false for a malformed shorthand
+// whose value is nil so the caller skips it. Extracted from
+// expr_to_pattern_object (item 24).
+expr_to_pattern_object_prop :: proc(p: ^Parser, prop: Property) -> (ObjectPatternProperty, bool) {
+	// Convert value:
+	//   - AssignmentExpression (x = default) -> AssignmentPattern
+	//   - anything else -> recurse via expr_to_pattern
+	// Special case shorthand `{x}` where key == value == Identifier: the
+	// parser may point both at the same node; either path converts
+	// correctly below.
+	// Nil-guard: a malformed shorthand like `{ p: void }` (where `void`
+	// has no argument because the next token is `}`) leaves prop.value
+	// nil. The type assertion `prop.value.(^AssignmentExpression)` auto-
+	// derefs and segfaults on nil. Skip the property; the upstream parse
+	// error already explains what went wrong.
+	if prop.value == nil { return {}, false }
+	value_pat: Pattern
+	if ae, is_assign := prop.value.(^AssignmentExpression); is_assign && ae.operator == .Assign {
+		lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
+		if lhs_ok {
+			asn := new_node(p, AssignmentPattern)
+			asn.loc = ae.loc
+			asn.left = lhs_pat
+			asn.right = ae.right
+			value_pat = asn
+		}
+	} else {
+		inner, inner_ok := expr_to_pattern(p, prop.value)
+		if inner_ok {
+			value_pat = inner
+		}
+	}
+
+	// Convert key: Property.key is ^Expression (Identifier / StringLiteral
+	// / NumericLiteral / computed Expression). Map to
+	// ObjectPatternPropertyKey (IdentifierName / ^StringLiteral /
+	// ^Expression).
+	pp_key: Maybe(ObjectPatternPropertyKey)
+	if prop.computed {
+		pp_key = prop.key
+	} else if prop.key != nil {
+		#partial switch k in prop.key^ {
+		case ^Identifier:
+			pp_key = IdentifierName{loc = k.loc, name = k.name}
+		case ^StringLiteral:
+			pp_key = k
+		case:
+			// Numeric / other literal keys: store as ^Expression via computed.
+			pp_key = prop.key
+		}
+	}
+	return ObjectPatternProperty{
+		loc = prop.loc,
+		key = pp_key,
+		value = value_pat,
+		computed = prop.computed,
+		shorthand = prop.shorthand,
+	}, true
+}
+
+expr_to_pattern_object :: proc(p: ^Parser, e: ^ObjectExpression) -> (Pattern, bool) {
+	// Convert each ObjectExpression.Property into an ObjectPatternProperty.
+	// Previously this dropped properties on the floor - emitting an empty
+	// `ObjectPattern { properties: [] }` for every arrow-function param of
+	// the form `({a, b: c = 1, ...rest}) => ...`. Symptom: every nested
+	// default string / identifier inside destructured arrow params was
+	// invisible to downstream walkers (framer-motion.js, swagger-ui.js).
+	// Clear any pending CoverInitializedName offsets that fall inside
+	// this object's span - once promoted to an ObjectPattern, the
+	// `{foo = init}` shorthand is legal (§13.2.5.1 / §13.15.5.2).
+	clear_pending_offsets_in_span(&p.pending_cover_inits, e.loc.start, e.loc.end)
+	// Clear any pending duplicate-__proto__ offsets that fall inside
+	// this object's span — once promoted to an ObjectPattern,
+	// Annex B.3.1 makes duplicate __proto__ legal.
+	clear_pending_offsets_in_span(&p.pending_proto_dups, e.loc.start, e.loc.end)
+	op := new_node(p, ObjectPattern)
+	op.loc = e.loc
+	op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
+	prev_nested := p.ctx.in_nested_pattern_convert
+	p.ctx.in_nested_pattern_convert = true
+	defer p.ctx.in_nested_pattern_convert = prev_nested
+	prop_count := len(e.properties)
+	for prop, idx in e.properties {
+		// Spread element in object expression -> RestElement in pattern.
+		// Detected by nil key + SpreadElement value (parse_object_expression
+		// stashes the SpreadElement in the value slot with key=nil).
+		if prop.key == nil {
+			if spread, ok := prop.value.(^SpreadElement); ok {
+				expr_to_pattern_object_rest(p, op, e, spread, idx, prop_count)
+			}
+			continue
+		}
+
+		pp, ok := expr_to_pattern_object_prop(p, prop)
+		if ok {
+			bump_append(&op.properties, pp)
+		}
+	}
+	return op, true
+}
+
+// expr_to_pattern_array_rest converts an array-spread element (`[...x]`) into a
+// RestElement, enforcing the §14.3.3 rest-last / no-trailing-comma / no-default
+// rules. Returns the RestElement and ok=true when the inner conversion
+// succeeds. Extracted from expr_to_pattern_array to keep that loop body under
+// the 70-line limit (item 24).
+expr_to_pattern_array_rest :: proc(p: ^Parser, e: ^ArrayExpression, spread: ^SpreadElement, idx: int) -> (Pattern, bool) {
+	if idx != len(e.elements) - 1 {
+		report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in array pattern")
+	} else if p.lexer != nil {
+		src := p.lexer.source_bytes
+		search_start := int(spread.loc.end)
+		search_end := int(e.loc.end)
+		if search_end > len(src) { search_end = len(src) }
+		for k := search_start; k < search_end; k += 1 {
+			c := src[k]
+			if c == ']' { break }
+			if c == ',' {
+				report_error_coded(p, .K3041_RestForm, "Rest element may not have a trailing comma")
+				break
+			}
+		}
+	}
+	inner_expr := spread.argument
+	// `[...x = init]` - AssignmentExpression whose LHS is the rest target. The
+	// cover keeps it legal as an ArrayExpression / SpreadElement; reject at
+	// pattern conversion.
+	if ae, is_ae := inner_expr^.(^AssignmentExpression); is_ae && ae.operator == .Assign {
+		report_error_coded(p, .K3041_RestForm, "Rest element cannot have a default initializer")
+		inner_expr = ae.left
+	}
+	inner, ok := expr_to_pattern(p, inner_expr)
+	if !ok { return nil, false }
+	rest := new_node(p, RestElement)
+	rest.loc = spread.loc
+	rest.argument = inner
+	return rest, true
+}
+
+expr_to_pattern_array :: proc(p: ^Parser, e: ^ArrayExpression) -> (Pattern, bool) {
+	// Convert each ArrayExpression.element into an ArrayPattern element.
+	// Same empty-pattern bug as ObjectExpression above.
+	ap := new_node(p, ArrayPattern)
+	ap.loc = e.loc
+	elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
+	prev_nested := p.ctx.in_nested_pattern_convert
+	p.ctx.in_nested_pattern_convert = true
+	defer p.ctx.in_nested_pattern_convert = prev_nested
+	for i := 0; i < len(e.elements); i += 1 {
+		elem, has_elem := e.elements[i].(^Expression)
+		if !has_elem || elem == nil {
+			continue // sparse hole - leave as nil Maybe
+		}
+		// Spread element -> RestElement. Per §14.3.3:
+		//   * BindingRestElement must be LAST in the list (no trailing
+		//     elements allowed).
+		//   * BindingRestElement does NOT accept an Initializer, unlike
+		//     the other BindingElements.
+		//   * No TRAILING comma after BindingRestElement. The cover path
+		//     parses ArrayExpression which legally drops a trailing comma
+		//     into nothing; re-detect by scanning the source between the
+		//     spread's end and the array's end for a `,`.
+		if spread, is_spread := elem^.(^SpreadElement); is_spread {
+			if rest, ok := expr_to_pattern_array_rest(p, e, spread, i); ok {
+				elems[i] = rest
+			}
+			continue
+		}
+		// AssignmentExpression -> AssignmentPattern.
+		if ae, is_assign := elem^.(^AssignmentExpression); is_assign && ae.operator == .Assign {
+			lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
+			if lhs_ok {
+				asn := new_node(p, AssignmentPattern)
+				asn.loc = ae.loc
+				asn.left = lhs_pat
+				asn.right = ae.right
+				elems[i] = asn
+			}
+			continue
+		}
+		if p_inner, ok := expr_to_pattern(p, elem); ok {
+			elems[i] = p_inner
+		}
+	}
+	ap.elements = elems
+	return ap, true
+}
+
 expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	if expr == nil { return nil, false }
 	#partial switch e in expr^ {
@@ -3989,251 +4265,9 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		}
 		return id_ptr, true
 	case ^ObjectExpression:
-		// Convert each ObjectExpression.Property into an ObjectPatternProperty.
-		// Previously this dropped properties on the floor - emitting an empty
-		// `ObjectPattern { properties: [] }` for every arrow-function param of
-		// the form `({a, b: c = 1, ...rest}) => ...`. Symptom: every nested
-		// default string / identifier inside destructured arrow params was
-		// invisible to downstream walkers (framer-motion.js, swagger-ui.js).
-		// Clear any pending CoverInitializedName offsets that fall inside
-		// this object's span - once promoted to an ObjectPattern, the
-		// `{foo = init}` shorthand is legal (§13.2.5.1 / §13.15.5.2).
-		if len(p.pending_cover_inits) > 0 {
-			write := 0
-			for off, read in p.pending_cover_inits {
-				if off >= e.loc.start && off < e.loc.end {
-					continue // swallow - this one's covered
-				}
-				p.pending_cover_inits[write] = off
-				write += 1
-				_ = read
-			}
-			resize(&p.pending_cover_inits, write)
-		}
-		// Clear any pending duplicate-__proto__ offsets that fall inside
-		// this object's span — once promoted to an ObjectPattern,
-		// Annex B.3.1 makes duplicate __proto__ legal.
-		if len(p.pending_proto_dups) > 0 {
-			write := 0
-			for off, read in p.pending_proto_dups {
-				if off >= e.loc.start && off < e.loc.end {
-					continue // swallow - pattern context
-				}
-				p.pending_proto_dups[write] = off
-				write += 1
-				_ = read
-			}
-			resize(&p.pending_proto_dups, write)
-		}
-		op := new_node(p, ObjectPattern)
-		op.loc = e.loc
-		op.properties = make([dynamic]ObjectPatternProperty, 0, len(e.properties), p.allocator)
-		prev_nested := p.ctx.in_nested_pattern_convert
-		p.ctx.in_nested_pattern_convert = true
-		defer p.ctx.in_nested_pattern_convert = prev_nested
-		prop_count := len(e.properties)
-		for prop, idx in e.properties {
-			// Spread element in object expression -> RestElement in pattern.
-			// Detected by nil key + SpreadElement value (parse_object_expression
-			// stashes the SpreadElement in the value slot with key=nil).
-			if prop.key == nil {
-				if spread, ok := prop.value.(^SpreadElement); ok {
-					// §13.15.5 Object destructuring: BindingRestProperty
-					// must be the last element of the ObjectBindingPattern.
-					// `for ({...rest, b} of ...)` is a SyntaxError.
-					if idx != prop_count - 1 {
-						report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in object pattern")
-					} else if p.lexer != nil {
-						src := p.lexer.source_bytes
-						search_start := int(spread.loc.end)
-						search_end := int(e.loc.end)
-						if search_end > len(src) { search_end = len(src) }
-						for k := search_start; k < search_end; k += 1 {
-							c := src[k]
-							if c == '}' { break }
-							if c == ',' {
-								report_error_coded(p, .K3041_RestForm, "Rest property may not have a trailing comma")
-								break
-							}
-						}
-					}
-					if _, is_array := spread.argument.(^ArrayExpression); is_array {
-						report_error_coded(p, .K3041_RestForm, "Rest property may not be a binding pattern")
-					}
-					if _, is_object := spread.argument.(^ObjectExpression); is_object {
-						report_error_coded(p, .K3041_RestForm, "Rest property may not be a binding pattern")
-					}
-					// TS `as T` on a rest argument: `{ ...{} as T}` is invalid
-					// because the inner expression `{}` is not a valid assignment
-					// target. But `{ ...a as T}` is valid (unwraps to `a`).
-					// Only check when there IS a TS assertion wrapping a literal.
-					if spread.argument != nil {
-						has_ts_wrap := false
-						unwrapped := spread.argument
-						if ae, is_as := unwrapped^.(^TSAsExpression); is_as {
-							unwrapped = ae.expression; has_ts_wrap = true
-						}
-						if ta, is_ta := unwrapped^.(^TSTypeAssertion); is_ta {
-							unwrapped = ta.expression; has_ts_wrap = true
-						}
-						if has_ts_wrap && unwrapped != nil {
-							if _, is_obj := unwrapped^.(^ObjectExpression); is_obj {
-								report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest operator's argument")
-							}
-							if _, is_arr := unwrapped^.(^ArrayExpression); is_arr {
-								report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest operator's argument")
-							}
-						}
-					}
-					inner, inner_ok := expr_to_pattern(p, spread.argument)
-					if inner_ok {
-						rest := new_node(p, RestElement)
-						rest.loc = spread.loc
-						rest.argument = inner
-						pp := ObjectPatternProperty{
-							loc = spread.loc,
-							key = nil,
-							value = rest,
-						}
-						bump_append(&op.properties, pp)
-					}
-				}
-				continue
-			}
-
-			// Convert value:
-			//   - AssignmentExpression (x = default) -> AssignmentPattern
-			//   - anything else -> recurse via expr_to_pattern
-			// Special case shorthand `{x}` where key == value == Identifier: the
-			// parser may point both at the same node; either path converts
-			// correctly below.
-			// Nil-guard: a malformed shorthand like `{ p: void }` (where `void`
-			// has no argument because the next token is `}`) leaves prop.value
-			// nil. The type assertion `prop.value.(^AssignmentExpression)` auto-
-			// derefs and segfaults on nil. Skip the property; the upstream parse
-			// error already explains what went wrong.
-			if prop.value == nil { continue }
-			value_pat: Pattern
-			if ae, is_assign := prop.value.(^AssignmentExpression); is_assign && ae.operator == .Assign {
-				lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
-				if lhs_ok {
-					asn := new_node(p, AssignmentPattern)
-					asn.loc = ae.loc
-					asn.left = lhs_pat
-					asn.right = ae.right
-					value_pat = asn
-				}
-			} else {
-				inner, inner_ok := expr_to_pattern(p, prop.value)
-				if inner_ok {
-					value_pat = inner
-				}
-			}
-
-			// Convert key: Property.key is ^Expression (Identifier / StringLiteral
-			// / NumericLiteral / computed Expression). Map to
-			// ObjectPatternPropertyKey (IdentifierName / ^StringLiteral /
-			// ^Expression).
-			pp_key: Maybe(ObjectPatternPropertyKey)
-			if prop.computed {
-				pp_key = prop.key
-			} else if prop.key != nil {
-				#partial switch k in prop.key^ {
-				case ^Identifier:
-					pp_key = IdentifierName{loc = k.loc, name = k.name}
-				case ^StringLiteral:
-					pp_key = k
-				case:
-					// Numeric / other literal keys: store as ^Expression via computed.
-					pp_key = prop.key
-				}
-			}
-
-			pp := ObjectPatternProperty{
-				loc = prop.loc,
-				key = pp_key,
-				value = value_pat,
-				computed = prop.computed,
-				shorthand = prop.shorthand,
-			}
-			bump_append(&op.properties, pp)
-		}
-		return op, true
+		return expr_to_pattern_object(p, e)
 	case ^ArrayExpression:
-		// Convert each ArrayExpression.element into an ArrayPattern element.
-		// Same empty-pattern bug as ObjectExpression above.
-		ap := new_node(p, ArrayPattern)
-		ap.loc = e.loc
-		elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
-		prev_nested := p.ctx.in_nested_pattern_convert
-		p.ctx.in_nested_pattern_convert = true
-		defer p.ctx.in_nested_pattern_convert = prev_nested
-		for i := 0; i < len(e.elements); i += 1 {
-			elem, has_elem := e.elements[i].(^Expression)
-			if !has_elem || elem == nil {
-				continue // sparse hole - leave as nil Maybe
-			}
-			// Spread element -> RestElement. Per §14.3.3:
-			//   * BindingRestElement must be LAST in the list (no trailing
-			//     elements allowed).
-			//   * BindingRestElement does NOT accept an Initializer, unlike
-			//     the other BindingElements.
-			//   * No TRAILING comma after BindingRestElement. The cover path
-			//     parses ArrayExpression which legally drops a trailing comma
-			//     into nothing; re-detect by scanning the source between the
-			//     spread's end and the array's end for a `,`.
-			if spread, is_spread := elem^.(^SpreadElement); is_spread {
-				if i != len(e.elements) - 1 {
-					report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in array pattern")
-				} else if p.lexer != nil {
-					src := p.lexer.source_bytes
-					search_start := int(spread.loc.end)
-					search_end := int(e.loc.end)
-					if search_end > len(src) { search_end = len(src) }
-					for k := search_start; k < search_end; k += 1 {
-						c := src[k]
-						if c == ']' { break }
-						if c == ',' {
-							report_error_coded(p, .K3041_RestForm, "Rest element may not have a trailing comma")
-							break
-						}
-					}
-				}
-				inner_expr := spread.argument
-				// `[...x = init]` - AssignmentExpression whose LHS is the rest
-				// target. The cover keeps it legal as an ArrayExpression /
-				// SpreadElement; reject at pattern conversion.
-				if ae, is_ae := inner_expr^.(^AssignmentExpression); is_ae && ae.operator == .Assign {
-					report_error_coded(p, .K3041_RestForm, "Rest element cannot have a default initializer")
-					inner_expr = ae.left
-				}
-				inner, ok := expr_to_pattern(p, inner_expr)
-				if ok {
-					rest := new_node(p, RestElement)
-					rest.loc = spread.loc
-					rest.argument = inner
-					elems[i] = rest
-				}
-				continue
-			}
-			// AssignmentExpression -> AssignmentPattern.
-			if ae, is_assign := elem^.(^AssignmentExpression); is_assign && ae.operator == .Assign {
-				lhs_pat, lhs_ok := expr_to_pattern(p, ae.left)
-				if lhs_ok {
-					asn := new_node(p, AssignmentPattern)
-					asn.loc = ae.loc
-					asn.left = lhs_pat
-					asn.right = ae.right
-					elems[i] = asn
-				}
-				continue
-			}
-			if p_inner, ok := expr_to_pattern(p, elem); ok {
-				elems[i] = p_inner
-			}
-		}
-		ap.elements = elems
-		return ap, true
+		return expr_to_pattern_array(p, e)
 	case ^MemberExpression:
 		// ESTree allows MemberExpression as a destructure target.
 		return e, true
