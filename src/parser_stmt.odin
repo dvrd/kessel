@@ -4748,6 +4748,46 @@ parse_class_method_params :: proc(p: ^Parser, kind: ClassElementKind, static_, i
 	return params
 }
 
+// Parse a class method body under the class-method context. The flags below
+// (always-strict, in_method, generator/async param guards, derived-constructor
+// super-call eligibility per ECMA-262 §15.7.3) are saved on entry and restored
+// on exit so they do not leak into the surrounding class body. Pure leaf:
+// control flow (the abstract / overload / ambient body-vs-no-body dispatch)
+// stays in parse_class_element.
+parse_class_method_body :: proc(p: ^Parser, kind: ClassElementKind, static_, is_async, is_generator: bool) -> FunctionBody {
+	prev_in_function := p.ctx.in_function
+	prev_in_generator := p.ctx.in_generator
+	prev_in_async := p.ctx.in_async
+	prev_in_method := p.ctx.in_method
+	prev_strict := p.ctx.strict_mode
+	prev_in_derived_ctor := p.ctx.in_derived_constructor
+
+	p.ctx.in_function = true
+	p.ctx.in_generator = is_generator
+	p.ctx.in_async = is_async
+	// Class methods (including constructor / getter / setter) are
+	// [[HomeObject]]-bearing contexts - `super.x` / `super[x]` is
+	// lexically legal inside. Class bodies are ALSO implicitly strict
+	// (ECMA-262 §15.7.3), so every method body parses under
+	// strict-mode rules even without a `"use strict"` directive.
+	p.ctx.in_method = true
+	p.ctx.strict_mode = true
+	// `super(...)` (SuperCall) is only legal in the instance constructor
+	// of a class with `extends` (ECMA-262 §15.7.3). `static` methods
+	// named `constructor` are ordinary static methods and don't qualify.
+	p.ctx.in_derived_constructor = kind == .Constructor && !static_ && p.ctx.class_has_extends
+
+	body := parse_function_body(p)
+
+	p.ctx.in_function = prev_in_function
+	p.ctx.in_generator = prev_in_generator
+	p.ctx.in_async = prev_in_async
+	p.ctx.in_method = prev_in_method
+	p.ctx.strict_mode = prev_strict
+	p.ctx.in_derived_constructor = prev_in_derived_ctor
+	return body
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4982,37 +5022,12 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
 			}
 		}
-		// Parse body - set context flags
-		prev_in_function := p.ctx.in_function
-		prev_in_generator := p.ctx.in_generator
-		prev_in_async := p.ctx.in_async
-		prev_in_method := p.ctx.in_method
-		prev_strict := p.ctx.strict_mode
-		prev_in_derived_ctor := p.ctx.in_derived_constructor
-
-		p.ctx.in_function = true
-		p.ctx.in_generator = is_generator
-		p.ctx.in_async = is_async
-		// Class methods (including constructor / getter / setter) are
-		// [[HomeObject]]-bearing contexts - `super.x` / `super[x]` is
-		// lexically legal inside. Class bodies are ALSO implicitly strict
-		// (ECMA-262 §15.7.3), so every method body parses under
-		// strict-mode rules even without a `"use strict"` directive.
-		p.ctx.in_method = true
-		p.ctx.strict_mode = true
-		// `super(...)` (SuperCall) is only legal in the instance constructor
-		// of a class with `extends` (ECMA-262 §15.7.3). `static` methods
-		// named `constructor` are ordinary static methods and don't qualify.
-		p.ctx.in_derived_constructor = kind == .Constructor && !static_ && p.ctx.class_has_extends
-
-		body = parse_function_body(p)
-
-		p.ctx.in_function = prev_in_function
-		p.ctx.in_generator = prev_in_generator
-		p.ctx.in_async = prev_in_async
-		p.ctx.in_method = prev_in_method
-		p.ctx.strict_mode = prev_strict
-		p.ctx.in_derived_constructor = prev_in_derived_ctor
+		// Parse the method body under the class-method context. The
+		// §15.7.3 flags (always-strict, in_method, generator/async param
+		// guards, derived-constructor super-call eligibility) are saved on
+		// entry and restored on exit by the helper so they do not leak into
+		// the surrounding class body.
+		body = parse_class_method_body(p, kind, static_, is_async, is_generator)
 
 		// Class methods always have UniqueFormalParameters — the
 		// MethodDefinition production (§15.4) names the constraint, so
