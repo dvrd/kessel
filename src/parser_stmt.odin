@@ -4788,6 +4788,272 @@ parse_class_method_body :: proc(p: ^Parser, kind: ClassElementKind, static_, is_
 	return body
 }
 
+// ClassMethodParts carries the modifier/name decisions parse_class_element has
+// already resolved into parse_class_method_element, which finishes a
+// MethodDefinition ClassElement: type parameters, formal parameters, return
+// type, the §15.4 body-vs-overload-signature decision, and node construction.
+// The field-vs-method dispatch stays in parse_class_element.
+ClassMethodParts :: struct {
+	start:         Loc,
+	key:           ^Expression,
+	decorators:    [dynamic]Decorator,
+	kind:          ClassElementKind,
+	accessibility: ClassAccessibility,
+	computed:      bool,
+	static_:       bool,
+	is_async:      bool,
+	is_generator:  bool,
+	is_accessor:   bool,
+	is_abstract:   bool,
+	is_declare:    bool,
+	is_readonly:   bool,
+	is_override:   bool,
+	optional:      bool,
+}
+
+// parse_class_method_body_decision resolves the §15.4 body-vs-overload /
+// ambient-method decision once parse_class_method_element has parsed the
+// method header. It parses the implementation body (or leaves it empty for an
+// overload signature / abstract / ambient method) and reports the associated
+// early errors. Returns the body plus the two flags the caller folds into
+// FunctionExpression.no_body.
+parse_class_method_body_decision :: proc(
+	p: ^Parser,
+	kind: ClassElementKind,
+	key: ^Expression,
+	params: [dynamic]FunctionParameter,
+	paren_loc: Loc,
+	decorators: [dynamic]Decorator,
+	static_, is_async, is_generator, is_abstract: bool,
+) -> (body: FunctionBody, is_overload_sig: bool, is_ambient_method: bool) {
+	// TS-mode ambient method: no `{` body. Three ways to identify it:
+	//   1. explicit `;` terminator        (overload signature, declare class)
+	//   2. ASI: line-terminator before next class element start (.d.ts files)
+	//   3. immediately followed by `}` - last method in declare class.
+	// Each branch leaves `body` empty. Test ts-conformance:
+	//   bench/node_modules/oxc-parser/src-js/index.d.ts
+	//     class ParseResult { get program(): T  /* no semi */
+	//                         get module(): U
+	//                       }
+	is_overload_sig = allow_ts_mode(p) && is_token(p, .Semi)
+	is_ambient_method = allow_ts_mode(p) && !is_token(p, .LBrace) &&
+	                     (cur_has_newline(p) || is_token(p, .RBrace))
+	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
+		// Decorators cannot appear on overload signatures or abstract methods.
+		// §15.2.1 early error: it is a Syntax Error if ClassElementKind of
+		// ClassElement is not Property and the ClassElement has a decorator.
+		if len(decorators) > 0 && (is_overload_sig || is_abstract) {
+			report_error_coded(p, .K4064_DecoratorInvalid, "A decorator can only decorate a method implementation, not an overload")
+		}
+		match_semicolon_or_asi(p)
+		// Leave body empty
+	} else if is_ambient_method {
+		// ASI / before-RBrace ambient method - don't consume any token,
+		// the outer parse_class_element loop picks up where we left off.
+		if len(decorators) > 0 {
+			report_error_coded(p, .K4064_DecoratorInvalid, "A decorator can only decorate a method implementation, not an overload")
+		}
+		// Body stays empty.
+	} else {
+		if p.ctx.in_ambient {
+			report_error_coded(p, .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
+		}
+		// OXC reports abstract-with-body for non-constructor methods;
+		// abstract constructors are accepted by OXC at parser level.
+		if is_abstract && kind != .Constructor {
+			name := class_element_prop_name(key)
+			if name != "" {
+				report_error_coded(p, .K4060_AbstractMethodForm, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract", name))
+			} else {
+				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
+			}
+		}
+		// Parse the method body under the class-method context. The
+		// §15.7.3 flags (always-strict, in_method, generator/async param
+		// guards, derived-constructor super-call eligibility) are saved on
+		// entry and restored on exit by the helper so they do not leak into
+		// the surrounding class body.
+		body = parse_class_method_body(p, kind, static_, is_async, is_generator)
+
+		// Class methods always have UniqueFormalParameters — the
+		// MethodDefinition production (§15.4) names the constraint, so
+		// duplicates fire regardless of outer strict mode.
+
+		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+		// !IsSimpleParameterList. A class method that has both a
+		// `"use strict"` directive in its body AND a non-simple parameter
+		// list is a SyntaxError. p.last_body_strict survives the
+		// strict_mode restore above because parse_function_body sets it
+		// just before returning.
+		if p.last_body_strict && !params_are_simple(params[:]) {
+			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(paren_loc.start), u32(paren_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+		}
+
+		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
+		// parameter shape (rest / TS-mode initializer) are enforced inline
+		// at parse time by enforce_accessor_param_shape (called above, right
+		// after RParen). Slice 15 promoted this back to the parser because
+		// these are STRUCTURAL grammar rules — OXC's parser-only pipeline
+		// rejects them too, and gating behind --show-semantic-errors hid
+		// the parity in the corpus comparison.
+
+		// TS: abstract method must not have an implementation body.
+		if is_abstract && len(body.body) > 0 {
+			name := class_element_prop_name(key)
+			if name != "" {
+				report_error_coded(p, .K4060_AbstractMethodForm, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract", name))
+			} else {
+				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
+			}
+		}
+	}
+	return body, is_overload_sig, is_ambient_method
+}
+
+parse_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts) -> ^ClassElement {
+	start := parts.start
+	key := parts.key
+	kind := parts.kind
+	computed := parts.computed
+	static_ := parts.static_
+	is_async := parts.is_async
+	is_generator := parts.is_generator
+	is_accessor := parts.is_accessor
+	is_abstract := parts.is_abstract
+	is_declare := parts.is_declare
+	is_readonly := parts.is_readonly
+	is_override := parts.is_override
+	accessibility := parts.accessibility
+	decorators := parts.decorators
+	field_optional := parts.optional
+
+	// It's a method - parse parameters and body. TS allows generic methods
+	// `foo<T>(x: T): T { ... }` - parse the optional <T,U,...> here, before
+	// the `(`. Without this, `Expected (, got <` fires on every generic
+	// class method. Same dance as
+	// parse_function_declaration does at line 3810. Stored on the
+	// FunctionExpression's type_parameters slot below.
+	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) && allow_ts_mode(p) {
+		method_type_parameters = parse_ts_type_parameters(p)
+	} else if is_token(p, .LAngle) && !allow_ts_mode(p) {
+		// In JS mode, `<T>` after a method name is a comparison, not
+		// type parameters. Report error and skip the angle-bracketed
+		// content for recovery.
+		report_error_coded(p, .K4053_TSOnlyInJS, "Type parameters are only allowed in TypeScript files")
+		eat(p) // consume `<`
+		depth := 1
+		for depth > 0 && !is_token(p, .EOF) {
+			if is_token(p, .LAngle) { depth += 1 }
+			else if is_token(p, .RAngle) { depth -= 1 }
+			if depth > 0 { eat(p) }
+		}
+		if is_token(p, .RAngle) { eat(p) }
+	}
+
+	if is_readonly {
+		report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' modifier can only appear on a property declaration")
+	}
+	if kind == .Constructor && is_override {
+		report_error_coded(p, .K4020_ConstructorTSModifier, "'override' modifier cannot appear on a constructor declaration")
+	}
+
+	// Capture paren position for FunctionExpression start
+	paren_loc := cur_loc(p)
+	if !expect_token(p, .LParen) {
+		return nil
+	}
+
+	// Parse the method's formal parameter list under the class-method
+	// context (always strict; in_method; generator/async param guards;
+	// derived-constructor super-call eligibility). The §15.5.1/§15.6.1/
+	// §15.8.1 flags are saved on entry and restored on exit by the helper
+	// so they do not leak into the surrounding class body.
+	params := parse_class_method_params(p, kind, static_, is_async, is_generator, start.start)
+
+	if !expect_token(p, .RParen) {
+		return nil
+	}
+
+	// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
+	// parameter shape (rest / default initializer).
+	if kind == .Get || kind == .Set {
+		key_loc: LexerLoc
+		if key != nil {
+			key_loc = LexerLoc(get_expression_loc(key).start)
+		} else {
+			key_loc = LexerLoc(start.start)
+		}
+		enforce_accessor_param_shape(p, kind == .Set, params[:], key_loc)
+	}
+
+	// TypeScript return type annotation on method - stored on FunctionExpression.
+	method_return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) && allow_ts_mode(p) {
+		method_return_type = parse_ts_return_type_annotation(p)
+	}
+	check_ts_method_modifiers(p, kind, is_declare, method_type_parameters, method_return_type)
+
+	// For abstract methods and for TS overload signatures there's no body
+	// - just a semicolon. Overload signature (TS-A10):
+	//   class C {
+	//     get(x: string): string;
+	//     get(x: number): number;
+	//     get(x: any): any { return x; }
+	//   }
+	// The parser tolerates the syntax; semantics (overload set shape,
+	// implementation agreement) are the type checker's job.
+	body, is_overload_sig, is_ambient_method := parse_class_method_body_decision(
+		p, kind, key, params, paren_loc, decorators, static_, is_async, is_generator, is_abstract,
+	)
+
+	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
+
+	// Create the method as a FunctionExpression
+	fn_expr, fn_expr_e := new_expr(p, FunctionExpression)
+	fn_expr.loc = paren_loc
+	fn_expr.id = nil // Methods don't have names in their function expression
+	fn_expr.params = params
+	fn_expr.body = body
+	fn_expr.generator = is_generator
+	fn_expr.async = is_async
+	fn_expr.type_parameters = method_type_parameters
+	fn_expr.return_type = method_return_type
+	// Mark overload signatures / abstract methods as no_body so the
+	// checker can distinguish them from implementation methods.
+	fn_expr.no_body = (is_overload_sig || is_ambient_method || is_abstract)
+
+	// TS2371 / parameter property checks for overload / ambient methods.
+	if fn_expr.no_body && allow_ts_mode(p) {
+		check_no_body_param_properties(p, params[:])
+	}
+	fn_expr.loc.end = prev_end_offset(p)
+
+	elem := new_node(p, ClassElement)
+	elem.loc = start
+	elem.key = key
+	elem.value = fn_expr_e
+	elem.kind = kind
+	elem.computed = computed
+	elem.static = static_
+	elem.is_accessor = is_accessor
+	elem.abstract = is_abstract
+	elem.decorators = decorators
+	elem.accessibility = accessibility
+	elem.readonly = is_readonly
+	elem.override_ = is_override
+	// TS optional method: `m?(): void`. The `?` was consumed by the
+	// shared field/method `?`/`!` parser higher in this proc, but only
+	// the field-element branch propagated `field_optional` into
+	// `elem.optional`. Mirror it for methods so downstream checks
+	// (e.g. ck_check_ts_class_overloads) can distinguish optional
+	// methods from overload signatures.
+	elem.optional = field_optional
+
+	elem.loc.end = prev_end_offset(p)
+	return elem
+}
+
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	decorators := parse_decorators(p)
 	start := cur_loc(p)
@@ -4903,210 +5169,23 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 		})
 	}
 
-	// It's a method - parse parameters and body. TS allows generic methods
-	// `foo<T>(x: T): T { ... }` - parse the optional <T,U,...> here, before
-	// the `(`. Without this, `Expected (, got <` fires on every generic
-	// class method. Same dance as
-	// parse_function_declaration does at line 3810. Stored on the
-	// FunctionExpression's type_parameters slot below.
-	method_type_parameters: Maybe(^TSTypeParameterDeclaration)
-	if is_token(p, .LAngle) && allow_ts_mode(p) {
-		method_type_parameters = parse_ts_type_parameters(p)
-	} else if is_token(p, .LAngle) && !allow_ts_mode(p) {
-		// In JS mode, `<T>` after a method name is a comparison, not
-		// type parameters. Report error and skip the angle-bracketed
-		// content for recovery.
-		report_error_coded(p, .K4053_TSOnlyInJS, "Type parameters are only allowed in TypeScript files")
-		eat(p) // consume `<`
-		depth := 1
-		for depth > 0 && !is_token(p, .EOF) {
-			if is_token(p, .LAngle) { depth += 1 }
-			else if is_token(p, .RAngle) { depth -= 1 }
-			if depth > 0 { eat(p) }
-		}
-		if is_token(p, .RAngle) { eat(p) }
-	}
-
-	if is_readonly {
-		report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' modifier can only appear on a property declaration")
-	}
-	if kind == .Constructor && is_override {
-		report_error_coded(p, .K4020_ConstructorTSModifier, "'override' modifier cannot appear on a constructor declaration")
-	}
-
-	// Capture paren position for FunctionExpression start
-	paren_loc := cur_loc(p)
-	if !expect_token(p, .LParen) {
-		return nil
-	}
-
-	// Parse the method's formal parameter list under the class-method
-	// context (always strict; in_method; generator/async param guards;
-	// derived-constructor super-call eligibility). The §15.5.1/§15.6.1/
-	// §15.8.1 flags are saved on entry and restored on exit by the helper
-	// so they do not leak into the surrounding class body.
-	params := parse_class_method_params(p, kind, static_, is_async, is_generator, start.start)
-
-	if !expect_token(p, .RParen) {
-		return nil
-	}
-
-	// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
-	// parameter shape (rest / default initializer).
-	if kind == .Get || kind == .Set {
-		key_loc: LexerLoc
-		if key != nil {
-			key_loc = LexerLoc(get_expression_loc(key).start)
-		} else {
-			key_loc = LexerLoc(start.start)
-		}
-		enforce_accessor_param_shape(p, kind == .Set, params[:], key_loc)
-	}
-
-	// TypeScript return type annotation on method - stored on FunctionExpression.
-	method_return_type: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) && allow_ts_mode(p) {
-		method_return_type = parse_ts_return_type_annotation(p)
-	}
-	check_ts_method_modifiers(p, kind, is_declare, method_type_parameters, method_return_type)
-
-	// For abstract methods and for TS overload signatures there's no body
-	// - just a semicolon. Overload signature (TS-A10):
-	//   class C {
-	//     get(x: string): string;
-	//     get(x: number): number;
-	//     get(x: any): any { return x; }
-	//   }
-	// The parser tolerates the syntax; semantics (overload set shape,
-	// implementation agreement) are the type checker's job.
-	body: FunctionBody
-	// TS-mode ambient method: no `{` body. Three ways to identify it:
-	//   1. explicit `;` terminator        (overload signature, declare class)
-	//   2. ASI: line-terminator before next class element start (.d.ts files)
-	//   3. immediately followed by `}` - last method in declare class.
-	// Each branch leaves `body` empty. Test ts-conformance:
-	//   bench/node_modules/oxc-parser/src-js/index.d.ts
-	//     class ParseResult { get program(): T  /* no semi */
-	//                         get module(): U
-	//                       }
-	is_overload_sig := allow_ts_mode(p) && is_token(p, .Semi)
-	is_ambient_method := allow_ts_mode(p) && !is_token(p, .LBrace) &&
-	                     (cur_has_newline(p) || is_token(p, .RBrace))
-	if (is_abstract || is_overload_sig) && is_token(p, .Semi) {
-		// Decorators cannot appear on overload signatures or abstract methods.
-		// §15.2.1 early error: it is a Syntax Error if ClassElementKind of
-		// ClassElement is not Property and the ClassElement has a decorator.
-		if len(decorators) > 0 && (is_overload_sig || is_abstract) {
-			report_error_coded(p, .K4064_DecoratorInvalid, "A decorator can only decorate a method implementation, not an overload")
-		}
-		match_semicolon_or_asi(p)
-		// Leave body empty
-	} else if is_ambient_method {
-		// ASI / before-RBrace ambient method - don't consume any token,
-		// the outer parse_class_element loop picks up where we left off.
-		if len(decorators) > 0 {
-			report_error_coded(p, .K4064_DecoratorInvalid, "A decorator can only decorate a method implementation, not an overload")
-		}
-		// Body stays empty.
-	} else {
-		if p.ctx.in_ambient {
-			report_error_coded(p, .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
-		}
-		// OXC reports abstract-with-body for non-constructor methods;
-		// abstract constructors are accepted by OXC at parser level.
-		if is_abstract && kind != .Constructor {
-			name := class_element_prop_name(key)
-			if name != "" {
-				report_error_coded(p, .K4060_AbstractMethodForm, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract", name))
-			} else {
-				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
-			}
-		}
-		// Parse the method body under the class-method context. The
-		// §15.7.3 flags (always-strict, in_method, generator/async param
-		// guards, derived-constructor super-call eligibility) are saved on
-		// entry and restored on exit by the helper so they do not leak into
-		// the surrounding class body.
-		body = parse_class_method_body(p, kind, static_, is_async, is_generator)
-
-		// Class methods always have UniqueFormalParameters — the
-		// MethodDefinition production (§15.4) names the constraint, so
-		// duplicates fire regardless of outer strict mode.
-
-		// §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
-		// !IsSimpleParameterList. A class method that has both a
-		// `"use strict"` directive in its body AND a non-simple parameter
-		// list is a SyntaxError. p.last_body_strict survives the
-		// strict_mode restore above because parse_function_body sets it
-		// just before returning.
-		if p.last_body_strict && !params_are_simple(params[:]) {
-			report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(paren_loc.start), u32(paren_loc.start), "Illegal 'use strict' directive in function with non-simple parameter list")
-		}
-
-		// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
-		// parameter shape (rest / TS-mode initializer) are enforced inline
-		// at parse time by enforce_accessor_param_shape (called above, right
-		// after RParen). Slice 15 promoted this back to the parser because
-		// these are STRUCTURAL grammar rules — OXC's parser-only pipeline
-		// rejects them too, and gating behind --show-semantic-errors hid
-		// the parity in the corpus comparison.
-
-		// TS: abstract method must not have an implementation body.
-		if is_abstract && len(body.body) > 0 {
-			name := class_element_prop_name(key)
-			if name != "" {
-				report_error_coded(p, .K4060_AbstractMethodForm, fmt.tprintf("Method '%s' cannot have an implementation because it is marked abstract", name))
-			} else {
-				report_error_coded(p, .K4060_AbstractMethodForm, "Method cannot have an implementation because it is marked abstract")
-			}
-		}
-	}
-
-	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
-
-	// Create the method as a FunctionExpression
-	fn_expr, fn_expr_e := new_expr(p, FunctionExpression)
-	fn_expr.loc = paren_loc
-	fn_expr.id = nil // Methods don't have names in their function expression
-	fn_expr.params = params
-	fn_expr.body = body
-	fn_expr.generator = is_generator
-	fn_expr.async = is_async
-	fn_expr.type_parameters = method_type_parameters
-	fn_expr.return_type = method_return_type
-	// Mark overload signatures / abstract methods as no_body so the
-	// checker can distinguish them from implementation methods.
-	fn_expr.no_body = (is_overload_sig || is_ambient_method || is_abstract)
-
-	// TS2371 / parameter property checks for overload / ambient methods.
-	if fn_expr.no_body && allow_ts_mode(p) {
-		check_no_body_param_properties(p, params[:])
-	}
-	fn_expr.loc.end = prev_end_offset(p)
-
-	elem := new_node(p, ClassElement)
-	elem.loc = start
-	elem.key = key
-	elem.value = fn_expr_e
-	elem.kind = kind
-	elem.computed = computed
-	elem.static = static_
-	elem.is_accessor = is_accessor
-	elem.abstract = is_abstract
-	elem.decorators = decorators
-	elem.accessibility = accessibility
-	elem.readonly = is_readonly
-	elem.override_ = is_override
-	// TS optional method: `m?(): void`. The `?` was consumed by the
-	// shared field/method `?`/`!` parser higher in this proc, but only
-	// the field-element branch propagated `field_optional` into
-	// `elem.optional`. Mirror it for methods so downstream checks
-	// (e.g. ck_check_ts_class_overloads) can distinguish optional
-	// methods from overload signatures.
-	elem.optional = field_optional
-
-	elem.loc.end = prev_end_offset(p)
-	return elem
+	return parse_class_method_element(p, ClassMethodParts{
+		start         = start,
+		key           = key,
+		decorators    = decorators,
+		kind          = kind,
+		accessibility = accessibility,
+		computed      = computed,
+		static_       = static_,
+		is_async      = is_async,
+		is_generator  = is_generator,
+		is_accessor   = is_accessor,
+		is_abstract   = is_abstract,
+		is_declare    = is_declare,
+		is_readonly   = is_readonly,
+		is_override   = is_override,
+		optional      = field_optional,
+	})
 }
 
 // Parse ES2022 static block: static { ... }
