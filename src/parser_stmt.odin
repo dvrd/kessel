@@ -6701,31 +6701,11 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prop_start := cur_loc(p)
 
-		// Check for rest element: ...identifier
+		// Rest element: ...identifier. Must be last in an object pattern.
 		if match_token(p, .Dot3) {
-			if !is_token(p, .Identifier) {
-				report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier after ... in object pattern")
-				return nil
-			}
-			rl := cur_loc(p); rn := cur_value(p)
-			rest := new_node(p, RestElement)
-			rest.loc = prop_start
-			rest_ident := new_node(p, Identifier)
-			rest_ident.loc = rl
-			rest_ident.name = rn
-			rest.argument = rest_ident
-			rest.loc.end = rl.end
-			eat(p)
-
-			rest_prop := ObjectPatternProperty{
-				loc       = prop_start,
-				key       = nil,
-				value     = rest,
-				shorthand = false,
-			}
+			rest_prop, ok := parse_object_pattern_rest(p, prop_start)
+			if !ok { return nil }
 			bump_append(&obj.properties, rest_prop)
-
-			// Rest element must be last
 			if !is_token(p, .RBrace) {
 				report_error_coded(p, .K3040_RestNotLast, "Rest element must be last in object pattern")
 			}
@@ -6738,233 +6718,20 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 			return nil
 		}
 
-		// Check for shorthand or value pattern
+		// Dispatch on the property shape: `{ key: value }`, `{ key = default }`
+		// shorthand-with-default, or the bare `{ key }` shorthand.
 		if is_token(p, .Colon) {
-			// { key: value }
 			eat(p)
-
-			// Parse value as pattern (identifiers and contextual keywords)
-			if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-				// Reserved words cannot appear as binding targets in
-				// destructuring patterns: `{ p: void }`, `{ p: null }` etc.
-				if is_reserved_word_for_binding(p.cur_type) {
-					report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
-						fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur_value(p)))
-				}
-				// Strict-mode reserved words as object-pattern value binding.
-				if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
-					if is_strict_reserved_binding_name(cur_value(p)) {
-						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-						report_error_coded(p, .K3050_StrictModeReserved, msg)
-					}
-				}
-				vl := cur_loc(p); vn := cur_value(p)
-				value_ident := new_node(p, Identifier)
-				value_ident.loc = vl
-				value_ident.name = vn
-				eat(p)
-
-				// Check for default value: { key: value = defaultValue }
-				// Same no_in restore as parse_array_pattern: `for (let
-				// {x = 'a' in {}} in ...)` needs `in` as a binary op
-				// inside the default expression, not the for-in separator.
-				if match_token(p, .Assign) {
-					prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-					default_val := parse_assignment_expression(p)
-					p.ctx.no_in = prev_no_in
-					assign := new_node(p, AssignmentPattern)
-					// AssignmentPattern.start is the start of the LHS pattern,
-					// NOT the enclosing property key. For `{ key: value = 1 }`
-					// OXC (and the ESTree spec) emits AssignmentPattern at
-					// [value_start, default_end]; previously we inherited
-					// prop_start (= key's start), which drifted every nested
-					// destructuring span by the width of `key: ` - ~11 bytes
-					// per hit on antd.js and other framework code.
-					assign.loc = value_ident.loc
-					assign.left = value_ident
-					assign.right = default_val
-					assign.loc.end = prev_end_offset(p)
-
-					prop := ObjectPatternProperty{
-						loc       = prop_start,
-						key       = key,
-						value     = assign,
-						computed  = computed,
-						shorthand = false,
-					}
-					prop.loc.end = prev_end_offset(p)
-					bump_append(&obj.properties, prop)
-				} else {
-					prop := ObjectPatternProperty{
-						loc       = prop_start,
-						key       = key,
-						value     = value_ident,
-						computed  = computed,
-						shorthand = false,
-					}
-					prop.loc.end = value_ident.loc.end
-					bump_append(&obj.properties, prop)
-				}
-			} else if is_token(p, .LBrace) {
-				// Nested object pattern (possibly with default)
-				nested := parse_object_pattern(p)
-				if nested == nil {
-					return nil
-				}
-				val: Pattern = nested
-				if match_token(p, .Assign) {
-					prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-					default_val := parse_assignment_expression(p)
-					p.ctx.no_in = prev_no_in
-					assign := new_node(p, AssignmentPattern)
-					// Same LHS-start rule as the identifier case above - the
-					// nested pattern's own span is the start of the
-					// AssignmentPattern, not the outer property's key.
-					assign.loc = get_pattern_loc(nested)
-					assign.left = nested
-					assign.right = default_val
-					assign.loc.end = prev_end_offset(p)
-					val = assign
-				}
-				prop := ObjectPatternProperty{
-					loc       = prop_start,
-						key       = key,
-					value     = val,
-					computed  = computed,
-						shorthand = false,
-				}
-				prop.loc.end = prev_end_offset(p)
-				bump_append(&obj.properties, prop)
-			} else if is_token(p, .LBracket) {
-				// Nested array pattern (possibly with default)
-				nested := parse_array_pattern(p)
-				if nested == nil {
-					return nil
-				}
-				val: Pattern = nested
-				if match_token(p, .Assign) {
-					prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-					default_val := parse_assignment_expression(p)
-					p.ctx.no_in = prev_no_in
-					assign := new_node(p, AssignmentPattern)
-					// Same LHS-start rule - see nested-object case above.
-					assign.loc = get_pattern_loc(nested)
-					assign.left = nested
-					assign.right = default_val
-					assign.loc.end = prev_end_offset(p)
-					val = assign
-				}
-				prop := ObjectPatternProperty{
-					loc       = prop_start,
-					key       = key,
-					value     = val,
-					computed  = computed,
-					shorthand = false,
-				}
-				prop.loc.end = prev_end_offset(p)
-				bump_append(&obj.properties, prop)
-			} else {
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected pattern in object pattern value")
-				return nil
-			}
+			prop, ok := parse_object_pattern_colon_value(p, prop_start, key, computed)
+			if !ok { return nil }
+			bump_append(&obj.properties, prop)
 		} else if match_token(p, .Assign) {
-			// { key = defaultValue } - shorthand with default
-			prev_no_in := p.ctx.no_in; p.ctx.no_in = false
-			default_val := parse_assignment_expression(p)
-			p.ctx.no_in = prev_no_in
-			// Create AssignmentPattern with key as left
-			if k := key; k != nil {
-				val := k.?  // unwrap Maybe
-				#partial switch v in val {
-				case IdentifierName:
-					// §13.2.5.1 / §12.6.1.1 - a shorthand key in an object
-					// pattern doubles as a BindingIdentifier; reserved
-					// keywords (`default`, `extends`, `class`, ...) are not
-					// legal binding names. Same gate fires for the bare
-					// `{ default }` shorthand below.
-					if is_always_reserved_word_name(v.name) {
-						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
-						report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
-					}
-					// Strict-mode reserved words as shorthand-with-default binding.
-					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
-						if is_strict_reserved_binding_name(v.name) {
-							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-							report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
-						}
-					}
-					left_ident := new_node(p, Identifier)
-					left_ident.loc = v.loc
-					left_ident.name = v.name
-					assign := new_node(p, AssignmentPattern)
-					// Shorthand: prop_start == v.loc.start in practice
-					// (the key IS the LHS), but spell it out through
-					// left_ident.loc to stay consistent with the other three
-					// AssignmentPattern sites in parse_object_pattern.
-					assign.loc = left_ident.loc
-					assign.left = left_ident
-					assign.right = default_val
-					assign.loc.end = prev_end_offset(p)
-
-					prop := ObjectPatternProperty{
-						loc       = prop_start,
-						key       = key,
-						value     = assign,
-						computed  = computed,
-						shorthand = true,
-					}
-					prop.loc.end = prev_end_offset(p)
-					bump_append(&obj.properties, prop)
-				}
+			if prop, has := parse_object_pattern_shorthand_default(p, prop_start, key, computed); has {
+				bump_append(&obj.properties, prop)
 			}
 		} else {
-			// Shorthand: { key } means { key: key }
-			if k := key; k != nil {
-				val := k.?  // unwrap Maybe
-				#partial switch v in val {
-				case IdentifierName:
-					// Shorthand binding name must be a valid BindingIdentifier
-					// (§13.2.5.1). See the §Assign branch above for the
-					// rationale.
-					if is_always_reserved_word_name(v.name) {
-						msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
-						report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
-					}
-					// Strict-mode reserved words as shorthand binding.
-					if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
-						if is_strict_reserved_binding_name(v.name) {
-							msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
-							report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
-						}
-					}
-					// `yield` is reserved in generator bodies; `await` in async.
-					if v.name == "yield" && yield_is_reserved_here(p) {
-						report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
-					}
-					if v.name == "await" {
-						await_reserved := await_is_reserved_here(p)
-						if !await_reserved {
-							if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
-							else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
-						}
-						if await_reserved {
-							report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
-						}
-					}
-					left_ident := new_node(p, Identifier)
-					left_ident.loc = v.loc
-					left_ident.name = v.name
-
-					prop := ObjectPatternProperty{
-						loc       = prop_start,
-						key       = key,
-						value     = left_ident,
-						computed  = false,
-						shorthand = true,
-					}
-					prop.loc.end = left_ident.loc.end
-					bump_append(&obj.properties, prop)
-				}
+			if prop, has := parse_object_pattern_shorthand(p, prop_start, key); has {
+				bump_append(&obj.properties, prop)
 			}
 		}
 
@@ -6979,6 +6746,226 @@ parse_object_pattern :: proc(p: ^Parser) -> Pattern {
 
 	obj.loc.end = prev_end_offset(p)
 	return obj
+}
+
+// parse_object_pattern_rest parses `...BindingIdentifier` after the parent has
+// consumed the `...`. Returns (property, true) on success; reports and returns
+// (_, false) on error. The rest-must-be-last check and break stay in the
+// caller ("push ifs up").
+parse_object_pattern_rest :: proc(p: ^Parser, prop_start: Loc) -> (ObjectPatternProperty, bool) {
+	if !is_token(p, .Identifier) {
+		report_error_coded(p, .K2021_ExpectedIdentifier, "Expected identifier after ... in object pattern")
+		return {}, false
+	}
+	rl := cur_loc(p); rn := cur_value(p)
+	rest := new_node(p, RestElement)
+	rest.loc = prop_start
+	rest_ident := new_node(p, Identifier)
+	rest_ident.loc = rl
+	rest_ident.name = rn
+	rest.argument = rest_ident
+	rest.loc.end = rl.end
+	eat(p)
+
+	return ObjectPatternProperty{
+		loc       = prop_start,
+		key       = nil,
+		value     = rest,
+		shorthand = false,
+	}, true
+}
+
+// parse_object_pattern_colon_value parses the value pattern after `key:` (the
+// `:` already consumed by the caller). Returns (property, true) on success;
+// reports and returns (_, false) on a syntax error so the caller bails.
+parse_object_pattern_colon_value :: proc(p: ^Parser, prop_start: Loc, key: Maybe(ObjectPatternPropertyKey), computed: bool) -> (ObjectPatternProperty, bool) {
+	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
+		return parse_object_pattern_colon_ident(p, prop_start, key, computed), true
+	} else if is_token(p, .LBrace) {
+		nested := parse_object_pattern(p)
+		if nested == nil { return {}, false }
+		val := parse_binding_pattern_nested_default(p, nested)
+		prop := ObjectPatternProperty{
+			loc       = prop_start,
+			key       = key,
+			value     = val,
+			computed  = computed,
+			shorthand = false,
+		}
+		prop.loc.end = prev_end_offset(p)
+		return prop, true
+	} else if is_token(p, .LBracket) {
+		nested := parse_array_pattern(p)
+		if nested == nil { return {}, false }
+		val := parse_binding_pattern_nested_default(p, nested)
+		prop := ObjectPatternProperty{
+			loc       = prop_start,
+			key       = key,
+			value     = val,
+			computed  = computed,
+			shorthand = false,
+		}
+		prop.loc.end = prev_end_offset(p)
+		return prop, true
+	}
+	report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected pattern in object pattern value")
+	return {}, false
+}
+
+// parse_object_pattern_colon_ident parses an identifier value binding after
+// `key:` with its reserved-word / strict-mode early-error checks and an
+// optional `= default`. Always succeeds (errors are reported, not fatal):
+// returns either a plain Identifier value or an AssignmentPattern.
+parse_object_pattern_colon_ident :: proc(p: ^Parser, prop_start: Loc, key: Maybe(ObjectPatternPropertyKey), computed: bool) -> ObjectPatternProperty {
+	// Reserved words cannot appear as binding targets in destructuring
+	// patterns: `{ p: void }`, `{ p: null }` etc.
+	if is_reserved_word_for_binding(p.cur_type) {
+		report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
+			fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur_value(p)))
+	}
+	// Strict-mode reserved words as object-pattern value binding.
+	if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
+		if is_strict_reserved_binding_name(cur_value(p)) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
+			report_error_coded(p, .K3050_StrictModeReserved, msg)
+		}
+	}
+	vl := cur_loc(p); vn := cur_value(p)
+	value_ident := new_node(p, Identifier)
+	value_ident.loc = vl
+	value_ident.name = vn
+	eat(p)
+
+	// Check for default value: { key: value = defaultValue }. Restore
+	// no_in=false inside the default so `for (let {x = 'a' in {}} in ...)`
+	// parses the `in` as a binary op, not the for-in separator.
+	if match_token(p, .Assign) {
+		prev_no_in := p.ctx.no_in; p.ctx.no_in = false
+		default_val := parse_assignment_expression(p)
+		p.ctx.no_in = prev_no_in
+		assign := new_node(p, AssignmentPattern)
+		// AssignmentPattern.start is the start of the LHS pattern, NOT the
+		// enclosing property key: OXC / ESTree emit [value_start, default_end].
+		assign.loc = value_ident.loc
+		assign.left = value_ident
+		assign.right = default_val
+		assign.loc.end = prev_end_offset(p)
+		prop := ObjectPatternProperty{
+			loc       = prop_start,
+			key       = key,
+			value     = assign,
+			computed  = computed,
+			shorthand = false,
+		}
+		prop.loc.end = prev_end_offset(p)
+		return prop
+	}
+	prop := ObjectPatternProperty{
+		loc       = prop_start,
+		key       = key,
+		value     = value_ident,
+		computed  = computed,
+		shorthand = false,
+	}
+	prop.loc.end = value_ident.loc.end
+	return prop
+}
+
+// parse_object_pattern_shorthand_default parses `{ key = default }` after the
+// caller consumed `=`. Returns (property, true) when key is a binding
+// identifier; (_, false) when it is not, in which case the property is
+// silently dropped (the permissive parser defers the diagnostic to the
+// checker).
+parse_object_pattern_shorthand_default :: proc(p: ^Parser, prop_start: Loc, key: Maybe(ObjectPatternPropertyKey), computed: bool) -> (ObjectPatternProperty, bool) {
+	prev_no_in := p.ctx.no_in; p.ctx.no_in = false
+	default_val := parse_assignment_expression(p)
+	p.ctx.no_in = prev_no_in
+	k := key
+	if k == nil { return {}, false }
+	val := k.?
+	v, is_ident := val.(IdentifierName)
+	if !is_ident { return {}, false }
+	// §13.2.5.1 / §12.6.1.1 - a shorthand key in an object pattern doubles
+	// as a BindingIdentifier; reserved keywords (`default`, `class`, ...)
+	// are not legal binding names.
+	if is_always_reserved_word_name(v.name) {
+		msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
+		report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
+	}
+	if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
+		if is_strict_reserved_binding_name(v.name) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
+		}
+	}
+	left_ident := new_node(p, Identifier)
+	left_ident.loc = v.loc
+	left_ident.name = v.name
+	assign := new_node(p, AssignmentPattern)
+	// Shorthand: the key IS the LHS; spell the span out through left_ident.loc
+	// to stay consistent with the other AssignmentPattern sites here.
+	assign.loc = left_ident.loc
+	assign.left = left_ident
+	assign.right = default_val
+	assign.loc.end = prev_end_offset(p)
+	prop := ObjectPatternProperty{
+		loc       = prop_start,
+		key       = key,
+		value     = assign,
+		computed  = computed,
+		shorthand = true,
+	}
+	prop.loc.end = prev_end_offset(p)
+	return prop, true
+}
+
+// parse_object_pattern_shorthand parses the bare `{ key }` shorthand (no `:`
+// or `=`). Returns (property, true) when key is a binding identifier; (_,
+// false) otherwise (silently dropped — the permissive parser defers the
+// diagnostic to the checker).
+parse_object_pattern_shorthand :: proc(p: ^Parser, prop_start: Loc, key: Maybe(ObjectPatternPropertyKey)) -> (ObjectPatternProperty, bool) {
+	k := key
+	if k == nil { return {}, false }
+	val := k.?
+	v, is_ident := val.(IdentifierName)
+	if !is_ident { return {}, false }
+	// Shorthand binding name must be a valid BindingIdentifier (§13.2.5.1).
+	if is_always_reserved_word_name(v.name) {
+		msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", v.name)
+		report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
+	}
+	if p.ctx.strict_mode && !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
+		if is_strict_reserved_binding_name(v.name) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", v.name)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(v.loc.start), u32(v.loc.start), msg)
+		}
+	}
+	// `yield` is reserved in generator bodies; `await` in async / module.
+	if v.name == "yield" && yield_is_reserved_here(p) {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
+	}
+	if v.name == "await" {
+		await_reserved := await_is_reserved_here(p)
+		if !await_reserved {
+			if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+			else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+		}
+		if await_reserved {
+			report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'await' is reserved as a binding name in this context")
+		}
+	}
+	left_ident := new_node(p, Identifier)
+	left_ident.loc = v.loc
+	left_ident.name = v.name
+	prop := ObjectPatternProperty{
+		loc       = prop_start,
+		key       = key,
+		value     = left_ident,
+		computed  = false,
+		shorthand = true,
+	}
+	prop.loc.end = left_ident.loc.end
+	return prop, true
 }
 
 // Helper to create identifier from token info
@@ -7041,11 +7028,11 @@ parse_array_pattern :: proc(p: ^Parser) -> Pattern {
 		} else if is_token(p, .LBrace) {
 			nested := parse_object_pattern(p)
 			if nested == nil { return nil }
-			bump_append(&elements, Maybe(Pattern)(parse_array_pattern_nested_default(p, nested)))
+			bump_append(&elements, Maybe(Pattern)(parse_binding_pattern_nested_default(p, nested)))
 		} else if is_token(p, .LBracket) {
 			nested := parse_array_pattern(p)
 			if nested == nil { return nil }
-			bump_append(&elements, Maybe(Pattern)(parse_array_pattern_nested_default(p, nested)))
+			bump_append(&elements, Maybe(Pattern)(parse_binding_pattern_nested_default(p, nested)))
 		} else {
 			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected pattern in array pattern")
 			return nil
@@ -7165,12 +7152,12 @@ parse_array_pattern_ident_element :: proc(p: ^Parser) -> Pattern {
 	return ident
 }
 
-// parse_array_pattern_nested_default wraps an already-parsed nested object /
+// parse_binding_pattern_nested_default wraps an already-parsed nested object /
 // array BindingPattern in an AssignmentPattern when an `= Initializer` follows
-// (§14.3.3 BindingElement : BindingPattern Initializer_opt). Mirrors
-// parse_object_pattern's nested branch so `[{x} = {x: 1}]` and
-// `[[x, y, z] = [4, 5, 6]]` parse identically.
-parse_array_pattern_nested_default :: proc(p: ^Parser, nested: Pattern) -> Pattern {
+// (§14.3.3 BindingElement : BindingPattern Initializer_opt). Shared by both
+// parse_array_pattern and parse_object_pattern so `[{x} = {x: 1}]` and
+// `{a: {x} = {x: 1}}` parse identically.
+parse_binding_pattern_nested_default :: proc(p: ^Parser, nested: Pattern) -> Pattern {
 	val: Pattern = nested
 	if match_token(p, .Assign) {
 		prev_no_in := p.ctx.no_in; p.ctx.no_in = false
