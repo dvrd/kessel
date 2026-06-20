@@ -371,41 +371,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		// `**` form). Detect by inspecting the raw source span of the
 		// left operand - a leading `(` means paren-wrapped.
 		if cur_type == .Pow && left != nil {
-			_, is_unary := left.(^UnaryExpression)
-			_, is_await := left.(^AwaitExpression)
-			if is_unary || is_await {
-				lhs_loc := loc_from_expr(left)
-				lhs_start := lhs_loc.start
-				lhs_end   := lhs_loc.end
-				// Without --preserve-parens the UnaryExpression's span is
-				// [unary_op, end) and the optional `(` lives one byte before.
-				// Walk backwards over insignificant whitespace to detect it.
-				paren_wrapped := is_paren_wrapped_at(p, int(lhs_start))
-				// Found a '(' before the unary. Verify it closes
-				// *before* the '**' - i.e. the ')' sits between the
-				// UnaryExpression's end and the '**' token. If the ')'
-				// is missing (or after '**') the '(' wraps the whole
-				// binary expression, not just the unary operand:
-				//   (-5) ** 6   → ')' at 3, before '**' at 5 → wrapped
-				//   (-5 ** 6)   → ')' at 8, after  '**' at 4 → NOT
-				if paren_wrapped {
-					// Walk forward from lhs_end over whitespace looking
-					// for ')'. Must appear before the current token (the '**').
-					closing := false
-					j := int(lhs_end)
-					pow_off := int(cur_offset(p))
-					for j < pow_off {
-						ch := p.lexer.source_bytes[j]
-						if ch == ')' { closing = true; break }
-						if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
-						break
-					}
-					if !closing { paren_wrapped = false }
-				}
-				if !paren_wrapped {
-					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Unparenthesized unary expression cannot appear as the left operand of '**'")
-				}
-			}
+			check_pow_unparenthesized_operand(p, left, cur_type)
 		}
 
 		eat(p)
@@ -525,6 +491,48 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	}
 
 	return left
+}
+
+// check_pow_unparenthesized_operand enforces §13.6.1: an unparenthesized
+// UnaryExpression (or AwaitExpression) cannot be the left operand of `**`.
+// Cold diagnostic path lifted out of parse_expr_with_prec's infix loop as
+// pure code motion (the `cur_type == .Pow` dispatch stays in the caller).
+check_pow_unparenthesized_operand :: proc(p: ^Parser, left: ^Expression, cur_type: TokenType) {
+	_, is_unary := left.(^UnaryExpression)
+	_, is_await := left.(^AwaitExpression)
+	if is_unary || is_await {
+		lhs_loc := loc_from_expr(left)
+		lhs_start := lhs_loc.start
+		lhs_end   := lhs_loc.end
+		// Without --preserve-parens the UnaryExpression's span is
+		// [unary_op, end) and the optional `(` lives one byte before.
+		// Walk backwards over insignificant whitespace to detect it.
+		paren_wrapped := is_paren_wrapped_at(p, int(lhs_start))
+		// Found a '(' before the unary. Verify it closes
+		// *before* the '**' - i.e. the ')' sits between the
+		// UnaryExpression's end and the '**' token. If the ')'
+		// is missing (or after '**') the '(' wraps the whole
+		// binary expression, not just the unary operand:
+		//   (-5) ** 6   → ')' at 3, before '**' at 5 → wrapped
+		//   (-5 ** 6)   → ')' at 8, after  '**' at 4 → NOT
+		if paren_wrapped {
+			// Walk forward from lhs_end over whitespace looking
+			// for ')'. Must appear before the current token (the '**').
+			closing := false
+			j := int(lhs_end)
+			pow_off := int(cur_offset(p))
+			for j < pow_off {
+				ch := p.lexer.source_bytes[j]
+				if ch == ')' { closing = true; break }
+				if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
+				break
+			}
+			if !closing { paren_wrapped = false }
+		}
+		if !paren_wrapped {
+			report_error_coded(p, .K3062_OperatorPrecedenceParens, "Unparenthesized unary expression cannot appear as the left operand of '**'")
+		}
+	}
 }
 
 // parse_unary_prefix_op parses a §13.5 prefix UnaryExpression
