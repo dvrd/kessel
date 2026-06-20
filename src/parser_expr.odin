@@ -266,30 +266,8 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 				if cur_has_newline(p) {
 					report_error_coded(p, .K2040_UnexpectedToken, "Unexpected line terminator before '=>' (restricted production)")
 				}
-				// `({}=>0)` — bare ObjectExpression followed by `=>` inside a
-				// paren group is not valid CoverParenthesizedExpression form.
-				// V8 rejects: "Malformed arrow function parameter list".
-				// Only reject when the object has NO properties and was not
-				// preceded by `)` (which would mean `({}) =>` form).
-				if left != nil {
-					if obj, is_obj := left^.(^ObjectExpression); is_obj && len(obj.properties) == 0 {
-						// Check if there's a `)` between the `}` and `=>`.
-						if p.lexer != nil {
-							arrow_off := int(cur_offset(p))
-							has_rparen := false
-							i := arrow_off - 1
-							for i >= 0 {
-								ch := p.lexer.source_bytes[i]
-								if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
-								if ch == ')' { has_rparen = true }
-								break
-							}
-							if !has_rparen {
-								report_error_coded(p, .K2040_UnexpectedToken, "Malformed arrow function parameter list")
-							}
-						}
-					}
-				}
+				// `({}=>0)` is not a valid CoverParenthesizedExpression — reject it.
+				check_malformed_empty_object_arrow(p, left)
 				left = parse_arrow_function(p, left)
 				continue
 			}
@@ -452,6 +430,35 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	}
 
 	return left
+}
+
+// check_malformed_empty_object_arrow rejects `({}=>0)`: a bare empty
+// ObjectExpression immediately followed by `=>` inside a paren group is
+// not a valid CoverParenthesizedExpressionAndArrowParameterList. V8:
+// "Malformed arrow function parameter list". Only fires when the object
+// has no properties and is not preceded by `)` (which would be the legal
+// `({}) =>` form). Cold diagnostic path lifted out of parse_expr_with_prec
+// as pure code motion.
+check_malformed_empty_object_arrow :: proc(p: ^Parser, left: ^Expression) {
+	if left != nil {
+		if obj, is_obj := left^.(^ObjectExpression); is_obj && len(obj.properties) == 0 {
+			// Check if there's a `)` between the `}` and `=>`.
+			if p.lexer != nil {
+				arrow_off := int(cur_offset(p))
+				has_rparen := false
+				i := arrow_off - 1
+				for i >= 0 {
+					ch := p.lexer.source_bytes[i]
+					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+					if ch == ')' { has_rparen = true }
+					break
+				}
+				if !has_rparen {
+					report_error_coded(p, .K2040_UnexpectedToken, "Malformed arrow function parameter list")
+				}
+			}
+		}
+	}
 }
 
 // check_nullish_logical_mixing enforces §13.4: nullish coalescing `??`
