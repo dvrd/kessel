@@ -424,47 +424,8 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			}
 		}
 
-		// §13.4 - Nullish coalescing (??) cannot be mixed with && or ||
-		// without parentheses, and vice versa. Parenthesised sub-expressions
-		// are exempt: `(a && b) ?? c` and `a ?? (b || c)` are legal.
-		// Detect parens by scanning backwards from the operand span start,
-		// mirroring the yield and `**` checks above.
-		if cur_type == .Nullish {
-			if le, ok := left.(^LogicalExpression); ok &&
-			   (le.operator == .And || le.operator == .Or) {
-				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
-				if !paren_ok {
-					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
-				}
-			}
-			if le, ok := right.(^LogicalExpression); ok &&
-			   (le.operator == .And || le.operator == .Or) {
-				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
-				if !paren_ok {
-					report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
-				}
-			}
-		} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
-			if le, ok := left.(^LogicalExpression); ok &&
-			   le.operator == .NullishCoalescing {
-				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
-				if !paren_ok {
-					report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
-				}
-			}
-			// Mirror check for the RIGHT operand: `0 || 0 ?? true` parses
-			// the right-hand side at NullishCoalescing precedence (higher
-			// than LogicalOr), producing `0 || (?? 0 true)`. Without this
-			// the inner ?? slips past the spec rule. Test262: language/
-			// expressions/coalesce/cannot-chain-head-with-logical-or.js.
-			if le, ok := right.(^LogicalExpression); ok &&
-			   le.operator == .NullishCoalescing {
-				paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
-				if !paren_ok {
-					report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
-				}
-			}
-		}
+		// §13.4 - `??` cannot be mixed with `&&`/`||` without parentheses.
+		check_nullish_logical_mixing(p, left, right, cur_type)
 
 		// Logical operators
 		if cur_type == .LogicalOr || cur_type == .LogicalAnd || cur_type == .Nullish {
@@ -491,6 +452,50 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	}
 
 	return left
+}
+
+// check_nullish_logical_mixing enforces §13.4: nullish coalescing `??`
+// cannot be combined with `&&` or `||` (in either operand position)
+// without parentheses, and vice versa. Parenthesised sub-expressions are
+// exempt (`(a && b) ?? c`, `a ?? (b || c)`). Cold diagnostic path lifted
+// out of parse_expr_with_prec's infix loop as pure code motion.
+check_nullish_logical_mixing :: proc(p: ^Parser, left: ^Expression, right: ^Expression, cur_type: TokenType) {
+	if cur_type == .Nullish {
+		if le, ok := left.(^LogicalExpression); ok &&
+		   (le.operator == .And || le.operator == .Or) {
+			paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
+			if !paren_ok {
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
+			}
+		}
+		if le, ok := right.(^LogicalExpression); ok &&
+		   (le.operator == .And || le.operator == .Or) {
+			paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
+			if !paren_ok {
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "Nullish coalescing operator cannot be directly combined with '&&' or '||' operators without parentheses")
+			}
+		}
+	} else if cur_type == .LogicalOr || cur_type == .LogicalAnd {
+		if le, ok := left.(^LogicalExpression); ok &&
+		   le.operator == .NullishCoalescing {
+			paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
+			if !paren_ok {
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
+			}
+		}
+		// Mirror check for the RIGHT operand: `0 || 0 ?? true` parses
+		// the right-hand side at NullishCoalescing precedence (higher
+		// than LogicalOr), producing `0 || (?? 0 true)`. Without this
+		// the inner ?? slips past the spec rule. Test262: language/
+		// expressions/coalesce/cannot-chain-head-with-logical-or.js.
+		if le, ok := right.(^LogicalExpression); ok &&
+		   le.operator == .NullishCoalescing {
+			paren_ok := is_paren_wrapped_at(p, int(le.loc.start))
+			if !paren_ok {
+				report_error_coded(p, .K3062_OperatorPrecedenceParens, "'&&' and '||' operators cannot be directly combined with '??' operator without parentheses")
+			}
+		}
+	}
 }
 
 // check_pow_unparenthesized_operand enforces §13.6.1: an unparenthesized
