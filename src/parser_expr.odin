@@ -2923,6 +2923,36 @@ parse_object_method_value :: proc(p: ^Parser, is_generator, is_async: bool, star
 	return fn_e
 }
 
+// parse_object_spread_property parses an object-literal spread element
+// `...expr` into a Property whose value is a SpreadElement. Lifted out of
+// parse_property's leading dispatch as pure code motion (the `.Dot3` test
+// stays in the caller); `start` is the property's opening location.
+parse_object_spread_property :: proc(p: ^Parser, start: Loc) -> ^Property {
+	// Spread property: ...expr
+	spread_start := cur_loc(p) // Capture location before eating the ...
+	eat(p)
+	arg := parse_assignment_expression(p)
+	if arg == nil {
+		return nil
+	}
+
+	// Wrap the argument in a SpreadElement
+	spread, spread_e := new_expr(p, SpreadElement)
+	spread.loc = spread_start // Use the location of the ... token, not the argument
+	spread.argument = arg
+	spread.loc.end = prev_end_offset(p)
+
+	prop := new_node(p, Property)
+	prop.loc = start
+	prop.key = nil
+	prop.value = spread_e
+	prop.kind = .Init
+	prop.computed = false
+	prop.shorthand = false
+	prop.loc.end = prev_end_offset(p)
+	return prop
+}
+
 parse_property :: proc(p: ^Parser) -> ^Property {
 	start := cur_loc(p)
 
@@ -2930,29 +2960,7 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 	key: ^Expression
 
 	if is_token(p, .Dot3) {
-		// Spread property: ...expr
-		spread_start := cur_loc(p) // Capture location before eating the ...
-		eat(p)
-		arg := parse_assignment_expression(p)
-		if arg == nil {
-			return nil
-		}
-
-		// Wrap the argument in a SpreadElement
-		spread, spread_e := new_expr(p, SpreadElement)
-		spread.loc = spread_start // Use the location of the ... token, not the argument
-		spread.argument = arg
-		spread.loc.end = prev_end_offset(p)
-
-		prop := new_node(p, Property)
-		prop.loc = start
-		prop.key = nil
-		prop.value = spread_e
-		prop.kind = .Init
-		prop.computed = false
-		prop.shorthand = false
-		prop.loc.end = prev_end_offset(p)
-		return prop
+		return parse_object_spread_property(p, start)
 	}
 
 	// Check for get/set keywords and generator/async modifiers
