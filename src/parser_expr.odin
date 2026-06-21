@@ -3504,10 +3504,7 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	return expr_e
 }
 
-parse_new_expr :: proc(p: ^Parser) -> ^Expression {
-	start := cur_loc(p)
-	eat(p) // consume new
-
+parse_new_target_meta :: proc(p: ^Parser, start: Loc) -> ^Expression {
 	// new.target - MetaProperty
 	if is_token(p, .Dot) {
 		next := peek_token(p)
@@ -3535,7 +3532,10 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			return meta_e
 		}
 	}
+	return nil
+}
 
+check_new_import_call :: proc(p: ^Parser) {
 	// ECMA-262 §13.3.12 - `new import(x)` is a SyntaxError. The grammar
 	// production NewExpression : `new` NewExpression has no arm that
 	// reaches an ImportCall (`import(...)`). Catch it here at the start
@@ -3570,12 +3570,9 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 	}
+}
 
-	callee := parse_member_expr(p)
-	if callee == nil {
-		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'new'")
-		return nil
-	}
+check_new_await_callee :: proc(p: ^Parser, callee: ^Expression) {
 	// §15.2.2 — `new await` in module context: `await` is reserved.
 	// Promote from the checker so parser-only snaps catch it.
 	if callee != nil {
@@ -3590,19 +3587,9 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			}
 		}
 	}
-	if _, is_super := callee^.(^Super); is_super {
-		report_error_coded(p, .K3033_SuperInvalidContext, "'new super()' is not allowed")
-	}
-	// `new <T>Foo()` — legacy TS type assertion after `new` is ambiguous
-	// with type parameters. OXC rejects this form. Only fire when the
-	// `<T>` is the direct callee (not parenthesized: `new (<T>x)` is OK).
-	if ta, is_ta := callee^.(^TSTypeAssertion); is_ta {
-		// Check if the assertion starts right after `new ` (no parens).
-		if p.lexer != nil && ta.loc.start == start.start + 4 {
-			report_error_coded(p, .K4053_TSOnlyInJS, "Type assertion is not allowed after 'new'")
-		}
-	}
+}
 
+parse_new_type_arguments :: proc(p: ^Parser) -> Maybe(^TSTypeParameterInstantiation) {
 	// TS generic type arguments: `new Foo<string>()`.
 	// Ambiguity: `new Date<A;` is `(new Date) < A;` (relational), NOT
 	// `new Date<A>` (type args). Use speculative parse: try to parse
@@ -3631,6 +3618,39 @@ parse_new_expr :: proc(p: ^Parser) -> ^Expression {
 			targs = ta
 		}
 	}
+	return targs
+}
+
+parse_new_expr :: proc(p: ^Parser) -> ^Expression {
+	start := cur_loc(p)
+	eat(p) // consume new
+
+	if m := parse_new_target_meta(p, start); m != nil {
+		return m
+	}
+
+	check_new_import_call(p)
+
+	callee := parse_member_expr(p)
+	if callee == nil {
+		report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'new'")
+		return nil
+	}
+	check_new_await_callee(p, callee)
+	if _, is_super := callee^.(^Super); is_super {
+		report_error_coded(p, .K3033_SuperInvalidContext, "'new super()' is not allowed")
+	}
+	// `new <T>Foo()` — legacy TS type assertion after `new` is ambiguous
+	// with type parameters. OXC rejects this form. Only fire when the
+	// `<T>` is the direct callee (not parenthesized: `new (<T>x)` is OK).
+	if ta, is_ta := callee^.(^TSTypeAssertion); is_ta {
+		// Check if the assertion starts right after `new ` (no parens).
+		if p.lexer != nil && ta.loc.start == start.start + 4 {
+			report_error_coded(p, .K4053_TSOnlyInJS, "Type assertion is not allowed after 'new'")
+		}
+	}
+
+	targs := parse_new_type_arguments(p)
 
 	args: [dynamic]^Expression
 	if is_token(p, .LParen) {
