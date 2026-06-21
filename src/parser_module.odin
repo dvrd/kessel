@@ -2272,6 +2272,22 @@ try_parse_export_type_prefix :: proc(p: ^Parser, start: Loc) -> (^Statement, boo
 	return nil, false
 }
 
+// skip_ts_export_import_modifiers consumes leading TS class-modifier
+// keywords (public/private/protected/static) before `import` in legacy
+// `export public import a = x.c;` forms — syntactic no-ops. Lifted out of
+// parse_export_declaration as pure code motion.
+skip_ts_export_import_modifiers :: proc(p: ^Parser) {
+	if allow_ts_mode(p) {
+		for (p.cur_type == .Identifier || p.cur_type == .Public || p.cur_type == .Private ||
+		     p.cur_type == .Protected || p.cur_type == .Static) &&
+		    (cur_value_eq(p, "public") || cur_value_eq(p, "private") ||
+		     cur_value_eq(p, "protected") || cur_value_eq(p, "static")) &&
+		    is_next_token(p, .Import) {
+			eat(p)
+		}
+	}
+}
+
 parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume export
@@ -2348,19 +2364,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		return stmt
 	}
 
-	// TS class-modifier keywords (`public`, `private`, `protected`, `static`)
-	// can appear before `import` in legacy TS export-import forms like
-	// `export public import a = x.c;`. They are no-ops syntactically.
-	// Skip them so the downstream declaration parse sees `import`.
-	if allow_ts_mode(p) {
-		for (p.cur_type == .Identifier || p.cur_type == .Public || p.cur_type == .Private ||
-		     p.cur_type == .Protected || p.cur_type == .Static) &&
-		    (cur_value_eq(p, "public") || cur_value_eq(p, "private") ||
-		     cur_value_eq(p, "protected") || cur_value_eq(p, "static")) &&
-		    is_next_token(p, .Import) {
-			eat(p)
-		}
-	}
+	skip_ts_export_import_modifiers(p)
 
 	// After `export`, only `*`, `default`, `{`, or a declaration keyword
 	// is valid. A bare string literal is always a SyntaxError.
