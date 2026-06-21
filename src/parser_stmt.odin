@@ -2697,70 +2697,61 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 	return param
 }
 
-parse_function_body :: proc(p: ^Parser) -> FunctionBody {
-	start := cur_loc(p)
+FnBodyContextSave :: struct {
+	in_function:  bool,
+	in_non_arrow: bool,
+	in_generator: bool,
+	in_async:     bool,
+	strict:       bool,
+	label_floor:  int,
+	no_in:        bool,
+	static_block: bool,
+	field_init:   bool,
+	in_loop:      bool,
+	in_switch:    bool,
+}
 
-	if !expect_token(p, .LBrace) {
-		return {}
+fn_body_enter_context :: proc(p: ^Parser) -> FnBodyContextSave {
+	saved := FnBodyContextSave{
+		in_function  = p.ctx.in_function,
+		in_non_arrow = p.ctx.in_non_arrow_function,
+		in_generator = p.ctx.in_generator,
+		in_async     = p.ctx.in_async,
+		strict       = p.ctx.strict_mode,
+		label_floor  = p.ctx.label_floor,
+		no_in        = p.ctx.no_in,
+		static_block = p.ctx.in_static_block,
+		field_init   = p.ctx.in_field_init,
+		in_loop      = p.ctx.in_loop,
+		in_switch    = p.ctx.in_switch,
 	}
-
-	// Lazy alloc - zero-statement function bodies (`function f() {}`) are
-	// extremely common (interface stubs, no-op handlers, default callbacks).
-	// Use a zero-cap make() so the dynamic-array header carries the correct
-	// allocator field but we don't burn an actual reservation until the
-	// first append. directives is rarely populated even on non-empty
-	// bodies (only `"use strict"` and similar prologues touch it), so it
-	// stays zero-cap unconditionally.
-	body := FunctionBody{
-		loc        = start,
-		body       = make([dynamic]^Statement, 0, 4, p.allocator),
-		directives = make([dynamic]Directive, 0, 0, p.allocator),
-	}
-	// If the body is non-empty, pre-grow the statement vector to its
-	// typical capacity to avoid log-N realloc churn. Cap bumped from
-	// 8 → 16 (S23): 430 functions on monaco had >8 statements, triggering
-	// runtime grow. cap=16 covers most non-trivial function bodies.
-	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
-		reserve(&body.body, 16)
-	}
-
-	prev_in_function := p.ctx.in_function
-	prev_in_non_arrow := p.ctx.in_non_arrow_function
-	prev_in_generator := p.ctx.in_generator
-	prev_in_async := p.ctx.in_async
-	prev_strict := p.ctx.strict_mode
-	// Labels don't cross function boundaries (§14.13 - LabelSet is
-	// per-function). Move the floor up to the current stack length so
-	// outer labels are invisible for duplicate / break-target checks,
-	// then restore. No copy; the parent labels stay in the backing store.
-	prev_label_floor := p.ctx.label_floor
-	p.ctx.label_floor = len(p.label_stack)
-	// A FunctionBody is its own expression scope - the outer for-init
-	// no_in restriction (set in parse_for_statement so Annex B.3.5
-	// `for (var x = expr in y)` routes through the for-in arm) must
-	// not leak into nested function bodies. Without this, a nested
-	// `function() { if (a && "x" in y) {} }` inside a for-init's
-	// declarator would reject the inner `in`.
-	prev_no_in := p.ctx.no_in
-	p.ctx.no_in = false
-	// Static block context (§15.7.5) does NOT propagate into nested function
-	// bodies: `class C { static { (() => { class await {} }); } }` is valid.
-	prev_static_block_in_fb := p.ctx.in_static_block
-	p.ctx.in_static_block = false
-	// §15.7.10 — a nested function binds its own `arguments`, so the
-	// class-field `arguments` ban stops here.
-	prev_field_init_in_fb := p.ctx.in_field_init
-	p.ctx.in_field_init = false
-	// break/continue context does NOT cross function boundaries.
-	// `while(1) { function f() { break; } }` is a SyntaxError.
-	prev_in_loop_fb := p.ctx.in_loop
-	prev_in_switch_fb := p.ctx.in_switch
-	p.ctx.in_loop = false
-	p.ctx.in_switch = false
-
-	p.ctx.in_function = true
+	p.ctx.label_floor           = len(p.label_stack)
+	p.ctx.no_in                 = false
+	p.ctx.in_static_block       = false
+	p.ctx.in_field_init         = false
+	p.ctx.in_loop               = false
+	p.ctx.in_switch             = false
+	p.ctx.in_function           = true
 	p.ctx.in_non_arrow_function = true
+	return saved
+}
 
+fn_body_exit_context :: proc(p: ^Parser, saved: FnBodyContextSave) {
+	p.ctx.in_function           = saved.in_function
+	p.ctx.in_non_arrow_function = saved.in_non_arrow
+	p.ctx.in_generator          = saved.in_generator
+	p.ctx.in_async              = saved.in_async
+	p.ctx.strict_mode           = saved.strict
+	p.ctx.no_in                 = saved.no_in
+	p.ctx.in_static_block       = saved.static_block
+	p.ctx.in_field_init         = saved.field_init
+	p.ctx.in_loop               = saved.in_loop
+	p.ctx.in_switch             = saved.in_switch
+	resize(&p.label_stack, p.ctx.label_floor)
+	p.ctx.label_floor = saved.label_floor
+}
+
+fn_body_parse_statements :: proc(p: ^Parser, body: ^FunctionBody) -> (bool, [dynamic]^StringLiteral) {
 	// Directive prologue tracking. Per ECMA-262 §14.1.1 the prologue is the
 	// leading sequence of ExpressionStatement whose expression is an
 	// unparenthesised StringLiteral. If any such directive is exactly the
@@ -2806,7 +2797,10 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			recovery_eat(p)
 		}
 	}
+	return body_use_strict, prologue_raws
+}
 
+fn_body_check_strict_escapes :: proc(p: ^Parser, body_use_strict: bool, prologue_raws: [dynamic]^StringLiteral) {
 	// §12.9.4 Annex B.1.2 / §12.9.4.1 — if the function body's prologue
 	// contains a "use strict" directive, EVERY prologue StringLiteral
 	// (including those preceding the directive) is governed by strict
@@ -2818,23 +2812,42 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 			}
 		}
 	}
+}
 
-	p.ctx.in_function = prev_in_function
-	p.ctx.in_non_arrow_function = prev_in_non_arrow
-	p.ctx.in_generator = prev_in_generator
-	p.ctx.in_async = prev_in_async
-	p.ctx.strict_mode = prev_strict
-	p.ctx.no_in = prev_no_in
-	p.ctx.in_static_block = prev_static_block_in_fb
-	p.ctx.in_field_init = prev_field_init_in_fb
-	p.ctx.in_loop = prev_in_loop_fb
-	p.ctx.in_switch = prev_in_switch_fb
-	// Restore the enclosing label floor. Labels pushed inside this body
-	// should have been popped on their LabelledStatement exit; if not
-	// (parse bail-out, etc.) truncate down so leftovers don't pollute
-	// the parent scope.
-	resize(&p.label_stack, p.ctx.label_floor)
-	p.ctx.label_floor = prev_label_floor
+parse_function_body :: proc(p: ^Parser) -> FunctionBody {
+	start := cur_loc(p)
+
+	if !expect_token(p, .LBrace) {
+		return {}
+	}
+
+	// Lazy alloc - zero-statement function bodies (`function f() {}`) are
+	// extremely common (interface stubs, no-op handlers, default callbacks).
+	// Use a zero-cap make() so the dynamic-array header carries the correct
+	// allocator field but we don't burn an actual reservation until the
+	// first append. directives is rarely populated even on non-empty
+	// bodies (only `"use strict"` and similar prologues touch it), so it
+	// stays zero-cap unconditionally.
+	body := FunctionBody{
+		loc        = start,
+		body       = make([dynamic]^Statement, 0, 4, p.allocator),
+		directives = make([dynamic]Directive, 0, 0, p.allocator),
+	}
+	// If the body is non-empty, pre-grow the statement vector to its
+	// typical capacity to avoid log-N realloc churn. Cap bumped from
+	// 8 → 16 (S23): 430 functions on monaco had >8 statements, triggering
+	// runtime grow. cap=16 covers most non-trivial function bodies.
+	if !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		reserve(&body.body, 16)
+	}
+
+	saved := fn_body_enter_context(p)
+
+	body_use_strict, prologue_raws := fn_body_parse_statements(p, &body)
+
+	fn_body_check_strict_escapes(p, body_use_strict, prologue_raws)
+
+	fn_body_exit_context(p, saved)
 	// Surface the directive-prologue result to the caller. `parse_function_
 	// declaration` / `parse_function_expression` / class-method parse /
 	// object-method parse read this immediately after the call to apply
