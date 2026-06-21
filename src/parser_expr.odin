@@ -4714,88 +4714,163 @@ parse_arrow_function_body :: proc(p: ^Parser) -> (body: ArrowFunctionBody, is_bl
 	return
 }
 
+arrow_check_double_paren :: proc(p: ^Parser, left: ^Expression, saved_paren_start: u32) {
+	// §15.3.1 CoverParenthesizedExpressionAndArrowParameterList:
+	// double-parenthesized params like `((a)) => 0` are invalid.
+	// Detect: if the arrow's group-paren start is known AND the
+	// first non-whitespace byte after it is another `(`, AND
+	// `left` is a simple expression (Identifier), then extra
+	// parens were used. This avoids false positives on arrow
+	// bodies like `v => (sum = v)` where `last_paren_expr`
+	// is set by a parenthesized body expression.
+	if saved_paren_start != max(u32) && p.lexer != nil {
+		src := p.lexer.source_bytes
+		ps := int(saved_paren_start)
+		if ps + 1 < len(src) {
+			i := ps + 1
+			for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') { i += 1 }
+			if i < len(src) && src[i] == '(' {
+				// Verify the left is simple (Identifier / Assignment pattern only)
+				is_simple_param := false
+				#partial switch _ in left^ {
+				case ^Identifier: is_simple_param = true
+				case ^AssignmentExpression: is_simple_param = true
+				}
+				if is_simple_param {
+					report_error_coded_span(p, .K3066_InvalidAssignmentOrBindingTarget, u32(u32(i)), u32(u32(i)), "Invalid parenthesized assignment pattern")
+				}
+			}
+		}
+	}
+}
+
+arrow_build_identifier_param :: proc(p: ^Parser, e: ^Identifier, params: ^[dynamic]FunctionParameter) {
+	// §15.3.1 - ArrowParameters BindingIdentifier checks.
+	if p.ctx.strict_mode {
+		if is_eval_or_arguments(e.name) {
+			report_error_coded(p, .K3050_StrictModeReserved, fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name))
+		} else if is_strict_reserved_binding_name(e.name) {
+			report_error_coded(p, .K3050_StrictModeReserved, fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name))
+		}
+	}
+	if e.name == "enum" {
+		report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved identifier")
+	}
+	if e.name == "await" && (p.ctx.in_async || p.ctx.in_static_block) {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as an arrow parameter in module / async / static-block context")
+	} else if e.name == "await" {
+		if st, have := p.force_source_type.(SourceType); have && st == .Module {
+			report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+				"'await' cannot be used as an arrow parameter in module / async / static-block context")
+		}
+	}
+	if e.name == "yield" && (p.ctx.in_generator || p.ctx.strict_mode) {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'yield' cannot be used as an arrow parameter in generator / strict context")
+	}
+	ident := new_node(p, Identifier)
+	ident^ = e^
+	param := FunctionParameter{
+		loc     = e.loc,
+		pattern = ident,
+	}
+	bump_append(params, param)
+}
+
+arrow_build_assignment_param :: proc(p: ^Parser, e: ^AssignmentExpression, params: ^[dynamic]FunctionParameter) {
+	// Single-param default: `(x = 1) => ...` arrives as AssignmentExpression
+	// when the parens don't produce a SequenceExpression (only one arg).
+	if e.operator == .Assign {
+		assign_pat := new_node(p, AssignmentPattern)
+		assign_pat.loc = e.loc
+		assign_pat.right = e.right
+		lhs_pat, lhs_ok := expr_to_pattern(p, e.left)
+		if lhs_ok {
+			assign_pat.left = lhs_pat
+			param := FunctionParameter{ loc = e.loc, pattern = assign_pat }
+			bump_append(params, param)
+		}
+	} else {
+		report_error_coded(p, .K3043_DestructuringInvalid, "Arrow parameter default must use '=' operator")
+	}
+}
+
+arrow_build_spread_param :: proc(p: ^Parser, e: ^SpreadElement, params: ^[dynamic]FunctionParameter) {
+	// Single rest parameter arrow: `(...rest) => body`. The paren
+	// group parser handled `...strings` via parse_unary_expr, which
+	// produced a ^SpreadElement wrapping the identifier. That slot was
+	// previously uncovered in the single-param switch - the arrow was
+	// built with `params: []`, silently dropping the rest binding
+	// (observed on chalk.js `const chalk = (...strings) => ...` and
+	// similar shapes across multiple frameworks). Promote the inner
+	// argument to an Identifier pattern and wrap in a RestElement so
+	// the emitter sees the ESTree-standard `{ type: "RestElement",
+	// argument: Identifier }` shape.
+	// §15.3 ArrowParameters - a top-level rest must be wrapped in
+	// parens (`(...x) => x`). Bare `...x => x` is a SyntaxError
+	// because `...x` isn't a legal expression on its own. Detect via
+	// the byte preceding the SpreadElement.
+	paren_wrapped_spread := false
+	if p.lexer != nil {
+		i := int(e.loc.start) - 1
+		for i >= 0 {
+			ch := p.lexer.source_bytes[i]
+			if ch == '(' { paren_wrapped_spread = true; break }
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
+			break
+		}
+	}
+	if !paren_wrapped_spread {
+		report_error_coded(p, .K3042_RestSpreadMisuse, "Rest parameter must be wrapped in parentheses")
+	}
+	inner := e.argument
+	if inner != nil {
+		inner_pat, ok := expr_to_pattern(p, inner)
+		if ok {
+			rest := new_node(p, RestElement)
+			rest.loc = e.loc
+			rest.argument = inner_pat
+			param := FunctionParameter{ loc = e.loc, pattern = rest }
+			bump_append(params, param)
+		} else {
+			report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest parameter target in arrow function")
+		}
+	}
+}
+
+arrow_build_sequence_params :: proc(p: ^Parser, e: ^SequenceExpression, params: ^[dynamic]FunctionParameter) {
+	if len(e.expressions) == 0 {
+		// Empty parameters: () => ... (marker from parse_primary_expr)
+		// params stays empty
+	} else {
+		// Multiple parameters: (a, b) => ...
+		// Each element in the sequence should be an identifier (or pattern)
+		for expr_ptr, param_index in e.expressions {
+			// Nil entries arise during error recovery when a cover-expression
+			// element fails to parse. Concrete shape: `([]?, {}) => {}` parses
+			// `[]?` as ConditionalExpression whose consequent is missing
+			// (next token is `,`, not an expression start), so parse_conditional_
+			// expr returns nil and the sequence captures a nil pointer for that
+			// slot. Without this guard, `expr_ptr^` segfaults.
+			if expr_ptr == nil { continue }
+			arrow_seq_element_to_param(p, expr_ptr, param_index, len(e.expressions), params)
+		}
+	}
+}
+
 arrow_build_params :: proc(p: ^Parser, left: ^Expression, saved_paren_start: u32) -> [dynamic]FunctionParameter {
 	// Convert left to parameters
 	params := make([dynamic]FunctionParameter, 0, 4, p.allocator)
 
 	if left != nil {
-		// §15.3.1 CoverParenthesizedExpressionAndArrowParameterList:
-		// double-parenthesized params like `((a)) => 0` are invalid.
-		// Detect: if the arrow's group-paren start is known AND the
-		// first non-whitespace byte after it is another `(`, AND
-		// `left` is a simple expression (Identifier), then extra
-		// parens were used. This avoids false positives on arrow
-		// bodies like `v => (sum = v)` where `last_paren_expr`
-		// is set by a parenthesized body expression.
-		if saved_paren_start != max(u32) && p.lexer != nil {
-			src := p.lexer.source_bytes
-			ps := int(saved_paren_start)
-			if ps + 1 < len(src) {
-				i := ps + 1
-				for i < len(src) && (src[i] == ' ' || src[i] == '\t' || src[i] == '\n' || src[i] == '\r') { i += 1 }
-				if i < len(src) && src[i] == '(' {
-					// Verify the left is simple (Identifier / Assignment pattern only)
-					is_simple_param := false
-					#partial switch _ in left^ {
-					case ^Identifier: is_simple_param = true
-					case ^AssignmentExpression: is_simple_param = true
-					}
-					if is_simple_param {
-						report_error_coded_span(p, .K3066_InvalidAssignmentOrBindingTarget, u32(u32(i)), u32(u32(i)), "Invalid parenthesized assignment pattern")
-					}
-				}
-			}
-		}
+		arrow_check_double_paren(p, left, saved_paren_start)
 
 		#partial switch e in left {
 		case ^Identifier:
-			// §15.3.1 - ArrowParameters BindingIdentifier checks.
-			if p.ctx.strict_mode {
-				if is_eval_or_arguments(e.name) {
-					report_error_coded(p, .K3050_StrictModeReserved, fmt.tprintf("Arrow parameter '%s' is not allowed in strict mode", e.name))
-				} else if is_strict_reserved_binding_name(e.name) {
-					report_error_coded(p, .K3050_StrictModeReserved, fmt.tprintf("'%s' is a reserved identifier in strict mode", e.name))
-				}
-			}
-			if e.name == "enum" {
-				report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved identifier")
-			}
-			if e.name == "await" && (p.ctx.in_async || p.ctx.in_static_block) {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-					"'await' cannot be used as an arrow parameter in module / async / static-block context")
-			} else if e.name == "await" {
-				if st, have := p.force_source_type.(SourceType); have && st == .Module {
-					report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-						"'await' cannot be used as an arrow parameter in module / async / static-block context")
-				}
-			}
-			if e.name == "yield" && (p.ctx.in_generator || p.ctx.strict_mode) {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-					"'yield' cannot be used as an arrow parameter in generator / strict context")
-			}
-			ident := new_node(p, Identifier)
-			ident^ = e^
-			param := FunctionParameter{
-				loc     = e.loc,
-				pattern = ident,
-			}
-			bump_append(&params, param)
+			arrow_build_identifier_param(p, e, &params)
 		case ^AssignmentExpression:
-			// Single-param default: `(x = 1) => ...` arrives as AssignmentExpression
-			// when the parens don't produce a SequenceExpression (only one arg).
-			if e.operator == .Assign {
-				assign_pat := new_node(p, AssignmentPattern)
-				assign_pat.loc = e.loc
-				assign_pat.right = e.right
-				lhs_pat, lhs_ok := expr_to_pattern(p, e.left)
-				if lhs_ok {
-					assign_pat.left = lhs_pat
-					param := FunctionParameter{ loc = e.loc, pattern = assign_pat }
-					bump_append(&params, param)
-				}
-			} else {
-				report_error_coded(p, .K3043_DestructuringInvalid, "Arrow parameter default must use '=' operator")
-			}
+			arrow_build_assignment_param(p, e, &params)
 		case ^ObjectExpression:
 			// Single destructure param: `({a, b}) => ...`. Route through
 			// expr_to_pattern so the properties are carried across; previously
@@ -4813,64 +4888,9 @@ arrow_build_params :: proc(p: ^Parser, left: ^Expression, saved_paren_start: u32
 				bump_append(&params, param)
 			}
 		case ^SpreadElement:
-			// Single rest parameter arrow: `(...rest) => body`. The paren
-			// group parser handled `...strings` via parse_unary_expr, which
-			// produced a ^SpreadElement wrapping the identifier. That slot was
-			// previously uncovered in the single-param switch - the arrow was
-			// built with `params: []`, silently dropping the rest binding
-			// (observed on chalk.js `const chalk = (...strings) => ...` and
-			// similar shapes across multiple frameworks). Promote the inner
-			// argument to an Identifier pattern and wrap in a RestElement so
-			// the emitter sees the ESTree-standard `{ type: "RestElement",
-			// argument: Identifier }` shape.
-			// §15.3 ArrowParameters - a top-level rest must be wrapped in
-			// parens (`(...x) => x`). Bare `...x => x` is a SyntaxError
-			// because `...x` isn't a legal expression on its own. Detect via
-			// the byte preceding the SpreadElement.
-			paren_wrapped_spread := false
-			if p.lexer != nil {
-				i := int(e.loc.start) - 1
-				for i >= 0 {
-					ch := p.lexer.source_bytes[i]
-					if ch == '(' { paren_wrapped_spread = true; break }
-					if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
-					break
-				}
-			}
-			if !paren_wrapped_spread {
-				report_error_coded(p, .K3042_RestSpreadMisuse, "Rest parameter must be wrapped in parentheses")
-			}
-			inner := e.argument
-			if inner != nil {
-				inner_pat, ok := expr_to_pattern(p, inner)
-				if ok {
-					rest := new_node(p, RestElement)
-					rest.loc = e.loc
-					rest.argument = inner_pat
-					param := FunctionParameter{ loc = e.loc, pattern = rest }
-					bump_append(&params, param)
-				} else {
-					report_error_coded(p, .K3042_RestSpreadMisuse, "Invalid rest parameter target in arrow function")
-				}
-			}
+			arrow_build_spread_param(p, e, &params)
 		case ^SequenceExpression:
-			if len(e.expressions) == 0 {
-				// Empty parameters: () => ... (marker from parse_primary_expr)
-				// params stays empty
-			} else {
-				// Multiple parameters: (a, b) => ...
-				// Each element in the sequence should be an identifier (or pattern)
-				for expr_ptr, param_index in e.expressions {
-					// Nil entries arise during error recovery when a cover-expression
-					// element fails to parse. Concrete shape: `([]?, {}) => {}` parses
-					// `[]?` as ConditionalExpression whose consequent is missing
-					// (next token is `,`, not an expression start), so parse_conditional_
-					// expr returns nil and the sequence captures a nil pointer for that
-					// slot. Without this guard, `expr_ptr^` segfaults.
-					if expr_ptr == nil { continue }
-					arrow_seq_element_to_param(p, expr_ptr, param_index, len(e.expressions), &params)
-				}
-			}
+			arrow_build_sequence_params(p, e, &params)
 		}
 	}
 	// Post-switch: handle unrecognized param expressions (e.g. CallExpression).
