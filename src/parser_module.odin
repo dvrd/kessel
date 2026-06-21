@@ -1571,11 +1571,11 @@ reject_inline_type_modifier_in_type_only_import :: proc(p: ^Parser) {
 	}
 }
 
-// check_import_namespace_binding_name enforces the reserved-name rules on
-// a `import * as <name>` namespace binding: §16.2.2 `await` is reserved in
-// module code, and strict-reserved words are rejected outside ambient TS.
-// Lifted out of parse_import_declaration as pure code motion.
-check_import_namespace_binding_name :: proc(p: ^Parser, local: Identifier) {
+// check_import_binding_name enforces the reserved-name rules on an import
+// binding (default `import name` or namespace `import * as name`): §16.2.2
+// `await` is reserved in module code, and strict-reserved words are
+// rejected outside ambient TS. Lifted out of parse_import_declaration.
+check_import_binding_name :: proc(p: ^Parser, local: Identifier) {
 	// §16.2.2 — `await` is reserved as a binding name in module code.
 	// Import declarations are module syntax, so `await` always forbidden.
 	if local.name == "await" {
@@ -1690,7 +1690,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			return nil
 		}
 		local := parse_identifier(p)
-		check_import_namespace_binding_name(p, local)
+		check_import_binding_name(p, local)
 		spec := new_node(p, ImportNamespaceSpecifier)
 		spec.loc = star_loc
 		spec.local = BindingIdentifier{
@@ -1711,16 +1711,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
 		// Default import: import name from "module" or import name, { x } from "module"
 		local := parse_identifier(p)
-		// §16.2.2 — `await` is reserved as a binding name in module code.
-		if local.name == "await" {
-			report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(local.loc.start), u32(local.loc.start), "'await' is reserved as a binding name in module code")
-		}
-		// Strict-mode reserved word as default import binding.
-		if p.ctx.strict_mode && is_strict_reserved_name(local.name) &&
-		   !(allow_ts_mode(p) && (p.ctx.in_ambient || p.source_is_dts)) {
-			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", local.name)
-			report_error_coded_span(p, .K3050_StrictModeReserved, u32(local.loc.start), u32(local.loc.start), msg)
-		}
+		check_import_binding_name(p, local)
 		spec := new_node(p, ImportDefaultSpecifier)
 		spec.loc = local.loc
 		spec.local = BindingIdentifier{
