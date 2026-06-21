@@ -2995,6 +2995,63 @@ parse_property_get_set_async :: proc(p: ^Parser) -> (is_getter: bool, is_setter:
 	return
 }
 
+// parse_property_cover_initialized handles the object-literal shorthand-
+// with-default form `{ foo = expr }` (CoverInitializedName, §13.2.5.1).
+// Only legal inside a destructuring-assignment cover; parsed permissively
+// here and recorded in p.pending_cover_inits for later validation. Clones
+// an Identifier key so prop.key and assign.left do not alias (raw-transfer
+// double-walk crash). Lifted out of parse_property as pure code motion.
+parse_property_cover_initialized :: proc(p: ^Parser, start: Loc, key: ^Expression) -> ^Expression {
+	// Shorthand with default: { foo = defaultValue } - only legal as
+	// CoverInitializedName inside a destructuring assignment cover
+	// (§13.2.5.1 / §13.15.5.2). Parse permissively here; record the
+	// offset in p.pending_cover_inits. expr_to_pattern clears the
+	// entry when the ObjectExpression gets promoted to an
+	// ObjectPattern; anything left after parse_program is a
+	// SyntaxError.
+	default_val := parse_expr_with_prec(p, .Assignment)
+	assign := new_node(p, AssignmentExpression)
+	assign.loc = start
+	assign.operator = .Assign
+	// shared the same ^Expression pointer with prop.key; raw_transfer
+	// then walked that Expression union TWICE (once via prop.key, once
+	// via assign.left), and the second walk dereferenced an
+	// already-rewritten inner pointer (now an arena offset, not a real
+	// pointer) and segfaulted. 
+	// `({excludeEmptyString = false, message, name} = options)` triggers
+	// the alias inside a destructuring cover.
+	// Clone the inner Identifier into a fresh Expression union so each
+	// AST slot owns its own node (matches ESTree shape - the JSON path
+	// already emits two distinct Identifier objects at these positions).
+	if key != nil {
+		#partial switch k in key^ {
+		case ^Identifier:
+			if k != nil {
+				cloned, cloned_e := new_expr(p, Identifier)
+				cloned.loc = k.loc
+				cloned.name = k.name
+				assign.left = cloned_e
+			} else {
+				assign.left = key
+			}
+		case:
+			// Non-Identifier keys (StringLiteral, NumericLiteral) cannot
+			// legally be the LHS of CoverInitializedName, but the parse
+			// is permissive here and expr_to_pattern / parse-program
+			// emits the SyntaxError later. Keep the alias for those
+			// shapes - they don't hit the raw-transfer crash because the
+			// node never round-trips successfully anyway.
+			assign.left = key
+		}
+	} else {
+		assign.left = key
+	}
+	assign.right = default_val
+	assign.loc.end = prev_end_offset(p)
+	bump_append(&p.pending_cover_inits, start.start)
+	return expression_from(p, assign)
+}
+
 parse_property :: proc(p: ^Parser) -> ^Property {
 	start := cur_loc(p)
 
@@ -3121,55 +3178,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		// Use Assignment precedence - comma separates properties, not expressions
 		value = parse_expr_with_prec(p, .Assignment)
 	} else if match_token(p, .Assign) {
-		// Shorthand with default: { foo = defaultValue } - only legal as
-		// CoverInitializedName inside a destructuring assignment cover
-		// (§13.2.5.1 / §13.15.5.2). Parse permissively here; record the
-		// offset in p.pending_cover_inits. expr_to_pattern clears the
-		// entry when the ObjectExpression gets promoted to an
-		// ObjectPattern; anything left after parse_program is a
-		// SyntaxError.
-		default_val := parse_expr_with_prec(p, .Assignment)
-		assign := new_node(p, AssignmentExpression)
-		assign.loc = start
-		assign.operator = .Assign
-		// shared the same ^Expression pointer with prop.key; raw_transfer
-		// then walked that Expression union TWICE (once via prop.key, once
-		// via assign.left), and the second walk dereferenced an
-		// already-rewritten inner pointer (now an arena offset, not a real
-		// pointer) and segfaulted. 
-		// `({excludeEmptyString = false, message, name} = options)` triggers
-		// the alias inside a destructuring cover.
-		// Clone the inner Identifier into a fresh Expression union so each
-		// AST slot owns its own node (matches ESTree shape - the JSON path
-		// already emits two distinct Identifier objects at these positions).
-		if key != nil {
-			#partial switch k in key^ {
-			case ^Identifier:
-				if k != nil {
-					cloned, cloned_e := new_expr(p, Identifier)
-					cloned.loc = k.loc
-					cloned.name = k.name
-					assign.left = cloned_e
-				} else {
-					assign.left = key
-				}
-			case:
-				// Non-Identifier keys (StringLiteral, NumericLiteral) cannot
-				// legally be the LHS of CoverInitializedName, but the parse
-				// is permissive here and expr_to_pattern / parse-program
-				// emits the SyntaxError later. Keep the alias for those
-				// shapes - they don't hit the raw-transfer crash because the
-				// node never round-trips successfully anyway.
-				assign.left = key
-			}
-		} else {
-			assign.left = key
-		}
-		assign.right = default_val
-		assign.loc.end = prev_end_offset(p)
+		value = parse_property_cover_initialized(p, start, key)
 		shorthand = true
-		value = expression_from(p, assign)
-		bump_append(&p.pending_cover_inits, start.start)
 	} else {
 		// Shorthand property: { foo } means { foo: foo }
 		// Not valid for generators/getters/setters
