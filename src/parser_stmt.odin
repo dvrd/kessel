@@ -2455,10 +2455,7 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 	return params
 }
 
-parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
-	param := new_node(p, FunctionParameter)
-	param.loc = cur_loc(p)
-
+parse_function_param_decorators :: proc(p: ^Parser, param: ^FunctionParameter) -> bool {
 	// TS parameter decorators: `foo(@dec x: T)`. ES decorators (stage 3)
 	// only permit `@dec` before class elements and class constructor
 	// params; function params outside class bodies are rejected. Gate on
@@ -2482,10 +2479,10 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		}
 		param.loc = cur_loc(p)
 	}
+	return decorators_seen
+}
 
-	// TS "parameter properties" on constructors: access/readonly/override
-	// modifiers before the binding. Save them on the FunctionParameter so
-	// the emitter can wrap the param in TSParameterProperty when set.
+parse_function_param_ts_modifiers :: proc(p: ^Parser, param: ^FunctionParameter) {
 	if allow_ts_mode(p) {
 		mod_start := cur_loc(p).start  // position of first modifier (or binding if none)
 		found_modifier := false
@@ -2552,7 +2549,9 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		}
 		param.loc = cur_loc(p)
 	}
+}
 
+parse_function_param_rest :: proc(p: ^Parser, param: ^FunctionParameter) -> ^FunctionParameter {
 	// Check for rest parameter: ...identifier
 	if match_token(p, .Dot3) {
 		// Rest element - create RestElement as the pattern
@@ -2583,36 +2582,10 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 		param.loc.end = prev_end_offset(p)
 		return param
 	}
+	return nil
+}
 
-	pattern: Pattern
-	if p.cur_type == .This && allow_ts_mode(p) {
-		if decorators_seen {
-			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators cannot be applied to 'this' parameters")
-		}
-		// TS `this` parameter: `function(this: T) {}` - specifies the
-		// type of `this` inside the function. Not a real runtime param.
-		ident := new_node(p, Identifier)
-		ident.loc = cur_loc(p)
-		ident.name = "this"
-		eat(p)
-		pattern = ident
-	} else {
-		pattern = parse_binding_pattern(p)
-	}
-	param.pattern = pattern
-
-	// TypeScript: optional parameter marker `?` comes AFTER the name.
-	// Only consume if followed by `:`, `,`, `)`, or `=` - not a ternary.
-	// Gate on TS mode — in plain JS, `?` after a param is a syntax error.
-	param_is_optional := false
-	if allow_ts_mode(p) && is_token(p, .Question) {
-		nxt := peek_token(p)
-		if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen || nxt.type == .Assign {
-			param_is_optional = true
-			eat(p) // consume `?`
-		}
-	}
-
+parse_function_param_type_annotation :: proc(p: ^Parser, pattern: Pattern) {
 	// TypeScript type annotation on parameter. Identifier patterns store
 	// the annotation on the Identifier itself (OXC convention). For
 	// destructuring patterns (ObjectPattern, ArrayPattern, RestElement)
@@ -2649,6 +2622,53 @@ parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
 			// always wrapping a typed inner pattern handled above.
 		}
 	}
+}
+
+parse_function_param :: proc(p: ^Parser) -> ^FunctionParameter {
+	param := new_node(p, FunctionParameter)
+	param.loc = cur_loc(p)
+
+	decorators_seen := parse_function_param_decorators(p, param)
+
+	// TS "parameter properties" on constructors: access/readonly/override
+	// modifiers before the binding. Save them on the FunctionParameter so
+	// the emitter can wrap the param in TSParameterProperty when set.
+	parse_function_param_ts_modifiers(p, param)
+
+	if r := parse_function_param_rest(p, param); r != nil {
+		return r
+	}
+
+	pattern: Pattern
+	if p.cur_type == .This && allow_ts_mode(p) {
+		if decorators_seen {
+			report_error_coded(p, .K4064_DecoratorInvalid, "Decorators cannot be applied to 'this' parameters")
+		}
+		// TS `this` parameter: `function(this: T) {}` - specifies the
+		// type of `this` inside the function. Not a real runtime param.
+		ident := new_node(p, Identifier)
+		ident.loc = cur_loc(p)
+		ident.name = "this"
+		eat(p)
+		pattern = ident
+	} else {
+		pattern = parse_binding_pattern(p)
+	}
+	param.pattern = pattern
+
+	// TypeScript: optional parameter marker `?` comes AFTER the name.
+	// Only consume if followed by `:`, `,`, `)`, or `=` - not a ternary.
+	// Gate on TS mode — in plain JS, `?` after a param is a syntax error.
+	param_is_optional := false
+	if allow_ts_mode(p) && is_token(p, .Question) {
+		nxt := peek_token(p)
+		if nxt.type == .Colon || nxt.type == .Comma || nxt.type == .RParen || nxt.type == .Assign {
+			param_is_optional = true
+			eat(p) // consume `?`
+		}
+	}
+
+	parse_function_param_type_annotation(p, pattern)
 
 	if match_token(p, .Assign) {
 		default_expr := parse_assignment_expression(p)
