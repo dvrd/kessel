@@ -5330,16 +5330,7 @@ parse_var_decl_kind :: proc(p: ^Parser, kind_override: Maybe(VariableKind)) -> (
 	return kind, true
 }
 
-parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind), consume_semi: bool, in_for := false, is_declare := false) -> ^Statement {
-	start := cur_loc(p)
-
-	kind, kind_ok := parse_var_decl_kind(p, kind_override)
-	if !kind_ok {
-		return nil
-	}
-
-	eat(p)
-
+check_var_decl_kind_placement :: proc(p: ^Parser, kind: VariableKind, in_for: bool) {
 	// TS18054 — `await using` inside a class static block is invalid.
 	// Static blocks run synchronously and `await` is not available.
 	if kind == .AwaitUsing && p.ctx.in_static_block {
@@ -5366,11 +5357,9 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			}
 		}
 	}
+}
 
-	decl := new_node(p, VariableDeclaration)
-	decl.loc = start
-	decl.kind = kind
-
+parse_var_decl_empty_recovery :: proc(p: ^Parser, decl: ^VariableDeclaration, kind: VariableKind, consume_semi: bool, in_for: bool) -> ^Statement {
 	// Error recovery: `var;` / `let;` / `const;` — bare keyword without
 	// a binding name. Report one error and produce an empty declaration
 	// instead of cascading. Matches OXC's single-error recovery.
@@ -5390,21 +5379,10 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		decl.loc.end = prev_end_offset(p)
 		stmt := new_node(p, Statement); stmt^ = decl; return stmt
 	}
+	return nil
+}
 
-	// Cap bumped from 2 → 4 (S23).
-	decl.declarations = make([dynamic]VariableDeclarator, 0, 4, p.allocator)
-
-	for {
-		d := parse_variable_declarator(p, kind, in_for, is_declare)
-		if d != nil {
-			bump_append(&decl.declarations, d^)
-		}
-
-		if !match_token(p, .Comma) {
-			break
-		}
-	}
-
+match_var_decl_terminator :: proc(p: ^Parser, consume_semi: bool) {
 	if consume_semi {
 		// §14.3 - a VariableStatement / LexicalDeclaration ends with a
 		// `;` (or ASI). `var x = ''''` (Test262 string/S8.4_A13_T3.js) and
@@ -5424,7 +5402,9 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 		}
 		expect_semicolon_or_asi(p)
 	}
+}
 
+check_var_decl_bound_names :: proc(p: ^Parser, decl: ^VariableDeclaration, kind: VariableKind, is_declare: bool) {
 	// ECMA-262 §14.3.1.1 - a LexicalDeclaration's BoundNames list must not
 	// contain duplicates. `let x = 1, x = 2;` / `const a, b, a;` / using /
 	// await-using are all SyntaxErrors; `var` is explicitly exempted
@@ -5467,7 +5447,9 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(decl.loc.start), u32(decl.loc.start), msg)
 		}
 	}
+}
 
+check_var_decl_using_restrictions :: proc(p: ^Parser, decl: ^VariableDeclaration, kind: VariableKind, is_declare: bool) {
 	// §Explicit Resource Management - `using` / `await using` create
 	// runtime disposal state, so TS forbids them in ambient contexts
 	// (`declare namespace`, `declare module`, and `.d.ts`).
@@ -5505,7 +5487,9 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			report_error_coded(p, .K3060_SingleStatementContext, msg)
 		}
 	}
+}
 
+check_var_decl_initializers :: proc(p: ^Parser, decl: ^VariableDeclaration, kind: VariableKind, in_for: bool, is_declare: bool) {
 	// §14.3.3 `const` and §Explicit Resource Management `using` /
 	// `await using` require an Initializer on every VariableDeclarator.
 	// `const x;`, `using x;`, `await using x;` are all SyntaxErrors.
@@ -5544,6 +5528,49 @@ parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind
 			}
 		}
 	}
+}
+
+parse_variable_declaration :: proc(p: ^Parser, kind_override: Maybe(VariableKind), consume_semi: bool, in_for := false, is_declare := false) -> ^Statement {
+	start := cur_loc(p)
+
+	kind, kind_ok := parse_var_decl_kind(p, kind_override)
+	if !kind_ok {
+		return nil
+	}
+
+	eat(p)
+
+	check_var_decl_kind_placement(p, kind, in_for)
+
+	decl := new_node(p, VariableDeclaration)
+	decl.loc = start
+	decl.kind = kind
+
+	if s := parse_var_decl_empty_recovery(p, decl, kind, consume_semi, in_for); s != nil {
+		return s
+	}
+
+	// Cap bumped from 2 → 4 (S23).
+	decl.declarations = make([dynamic]VariableDeclarator, 0, 4, p.allocator)
+
+	for {
+		d := parse_variable_declarator(p, kind, in_for, is_declare)
+		if d != nil {
+			bump_append(&decl.declarations, d^)
+		}
+
+		if !match_token(p, .Comma) {
+			break
+		}
+	}
+
+	match_var_decl_terminator(p, consume_semi)
+
+	check_var_decl_bound_names(p, decl, kind, is_declare)
+
+	check_var_decl_using_restrictions(p, decl, kind, is_declare)
+
+	check_var_decl_initializers(p, decl, kind, in_for, is_declare)
 
 	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement)
