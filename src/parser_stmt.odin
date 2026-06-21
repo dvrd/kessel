@@ -6489,15 +6489,7 @@ string_raw_has_forbidden_escape :: proc(raw: string) -> bool {
 	return false
 }
 
-parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
-	if is_token(p, .LBrace) {
-		return parse_object_pattern(p)
-	}
-
-	if is_token(p, .LBracket) {
-		return parse_array_pattern(p)
-	}
-
+try_binding_reserved_word :: proc(p: ^Parser) -> Pattern {
 	// Reject reserved words in binding position (`var class = 1;`,
 	// `let function = 2;`, etc.). Contextual keywords pass through
 	// because they lex as `.Identifier`; only hard-reserved keyword
@@ -6517,7 +6509,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
+	return nil
+}
 
+try_binding_strict_reserved :: proc(p: ^Parser) -> Pattern {
 	// Strict-mode reserved words (`let`, `static`, `yield`, `implements`,
 	// `interface`, `package`, `private`, `protected`, `public`) as a
 	// BindingIdentifier are SyntaxErrors only in strict mode
@@ -6544,7 +6539,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
+	return nil
+}
 
+try_binding_generator_yield :: proc(p: ^Parser) -> Pattern {
 	// Context-sensitive reserved words for bindings:
 	//   * `yield` is reserved in a GeneratorBody / GeneratorDeclaration
 	//     (ECMA-262 §13.2). `p.ctx.in_generator` carries exactly that
@@ -6565,6 +6563,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
+	return nil
+}
+
+try_binding_await :: proc(p: ^Parser) -> Pattern {
 	// Plain `await` lexes as TokenType.Await; only escaped forms
 	// (`\u0061wait`) reach Identifier with cur_value == "await". Gate
 	// the string compare on has_escape so it stays off the hot path for
@@ -6590,7 +6592,10 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
+	return nil
+}
 
+parse_binding_identifier :: proc(p: ^Parser) -> Pattern {
 	// Identifiers and contextual keywords that can be used as binding names.
 	// All contextual keywords are valid binding identifiers in JS.
 	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
@@ -6654,6 +6659,26 @@ parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
 		ident.name = id_name
 		return ident
 	}
+	return nil
+}
+
+parse_binding_pattern :: proc(p: ^Parser) -> Pattern {
+	if is_token(p, .LBrace) {
+		return parse_object_pattern(p)
+	}
+
+	if is_token(p, .LBracket) {
+		return parse_array_pattern(p)
+	}
+
+	if pat := try_binding_reserved_word(p); pat != nil { return pat }
+
+	if pat := try_binding_strict_reserved(p); pat != nil { return pat }
+
+	if pat := try_binding_generator_yield(p); pat != nil { return pat }
+	if pat := try_binding_await(p); pat != nil { return pat }
+
+	if pat := parse_binding_identifier(p); pat != nil { return pat }
 
 	report_error_coded(p, .K3043_DestructuringInvalid, "Expected binding pattern")
 	return nil
