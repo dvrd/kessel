@@ -1734,22 +1734,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 					if decl.import_kind == .Type && allow_ts_mode(p) &&
 					   p.cur_type == .Identifier && cur_value_eq(p, "type") {
-						// Same disambiguation as the primary named-import loop above.
-      ensure_nxt(p)
-						nxt_k := p.lexer.nxt.kind
-						is_mod := nxt_k != .As && nxt_k != .Comma && nxt_k != .RBrace
-						if nxt_k == .As {
-							snap_c := lexer_snapshot(p)
-							advance_token(p); advance_token(p)
-							a_t := p.cur_type
-							lexer_restore(p, snap_c)
-							if a_t != .Identifier && !can_be_binding_identifier(a_t) && a_t != .String {
-								is_mod = true
-							}
-						}
-						if is_mod {
-							report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only import")
-						}
+						reject_inline_type_modifier_in_type_only_import(p)
 					}
 					spec2 := parse_import_specifier(p)
 					if spec2 != nil {
