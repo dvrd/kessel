@@ -4981,23 +4981,7 @@ parse_class_method_body_decision :: proc(
 	return body, is_overload_sig, is_ambient_method
 }
 
-parse_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts) -> ^ClassElement {
-	start := parts.start
-	key := parts.key
-	kind := parts.kind
-	computed := parts.computed
-	static_ := parts.static_
-	is_async := parts.is_async
-	is_generator := parts.is_generator
-	is_accessor := parts.is_accessor
-	is_abstract := parts.is_abstract
-	is_declare := parts.is_declare
-	is_readonly := parts.is_readonly
-	is_override := parts.is_override
-	accessibility := parts.accessibility
-	decorators := parts.decorators
-	field_optional := parts.optional
-
+parse_method_type_parameters :: proc(p: ^Parser) -> Maybe(^TSTypeParameterDeclaration) {
 	// It's a method - parse parameters and body. TS allows generic methods
 	// `foo<T>(x: T): T { ... }` - parse the optional <T,U,...> here, before
 	// the `(`. Without this, `Expected (, got <` fires on every generic
@@ -5021,31 +5005,10 @@ parse_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts) -> ^Clas
 		}
 		if is_token(p, .RAngle) { eat(p) }
 	}
+	return method_type_parameters
+}
 
-	if is_readonly {
-		report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' modifier can only appear on a property declaration")
-	}
-	if kind == .Constructor && is_override {
-		report_error_coded(p, .K4020_ConstructorTSModifier, "'override' modifier cannot appear on a constructor declaration")
-	}
-
-	// Capture paren position for FunctionExpression start
-	paren_loc := cur_loc(p)
-	if !expect_token(p, .LParen) {
-		return nil
-	}
-
-	// Parse the method's formal parameter list under the class-method
-	// context (always strict; in_method; generator/async param guards;
-	// derived-constructor super-call eligibility). The §15.5.1/§15.6.1/
-	// §15.8.1 flags are saved on entry and restored on exit by the helper
-	// so they do not leak into the surrounding class body.
-	params := parse_class_method_params(p, kind, static_, is_async, is_generator, start.start)
-
-	if !expect_token(p, .RParen) {
-		return nil
-	}
-
+check_method_accessor_shape :: proc(p: ^Parser, kind: ClassElementKind, key: ^Expression, params: [dynamic]FunctionParameter, start: Loc) {
 	// §15.4.3 / §15.4.4 / §15.4.5 — getter / setter arity + setter
 	// parameter shape (rest / default initializer).
 	if kind == .Get || kind == .Set {
@@ -5057,27 +5020,23 @@ parse_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts) -> ^Clas
 		}
 		enforce_accessor_param_shape(p, kind == .Set, params[:], key_loc)
 	}
+}
 
-	// TypeScript return type annotation on method - stored on FunctionExpression.
-	method_return_type: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) && allow_ts_mode(p) {
-		method_return_type = parse_ts_return_type_annotation(p)
-	}
-	check_ts_method_modifiers(p, kind, is_declare, method_type_parameters, method_return_type)
-
-	// For abstract methods and for TS overload signatures there's no body
-	// - just a semicolon. Overload signature (TS-A10):
-	//   class C {
-	//     get(x: string): string;
-	//     get(x: number): number;
-	//     get(x: any): any { return x; }
-	//   }
-	// The parser tolerates the syntax; semantics (overload set shape,
-	// implementation agreement) are the type checker's job.
-	body, is_overload_sig, is_ambient_method := parse_class_method_body_decision(
-		p, kind, key, params, paren_loc, decorators, static_, is_async, is_generator, is_abstract,
-	)
-
+build_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts, params: [dynamic]FunctionParameter, body: FunctionBody, paren_loc: Loc, method_type_parameters: Maybe(^TSTypeParameterDeclaration), method_return_type: Maybe(^TSTypeAnnotation), is_overload_sig: bool, is_ambient_method: bool) -> ^ClassElement {
+	start := parts.start
+	key := parts.key
+	kind := parts.kind
+	computed := parts.computed
+	static_ := parts.static_
+	is_async := parts.is_async
+	is_generator := parts.is_generator
+	is_accessor := parts.is_accessor
+	is_abstract := parts.is_abstract
+	decorators := parts.decorators
+	accessibility := parts.accessibility
+	is_readonly := parts.is_readonly
+	is_override := parts.is_override
+	field_optional := parts.optional
 	// §15.2.1.1 - BoundNames of FormalParameters vs LexicallyDeclaredNames.
 
 	// Create the method as a FunctionExpression
@@ -5123,6 +5082,70 @@ parse_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts) -> ^Clas
 
 	elem.loc.end = prev_end_offset(p)
 	return elem
+}
+
+parse_class_method_element :: proc(p: ^Parser, parts: ClassMethodParts) -> ^ClassElement {
+	start := parts.start
+	key := parts.key
+	kind := parts.kind
+	static_ := parts.static_
+	is_async := parts.is_async
+	is_generator := parts.is_generator
+	is_abstract := parts.is_abstract
+	is_declare := parts.is_declare
+	is_readonly := parts.is_readonly
+	is_override := parts.is_override
+	decorators := parts.decorators
+
+	method_type_parameters := parse_method_type_parameters(p)
+
+	if is_readonly {
+		report_error_coded(p, .K4032_ModifierMisplaced, "'readonly' modifier can only appear on a property declaration")
+	}
+	if kind == .Constructor && is_override {
+		report_error_coded(p, .K4020_ConstructorTSModifier, "'override' modifier cannot appear on a constructor declaration")
+	}
+
+	// Capture paren position for FunctionExpression start
+	paren_loc := cur_loc(p)
+	if !expect_token(p, .LParen) {
+		return nil
+	}
+
+	// Parse the method's formal parameter list under the class-method
+	// context (always strict; in_method; generator/async param guards;
+	// derived-constructor super-call eligibility). The §15.5.1/§15.6.1/
+	// §15.8.1 flags are saved on entry and restored on exit by the helper
+	// so they do not leak into the surrounding class body.
+	params := parse_class_method_params(p, kind, static_, is_async, is_generator, start.start)
+
+	if !expect_token(p, .RParen) {
+		return nil
+	}
+
+	check_method_accessor_shape(p, kind, key, params, start)
+
+	// TypeScript return type annotation on method - stored on FunctionExpression.
+	method_return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) && allow_ts_mode(p) {
+		method_return_type = parse_ts_return_type_annotation(p)
+	}
+	check_ts_method_modifiers(p, kind, is_declare, method_type_parameters, method_return_type)
+
+	// For abstract methods and for TS overload signatures there's no body
+	// - just a semicolon. Overload signature (TS-A10):
+	//   class C {
+	//     get(x: string): string;
+	//     get(x: number): number;
+	//     get(x: any): any { return x; }
+	//   }
+	// The parser tolerates the syntax; semantics (overload set shape,
+	// implementation agreement) are the type checker's job.
+	body, is_overload_sig, is_ambient_method := parse_class_method_body_decision(
+		p, kind, key, params, paren_loc, decorators, static_, is_async, is_generator, is_abstract,
+	)
+
+	return build_class_method_element(p, parts, params, body, paren_loc, method_type_parameters, method_return_type, is_overload_sig, is_ambient_method)
 }
 
 parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
