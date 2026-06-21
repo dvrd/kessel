@@ -3052,6 +3052,70 @@ parse_property_cover_initialized :: proc(p: ^Parser, start: Loc, key: ^Expressio
 	return expression_from(p, assign)
 }
 
+// parse_property_shorthand_checks validates an object-literal shorthand
+// property `{ foo }` (§13.2.5.1): rejects generator/async/computed forms
+// and enforces the IdentifierReference reserved-word / strict-mode rules.
+// Returns false when the caller must drop the property (return nil).
+// Lifted out of parse_property as pure code motion.
+parse_property_shorthand_checks :: proc(p: ^Parser, key: ^Expression, computed: bool, is_generator: bool, is_async: bool) -> bool {
+	// Shorthand property: { foo } means { foo: foo }
+	// Not valid for generators/getters/setters
+	if is_generator || is_async {
+		report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+			"Generator/async shorthand property not allowed")
+	return false
+	}
+	// §13.2.5.1 PropertyDefinition shorthand only accepts an
+	// IdentifierReference - computed `[expr]` and numeric / string
+	// keys cannot stand alone. `({[x]})`, `({0})`, `({"foo"})` are
+	// SyntaxErrors. Other key shapes (Identifier / contextual keyword)
+	// fall through to the regular shorthand path.
+	if computed {
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "Computed property name requires a value")
+	} else if key != nil {
+		#partial switch k in key^ {
+		case ^NumericLiteral, ^StringLiteral, ^BigIntLiteral:
+			report_error_coded(p, .K2070_RequiredFormOrBinding, "Numeric / string property name requires a value")
+		case ^Identifier:
+			// Shorthand binding name must be a valid IdentifierReference.
+			// Hard reserved keywords (default, extends, class, function,
+			// if, ...) cannot be used. Escaped-reserved variants are
+			// caught at the IdentifierName branch above via the
+			// has_escape pre-capture.
+			if k != nil && is_always_reserved_word_name(k.name) {
+				msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", k.name)
+				report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
+			}
+			// Contextually reserved: `yield` in generators, `await` in async/static blocks.
+			if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
+			}
+			if k != nil && k.name == "await" && await_is_reserved_here(p) {
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+		"'await' cannot be used as a shorthand property identifier")
+			}
+			// §13.2.5.4 — ObjectLiteral PropertyDefinition shorthand
+			// IdentifierReference is a CoverInitializedName candidate;
+			// the AssignmentTargetType must be valid. In strict mode
+			// strict-reserved names (let / static / yield / implements
+			// / interface / package / private / protected / public) and
+			// eval / arguments are NOT valid BindingIdentifiers, so the
+			// shorthand fails. Promoted from the semantic checker
+			// (ck_check_shorthand_property_strict_reserved).
+			if k != nil && p.ctx.strict_mode {
+				if is_eval_or_arguments(k.name) {
+					msg := fmt.tprintf("'%s' cannot be used as a shorthand property identifier in strict mode", k.name)
+					report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
+				} else if is_strict_reserved_binding_name(k.name) {
+					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", k.name)
+					report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
+				}
+			}
+		}
+	}
+	return true
+}
+
 parse_property :: proc(p: ^Parser) -> ^Property {
 	start := cur_loc(p)
 
@@ -3181,60 +3245,8 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		value = parse_property_cover_initialized(p, start, key)
 		shorthand = true
 	} else {
-		// Shorthand property: { foo } means { foo: foo }
-		// Not valid for generators/getters/setters
-		if is_generator || is_async {
-			report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
-				"Generator/async shorthand property not allowed")
+		if !parse_property_shorthand_checks(p, key, computed, is_generator, is_async) {
 			return nil
-		}
-		// §13.2.5.1 PropertyDefinition shorthand only accepts an
-		// IdentifierReference - computed `[expr]` and numeric / string
-		// keys cannot stand alone. `({[x]})`, `({0})`, `({"foo"})` are
-		// SyntaxErrors. Other key shapes (Identifier / contextual keyword)
-		// fall through to the regular shorthand path.
-		if computed {
-			report_error_coded(p, .K2070_RequiredFormOrBinding, "Computed property name requires a value")
-		} else if key != nil {
-			#partial switch k in key^ {
-			case ^NumericLiteral, ^StringLiteral, ^BigIntLiteral:
-				report_error_coded(p, .K2070_RequiredFormOrBinding, "Numeric / string property name requires a value")
-			case ^Identifier:
-				// Shorthand binding name must be a valid IdentifierReference.
-				// Hard reserved keywords (default, extends, class, function,
-				// if, ...) cannot be used. Escaped-reserved variants are
-				// caught at the IdentifierName branch above via the
-				// has_escape pre-capture.
-				if k != nil && is_always_reserved_word_name(k.name) {
-					msg := fmt.tprintf("Reserved word '%s' is not a valid binding identifier", k.name)
-					report_error_coded(p, .K3053_ReservedAsBindingIdentifier, msg)
-				}
-				// Contextually reserved: `yield` in generators, `await` in async/static blocks.
-				if k != nil && k.name == "yield" && yield_is_reserved_here(p) {
-					report_error_coded(p, .K3010_AwaitYieldAsBindingName, "'yield' is reserved as a binding name in a generator")
-				}
-				if k != nil && k.name == "await" && await_is_reserved_here(p) {
-					report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-			"'await' cannot be used as a shorthand property identifier")
-				}
-				// §13.2.5.4 — ObjectLiteral PropertyDefinition shorthand
-				// IdentifierReference is a CoverInitializedName candidate;
-				// the AssignmentTargetType must be valid. In strict mode
-				// strict-reserved names (let / static / yield / implements
-				// / interface / package / private / protected / public) and
-				// eval / arguments are NOT valid BindingIdentifiers, so the
-				// shorthand fails. Promoted from the semantic checker
-				// (ck_check_shorthand_property_strict_reserved).
-				if k != nil && p.ctx.strict_mode {
-					if is_eval_or_arguments(k.name) {
-						msg := fmt.tprintf("'%s' cannot be used as a shorthand property identifier in strict mode", k.name)
-						report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
-					} else if is_strict_reserved_binding_name(k.name) {
-						msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", k.name)
-						report_error_coded_span(p, .K3050_StrictModeReserved, u32(k.loc.start), u32(k.loc.start), msg)
-					}
-				}
-			}
 		}
 		shorthand = true
 		value = key
