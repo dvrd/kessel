@@ -2889,10 +2889,7 @@ parse_function_body :: proc(p: ^Parser) -> FunctionBody {
 	return body
 }
 
-parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
-	start := cur_loc(p)
-	eat(p) // consume class
-
+parse_class_name :: proc(p: ^Parser) -> Maybe(BindingIdentifier) {
 	id: Maybe(BindingIdentifier)
 	if can_be_binding_identifier(p.cur_type) {
 		current := snap_current(p)
@@ -2952,19 +2949,11 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		eat(p)
 	}
+	return id
+}
 
-	// TypeScript generic type parameters: `class Box<T> { ... }`
-	type_parameters: Maybe(^TSTypeParameterDeclaration)
-	if is_token(p, .LAngle) && allow_ts_mode(p) { type_parameters = parse_ts_type_parameters(p) }
-
+parse_class_extends :: proc(p: ^Parser) -> (Maybe(^Expression), Maybe(^TSTypeParameterInstantiation)) {
 	super_class: Maybe(^Expression)
-	// §15.7 - ClassDeclaration / ClassExpression are always strict mode code.
-	// Set strict mode before parsing the heritage expression so that
-	// `class C extends (function() { with({}); })()` correctly rejects
-	// the `with` statement inside the heritage function expression.
-	prev_strict_class := p.ctx.strict_mode
-	p.ctx.strict_mode = true
-	defer p.ctx.strict_mode = prev_strict_class
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
 		super_class = parse_left_hand_side_expr(p)
@@ -2997,21 +2986,10 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 	}
+	return super_class, super_type_arguments
+}
 
-	// Thread "this class has an extends clause" through parse_class_body so
-	// parse_class_element can enable `in_derived_constructor` only for the
-	// instance constructor of a derived class. Saved / restored so nested
-	// class declarations don't leak.
-	prev_class_has_extends := p.ctx.class_has_extends
-	p.ctx.class_has_extends = (super_class != nil)
-	defer p.ctx.class_has_extends = prev_class_has_extends
-
-	// Thread abstract status so validate_class_body can reject abstract
-	// members in non-abstract classes. The `abstract` keyword was consumed
-	// by the caller; p.ctx.class_is_abstract is set before we enter the body.
-	prev_class_is_abstract := p.ctx.class_is_abstract
-	defer p.ctx.class_is_abstract = prev_class_is_abstract
-
+parse_class_implements :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 	// TS: `class X implements Y, Z<T>` - optional after `extends`. OXC emits
 	// `implements: [TSClassImplements{expression, typeArguments}]`. Kessel's
 	// ClassDeclaration already has an `implements` field; it was simply
@@ -3031,6 +3009,43 @@ parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
 			report_error_coded(p, .K4051_TSDeclarationStructure, "Expected interface name after 'implements'")
 		}
 	}
+	return implements_list
+}
+
+parse_class_declaration :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p)
+	eat(p) // consume class
+
+	id := parse_class_name(p)
+
+	// TypeScript generic type parameters: `class Box<T> { ... }`
+	type_parameters: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) && allow_ts_mode(p) { type_parameters = parse_ts_type_parameters(p) }
+
+	// §15.7 - ClassDeclaration / ClassExpression are always strict mode code.
+	// Set strict mode before parsing the heritage expression so that
+	// `class C extends (function() { with({}); })()` correctly rejects
+	// the `with` statement inside the heritage function expression.
+	prev_strict_class := p.ctx.strict_mode
+	p.ctx.strict_mode = true
+	defer p.ctx.strict_mode = prev_strict_class
+	super_class, super_type_arguments := parse_class_extends(p)
+
+	// Thread "this class has an extends clause" through parse_class_body so
+	// parse_class_element can enable `in_derived_constructor` only for the
+	// instance constructor of a derived class. Saved / restored so nested
+	// class declarations don't leak.
+	prev_class_has_extends := p.ctx.class_has_extends
+	p.ctx.class_has_extends = (super_class != nil)
+	defer p.ctx.class_has_extends = prev_class_has_extends
+
+	// Thread abstract status so validate_class_body can reject abstract
+	// members in non-abstract classes. The `abstract` keyword was consumed
+	// by the caller; p.ctx.class_is_abstract is set before we enter the body.
+	prev_class_is_abstract := p.ctx.class_is_abstract
+	defer p.ctx.class_is_abstract = prev_class_is_abstract
+
+	implements_list := parse_class_implements(p)
 
 	body := parse_class_body(p)
 
