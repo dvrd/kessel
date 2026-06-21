@@ -2218,6 +2218,29 @@ if p.cur_type == .As && allow_ts_mode(p) {
 	return nil
 }
 
+// check_ts_namespace_export_named enforces TS1233: a named re-export inside
+// a non-ambient TS namespace body is invalid (only `export <declaration>` is
+// allowed; `declare namespace` permits internal re-exports but never a
+// `from` source). Lifted out of parse_export_declaration as pure code motion.
+check_ts_namespace_export_named :: proc(p: ^Parser, result_named: ^Statement, start: Loc) {
+	if !(p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block) {
+		return
+	}
+	if result_named == nil {
+		return
+	}
+	// Check: if it has a `from` source OR we're in a non-ambient namespace.
+	has_from := false
+	if en, ok := result_named^.(^ExportNamedDeclaration); ok && en != nil {
+		has_from = en.source != nil
+	}
+	if has_from {
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
+	} else if !p.ctx.in_ambient {
+		report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
+	}
+}
+
 parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume export
@@ -2259,21 +2282,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// allowed. In `declare namespace`, `export { x }` IS valid (re-export of
 		// internal names). Exception: `export { x } from "m"` is always invalid
 		// in any namespace (handled after parsing by checking .source).
-		ns_export_named_start := start
-		ns_check_export_named := p.ctx.in_ts_namespace && allow_ts_mode(p) && !p.ctx.in_ts_module_block
 		result_named := parse_export_named(p, start, .Value)
-		if ns_check_export_named && result_named != nil {
-			// Check: if it has a `from` source OR we're in a non-ambient namespace.
-			has_from := false
-			if en, ok := result_named^.(^ExportNamedDeclaration); ok && en != nil {
-				has_from = en.source != nil
-			}
-			if has_from {
-				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(ns_export_named_start.start), u32(ns_export_named_start.start), "Export declarations are not permitted in a namespace")
-			} else if !p.ctx.in_ambient {
-				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(ns_export_named_start.start), u32(ns_export_named_start.start), "Export declarations are not permitted in a namespace")
-			}
-		}
+		check_ts_namespace_export_named(p, result_named, start)
 		return result_named
 	}
 
