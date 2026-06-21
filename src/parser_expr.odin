@@ -2953,22 +2953,13 @@ parse_object_spread_property :: proc(p: ^Parser, start: Loc) -> ^Property {
 	return prop
 }
 
-parse_property :: proc(p: ^Parser) -> ^Property {
-	start := cur_loc(p)
-
-	computed := false
-	key: ^Expression
-
-	if is_token(p, .Dot3) {
-		return parse_object_spread_property(p, start)
-	}
-
-	// Check for get/set keywords and generator/async modifiers
-	is_getter := false
-	is_setter := false
-	is_generator := false
-	is_async := false
-
+// parse_property_get_set_async detects object-literal accessor (`get`/`set`)
+// and `async` modifier prefixes, consuming the keyword only when a property
+// name (or `*` for async) follows — otherwise the keyword is an ordinary
+// shorthand property name. Lifted out of parse_property as pure code motion
+// (the generator `*` modifier, which can early-return on `{ * }`, stays in
+// the caller). Returns the three modifier flags via named results.
+parse_property_get_set_async :: proc(p: ^Parser) -> (is_getter: bool, is_setter: bool, is_async: bool) {
 	if is_token(p, .Get) || is_token(p, .Set) {
 		// Only treat as getter/setter if followed by a property name (not : or ( directly).
 		// Any keyword can be a property name (ES spec: PropertyName → IdentifierName).
@@ -3001,6 +2992,22 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 			}
 		}
 	}
+	return
+}
+
+parse_property :: proc(p: ^Parser) -> ^Property {
+	start := cur_loc(p)
+
+	computed := false
+	key: ^Expression
+
+	if is_token(p, .Dot3) {
+		return parse_object_spread_property(p, start)
+	}
+
+	// Check for get/set keywords and generator/async modifiers
+	is_getter, is_setter, is_async := parse_property_get_set_async(p)
+	is_generator := false
 
 	// Check for generator modifier (can come after async or before identifier)
 	if is_token(p, .Mul) {
