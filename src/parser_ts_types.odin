@@ -3541,94 +3541,57 @@ parse_ts_type_alias_declaration :: proc(p: ^Parser) -> ^Statement {
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
 }
 
-parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
-	start := cur_loc(p)
-	is_const := false
-	if is_token(p, .Const) { is_const = true; eat(p) }
-	eat(p)
-	cur := snap_current(p)
-	if !can_be_binding_identifier(p.cur_type) {
-		report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
-			fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur.value))
-	}
-	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
-	check_strict_ts_decl_name(p, id.name, id.loc)
-	check_ts_primitive_decl_name(p, "Enum", id.name, id.loc)
-	eat(p)
-	body_start := cur_loc(p); expect_token(p, .LBrace)
-	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
-	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-		// Reject empty enum member positions: `enum E { , }`.
-		if is_token(p, .Comma) {
-			report_error_coded(p, .K4054_EnumInvalid, "Expected enum member name")
-			eat(p)
-			continue
-		}
-		// Private names are not valid enum member names.
-		if is_token(p, .PrivateIdentifier) {
-			report_error_coded(p, .K3032_PrivateNameInvalid, "An enum member cannot have a private name")
-		}
-		ms := cur_loc(p); member_id: ^Expression; mc := snap_current(p)
-		if is_token(p, .String) {
-			str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
-		} else if is_token(p, .Number) || is_token(p, .BigInt) {
-			report_error_coded(p, .K4054_EnumInvalid, "An enum member cannot have a numeric name")
-			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
-			member_id = expression_from(p, mid)
-		} else if is_token(p, .LBracket) {
-			// Computed enum member names. OXC accepts `['baz']` (string
-			// literal in brackets) because a computed enum member with a
-			// static string key is indistinguishable (at parse time) from
-			// a regular named enum member. OXC rejects every other
-			// computed form (`[foo]`, `[1]`, `` [`test${foo}`] ``,
-			// `['baz' + 'baz']`) with "Computed property names are not
-			// allowed in enums" (TS1164). Mirror that two-part rule.
-			eat(p) // consume `[`
-			inner := parse_assignment_expression(p)
-			expect_token(p, .RBracket)
-			// Only `['literal']` and `` [`no-expr`] `` (template literal with
-			// zero interpolations) escape the rejection. Both produce a
-			// static, known-at-compile-time string key indistinguishable
-			// from a regular named enum member.
-			if inner != nil {
-				is_static := false
-				if _, is_str := inner^.(^StringLiteral); is_str {
-					is_static = true
-				} else if tmpl, is_tmpl := inner^.(^TemplateLiteral); is_tmpl && len(tmpl.expressions) == 0 {
-					is_static = true
-				}
-				if !is_static {
-					report_error_coded(p, .K4054_EnumInvalid, "Computed property names are not allowed in enums")
-				}
-				member_id = inner
-			} else {
-				mid := new_node(p, Identifier); mid.loc = ms; mid.name = ""
-				member_id = expression_from(p, mid)
+parse_ts_enum_member_name :: proc(p: ^Parser, ms: Loc) -> ^Expression {
+	member_id: ^Expression
+	mc := snap_current(p)
+	if is_token(p, .String) {
+		str := parse_string_literal(p); sn := new_node(p, StringLiteral); sn^ = str; member_id = expression_from(p, sn)
+	} else if is_token(p, .Number) || is_token(p, .BigInt) {
+		report_error_coded(p, .K4054_EnumInvalid, "An enum member cannot have a numeric name")
+		mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
+		member_id = expression_from(p, mid)
+	} else if is_token(p, .LBracket) {
+		// Computed enum member names. OXC accepts `['baz']` (string
+		// literal in brackets) because a computed enum member with a
+		// static string key is indistinguishable (at parse time) from
+		// a regular named enum member. OXC rejects every other
+		// computed form (`[foo]`, `[1]`, `` [`test${foo}`] ``,
+		// `['baz' + 'baz']`) with "Computed property names are not
+		// allowed in enums" (TS1164). Mirror that two-part rule.
+		eat(p) // consume `[`
+		inner := parse_assignment_expression(p)
+		expect_token(p, .RBracket)
+		// Only `['literal']` and `` [`no-expr`] `` (template literal with
+		// zero interpolations) escape the rejection. Both produce a
+		// static, known-at-compile-time string key indistinguishable
+		// from a regular named enum member.
+		if inner != nil {
+			is_static := false
+			if _, is_str := inner^.(^StringLiteral); is_str {
+				is_static = true
+			} else if tmpl, is_tmpl := inner^.(^TemplateLiteral); is_tmpl && len(tmpl.expressions) == 0 {
+				is_static = true
 			}
-		} else if is_token(p, .Template) || is_token(p, .TemplateHead) {
-			// Template literals are not valid enum member names.
-			report_error_coded(p, .K4054_EnumInvalid, "Enum member expected")
-			member_id = parse_template_literal(p, false)
+			if !is_static {
+				report_error_coded(p, .K4054_EnumInvalid, "Computed property names are not allowed in enums")
+			}
+			member_id = inner
 		} else {
-			mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
+			mid := new_node(p, Identifier); mid.loc = ms; mid.name = ""
 			member_id = expression_from(p, mid)
 		}
-		init: Maybe(^Expression)
-		if match_token(p, .Assign) {
-			prev_in_async := p.ctx.in_async
-			prev_in_generator := p.ctx.in_generator
-			p.ctx.in_async = false
-			p.ctx.in_generator = false
-			init = parse_assignment_expression(p)
-			p.ctx.in_generator = prev_in_generator
-			p.ctx.in_async = prev_in_async
-		}
-		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.end = prev_end_offset(p)
-		bump_append(&members, m)
-		if !match_token(p, .Comma) { break }
+	} else if is_token(p, .Template) || is_token(p, .TemplateHead) {
+		// Template literals are not valid enum member names.
+		report_error_coded(p, .K4054_EnumInvalid, "Enum member expected")
+		member_id = parse_template_literal(p, false)
+	} else {
+		mid := new_node(p, Identifier); mid.loc = loc_from_token(&mc); mid.name = mc.value; eat(p)
+		member_id = expression_from(p, mid)
 	}
-	expect_token(p, .RBrace)
+	return member_id
+}
 
+check_ts_enum_duplicate_names :: proc(p: ^Parser, members: [dynamic]TSEnumMember) {
 	// TS2300 — duplicate enum member names.
 	{
 		seen_names: map[string]bool
@@ -3647,7 +3610,9 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			seen_names[name] = true
 		}
 	}
+}
 
+check_ts_enum_member_initializers :: proc(p: ^Parser, members: [dynamic]TSEnumMember, is_const: bool) {
 	// TS1061 — enum member without initializer following a member with
 	// a non-literal (computed) initializer. In a non-ambient context,
 	// the auto-increment only works after literal values.
@@ -3678,6 +3643,56 @@ parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 	}
+}
+
+parse_ts_enum_declaration :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p)
+	is_const := false
+	if is_token(p, .Const) { is_const = true; eat(p) }
+	eat(p)
+	cur := snap_current(p)
+	if !can_be_binding_identifier(p.cur_type) {
+		report_error_coded(p, .K3053_ReservedAsBindingIdentifier,
+			fmt.tprintf("Identifier expected. '%s' is a reserved word that cannot be used here", cur.value))
+	}
+	id := BindingIdentifier{loc = loc_from_token(&cur), name = cur.value}
+	check_strict_ts_decl_name(p, id.name, id.loc)
+	check_ts_primitive_decl_name(p, "Enum", id.name, id.loc)
+	eat(p)
+	body_start := cur_loc(p); expect_token(p, .LBrace)
+	members := make([dynamic]TSEnumMember, 0, 8, p.allocator)
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		// Reject empty enum member positions: `enum E { , }`.
+		if is_token(p, .Comma) {
+			report_error_coded(p, .K4054_EnumInvalid, "Expected enum member name")
+			eat(p)
+			continue
+		}
+		// Private names are not valid enum member names.
+		if is_token(p, .PrivateIdentifier) {
+			report_error_coded(p, .K3032_PrivateNameInvalid, "An enum member cannot have a private name")
+		}
+		ms := cur_loc(p)
+		member_id := parse_ts_enum_member_name(p, ms)
+		init: Maybe(^Expression)
+		if match_token(p, .Assign) {
+			prev_in_async := p.ctx.in_async
+			prev_in_generator := p.ctx.in_generator
+			p.ctx.in_async = false
+			p.ctx.in_generator = false
+			init = parse_assignment_expression(p)
+			p.ctx.in_generator = prev_in_generator
+			p.ctx.in_async = prev_in_async
+		}
+		m := TSEnumMember{loc = ms, id = member_id, initializer = init}; m.loc.end = prev_end_offset(p)
+		bump_append(&members, m)
+		if !match_token(p, .Comma) { break }
+	}
+	expect_token(p, .RBrace)
+
+	check_ts_enum_duplicate_names(p, members)
+
+	check_ts_enum_member_initializers(p, members, is_const)
 
 	decl := new_node(p, TSEnumDeclaration); decl.loc = start; decl.id = id
 	decl.body = TSEnumBody{loc = body_start, members = members}; decl.body.loc.end = prev_end_offset(p)
