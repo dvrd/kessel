@@ -1676,6 +1676,104 @@ expect_close_angle :: proc(p: ^Parser) -> bool {
 //                      `<T>(x) => x` with a single-char type param
 //                      and identifier-only arg MISPARSES. Documented
 //                      limitation; covered by Phase C proper trial-parse.
+try_ts_lt_modifier_arrow :: proc(p: ^Parser, start: Loc, nxt_kind: TokenType) -> ^Expression {
+	// TS type-parameter modifiers: `<const T>`, `<in T>`, `<out T>`.
+	// These can only appear in generic-arrow position (not assertions).
+	// `const` lexes as .Const keyword, `in` as .In. `out` is Identifier
+	// but appears as a modifier only before another Identifier, so the
+	// `<Identifier ...` path below catches `<out T>`.
+	if nxt_kind == .Const || nxt_kind == .In {
+		// `<const T>` / `<in T>` are type-parameter modifier syntax
+		// for generic arrows. `<const>X` is also a TS 3.4-era "const
+		// assertion" (TSTypeAssertion with `const` as the type name).
+		// Try generic arrow first; on failure, fall through to the
+		// assertion path so `<const>10` parses as TSTypeAssertion.
+		snap := lexer_snapshot(p)
+		result := parse_ts_generic_arrow(p, start)
+		if result != nil && len(p.errors) == snap.errors_len {
+			check_ts_ambiguous_jsx_like_arrow(p, result)
+			return result
+		}
+		lexer_restore(p, snap)
+		// fall through to the assertion attempt below
+	}
+	return nil
+}
+
+try_ts_lt_identifier_arrow :: proc(p: ^Parser, start: Loc, nxt_kind: TokenType) -> (^Expression, bool) {
+	if nxt_kind == .Identifier {
+		snap := lexer_snapshot(p)
+		eat(p)            // consume `<`
+		eat(p)            // consume the identifier after `<`
+		after := p.cur_type
+		lexer_restore(p, snap)
+
+		try_arrow := after == .Comma || after == .Extends || after == .Assign || after == .RAngle
+		if try_arrow {
+			snap2 := lexer_snapshot(p)
+			result := parse_ts_generic_arrow(p, start)
+			if result != nil && len(p.errors) == snap2.errors_len {
+				check_ts_ambiguous_jsx_like_arrow(p, result)
+				return result, true
+			}
+			// Generic-arrow parse failed - roll back and, for the
+			// ambiguous `<T>` case only, fall through to an assertion
+			// attempt. For the KNOWN-arrow signals (`,`/`extends`/`=`)
+			// nothing else is legal: emit one error and bail.
+			lexer_restore(p, snap2)
+			if after != .RAngle {
+				report_error_coded(p, .K2040_UnexpectedToken, "Malformed generic arrow function")
+				return nil, true
+			}
+			// fall through to assertion for the ambiguous case
+		}
+	}
+	return nil, false
+}
+
+check_ts_assertion_bare_yield :: proc(p: ^Parser, expr: ^Expression) {
+	// OXC rejects `<T>yield 0` in generators: `yield` directly after
+	// `>` is treated as an identifier (§14.4.1), which is reserved.
+	// `<T>(yield 0)` is fine (parens open AssignmentExpression context).
+	// Distinguish by checking if the expression starts at the same
+	// offset as the `>` end (no intervening paren).
+	if p.ctx.in_generator {
+		if ye, ok := expr^.(^YieldExpression); ok {
+			// Check if `yield` directly follows `>` (bare form), or is
+			// inside parens. Walk backwards from yield's start offset.
+			ye_start := int(ye.loc.start)
+			bare_yield := false
+			if p.lexer != nil {
+				src_bytes := p.lexer.source_bytes
+				i := ye_start - 1
+				for i >= 0 && (src_bytes[i] == ' ' || src_bytes[i] == '\t' ||
+				               src_bytes[i] == '\n' || src_bytes[i] == '\r') {
+					i -= 1
+				}
+				if i >= 0 && src_bytes[i] == '>' { bare_yield = true }
+			}
+			if bare_yield {
+				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'yield' cannot be used as an identifier in a generator context")
+			}
+		}
+	}
+}
+
+build_ts_type_assertion :: proc(p: ^Parser, start: Loc, type_ann: ^TSType, expr: ^Expression) -> ^Expression {
+	node, node_e := new_expr(p, TSTypeAssertion)
+	node.loc = start
+	node.type_annotation = type_ann
+	node.expression = expr
+	node.loc.end = prev_end_offset(p)
+
+	if p.disallow_ambiguous_jsx_like {
+		report_error_coded_span(p, .K4053_TSOnlyInJS, u32(start.start), u32(start.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead")
+	}
+
+	return node_e
+}
+
 parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	start := cur_loc(p)
 	assert(p.cur_type == .LAngle)
@@ -1699,53 +1797,10 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
  ensure_nxt(p)
 	nxt_kind := p.lexer.nxt.kind
 
-	// TS type-parameter modifiers: `<const T>`, `<in T>`, `<out T>`.
-	// These can only appear in generic-arrow position (not assertions).
-	// `const` lexes as .Const keyword, `in` as .In. `out` is Identifier
-	// but appears as a modifier only before another Identifier, so the
-	// `<Identifier ...` path below catches `<out T>`.
-	if nxt_kind == .Const || nxt_kind == .In {
-		// `<const T>` / `<in T>` are type-parameter modifier syntax
-		// for generic arrows. `<const>X` is also a TS 3.4-era "const
-		// assertion" (TSTypeAssertion with `const` as the type name).
-		// Try generic arrow first; on failure, fall through to the
-		// assertion path so `<const>10` parses as TSTypeAssertion.
-		snap := lexer_snapshot(p)
-		result := parse_ts_generic_arrow(p, start)
-		if result != nil && len(p.errors) == snap.errors_len {
-			check_ts_ambiguous_jsx_like_arrow(p, result)
-			return result
-		}
-		lexer_restore(p, snap)
-		// fall through to the assertion attempt below
-	}
+	if r := try_ts_lt_modifier_arrow(p, start, nxt_kind); r != nil { return r }
 
-	if nxt_kind == .Identifier {
-		snap := lexer_snapshot(p)
-		eat(p)            // consume `<`
-		eat(p)            // consume the identifier after `<`
-		after := p.cur_type
-		lexer_restore(p, snap)
-
-		try_arrow := after == .Comma || after == .Extends || after == .Assign || after == .RAngle
-		if try_arrow {
-			snap2 := lexer_snapshot(p)
-			result := parse_ts_generic_arrow(p, start)
-			if result != nil && len(p.errors) == snap2.errors_len {
-				check_ts_ambiguous_jsx_like_arrow(p, result)
-				return result
-			}
-			// Generic-arrow parse failed - roll back and, for the
-			// ambiguous `<T>` case only, fall through to an assertion
-			// attempt. For the KNOWN-arrow signals (`,`/`extends`/`=`)
-			// nothing else is legal: emit one error and bail.
-			lexer_restore(p, snap2)
-			if after != .RAngle {
-				report_error_coded(p, .K2040_UnexpectedToken, "Malformed generic arrow function")
-				return nil
-			}
-			// fall through to assertion for the ambiguous case
-		}
+	if r, handled := try_ts_lt_identifier_arrow(p, start, nxt_kind); handled {
+		return r
 	}
 
 	// Assertion `<Type>expr`. Guarded fallback; reports errors via the
@@ -1781,43 +1836,8 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected '<': not a valid TS type assertion or generic arrow")
 		return nil
 	}
-	// OXC rejects `<T>yield 0` in generators: `yield` directly after
-	// `>` is treated as an identifier (§14.4.1), which is reserved.
-	// `<T>(yield 0)` is fine (parens open AssignmentExpression context).
-	// Distinguish by checking if the expression starts at the same
-	// offset as the `>` end (no intervening paren).
-	if p.ctx.in_generator {
-		if ye, ok := expr^.(^YieldExpression); ok {
-			// Check if `yield` directly follows `>` (bare form), or is
-			// inside parens. Walk backwards from yield's start offset.
-			ye_start := int(ye.loc.start)
-			bare_yield := false
-			if p.lexer != nil {
-				src_bytes := p.lexer.source_bytes
-				i := ye_start - 1
-				for i >= 0 && (src_bytes[i] == ' ' || src_bytes[i] == '\t' ||
-				               src_bytes[i] == '\n' || src_bytes[i] == '\r') {
-					i -= 1
-				}
-				if i >= 0 && src_bytes[i] == '>' { bare_yield = true }
-			}
-			if bare_yield {
-				report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-			"'yield' cannot be used as an identifier in a generator context")
-			}
-		}
-	}
-	node, node_e := new_expr(p, TSTypeAssertion)
-	node.loc = start
-	node.type_annotation = type_ann
-	node.expression = expr
-	node.loc.end = prev_end_offset(p)
-
-	if p.disallow_ambiguous_jsx_like {
-		report_error_coded_span(p, .K4053_TSOnlyInJS, u32(start.start), u32(start.start), "This syntax is reserved in files with the .mts or .cts extension. Use an `as` expression instead")
-	}
-
-	return node_e
+	check_ts_assertion_bare_yield(p, expr)
+	return build_ts_type_assertion(p, start, type_ann, expr)
 }
 
 // When `disallow_ambiguous_jsx_like` is true, generic arrows with a
