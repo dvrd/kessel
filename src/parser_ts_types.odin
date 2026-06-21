@@ -3227,6 +3227,189 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 // interface|type|enum|namespace|module ...`. The `declare` modifier just sets
 // a flag on the resulting declaration node. Call it when current token is
 // `.Declare`.
+parse_ts_declare_global :: proc(p: ^Parser) -> ^Statement {
+	stmt: ^Statement
+	// `declare global { ... }` - TS global augmentation. Unlike
+	// `namespace X` / `module "x"`, the keyword IS the id (always
+	// the literal identifier `global`) and there's no dotted form,
+	// so we build the TSModuleDeclaration inline rather than
+	// reusing parse_ts_module_declaration which eats one keyword
+	// then expects a separate name token.
+	if is_next_token(p, .LBrace) {
+		stmt = parse_ts_global_declaration(p)
+		if stmt != nil {
+			if mod, ok := stmt^.(^TSModuleDeclaration); ok {
+				mod.declare = true
+				mod.global = true
+			}
+		}
+	}
+	return stmt
+}
+
+parse_ts_declare_abstract :: proc(p: ^Parser) -> ^Statement {
+	stmt: ^Statement
+  ensure_nxt(p)
+	if p.lexer.nxt.kind == .Class {
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+			report_error_coded(p, .K4034_AbstractNewline, "Line terminator not permitted between 'abstract' and 'class'")
+		}
+		eat(p) // consume `abstract`
+		prev_abs := p.ctx.class_is_abstract
+		p.ctx.class_is_abstract = true
+		stmt = parse_class_declaration(p)
+		p.ctx.class_is_abstract = prev_abs  // prevent leak
+		if stmt != nil {
+			if cls, ok := stmt^.(^ClassDeclaration); ok {
+				cls.expr.abstract = true
+				cls.declare = true
+			}
+		}
+	}
+	return stmt
+}
+
+parse_ts_declare_identifier_form :: proc(p: ^Parser) -> ^Statement {
+	stmt: ^Statement
+	val := cur_value(p)
+	switch val {
+	case "interface":
+		// Newline between `interface` and its name triggers ASI.
+		// `declare interface\nFoo {}` → error. OXC / TSC agree.
+   ensure_nxt(p)
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Line terminator not permitted after 'interface'")
+		}
+		stmt = parse_ts_interface_declaration(p)
+		if stmt != nil {
+			if id, ok := stmt^.(^TSInterfaceDeclaration); ok { id.declare = true }
+		}
+	case "type":
+		// Newline between `type` and its name triggers ASI.
+   ensure_nxt(p)
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+			report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted after 'type'")
+		}
+		if is_next_token(p, .Identifier) {
+			stmt = parse_ts_type_alias_declaration(p)
+			if stmt != nil {
+				if ta, ok := stmt^.(^TSTypeAliasDeclaration); ok { ta.declare = true }
+			}
+		}
+	case "enum":
+		stmt = parse_ts_enum_declaration(p)
+		if stmt != nil {
+			if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
+		}
+	// `declare` span widening for this branch handled at the bottom
+	// alongside the other cases (see end of proc).
+	case "namespace":
+		// Newline between `namespace` and its name triggers ASI.
+   ensure_nxt(p)
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+			report_error_coded(p, .K4051_TSDeclarationStructure, "Line terminator not permitted after 'namespace'")
+		}
+		if is_next_token(p, .Identifier) {
+			stmt = parse_ts_module_declaration(p, .Namespace)
+			if stmt != nil {
+				if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
+			}
+		}
+	case "module":
+		// `declare module "name" {}` (string literal) or
+		// `declare module Identifier {}` (ambient namespace).
+		// Newline between `module` and its name triggers ASI.
+   ensure_nxt(p)
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
+			report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted after 'module'")
+		}
+   ensure_nxt(p)
+		if is_next_token(p, .String) || is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
+			stmt = parse_ts_module_declaration(p, .Module)
+			if stmt != nil {
+				if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
+			}
+		}
+	case "global":
+		stmt = parse_ts_declare_global(p)
+	}
+	return stmt
+}
+
+parse_ts_declare_dispatch :: proc(p: ^Parser) -> ^Statement {
+	stmt: ^Statement
+	#partial switch p.cur_type {
+	case .Function:
+		stmt = parse_function_declaration(p, false, true) // allow_no_body=true for declare
+		if stmt != nil {
+			if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
+		}
+	case .Async:
+		// `declare async function foo(): Promise<void>;` (TS). The
+		// inner parse_function_declaration already consumes a leading
+		// `.Async` token before `function`, so we just need to allow the
+		// no-body ambient form. allow_no_body=true.
+  ensure_nxt(p)
+		if p.lexer.nxt.kind == .Function && !cur_has_newline(p) {
+			stmt = parse_function_declaration(p, false, true)
+			if stmt != nil {
+				if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
+			}
+		}
+	case .Class:
+		stmt = parse_class_declaration(p)
+		if stmt != nil {
+			if cls, ok := stmt^.(^ClassDeclaration); ok { cls.declare = true }
+		}
+	case .Abstract:
+		stmt = parse_ts_declare_abstract(p)
+	case .Import:
+		// `declare import X = N` - ambient import-equals. TSImportEqualsDeclaration
+		// has no declare flag in ESTree; just parse it normally.
+		import_start := cur_loc(p)
+		eat(p) // consume `import`
+  ensure_nxt(p)
+		if p.cur_type == .Identifier && p.lexer != nil && p.lexer.nxt.kind == .Assign {
+			stmt = parse_ts_import_equals(p, import_start, .Value)
+		}
+	case .Const:
+		if is_next_identifier_value(p, "enum") {
+			stmt = parse_ts_enum_declaration(p)
+			if stmt != nil {
+				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
+			}
+		} else {
+			stmt = parse_variable_declaration(p, nil, true, false, true) // is_declare=true
+			if stmt != nil {
+				if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
+			}
+		}
+	case .Let, .Var:
+		stmt = parse_variable_declaration(p, nil, true, false, true) // is_declare=true
+		if stmt != nil {
+			if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
+		}
+	case .Identifier:
+		stmt = parse_ts_declare_identifier_form(p)
+	}
+	return stmt
+}
+
+widen_ts_declare_span :: proc(stmt: ^Statement, declare_start: u32) {
+	// Widen the resulting declaration's span so it starts at `declare`.
+	// Every declaration variant returned above carries its own `loc` on the
+	// inner pointer; find and overwrite span.start in place.
+	#partial switch inner in stmt^ {
+	case ^FunctionDeclaration:    inner.loc.start = declare_start
+	case ^ClassDeclaration:       inner.expr.loc.start = declare_start
+	case ^VariableDeclaration:    inner.loc.start = declare_start
+	case ^TSEnumDeclaration:      inner.loc.start = declare_start
+	case ^TSInterfaceDeclaration: inner.loc.start = declare_start
+	case ^TSTypeAliasDeclaration: inner.loc.start = declare_start
+	case ^TSModuleDeclaration:    inner.loc.start = declare_start
+	}
+}
+
 parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	// TS1038 — "`declare` cannot be used in an already ambient context."
 	// Inside `declare namespace/module`, every declaration is implicitly
@@ -3257,170 +3440,14 @@ parse_ts_declare_statement :: proc(p: ^Parser) -> ^Statement {
 	// Dispatch to the right declaration parser and then set `declare=true`
 	// on the returned node. Many of our declaration parsers return
 	// ^Statement holding a ^SpecificDecl pointer; type-assert and mutate.
-	stmt: ^Statement
-	#partial switch p.cur_type {
-	case .Function:
-		stmt = parse_function_declaration(p, false, true) // allow_no_body=true for declare
-		if stmt != nil {
-			if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
-		}
-	case .Async:
-		// `declare async function foo(): Promise<void>;` (TS). The
-		// inner parse_function_declaration already consumes a leading
-		// `.Async` token before `function`, so we just need to allow the
-		// no-body ambient form. allow_no_body=true.
-  ensure_nxt(p)
-		if p.lexer.nxt.kind == .Function && !cur_has_newline(p) {
-			stmt = parse_function_declaration(p, false, true)
-			if stmt != nil {
-				if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
-			}
-		}
-	case .Class:
-		stmt = parse_class_declaration(p)
-		if stmt != nil {
-			if cls, ok := stmt^.(^ClassDeclaration); ok { cls.declare = true }
-		}
-	case .Abstract:
-  ensure_nxt(p)
-		if p.lexer.nxt.kind == .Class {
-			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error_coded(p, .K4034_AbstractNewline, "Line terminator not permitted between 'abstract' and 'class'")
-			}
-			eat(p) // consume `abstract`
-			prev_abs := p.ctx.class_is_abstract
-			p.ctx.class_is_abstract = true
-			stmt = parse_class_declaration(p)
-			p.ctx.class_is_abstract = prev_abs  // prevent leak
-			if stmt != nil {
-				if cls, ok := stmt^.(^ClassDeclaration); ok {
-					cls.expr.abstract = true
-					cls.declare = true
-				}
-			}
-		}
-	case .Import:
-		// `declare import X = N` - ambient import-equals. TSImportEqualsDeclaration
-		// has no declare flag in ESTree; just parse it normally.
-		import_start := cur_loc(p)
-		eat(p) // consume `import`
-  ensure_nxt(p)
-		if p.cur_type == .Identifier && p.lexer != nil && p.lexer.nxt.kind == .Assign {
-			stmt = parse_ts_import_equals(p, import_start, .Value)
-		}
-	case .Const:
-		if is_next_identifier_value(p, "enum") {
-			stmt = parse_ts_enum_declaration(p)
-			if stmt != nil {
-				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
-			}
-		} else {
-			stmt = parse_variable_declaration(p, nil, true, false, true) // is_declare=true
-			if stmt != nil {
-				if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
-			}
-		}
-	case .Let, .Var:
-		stmt = parse_variable_declaration(p, nil, true, false, true) // is_declare=true
-		if stmt != nil {
-			if vd, ok := stmt^.(^VariableDeclaration); ok { vd.declare = true }
-		}
-	case .Identifier:
-		val := cur_value(p)
-		switch val {
-		case "interface":
-			// Newline between `interface` and its name triggers ASI.
-			// `declare interface\nFoo {}` → error. OXC / TSC agree.
-   ensure_nxt(p)
-			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error_coded(p, .K4051_TSDeclarationStructure, "Line terminator not permitted after 'interface'")
-			}
-			stmt = parse_ts_interface_declaration(p)
-			if stmt != nil {
-				if id, ok := stmt^.(^TSInterfaceDeclaration); ok { id.declare = true }
-			}
-		case "type":
-			// Newline between `type` and its name triggers ASI.
-   ensure_nxt(p)
-			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted after 'type'")
-			}
-			if is_next_token(p, .Identifier) {
-				stmt = parse_ts_type_alias_declaration(p)
-				if stmt != nil {
-					if ta, ok := stmt^.(^TSTypeAliasDeclaration); ok { ta.declare = true }
-				}
-			}
-		case "enum":
-			stmt = parse_ts_enum_declaration(p)
-			if stmt != nil {
-				if en, ok := stmt^.(^TSEnumDeclaration); ok { en.declare = true }
-			}
-		// `declare` span widening for this branch handled at the bottom
-		// alongside the other cases (see end of proc).
-		case "namespace":
-			// Newline between `namespace` and its name triggers ASI.
-   ensure_nxt(p)
-			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error_coded(p, .K4051_TSDeclarationStructure, "Line terminator not permitted after 'namespace'")
-			}
-			if is_next_token(p, .Identifier) {
-				stmt = parse_ts_module_declaration(p, .Namespace)
-				if stmt != nil {
-					if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
-				}
-			}
-		case "module":
-			// `declare module "name" {}` (string literal) or
-			// `declare module Identifier {}` (ambient namespace).
-			// Newline between `module` and its name triggers ASI.
-   ensure_nxt(p)
-			if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 {
-				report_error_coded(p, .K3064_LineTerminatorRestricted, "Line terminator not permitted after 'module'")
-			}
-   ensure_nxt(p)
-			if is_next_token(p, .String) || is_next_token(p, .Identifier) || is_keyword_usable_as_property_name(p.lexer.nxt.kind) {
-				stmt = parse_ts_module_declaration(p, .Module)
-				if stmt != nil {
-					if mod, ok := stmt^.(^TSModuleDeclaration); ok { mod.declare = true }
-				}
-			}
-		case "global":
-			// `declare global { ... }` - TS global augmentation. Unlike
-			// `namespace X` / `module "x"`, the keyword IS the id (always
-			// the literal identifier `global`) and there's no dotted form,
-			// so we build the TSModuleDeclaration inline rather than
-			// reusing parse_ts_module_declaration which eats one keyword
-			// then expects a separate name token.
-			if is_next_token(p, .LBrace) {
-				stmt = parse_ts_global_declaration(p)
-				if stmt != nil {
-					if mod, ok := stmt^.(^TSModuleDeclaration); ok {
-						mod.declare = true
-						mod.global = true
-					}
-				}
-			}
-		}
-	}
+	stmt := parse_ts_declare_dispatch(p)
 
 	if stmt == nil {
 		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected declaration after 'declare'")
 		return stmt
 	}
 
-	// Widen the resulting declaration's span so it starts at `declare`.
-	// Every declaration variant returned above carries its own `loc` on the
-	// inner pointer; find and overwrite span.start in place.
-	#partial switch inner in stmt^ {
-	case ^FunctionDeclaration:    inner.loc.start = declare_start
-	case ^ClassDeclaration:       inner.expr.loc.start = declare_start
-	case ^VariableDeclaration:    inner.loc.start = declare_start
-	case ^TSEnumDeclaration:      inner.loc.start = declare_start
-	case ^TSInterfaceDeclaration: inner.loc.start = declare_start
-	case ^TSTypeAliasDeclaration: inner.loc.start = declare_start
-	case ^TSModuleDeclaration:    inner.loc.start = declare_start
-	}
+	widen_ts_declare_span(stmt, declare_start)
 	return stmt
 }
 
