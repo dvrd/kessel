@@ -1536,6 +1536,41 @@ if p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p) {
 }
 }
 
+// reject_inline_type_modifier_in_type_only_import rejects the inline
+// `type` modifier inside a type-only import, e.g. `import type { type X }`
+// (TS K4010). Distinguishes `type` as the imported NAME (valid: followed
+// by `as` / `,` / `}`) from `type` as a redundant modifier (invalid).
+// Lifted out of parse_import_declaration as pure code motion; the
+// import_kind == .Type / `type`-name guard stays in the caller.
+reject_inline_type_modifier_in_type_only_import :: proc(p: ^Parser) {
+	// `import type { type ... }` — distinguish `type` as the
+	// imported NAME from `type` as an inline-type MODIFIER.
+	// When followed by `as <ident>` or `,` or `}`, `type` is
+	// the name being imported (valid). When followed by another
+	// identifier (not `as`), `type` is a modifier (invalid in
+	// type-only imports). Matches OXC.
+	ensure_nxt(p)
+	nxt_kind := p.lexer.nxt.kind
+	type_is_modifier := nxt_kind != .As && nxt_kind != .Comma &&
+	                    nxt_kind != .RBrace
+	// `type as }` — `as` is not followed by identifier, so
+	// `type` is a modifier on `as`. Check: `as` + non-ident.
+	if nxt_kind == .As {
+		snap_t := lexer_snapshot(p)
+		advance_token(p) // consume `type`
+		advance_token(p) // consume `as`
+		after_as := p.cur_type
+		lexer_restore(p, snap_t)
+		if after_as != .Identifier && !can_be_binding_identifier(after_as) &&
+		   after_as != .String {
+			type_is_modifier = true  // `type as }` → modifier
+		}
+	}
+	if type_is_modifier {
+		report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only import")
+	}
+}
+
 parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume import
@@ -1604,32 +1639,7 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 			if decl.import_kind == .Type && allow_ts_mode(p) &&
 			   p.cur_type == .Identifier && cur_value_eq(p, "type") {
-				// `import type { type ... }` — distinguish `type` as the
-				// imported NAME from `type` as an inline-type MODIFIER.
-				// When followed by `as <ident>` or `,` or `}`, `type` is
-				// the name being imported (valid). When followed by another
-				// identifier (not `as`), `type` is a modifier (invalid in
-				// type-only imports). Matches OXC.
-    ensure_nxt(p)
-				nxt_kind := p.lexer.nxt.kind
-				type_is_modifier := nxt_kind != .As && nxt_kind != .Comma &&
-				                    nxt_kind != .RBrace
-				// `type as }` — `as` is not followed by identifier, so
-				// `type` is a modifier on `as`. Check: `as` + non-ident.
-				if nxt_kind == .As {
-					snap_t := lexer_snapshot(p)
-					advance_token(p) // consume `type`
-					advance_token(p) // consume `as`
-					after_as := p.cur_type
-					lexer_restore(p, snap_t)
-					if after_as != .Identifier && !can_be_binding_identifier(after_as) &&
-					   after_as != .String {
-						type_is_modifier = true  // `type as }` → modifier
-					}
-				}
-				if type_is_modifier {
-					report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only import")
-				}
+				reject_inline_type_modifier_in_type_only_import(p)
 			}
 			spec := parse_import_specifier(p)
 			if spec != nil {
