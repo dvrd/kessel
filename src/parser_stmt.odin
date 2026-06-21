@@ -439,9 +439,7 @@ parse_empty_statement :: proc(p: ^Parser) -> ^Statement {
 	return empty_s
 }
 
-parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
-	start := cur_loc(p)
-
+check_stmt_reserved_word_at_start :: proc(p: ^Parser) {
 	// §12.6 - reserved words used as IdentifierReferences. When a
 	// reserved keyword appears at statement position followed by `=`
 	// (assignment operator), the intent is `keyword = value;` which
@@ -462,12 +460,116 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 		msg := fmt.tprintf("Unexpected reserved word '%s'", cur_value(p))
 		report_error_coded(p, .K2040_UnexpectedToken, msg)
 	}
+}
 
-	expr := parse_expression(p)
-	if expr == nil {
-		return nil
+check_label_identifier_reserved :: proc(p: ^Parser, e: ^Identifier) {
+	// §13.2 — LabelIdentifier is subject to the same
+	// strict-mode reservation as IdentifierReference. In strict
+	// mode `yield: 1`, `let: 1`, `eval: 1`, etc. are SyntaxErrors
+	// because the LabelIdentifier production is `Identifier` and
+	// the Identifier in question is one of the strict-reserved
+	if p.ctx.strict_mode {
+		if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
+			msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
+			report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
+		}
 	}
+	// §12.1.1 — `await` is reserved as a LabelIdentifier in module code.
+	if e.name == "await" {
+		await_reserved := p.ctx.in_async || p.ctx.in_static_block
+		if !await_reserved {
+			if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
+			else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
+		}
+		if await_reserved {
+			report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(e.loc.start), u32(e.loc.start), "'await' cannot be used as a label identifier in module / async context")
+		}
+	}
+}
 
+check_labeled_item_body :: proc(p: ^Parser, labeled: ^LabeledStatement) {
+	// ECMA-262 §14.13.1 - LabelledItem : FunctionDeclaration |
+	// Statement. Statement excludes LexicalDeclaration,
+	// ClassDeclaration, AsyncFunctionDeclaration,
+	// GeneratorDeclaration, AsyncGeneratorDeclaration. Annex B.3.2
+	// relaxes plain FunctionDeclaration in sloppy script.
+	// Inline-check the immediate body kinds; we don't recurse
+	// through nested labels here because the iteration-body /
+	// if-body / etc. cases handle their own recursion via
+	// report_statement_only_position with the right flag.
+	if labeled.body != nil {
+		#partial switch v in labeled.body^ {
+		case ^VariableDeclaration:
+			if v != nil {
+				// OXC's parser catches const / using / await-using
+				// as labeled items; `let` is handled differently by
+				// OXC (ASI) so stays gated.
+				if v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
+					report_error_coded(p, .K3060_SingleStatementContext, "Lexical declaration cannot appear in a single-statement context")
+				} else if v.kind == .Let {
+					report_error_coded(p, .K3060_SingleStatementContext, "Lexical declaration cannot be a labeled item")
+				}
+			}
+		case ^ClassDeclaration:
+			report_error_coded(p, .K3030_ClassDeclarationStructure, "Class declaration cannot appear in a single-statement context")
+		case ^FunctionDeclaration:
+			if v != nil {
+				if v.async || v.generator {
+					report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+						"Async / generator function declaration cannot be a labeled item")
+				}
+				// §14.13.1 — a plain FunctionDeclaration is a valid
+				// LabelledItem only under Annex B.3.3, which the spec
+				// gates on "NotInClassBody and StrictFormalParameters
+				// is not strict". In strict mode the carve-out is
+				// removed and \`label: function f() {}\` is a
+				if p.ctx.strict_mode {
+					report_error_coded(p, .K3051_StrictModeProhibited, "Function declarations cannot be labeled items in strict mode")
+				}
+			}
+		}
+	}
+}
+
+build_labeled_statement :: proc(p: ^Parser, e: ^Identifier, start: Loc) -> ^Statement {
+	eat(p) // consume :
+
+	check_label_identifier_reserved(p, e)
+
+	labeled := new_node(p, LabeledStatement)
+	labeled.loc = start
+	labeled.label = LabelIdentifier{
+		loc  = e.loc,
+		name = e.name,
+	}
+	// §14.13.1 — duplicate labels within the same function are
+	// a SyntaxError. Scan from label_floor (function boundary).
+	for i := p.ctx.label_floor; i < len(p.label_stack); i += 1 {
+		if p.label_stack[i] == e.name {
+			report_error_coded(p, .K2060_DuplicateLabel, fmt.tprintf("Label '%s' has already been declared", e.name))
+			break
+		}
+	}
+	bump_append(&p.label_stack, e.name)
+	// ECMA-262 §14.8.1 - `continue label` requires the target label
+	// to name an IterationStatement (directly or via a chain of
+	// LabelledStatements). Decide it eagerly here with a 1-pass
+	// lexer-snapshot scan over `Identifier :` chains; nested
+	// `continue foo;` inside the body can then check the flag
+	// without any retroactive fix-up.
+	bump_append(&p.label_is_iteration, label_chain_leads_to_iteration(p))
+	p.block_depth += 1
+	labeled.body = parse_statement_or_declaration(p)
+	p.block_depth -= 1
+	pop(&p.label_stack)
+	pop(&p.label_is_iteration)
+	labeled.loc.end = prev_end_offset(p)
+	check_labeled_item_body(p, labeled)
+
+	return statement_from(p, labeled)
+}
+
+parse_labeled_statement :: proc(p: ^Parser, expr: ^Expression, start: Loc) -> ^Statement {
 	// Check for labeled statement: identifier:
 	if is_token(p, .Colon) {
 		#partial switch e in expr {
@@ -508,103 +610,24 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 				report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token ':'")
 			}
 		case ^Identifier:
-			eat(p) // consume :
-
-			// §13.2 — LabelIdentifier is subject to the same
-			// strict-mode reservation as IdentifierReference. In strict
-			// mode `yield: 1`, `let: 1`, `eval: 1`, etc. are SyntaxErrors
-			// because the LabelIdentifier production is `Identifier` and
-			// the Identifier in question is one of the strict-reserved
-			if p.ctx.strict_mode {
-				if is_eval_or_arguments(e.name) || is_strict_reserved_binding_name(e.name) {
-					msg := fmt.tprintf("'%s' cannot be used as a label identifier in strict mode", e.name)
-					report_error_coded_span(p, .K3050_StrictModeReserved, u32(e.loc.start), u32(e.loc.start), msg)
-				}
-			}
-			// §12.1.1 — `await` is reserved as a LabelIdentifier in module code.
-			if e.name == "await" {
-				await_reserved := p.ctx.in_async || p.ctx.in_static_block
-				if !await_reserved {
-					if st, have := p.force_source_type.(SourceType); have && st == .Module { await_reserved = true }
-					else if p.in_module_top_level || p.has_module_syntax { await_reserved = true }
-				}
-				if await_reserved {
-					report_error_coded_span(p, .K3010_AwaitYieldAsBindingName, u32(e.loc.start), u32(e.loc.start), "'await' cannot be used as a label identifier in module / async context")
-				}
-			}
-
-			labeled := new_node(p, LabeledStatement)
-			labeled.loc = start
-			labeled.label = LabelIdentifier{
-				loc  = e.loc,
-				name = e.name,
-			}
-			// §14.13.1 — duplicate labels within the same function are
-			// a SyntaxError. Scan from label_floor (function boundary).
-			for i := p.ctx.label_floor; i < len(p.label_stack); i += 1 {
-				if p.label_stack[i] == e.name {
-					report_error_coded(p, .K2060_DuplicateLabel, fmt.tprintf("Label '%s' has already been declared", e.name))
-					break
-				}
-			}
-			bump_append(&p.label_stack, e.name)
-			// ECMA-262 §14.8.1 - `continue label` requires the target label
-			// to name an IterationStatement (directly or via a chain of
-			// LabelledStatements). Decide it eagerly here with a 1-pass
-			// lexer-snapshot scan over `Identifier :` chains; nested
-			// `continue foo;` inside the body can then check the flag
-			// without any retroactive fix-up.
-			bump_append(&p.label_is_iteration, label_chain_leads_to_iteration(p))
-			p.block_depth += 1
-			labeled.body = parse_statement_or_declaration(p)
-			p.block_depth -= 1
-			pop(&p.label_stack)
-			pop(&p.label_is_iteration)
-			labeled.loc.end = prev_end_offset(p)
-			// ECMA-262 §14.13.1 - LabelledItem : FunctionDeclaration |
-			// Statement. Statement excludes LexicalDeclaration,
-			// ClassDeclaration, AsyncFunctionDeclaration,
-			// GeneratorDeclaration, AsyncGeneratorDeclaration. Annex B.3.2
-			// relaxes plain FunctionDeclaration in sloppy script.
-			// Inline-check the immediate body kinds; we don't recurse
-			// through nested labels here because the iteration-body /
-			// if-body / etc. cases handle their own recursion via
-			// report_statement_only_position with the right flag.
-			if labeled.body != nil {
-				#partial switch v in labeled.body^ {
-				case ^VariableDeclaration:
-					if v != nil {
-						// OXC's parser catches const / using / await-using
-						// as labeled items; `let` is handled differently by
-						// OXC (ASI) so stays gated.
-						if v.kind == .Const || v.kind == .Using || v.kind == .AwaitUsing {
-							report_error_coded(p, .K3060_SingleStatementContext, "Lexical declaration cannot appear in a single-statement context")
-						} else if v.kind == .Let {
-							report_error_coded(p, .K3060_SingleStatementContext, "Lexical declaration cannot be a labeled item")
-						}
-					}
-				case ^ClassDeclaration:
-					report_error_coded(p, .K3030_ClassDeclarationStructure, "Class declaration cannot appear in a single-statement context")
-				case ^FunctionDeclaration:
-					if v != nil {
-						if v.async || v.generator {
-							report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
-								"Async / generator function declaration cannot be a labeled item")
-						}
-						// §14.13.1 — a plain FunctionDeclaration is a valid
-						// LabelledItem only under Annex B.3.3, which the spec
-						// gates on "NotInClassBody and StrictFormalParameters
-						// is not strict". In strict mode the carve-out is
-						// removed and \`label: function f() {}\` is a
-						if p.ctx.strict_mode {
-							report_error_coded(p, .K3051_StrictModeProhibited, "Function declarations cannot be labeled items in strict mode")
-						}
-					}
-				}
-			}
-
-			return statement_from(p, labeled)
+			return build_labeled_statement(p, e, start)
 		}
+	}
+	return nil
+}
+
+parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
+	start := cur_loc(p)
+
+	check_stmt_reserved_word_at_start(p)
+
+	expr := parse_expression(p)
+	if expr == nil {
+		return nil
+	}
+
+	if labeled := parse_labeled_statement(p, expr, start); labeled != nil {
+		return labeled
 	}
 
 	expr_stmt, stmt := new_stmt(p, ExpressionStatement)
