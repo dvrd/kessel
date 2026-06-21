@@ -2241,6 +2241,37 @@ check_ts_namespace_export_named :: proc(p: ^Parser, result_named: ^Statement, st
 	}
 }
 
+// try_parse_export_type_prefix handles the TS type-only re-export prefixes
+// `export type { ... }` and `export type * ...` (with the namespace-body
+// TS1233 + escaped-`type` early errors). Returns (stmt, true) when it
+// dispatched; (nil, false) leaves `export type X = ...` to fall through to
+// the declaration path. Lifted out of parse_export_declaration.
+try_parse_export_type_prefix :: proc(p: ^Parser, start: Loc) -> (^Statement, bool) {
+	if !(p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p)) {
+		return nil, false
+	}
+	has_esc := cur_has_escape(p)
+	nxt := peek_token(p)
+	if nxt.type == .LBrace {
+		if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
+		if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
+			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
+		}
+		eat(p) // consume `type`
+		return parse_export_named(p, start, .Type), true
+	}
+	if nxt.type == .Mul {
+		if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
+		if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
+			report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
+		}
+		eat(p) // consume `type`
+		eat(p) // consume `*`
+		return parse_export_all(p, start, .Type), true
+	}
+	return nil, false
+}
+
 parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	start := cur_loc(p)
 	eat(p) // consume export
@@ -2313,26 +2344,8 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 	// Detect the `{` / `*` lookahead and dispatch with export_kind=.Type.
 	// `export type Identifier =` falls through to the declaration path,
 	// which already handles type aliases via parse_statement_or_declaration.
-	if p.cur_type == .Identifier && cur_value_eq(p, "type") && allow_ts_mode(p) {
-		has_esc := cur_has_escape(p)
-		nxt := peek_token(p)
-		if nxt.type == .LBrace {
-			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
-			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
-				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
-			}
-			eat(p) // consume `type`
-			return parse_export_named(p, start, .Type)
-		}
-		if nxt.type == .Mul {
-			if has_esc { report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters") }
-			if p.ctx.in_ts_namespace && !p.ctx.in_ts_module_block {
-				report_error_coded_span(p, .K3022_ModuleSyntaxInScript, u32(start.start), u32(start.start), "Export declarations are not permitted in a namespace")
-			}
-			eat(p) // consume `type`
-			eat(p) // consume `*`
-			return parse_export_all(p, start, .Type)
-		}
+	if stmt, ok := try_parse_export_type_prefix(p, start); ok {
+		return stmt
 	}
 
 	// TS class-modifier keywords (`public`, `private`, `protected`, `static`)
