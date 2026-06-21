@@ -666,25 +666,7 @@ parse_unary_prefix_update :: proc(p: ^Parser) -> ^Expression {
 }
 
 // Merged unary + update + left-hand-side to reduce call depth (5→3 frames)
-parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
-	#partial switch p.cur_type {
-	case .Plus, .Minus, .BitNot, .Not, .Typeof, .Void, .Delete:
-		return parse_unary_prefix_op(p)
-
-	case .PlusPlus, .MinusMinus:
-		return parse_unary_prefix_update(p)
-
-	case .Await:
-		// ECMA-262 §15.8 - `await` is only valid as an AwaitExpression
-		// inside an async function (or at module top level, handled via
-		// the separate top-level-await detector below). In a non-async,
-		// non-module context `await` is just an IdentifierReference -
-		// `function f(await) { return await; }`, `await: 1;` (label),
-		// `class await {}` (binding name) all need to fall through to
-		// the identifier path. Mirror the `yield` handling: when the
-		// lookahead is unambiguously NOT the start of an argument
-		// (semicolon, operator, terminator), fall through. Otherwise
-		// keep the long-standing diagnostic for `await expr` typos.
+await_unary_falls_through :: proc(p: ^Parser) -> bool {
 	if !p.ctx.in_async && !p.ctx.in_async_params {
 		at_module_top := !p.ctx.in_function && !p.ctx.in_field_init
 		// In a Module file, `await` at top level (or any nested
@@ -713,7 +695,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 				report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
 					"'await' is only allowed within async functions and at the top levels of modules")
 			}
-			break
+			return true
 		} else if at_module_top && in_module_file {
 			// TLA - fall through to AwaitExpression parse below.
 		} else if !at_module_top {
@@ -721,7 +703,7 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// identifier. Fall through unless the next token clearly
 			// continues as an expression argument (typo case).
 			if !yield_next_is_expression_argument(p) {
-				break
+				return true
 			}
 			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
 				"'await' is only allowed within async functions and at the top levels of modules")
@@ -731,73 +713,200 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 			// ref), `let await = 1;` etc. all want the identifier
 			// path. Same lookahead heuristic as the in-function case.
 			if !yield_next_is_expression_argument(p) {
-				break
+				return true
 			}
 		}
 	}
-		// §14.13.1 LabelIdentifier - in async context, "await" is a
-		// reserved word, so `await:` as a LabelledStatement head is a
-		// SyntaxError.
-		if p.ctx.in_async && p.lexer != nil {
-			ensure_nxt(p)
+	return false
+}
+
+parse_unary_await :: proc(p: ^Parser) -> (^Expression, bool) {
+	if await_unary_falls_through(p) {
+		return nil, false
+	}
+	// §14.13.1 LabelIdentifier - in async context, "await" is a
+	// reserved word, so `await:` as a LabelledStatement head is a
+	// SyntaxError.
+	if p.ctx.in_async && p.lexer != nil {
+		ensure_nxt(p)
+	}
+	if p.ctx.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
+		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
+			"'await' cannot be used as a label identifier in an async function")
+	}
+	// Top-level `await` is Module syntax. When the caller pinned
+	// `--source-type=script` it's a SyntaxError.
+	if !p.ctx.in_function {
+		if st, have := p.force_source_type.(SourceType); have && st == .Script {
+			report_error_coded(p, .K3022_ModuleSyntaxInScript, "Top-level 'await' is only valid in module code")
 		}
-		if p.ctx.in_async && p.lexer != nil && p.lexer.nxt.kind == .Colon {
-			report_error_coded(p, .K3010_AwaitYieldAsBindingName,
-				"'await' cannot be used as a label identifier in an async function")
+	}
+	// ECMA-262 §15.8.1 / §15.9.1 / §15.6.1 - "It is a Syntax Error if
+	// FormalParameters (or CoverCallExpressionAndAsyncArrowHead)
+	// Contains AwaitExpression is true." An AwaitExpression in a
+	// parameter default of any async function-like form is forbidden
+	// even though the body itself is async - params are evaluated in
+	// the outer context.
+	// §15.6.1 / §15.8.1 / §15.9.1 "AwaitExpression in formal
+	// parameters" early error: `p.ctx.in_async_params` is set by
+	// parse_function_params before calling parse_function_params.
+	if p.ctx.in_async_params {
+		report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+			"'await' expression is not allowed in formal parameters of an async function")
+	}
+	current := snap_current(p)
+	eat(p)
+	prev_private_in_allowed := p.ctx.private_in_allowed
+	p.ctx.private_in_allowed = false
+	argument := parse_unary_expr(p)
+	p.ctx.private_in_allowed = prev_private_in_allowed
+	if argument == nil {
+		// `await` without an operand. Legal only as an
+		// IdentifierReference, which is forbidden in async context
+		// anyway. Report and synthesise an identifier so the parse
+		// tree stays structurally valid; the earlier
+		// "await outside of async function" check at the top of
+		// this branch already covers non-async contexts.
+		if p.ctx.in_async || p.ctx.in_async_params || !p.ctx.in_function {
+			report_error_coded(p, .K2020_ExpectedExpression, "'await' expression requires an operand")
 		}
-		// Top-level `await` is Module syntax. When the caller pinned
-		// `--source-type=script` it's a SyntaxError.
-		if !p.ctx.in_function {
-			if st, have := p.force_source_type.(SourceType); have && st == .Script {
-				report_error_coded(p, .K3022_ModuleSyntaxInScript, "Top-level 'await' is only valid in module code")
-			}
+		id, id_e := new_expr(p, Identifier)
+		id.loc = loc_from_token(&current)
+		// source-slice (current.value), not literal.
+		// String literals are RODATA-pointing and break raw_transfer.
+		id.name = current.value
+		id.loc.end = current.end
+		return id_e, true
+	}
+	await, await_e := new_expr(p, AwaitExpression)
+	await.loc = loc_from_token(&current)
+	await.argument = argument
+	await.loc.end = prev_end_offset(p)
+	// Top-level await is module syntax
+	if !p.ctx.in_function {
+		p.has_module_syntax = true
+	}
+	return await_e, true
+}
+
+parse_unary_yield :: proc(p: ^Parser) -> (^Expression, bool) {
+	// ECMA-262 §15.5 - YieldExpression is only grammatically
+	// valid inside a GeneratorBody. Outside a generator `yield`
+	// is an IdentifierReference (in sloppy mode) or a strict-
+	// reserved word flagged by the binding checks. We still catch
+	// the common `yield expr` mistake in a non-generator: if the
+	// lookahead unambiguously starts an AssignmentExpression
+	// argument (no newline, no operator / postfix / call /
+	// terminator that could continue `yield` as an identifier)
+	// we emit the "only allowed in a generator body" error and
+	// still parse as YieldExpression for recovery. Otherwise we
+	// fall through to the identifier path so `yield;`, `yield(1)`,
+	// `yield.x`, `yield + 1`, `yield || 1`, `yield?1:2`,
+	// `` yield`t` `` all behave as OXC / Acorn expect.
+	if p.ctx.in_generator {
+		return parse_yield_expr(p), true
+	}
+	// §15.5.1 - inside a generator's FormalParameters, even bare
+	// `yield` (no argument) is a YieldExpression and a SyntaxError.
+	// parse_yield_expr's own in_generator_params check fires the
+	// diagnostic; we just have to commit to the YieldExpression
+	// production here so it actually runs.
+	if p.ctx.in_generator_params {
+		return parse_yield_expr(p), true
+	}
+	if yield_next_is_expression_argument(p) {
+		report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
+			"'yield' expression is only allowed in a generator body")
+		return parse_yield_expr(p), true
+	}
+	// Fall through - `yield` is parsed as IdentifierReference by
+	// parse_left_hand_side_expr → parse_primary_expr (line 5577).
+	return nil, false
+}
+
+parse_unary_identifier_fast :: proc(p: ^Parser) -> ^Expression {
+	expr: ^Expression
+	// ECMA-262 §12.7.2 - escaped-ReservedWord in IdentifierReference
+	// position. This fast-path bypasses parse_primary_expr, so the
+	// same check that lives on the slow path has to run here too.
+	report_escaped_reserved_word(p)
+	// §12.6.1.1 strict-mode IdentifierReference reservation.
+	if p.ctx.strict_mode {
+		if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(cur_value(p)) {
+			msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
+			report_error_coded(p, .K3050_StrictModeReserved, msg)
 		}
-		// ECMA-262 §15.8.1 / §15.9.1 / §15.6.1 - "It is a Syntax Error if
-		// FormalParameters (or CoverCallExpressionAndAsyncArrowHead)
-		// Contains AwaitExpression is true." An AwaitExpression in a
-		// parameter default of any async function-like form is forbidden
-		// even though the body itself is async - params are evaluated in
-		// the outer context.
-		// §15.6.1 / §15.8.1 / §15.9.1 "AwaitExpression in formal
-		// parameters" early error: `p.ctx.in_async_params` is set by
-		// parse_function_params before calling parse_function_params.
-		if p.ctx.in_async_params {
-			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
-				"'await' expression is not allowed in formal parameters of an async function")
+	}
+	// Escaped `async` before `function` is SyntaxError (fast path).
+	if cur_has_escape(p) && cur_value_eq(p, "async") {
+		nxt := peek_token(p)
+		if nxt.type == .Function && !nxt.had_line_terminator {
+			report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
 		}
-		current := snap_current(p)
-		eat(p)
-		prev_private_in_allowed := p.ctx.private_in_allowed
-		p.ctx.private_in_allowed = false
-		argument := parse_unary_expr(p)
-		p.ctx.private_in_allowed = prev_private_in_allowed
-		if argument == nil {
-			// `await` without an operand. Legal only as an
-			// IdentifierReference, which is forbidden in async context
-			// anyway. Report and synthesise an identifier so the parse
-			// tree stays structurally valid; the earlier
-			// "await outside of async function" check at the top of
-			// this branch already covers non-async contexts.
-			if p.ctx.in_async || p.ctx.in_async_params || !p.ctx.in_function {
-				report_error_coded(p, .K2020_ExpectedExpression, "'await' expression requires an operand")
-			}
-			id, id_e := new_expr(p, Identifier)
-			id.loc = loc_from_token(&current)
-			// source-slice (current.value), not literal.
-			// String literals are RODATA-pointing and break raw_transfer.
-			id.name = current.value
-			id.loc.end = current.end
-			return id_e
+	}
+	// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
+	// forbidden in class field initializers and class static blocks.
+	// Gate on context flags FIRST: the string compare is only worth
+	// running when we're in one of those rare scopes. Real-world JS
+	// is overwhelmingly outside any class-field / class-static-block
+	// context, so the early-out hits ~100% of the hot path.
+	if (p.ctx.in_static_block || p.ctx.in_field_init) && cur_value_eq(p, "arguments") {
+		if p.ctx.in_static_block {
+			report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
+		} else {
+			report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
 		}
-		await, await_e := new_expr(p, AwaitExpression)
-		await.loc = loc_from_token(&current)
-		await.argument = argument
-		await.loc.end = prev_end_offset(p)
-		// Top-level await is module syntax
-		if !p.ctx.in_function {
-			p.has_module_syntax = true
+	}
+	// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
+	// async-params / class-static-block context is enforced by the
+	// semantic checker (ck_check_identifier_await_reserved). The
+	// has_escape flag is propagated to ^Identifier below so the checker
+	// can match the parser's narrow gating (only escaped forms reach
+	// this code path with cooked name "await"; non-escaped `await`
+	// lexes as `.Await` and parses as AwaitExpression).
+	id_has_escape := cur_has_escape(p)
+	// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
+	// reserved. The lexer emits it as .Identifier (contextual for
+	// TS enum decls). Mirrors the check in parse_primary_expr.
+	if !cur_has_escape(p) && cur_value_eq(p, "enum") {
+		report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word")
+	}
+	// Inline identifier parse + LHS tail. Pull only the fields we need
+	// out of the current token before eat() advances - the FastToken
+	// bytes and was showing up in the parse_unary_expr profile when this
+	// fast path runs once per identifier in the program.
+	// The lexer only stores byte
+	// offsets; line / column are computed lazily by `report_error` via
+	// `offset_to_line_col` when an error is actually emitted. Reading
+	// them here returned permanent 0, then we'd write 0 back into
+	// `id.loc.{line,column}` - four wasted memory ops per identifier on
+	// the hot path. Skip the loads, leave the Loc fields zero-initialised.
+	id_offset := cur_offset(p)
+	id_value  := cur_value(p)
+	eat(p)
+	id, id_e := new_expr(p, Identifier)
+	id.loc.start = id_offset
+	id.loc.end   = prev_end_offset(p)
+	id.name = id_value
+	id.has_escape = id_has_escape
+	expr = id_e
+	// Inline LHS tail loop (member access, calls)
+	expr = parse_lhs_tail(p, expr, true)
+	return expr
+}
+
+parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
+	#partial switch p.cur_type {
+	case .Plus, .Minus, .BitNot, .Not, .Typeof, .Void, .Delete:
+		return parse_unary_prefix_op(p)
+
+	case .PlusPlus, .MinusMinus:
+		return parse_unary_prefix_update(p)
+
+	case .Await:
+		if e, handled := parse_unary_await(p); handled {
+			return e
 		}
-		return await_e
 
 	case .Dot3:
 		current := snap_current(p)
@@ -811,110 +920,16 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		return spread_e
 
 	case .Yield:
-		// ECMA-262 §15.5 - YieldExpression is only grammatically
-		// valid inside a GeneratorBody. Outside a generator `yield`
-		// is an IdentifierReference (in sloppy mode) or a strict-
-		// reserved word flagged by the binding checks. We still catch
-		// the common `yield expr` mistake in a non-generator: if the
-		// lookahead unambiguously starts an AssignmentExpression
-		// argument (no newline, no operator / postfix / call /
-		// terminator that could continue `yield` as an identifier)
-		// we emit the "only allowed in a generator body" error and
-		// still parse as YieldExpression for recovery. Otherwise we
-		// fall through to the identifier path so `yield;`, `yield(1)`,
-		// `yield.x`, `yield + 1`, `yield || 1`, `yield?1:2`,
-		// `` yield`t` `` all behave as OXC / Acorn expect.
-		if p.ctx.in_generator {
-			return parse_yield_expr(p)
+		if e, handled := parse_unary_yield(p); handled {
+			return e
 		}
-		// §15.5.1 - inside a generator's FormalParameters, even bare
-		// `yield` (no argument) is a YieldExpression and a SyntaxError.
-		// parse_yield_expr's own in_generator_params check fires the
-		// diagnostic; we just have to commit to the YieldExpression
-		// production here so it actually runs.
-		if p.ctx.in_generator_params {
-			return parse_yield_expr(p)
-		}
-		if yield_next_is_expression_argument(p) {
-			report_error_coded(p, .K3011_AwaitYieldExpressionContextRestricted,
-				"'yield' expression is only allowed in a generator body")
-			return parse_yield_expr(p)
-		}
-		// Fall through - `yield` is parsed as IdentifierReference by
-		// parse_left_hand_side_expr → parse_primary_expr (line 5577).
 	}
 
 	// Common path: primary expression + optional postfix ++ / -- (inlined parse_update_expr)
 	// Fast-path: identifier → member/call chain (covers ~60% of expressions)
 	expr: ^Expression
 	if is_id_like_for_unary(p.cur_type) {
-		// ECMA-262 §12.7.2 - escaped-ReservedWord in IdentifierReference
-		// position. This fast-path bypasses parse_primary_expr, so the
-		// same check that lives on the slow path has to run here too.
-		report_escaped_reserved_word(p)
-		// §12.6.1.1 strict-mode IdentifierReference reservation.
-		if p.ctx.strict_mode {
-			if is_strict_reserved_word(p.cur_type) || is_strict_reserved_name(cur_value(p)) {
-				msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", cur_value(p))
-				report_error_coded(p, .K3050_StrictModeReserved, msg)
-			}
-		}
-		// Escaped `async` before `function` is SyntaxError (fast path).
-		if cur_has_escape(p) && cur_value_eq(p, "async") {
-			nxt := peek_token(p)
-			if nxt.type == .Function && !nxt.had_line_terminator {
-				report_error_coded(p, .K3015_KeywordContainsEscape, "'async' keyword must not contain Unicode escape sequences")
-			}
-		}
-		// §15.7.10 / §15.7.5 — `arguments` as IdentifierReference is
-		// forbidden in class field initializers and class static blocks.
-		// Gate on context flags FIRST: the string compare is only worth
-		// running when we're in one of those rare scopes. Real-world JS
-		// is overwhelmingly outside any class-field / class-static-block
-		// context, so the early-out hits ~100% of the hot path.
-		if (p.ctx.in_static_block || p.ctx.in_field_init) && cur_value_eq(p, "arguments") {
-			if p.ctx.in_static_block {
-				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' is not allowed in a class static block")
-			} else {
-				report_error_coded(p, .K3031_StaticBlockOrFieldInitRestriction, "'arguments' cannot appear in a class field initializer")
-			}
-		}
-		// §16.2 / §15.7.5 — `await` as IdentifierReference in async /
-		// async-params / class-static-block context is enforced by the
-		// semantic checker (ck_check_identifier_await_reserved). The
-		// has_escape flag is propagated to ^Identifier below so the checker
-		// can match the parser's narrow gating (only escaped forms reach
-		// this code path with cooked name "await"; non-escaped `await`
-		// lexes as `.Await` and parses as AwaitExpression).
-		id_has_escape := cur_has_escape(p)
-		// §12.1.1 - `enum` is a FutureReservedWord that is ALWAYS
-		// reserved. The lexer emits it as .Identifier (contextual for
-		// TS enum decls). Mirrors the check in parse_primary_expr.
-		if !cur_has_escape(p) && cur_value_eq(p, "enum") {
-			report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word")
-		}
-		// Inline identifier parse + LHS tail. Pull only the fields we need
-		// out of the current token before eat() advances - the FastToken
-		// bytes and was showing up in the parse_unary_expr profile when this
-		// fast path runs once per identifier in the program.
-		// The lexer only stores byte
-		
-		// offsets; line / column are computed lazily by `report_error` via
-		// `offset_to_line_col` when an error is actually emitted. Reading
-		// them here returned permanent 0, then we'd write 0 back into
-		// `id.loc.{line,column}` - four wasted memory ops per identifier on
-		// the hot path. Skip the loads, leave the Loc fields zero-initialised.
-		id_offset := cur_offset(p)
-		id_value  := cur_value(p)
-		eat(p)
-		id, id_e := new_expr(p, Identifier)
-		id.loc.start = id_offset
-		id.loc.end   = prev_end_offset(p)
-		id.name = id_value
-		id.has_escape = id_has_escape
-		expr = id_e
-		// Inline LHS tail loop (member access, calls)
-		expr = parse_lhs_tail(p, expr, true)
+		expr = parse_unary_identifier_fast(p)
 	} else {
 		expr = parse_left_hand_side_expr(p)
 	}
