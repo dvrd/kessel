@@ -1236,128 +1236,139 @@ ts_conflicts :: proc(a, b: TSBindingKind) -> bool {
 check_ts_scope_conflicts :: proc(p: ^Parser, body: []^Statement) {
 	if !allow_ts_mode(p) || p.ast_only { return }
 
-	// Collect all top-level declaration names with their TS kind.
+	// Collect all top-level declaration names with their TS binding kind, then
+	// flag any pair whose kinds are not allowed to share a name (ts_conflicts).
 	entries := make([dynamic]TSBindingEntry, 0, 16, context.temp_allocator)
-
 	for stmt in body {
 		if stmt == nil { continue }
-		// Unwrap ExportNamedDeclaration to get the inner declaration.
-		inner_stmt := stmt
-		#partial switch v in stmt^ {
-		case ^ExportNamedDeclaration:
-			if v != nil {
-				if d, have := v.declaration.(^Declaration); have && d != nil {
-					// Wrap inner declaration back as a Statement for uniform handling below.
-					// Allocate a temp Statement on the stack.
-					#partial switch inner in d^ {
-					case ^ClassDeclaration:
-						if inner != nil {
-							if id, ok := inner.id.(BindingIdentifier); ok {
-								append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Class})
-							}
-						}
-					case ^FunctionDeclaration:
-						if inner != nil {
-							if id, ok := inner.id.(BindingIdentifier); ok {
-								append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Function})
-							}
-						}
-					case ^VariableDeclaration:
-						if inner != nil {
-							names := make([dynamic]string, 0, 4, context.temp_allocator)
-							for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
-							for n in names {
-								append(&entries, TSBindingEntry{name = n, at = inner.loc.start, kind = .VarLike})
-							}
-						}
-					case ^TSEnumDeclaration:
-						if inner != nil {
-							kind: TSBindingKind = inner.const_ ? .ConstEnum : .Enum
-							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = kind})
-						}
-					case ^TSInterfaceDeclaration:
-						if inner != nil {
-							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = .Interface})
-						}
-					case ^TSTypeAliasDeclaration:
-						if inner != nil {
-							append(&entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = .TypeAlias})
-						}
-					case ^TSModuleDeclaration:
-						if inner != nil {
-							// Get name from the id expression
-							if inner.id != nil {
-								if ident, ok := inner.id^.(^Identifier); ok && ident != nil {
-									append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.start, kind = .Namespace})
-								}
-							}
-						}
-					}
+		if ex, is_export := stmt^.(^ExportNamedDeclaration); is_export {
+			if ex != nil {
+				if d, have := ex.declaration.(^Declaration); have && d != nil {
+					collect_ts_export_binding(d, &entries)
 				}
 			}
 			continue
 		}
+		collect_ts_stmt_binding(stmt, &entries)
+	}
+	report_ts_scope_conflicts(p, entries[:])
+}
 
-		#partial switch v in inner_stmt^ {
-		case ^ClassDeclaration:
-			if v != nil {
-				if id, ok := v.id.(BindingIdentifier); ok {
-					append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Class})
-				}
+// collect_ts_export_binding appends the TSBindingEntry for the declaration behind
+// an `export <Decl>` (class/function/var/enum/interface/type-alias/namespace).
+collect_ts_export_binding :: proc(d: ^Declaration, entries: ^[dynamic]TSBindingEntry) {
+	#partial switch inner in d^ {
+	case ^ClassDeclaration:
+		if inner != nil {
+			if id, ok := inner.id.(BindingIdentifier); ok {
+				append(entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Class})
 			}
-		case ^FunctionDeclaration:
-			if v != nil {
-				if id, ok := v.id.(BindingIdentifier); ok {
-					append(&entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Function})
-				}
+		}
+	case ^FunctionDeclaration:
+		if inner != nil {
+			if id, ok := inner.id.(BindingIdentifier); ok {
+				append(entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Function})
 			}
-		case ^VariableDeclaration:
-			if v != nil {
-				names := make([dynamic]string, 0, 4, context.temp_allocator)
-				for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
-				for n in names {
-					append(&entries, TSBindingEntry{name = n, at = v.loc.start, kind = .VarLike})
-				}
+		}
+	case ^VariableDeclaration:
+		if inner != nil {
+			names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
+			for n in names {
+				append(entries, TSBindingEntry{name = n, at = inner.loc.start, kind = .VarLike})
 			}
-		case ^TSEnumDeclaration:
-			if v != nil {
-				kind: TSBindingKind = v.const_ ? .ConstEnum : .Enum
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = kind})
-			}
-		case ^TSInterfaceDeclaration:
-			if v != nil {
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = .Interface})
-			}
-		case ^TSTypeAliasDeclaration:
-			if v != nil {
-				append(&entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = .TypeAlias})
-			}
-		case ^TSModuleDeclaration:
-			if v != nil {
-				if v.id != nil {
-					if ident, ok := v.id^.(^Identifier); ok && ident != nil {
-						append(&entries, TSBindingEntry{name = ident.name, at = ident.loc.start, kind = .Namespace})
-					}
-				}
-			}
-		case ^ImportDeclaration:
-			if v != nil {
-				kind: TSBindingKind = v.import_kind == .Type ? .ImportType : .ImportValue
-				for spec in v.specifiers {
-					if spec == nil { continue }
-					switch ss in spec^ {
-					case ImportSpecifier:
-						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
-					case ImportDefaultSpecifier:
-						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
-					case ImportNamespaceSpecifier:
-						append(&entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
-					}
+		}
+	case ^TSEnumDeclaration:
+		if inner != nil {
+			kind: TSBindingKind = inner.const_ ? .ConstEnum : .Enum
+			append(entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = kind})
+		}
+	case ^TSInterfaceDeclaration:
+		if inner != nil {
+			append(entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = .Interface})
+		}
+	case ^TSTypeAliasDeclaration:
+		if inner != nil {
+			append(entries, TSBindingEntry{name = inner.id.name, at = inner.id.loc.start, kind = .TypeAlias})
+		}
+	case ^TSModuleDeclaration:
+		if inner != nil {
+			// Get name from the id expression
+			if inner.id != nil {
+				if ident, ok := inner.id^.(^Identifier); ok && ident != nil {
+					append(entries, TSBindingEntry{name = ident.name, at = ident.loc.start, kind = .Namespace})
 				}
 			}
 		}
 	}
+}
 
+// collect_ts_stmt_binding appends the TSBindingEntry(s) for a top-level statement
+// declaration (the same declaration forms plus import bindings).
+collect_ts_stmt_binding :: proc(stmt: ^Statement, entries: ^[dynamic]TSBindingEntry) {
+	#partial switch v in stmt^ {
+	case ^ClassDeclaration:
+		if v != nil {
+			if id, ok := v.id.(BindingIdentifier); ok {
+				append(entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Class})
+			}
+		}
+	case ^FunctionDeclaration:
+		if v != nil {
+			if id, ok := v.id.(BindingIdentifier); ok {
+				append(entries, TSBindingEntry{name = id.name, at = id.loc.start, kind = .Function})
+			}
+		}
+	case ^VariableDeclaration:
+		if v != nil {
+			names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for decl in v.declarations { scope_collect_pattern(decl.id, &names) }
+			for n in names {
+				append(entries, TSBindingEntry{name = n, at = v.loc.start, kind = .VarLike})
+			}
+		}
+	case ^TSEnumDeclaration:
+		if v != nil {
+			kind: TSBindingKind = v.const_ ? .ConstEnum : .Enum
+			append(entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = kind})
+		}
+	case ^TSInterfaceDeclaration:
+		if v != nil {
+			append(entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = .Interface})
+		}
+	case ^TSTypeAliasDeclaration:
+		if v != nil {
+			append(entries, TSBindingEntry{name = v.id.name, at = v.id.loc.start, kind = .TypeAlias})
+		}
+	case ^TSModuleDeclaration:
+		if v != nil {
+			if v.id != nil {
+				if ident, ok := v.id^.(^Identifier); ok && ident != nil {
+					append(entries, TSBindingEntry{name = ident.name, at = ident.loc.start, kind = .Namespace})
+				}
+			}
+		}
+	case ^ImportDeclaration:
+		if v != nil {
+			kind: TSBindingKind = v.import_kind == .Type ? .ImportType : .ImportValue
+			for spec in v.specifiers {
+				if spec == nil { continue }
+				switch ss in spec^ {
+				case ImportSpecifier:
+					append(entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
+				case ImportDefaultSpecifier:
+					append(entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
+				case ImportNamespaceSpecifier:
+					append(entries, TSBindingEntry{name = ss.local.name, at = ss.local.loc.start, kind = kind})
+				}
+			}
+		}
+	}
+}
+
+// report_ts_scope_conflicts emits "Identifier already declared" for each pair of
+// same-named bindings whose TS kinds conflict (O(n^2), bounded by scope size).
+report_ts_scope_conflicts :: proc(p: ^Parser, entries: []TSBindingEntry) {
 	// O(n^2) check for conflicts — fine because typical scope has <30 declarations.
 	for i := 0; i < len(entries); i += 1 {
 		for j := 0; j < i; j += 1 {
