@@ -2016,105 +2016,126 @@ looks_like_ts_arrow_params :: proc(p: ^Parser) -> bool {
 	// broad scan; the `(ident :` fast path above is unambiguous and still
 	// fires. Closes OXC corpus "Expected :, got ;" sub-cluster (W7 #44).
 	if p.lexer != nil && p.conditional_depth == 0 {
-		src := p.lexer.source_bytes
-		lparen_off := int(p.lexer.cur.start)
-		depth := 0
-		i := lparen_off
-		src_len := len(src)
-		end_off := -1
-		scan: for i < src_len {
-			ch := src[i]
-			switch ch {
-			case '(', '[', '{':
-				depth += 1
-			case ')', ']', '}':
-				depth -= 1
-				if depth == 0 && ch == ')' { end_off = i; break scan }
-			case '"', '\'':
-				quote := ch
+		return ts_arrow_scan_for_arrow(p)
+	}
+	return false
+}
+
+// ts_arrow_scan_close_paren returns the source offset of the `)` that closes the
+// `(` at lparen_off (balancing nested groups, skipping strings/comments), or -1.
+ts_arrow_scan_close_paren :: proc(src: []u8, lparen_off: int) -> int {
+	depth := 0
+	i := lparen_off
+	src_len := len(src)
+	end_off := -1
+	scan: for i < src_len {
+		ch := src[i]
+		switch ch {
+		case '(', '[', '{':
+			depth += 1
+		case ')', ']', '}':
+			depth -= 1
+			if depth == 0 && ch == ')' { end_off = i; break scan }
+		case '"', '\'':
+			quote := ch
+			i += 1
+			for i < src_len && src[i] != quote {
+				if src[i] == '\\' && i + 1 < src_len { i += 1 }
 				i += 1
-				for i < src_len && src[i] != quote {
-					if src[i] == '\\' && i + 1 < src_len { i += 1 }
-					i += 1
+			}
+		case '/':
+			if i + 1 < src_len && src[i+1] == '/' {
+				for i < src_len && src[i] != '\n' { i += 1 }
+			} else if i + 1 < src_len && src[i+1] == '*' {
+				i += 2
+				for i + 1 < src_len && !(src[i] == '*' && src[i+1] == '/') { i += 1 }
+				if i + 1 < src_len { i += 1 }
+			}
+		}
+		i += 1
+	}
+	return end_off
+}
+
+// ts_arrow_scan_after_paren returns true when, after the closing `)` at end_off, a
+// `=>` (optionally preceded by a `: ReturnType`) appears at top level - i.e. the
+// parenthesised group is a TS arrow-function head, not a parenthesised expression.
+ts_arrow_scan_after_paren :: proc(src: []u8, end_off: int) -> bool {
+	src_len := len(src)
+	j := end_off + 1
+	for j < src_len {
+		ch := src[j]
+		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
+		if ch == '/' && j + 1 < src_len && src[j+1] == '/' {
+			for j < src_len && src[j] != '\n' { j += 1 }; continue
+		}
+		if ch == '/' && j + 1 < src_len && src[j+1] == '*' {
+			j += 2
+			for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+			if j + 1 < src_len { j += 2 }
+			continue
+		}
+		break
+	}
+	// Direct `=>` - plain arrow without return type, but the regular
+	// non-TS path handles those. Returning true is harmless: the trial
+	// parser will succeed and build the same arrow.
+	if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' { return true }
+	// `:` here means a return-type annotation - walk past it tracking
+	// balanced groups, looking for top-level `=>`.
+	if j < src_len && src[j] == ':' {
+		j += 1
+		t_depth := 0
+		ts_scan: for j < src_len {
+			tch := src[j]
+			switch tch {
+			case '<', '(', '[', '{':
+				t_depth += 1
+			case '>', ')', ']', '}':
+				if t_depth == 0 { return false }
+				t_depth -= 1
+			case '=':
+				// `=>` arrow detection. At top-level it terminates the
+				// scan with success. Inside a balanced group, the `>` is
+				// PART of the arrow token - we must skip BOTH bytes so
+				// the `>` isn't later mis-consumed as a group closer.
+				// Test: `<T>(): (() => T) => null as any` (the inner
+				// `=>` of the parenthesised function type).
+				if j + 1 < src_len && src[j+1] == '>' {
+					if t_depth == 0 { return true }
+					j += 1  // outer loop adds one more, so we step past `>`
+				}
+			case ',', ';':
+				if t_depth == 0 { break ts_scan }
+			case '"', '\'':
+				quote := tch
+				j += 1
+				for j < src_len && src[j] != quote {
+					if src[j] == '\\' && j + 1 < src_len { j += 1 }
+					j += 1
 				}
 			case '/':
-				if i + 1 < src_len && src[i+1] == '/' {
-					for i < src_len && src[i] != '\n' { i += 1 }
-				} else if i + 1 < src_len && src[i+1] == '*' {
-					i += 2
-					for i + 1 < src_len && !(src[i] == '*' && src[i+1] == '/') { i += 1 }
-					if i + 1 < src_len { i += 1 }
+				if j + 1 < src_len && src[j+1] == '/' {
+					for j < src_len && src[j] != '\n' { j += 1 }
+				} else if j + 1 < src_len && src[j+1] == '*' {
+					j += 2
+					for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
+					if j + 1 < src_len { j += 1 }
 				}
 			}
-			i += 1
-		}
-		if end_off < 0 { return false }
-		j := end_off + 1
-		for j < src_len {
-			ch := src[j]
-			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { j += 1; continue }
-			if ch == '/' && j + 1 < src_len && src[j+1] == '/' {
-				for j < src_len && src[j] != '\n' { j += 1 }; continue
-			}
-			if ch == '/' && j + 1 < src_len && src[j+1] == '*' {
-				j += 2
-				for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
-				if j + 1 < src_len { j += 2 }
-				continue
-			}
-			break
-		}
-		// Direct `=>` - plain arrow without return type, but the regular
-		// non-TS path handles those. Returning true is harmless: the trial
-		// parser will succeed and build the same arrow.
-		if j + 1 < src_len && src[j] == '=' && src[j+1] == '>' { return true }
-		// `:` here means a return-type annotation - walk past it tracking
-		// balanced groups, looking for top-level `=>`.
-		if j < src_len && src[j] == ':' {
 			j += 1
-			t_depth := 0
-			ts_scan: for j < src_len {
-				tch := src[j]
-				switch tch {
-				case '<', '(', '[', '{':
-					t_depth += 1
-				case '>', ')', ']', '}':
-					if t_depth == 0 { return false }
-					t_depth -= 1
-				case '=':
-					// `=>` arrow detection. At top-level it terminates the
-					// scan with success. Inside a balanced group, the `>` is
-					// PART of the arrow token - we must skip BOTH bytes so
-					// the `>` isn't later mis-consumed as a group closer.
-					// Test: `<T>(): (() => T) => null as any` (the inner
-					// `=>` of the parenthesised function type).
-					if j + 1 < src_len && src[j+1] == '>' {
-						if t_depth == 0 { return true }
-						j += 1  // outer loop adds one more, so we step past `>`
-					}
-				case ',', ';':
-					if t_depth == 0 { break ts_scan }
-				case '"', '\'':
-					quote := tch
-					j += 1
-					for j < src_len && src[j] != quote {
-						if src[j] == '\\' && j + 1 < src_len { j += 1 }
-						j += 1
-					}
-				case '/':
-					if j + 1 < src_len && src[j+1] == '/' {
-						for j < src_len && src[j] != '\n' { j += 1 }
-					} else if j + 1 < src_len && src[j+1] == '*' {
-						j += 2
-						for j + 1 < src_len && !(src[j] == '*' && src[j+1] == '/') { j += 1 }
-						if j + 1 < src_len { j += 1 }
-					}
-				}
-				j += 1
-			}
 		}
 	}
 	return false
+}
+
+// ts_arrow_scan_for_arrow byte-scans from the current `(` for a `(...)[: T]? =>`
+// arrow head (over-broad detection is safe: the trial parser rolls back).
+ts_arrow_scan_for_arrow :: proc(p: ^Parser) -> bool {
+	src := p.lexer.source_bytes
+	end_off := ts_arrow_scan_close_paren(src, int(p.lexer.cur.start))
+	if end_off < 0 { return false }
+	return ts_arrow_scan_after_paren(src, end_off)
 }
 
 // try_parse_ts_arrow_params - speculatively parse `(params) [:RetType]? =>
