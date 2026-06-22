@@ -4061,68 +4061,7 @@ ck_walk_jsx_attr :: proc(c: ^Checker, ctx: ^CheckerContext, attr: JSXAttributeIt
 ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression,
                         kind: CkFnKind = .Plain, derived_ctor: bool = false) {
 	if fn == nil { return }
-	// TS — function generic type-parameter duplicate-name check.
-	// `function foo<X, X>() {}` is TS2300. Independent of strict-mode.
-	if ck_is_ts(ctx) {
-		if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
-			ck_check_ts_type_param_dups(c, tp)
-		}
-	}
-	// TS1016 — a required parameter cannot follow an optional parameter.
-	if ck_is_ts(ctx) {
-		ck_check_ts1016_required_after_optional(c, fn.params[:])
-	}
-	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
-	if !fn.no_body {
-		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:], ctx.strict_mode)
-	}
-	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
-	// !IsSimpleParameterList early error. Fires before the function-body
-	// walk so the diagnostic anchors at the function start, matching the
-	// parser's old anchor.
-	ck_check_strict_directive_with_nonsimple_params(c, fn)
-	// §15.7.1 — strict-mode function-name BindingIdentifier check
-	// (`function eval(){}`, `function let(){}`, etc.). Done BEFORE
-	// ck_enter_function so the OUTER strict_mode is what gates the
-	// check (the body lifts strict mode for the body only). The check
-	// runs only for FunctionExpression-as-expression / FunctionDecl
-	// (kind == .Plain); class methods / accessors / static blocks /
-	// constructors don't have their own BindingIdentifier name.
-	//
-	// Skipped for TS ambient declarations — `declare function eval();`,
-	// `declare function arguments();`, plus any FunctionDeclaration
-	// nested inside a `declare namespace M { ... }` body or in a .d.ts
-	// file. These are type-level signatures, not real bindings, and
-	// the strict-mode reservation doesn't apply (matches OXC).
-	if kind == .Plain && !fn.declare && !fn.no_body && !ctx.is_dts {
-		if id, have := fn.id.(BindingIdentifier); have {
-			// Determine the strict-mode environment the function name
-			// is parsed under. For FunctionExpression the name is in
-			// the inner function's scope (so the function's OWN strict
-			// flag matters). The walker has not yet lifted strict mode
-			// for the body, so we check against the post-lift value
-			// directly here.
-			name_strict := ctx.strict_mode || (!fn.no_body && fn_body_lifts_strict(fn.body))
-			// TS mode: OXC does not enforce eval/arguments function-name ban.
-			if name_strict && ctx.lang != .TS && ctx.lang != .TSX {
-				if is_eval_or_arguments(id.name) {
-					msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", id.name)
-					ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
-				} else if is_strict_reserved_simple_name(id.name) {
-					// `yield` as fn name in strict mode — parser-side
-					// `report_error` already catches generator name clash;
-					// strict-only reservation is checker-side.
-					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
-					ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
-				}
-			}
-		}
-	}
-	// TS — function implementations are not allowed in ambient
-	// contexts (.d.ts files, declare module/namespace bodies).
-	if ctx.is_dts && kind == .Plain && !fn.declare && !fn.no_body {
-		ck_report_coded(c, u32(fn.loc.start), .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
-	}
+	ck_check_function_signature(c, ctx, fn, kind)
 	saved := ck_enter_function(ctx)
 	// Reset the [[HomeObject]] / constructor / class-element flags. The
 	// caller's request below restores any that the new body should keep
@@ -4190,6 +4129,112 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			}
 		}
 	}
+	ck_check_ts_param_init_references(c, ctx, fn)
+	// §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter names.
+	//
+	// MethodDefinition (§15.4) ALWAYS has UniqueFormalParameters —
+	// regardless of outer strict mode — because the production already
+	// names that constraint. Class method bodies fire this naturally
+	// because ClassBody is implicitly strict; object-literal methods
+	// don't, so we force the strict-flavoured uniqueness check for
+	// `kind == .Method`. Async / generator functions of any flavour also
+	// require strict-flavoured uniqueness.
+	params_simple := params_are_simple(fn.params[:])
+	force_non_simple := !params_simple
+	dup_strict := ctx.strict_mode || fn.async || fn.generator || kind == .Method
+	ck_check_duplicate_param_names(c, u32(fn.loc.start), fn.params[:], dup_strict, force_non_simple)
+	for pr in fn.params {
+		ck_walk_pattern(c, ctx, pr.pattern)
+		// Default values are evaluated in the caller's scope, not the
+		// function's param scope — yield/await in defaults are not param errors.
+		if d, have := pr.default_val.(^Expression); have && d != nil {
+			ctx.in_params = false
+			ck_walk_expr(c, ctx, d)
+			ctx.in_params = true
+		}
+	}
+	// Reset in_params for the body walk — a nested function body is
+	// its own scope, so `await` / `yield` inside the body are NOT in
+	// the outer function's formal parameters.
+	ctx.in_params       = false
+	ctx.params_is_arrow = false
+	ck_walk_function_body(c, ctx, fn, kind, derived_ctor)
+	ctx.function_depth -= 1
+	ck_exit_function(ctx, saved)
+}
+
+// ck_check_function_signature runs the pre-body-walk early errors on a function:
+// TS type-parameter dups, TS1016, param-vs-body lexical clash, the strict
+// "use strict"+non-simple-params rule, the strict function-name reservation, and
+// the ambient-implementation restriction.
+ck_check_function_signature :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression, kind: CkFnKind) {
+	// TS — function generic type-parameter duplicate-name check.
+	// `function foo<X, X>() {}` is TS2300. Independent of strict-mode.
+	if ck_is_ts(ctx) {
+		if tp, have := fn.type_parameters.(^TSTypeParameterDeclaration); have {
+			ck_check_ts_type_param_dups(c, tp)
+		}
+	}
+	// TS1016 — a required parameter cannot follow an optional parameter.
+	if ck_is_ts(ctx) {
+		ck_check_ts1016_required_after_optional(c, fn.params[:])
+	}
+	// §15.2.1.1 — formal-parameter vs body let/const redeclaration.
+	if !fn.no_body {
+		ck_check_params_vs_body_lex(c, fn.params[:], fn.body.body[:], ctx.strict_mode)
+	}
+	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — ContainsUseStrict +
+	// !IsSimpleParameterList early error. Fires before the function-body
+	// walk so the diagnostic anchors at the function start, matching the
+	// parser's old anchor.
+	ck_check_strict_directive_with_nonsimple_params(c, fn)
+	// §15.7.1 — strict-mode function-name BindingIdentifier check
+	// (`function eval(){}`, `function let(){}`, etc.). Done BEFORE
+	// ck_enter_function so the OUTER strict_mode is what gates the
+	// check (the body lifts strict mode for the body only). The check
+	// runs only for FunctionExpression-as-expression / FunctionDecl
+	// (kind == .Plain); class methods / accessors / static blocks /
+	// constructors don't have their own BindingIdentifier name.
+	//
+	// Skipped for TS ambient declarations — `declare function eval();`,
+	// `declare function arguments();`, plus any FunctionDeclaration
+	// nested inside a `declare namespace M { ... }` body or in a .d.ts
+	// file. These are type-level signatures, not real bindings, and
+	// the strict-mode reservation doesn't apply (matches OXC).
+	if kind == .Plain && !fn.declare && !fn.no_body && !ctx.is_dts {
+		if id, have := fn.id.(BindingIdentifier); have {
+			// Determine the strict-mode environment the function name
+			// is parsed under. For FunctionExpression the name is in
+			// the inner function's scope (so the function's OWN strict
+			// flag matters). The walker has not yet lifted strict mode
+			// for the body, so we check against the post-lift value
+			// directly here.
+			name_strict := ctx.strict_mode || (!fn.no_body && fn_body_lifts_strict(fn.body))
+			// TS mode: OXC does not enforce eval/arguments function-name ban.
+			if name_strict && ctx.lang != .TS && ctx.lang != .TSX {
+				if is_eval_or_arguments(id.name) {
+					msg := fmt.tprintf("Function name '%s' is not allowed in strict mode", id.name)
+					ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
+				} else if is_strict_reserved_simple_name(id.name) {
+					// `yield` as fn name in strict mode — parser-side
+					// `report_error` already catches generator name clash;
+					// strict-only reservation is checker-side.
+					msg := fmt.tprintf("'%s' is a reserved identifier in strict mode", id.name)
+					ck_report_coded(c, u32(id.loc.start), .K3050_StrictModeReserved, msg)
+				}
+			}
+		}
+	}
+	// TS — function implementations are not allowed in ambient
+	// contexts (.d.ts files, declare module/namespace bodies).
+	if ctx.is_dts && kind == .Plain && !fn.declare && !fn.no_body {
+		ck_report_coded(c, u32(fn.loc.start), .K4050_AmbientContextRestriction, "An implementation cannot be declared in ambient contexts")
+	}
+}
+
+// ck_check_ts_param_init_references enforces TS2372 (a parameter default may not
+// reference itself) and TS2373 (it may not forward-reference a later parameter).
+ck_check_ts_param_init_references :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression) {
 	// TS2372 — parameter default value must not reference itself.
 	// TS2373 — parameter default value must not forward-reference a
 	// parameter declared after it in the same parameter list.
@@ -4228,34 +4273,12 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 			}
 		}
 	}
-	// §15.5.1 / §15.6.1 / §15.8.1 — duplicate parameter names.
-	//
-	// MethodDefinition (§15.4) ALWAYS has UniqueFormalParameters —
-	// regardless of outer strict mode — because the production already
-	// names that constraint. Class method bodies fire this naturally
-	// because ClassBody is implicitly strict; object-literal methods
-	// don't, so we force the strict-flavoured uniqueness check for
-	// `kind == .Method`. Async / generator functions of any flavour also
-	// require strict-flavoured uniqueness.
-	params_simple := params_are_simple(fn.params[:])
-	force_non_simple := !params_simple
-	dup_strict := ctx.strict_mode || fn.async || fn.generator || kind == .Method
-	ck_check_duplicate_param_names(c, u32(fn.loc.start), fn.params[:], dup_strict, force_non_simple)
-	for pr in fn.params {
-		ck_walk_pattern(c, ctx, pr.pattern)
-		// Default values are evaluated in the caller's scope, not the
-		// function's param scope — yield/await in defaults are not param errors.
-		if d, have := pr.default_val.(^Expression); have && d != nil {
-			ctx.in_params = false
-			ck_walk_expr(c, ctx, d)
-			ctx.in_params = true
-		}
-	}
-	// Reset in_params for the body walk — a nested function body is
-	// its own scope, so `await` / `yield` inside the body are NOT in
-	// the outer function's formal parameters.
-	ctx.in_params       = false
-	ctx.params_is_arrow = false
+}
+
+// ck_walk_function_body runs the function-body scope check, the derived-constructor
+// this-before-super check, the TS body-decl merge/overload check, and recurses into
+// each body statement (skipped for a no-body overload / ambient signature).
+ck_walk_function_body :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpression, kind: CkFnKind, derived_ctor: bool) {
 	if !fn.no_body {
 		// §14.2.1 / §14.3.1.1 — function-body lex/var clash detection.
 		// Function bodies are function-scope (is_block_scope=false), so
@@ -4276,8 +4299,6 @@ ck_walk_function :: proc(c: ^Checker, ctx: ^CheckerContext, fn: ^FunctionExpress
 		ck_check_ts_body_decls(c, ctx, fn.body.body[:])
 		for s in fn.body.body { ck_walk_stmt(c, ctx, s) }
 	}
-	ctx.function_depth -= 1
-	ck_exit_function(ctx, saved)
 }
 
 // ck_walk_pattern visits the expression positions inside a binding
