@@ -2034,73 +2034,9 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	start := cur_loc(p)
 
-	// TS per-specifier type modifier: `import { type x } from "m"`,
-	// `import { type x as y } from "m"`, `import { type "a" as b } from "m"`.
-	// Detect by `Identifier("type")` followed by something that can start
-	// an imported-name (Identifier / String / kw-as-name) and is NOT `as`
-	// or `,` / `}` (those would mean "type" is the imported name itself).
-	// Closes the bulk of the 12-file "Expected }, got identifier" cluster
-	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
-	// exportSpecifiers_js, etc.).
-	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
-		ensure_nxt(p)
-		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
-			report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters")
-		}
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		nxt_is_name := nxt == .Identifier || nxt == .String ||
-		               is_keyword_usable_as_property_name(nxt)
-		if nxt_is_name && nxt != .As {
-			eat(p) // consume `type`
-		} else if nxt == .As {
-			// `import { type as }` / `import { type as as as }` - 4-token
-			// lookahead (mirrors parse_export_named's identical pattern).
-			snap := lexer_snapshot(p)
-			eat(p) // consume `type`
-			eat(p) // consume first `as`
-			after := p.cur_type
-			consume_type := false
-			if after == .Comma || after == .RBrace || after == .From {
-				consume_type = true
-			} else if after == .As {
-				// `type as as X` - peek past the second `as`.
-				eat(p)
-				after_as := p.cur_type
-				if after_as == .Identifier || after_as == .String ||
-				   is_keyword_usable_as_property_name(after_as) {
-					consume_type = true
-				}
-			}
-			lexer_restore(p, snap)
-			if consume_type {
-				eat(p) // commit: consume `type` modifier
-			}
-		}
-	}
+	parse_import_spec_type_modifier(p)
 
-	imported: Identifier
-	is_string_import := false
-	if is_token(p, .String) {
-		// `import { "str" as local } from "m"` - ModuleExportName string form.
-		current := snap_current(p)
-		val := current.literal.(string) or_else ""
-		if string_has_unpaired_surrogate(val) {
-			report_error_coded(p, .K3020_ImportExportNameOrBinding, "Import name string must not contain unpaired surrogates")
-		}
-		imported = Identifier{loc = loc_from_token(&current), name = val}
-		is_string_import = true
-		eat(p)
-	} else if is_token(p, .Number) || is_token(p, .BigInt) {
-		// Numeric / BigInt literals can't be ImportedBinding names.
-		// `import { 0n as foo }` is a SyntaxError.
-		report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an import name")
-		current := snap_current(p)
-		imported = Identifier{loc = loc_from_token(&current), name = current.value}
-		eat(p)
-	} else {
-		imported = parse_identifier_name(p)
-	}
+	imported, is_string_import := parse_import_spec_name(p)
 
 	local := imported
 	// When there's no alias, the imported name IS the local binding.
@@ -2160,6 +2096,92 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 	}
 	spec.loc.end = prev_end_offset(p)
 
+	check_import_spec_binding_name(p, local, imported, is_string_import)
+
+	return spec
+}
+
+// parse_import_spec_type_modifier consumes a per-specifier TS `type` modifier
+// (`import { type x as y }`) when the 4-token disambiguation says `type` is a
+// modifier and not the imported name itself.
+parse_import_spec_type_modifier :: proc(p: ^Parser) {
+	// TS per-specifier type modifier: `import { type x } from "m"`,
+	// `import { type x as y } from "m"`, `import { type "a" as b } from "m"`.
+	// Detect by `Identifier("type")` followed by something that can start
+	// an imported-name (Identifier / String / kw-as-name) and is NOT `as`
+	// or `,` / `}` (those would mean "type" is the imported name itself).
+	// Closes the bulk of the 12-file "Expected }, got identifier" cluster
+	// (typescript fixtures: arbitraryModuleNamespaceIdentifiers,
+	// exportSpecifiers_js, etc.).
+	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
+		ensure_nxt(p)
+		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
+			report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters")
+		}
+  ensure_nxt(p)
+		nxt := p.lexer.nxt.kind
+		nxt_is_name := nxt == .Identifier || nxt == .String ||
+		               is_keyword_usable_as_property_name(nxt)
+		if nxt_is_name && nxt != .As {
+			eat(p) // consume `type`
+		} else if nxt == .As {
+			// `import { type as }` / `import { type as as as }` - 4-token
+			// lookahead (mirrors parse_export_named's identical pattern).
+			snap := lexer_snapshot(p)
+			eat(p) // consume `type`
+			eat(p) // consume first `as`
+			after := p.cur_type
+			consume_type := false
+			if after == .Comma || after == .RBrace || after == .From {
+				consume_type = true
+			} else if after == .As {
+				// `type as as X` - peek past the second `as`.
+				eat(p)
+				after_as := p.cur_type
+				if after_as == .Identifier || after_as == .String ||
+				   is_keyword_usable_as_property_name(after_as) {
+					consume_type = true
+				}
+			}
+			lexer_restore(p, snap)
+			if consume_type {
+				eat(p) // commit: consume `type` modifier
+			}
+		}
+	}
+}
+
+// parse_import_spec_name parses the ImportedBinding / ModuleExportName slot:
+// a string-literal name (ES2022 arbitrary module export names), a rejected
+// numeric/bigint literal, or a plain identifier name.
+parse_import_spec_name :: proc(p: ^Parser) -> (imported: Identifier, is_string_import: bool) {
+	if is_token(p, .String) {
+		// `import { "str" as local } from "m"` - ModuleExportName string form.
+		current := snap_current(p)
+		val := current.literal.(string) or_else ""
+		if string_has_unpaired_surrogate(val) {
+			report_error_coded(p, .K3020_ImportExportNameOrBinding, "Import name string must not contain unpaired surrogates")
+		}
+		imported = Identifier{loc = loc_from_token(&current), name = val}
+		is_string_import = true
+		eat(p)
+	} else if is_token(p, .Number) || is_token(p, .BigInt) {
+		// Numeric / BigInt literals can't be ImportedBinding names.
+		// `import { 0n as foo }` is a SyntaxError.
+		report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an import name")
+		current := snap_current(p)
+		imported = Identifier{loc = loc_from_token(&current), name = current.value}
+		eat(p)
+	} else {
+		imported = parse_identifier_name(p)
+	}
+	return
+}
+
+// check_import_spec_binding_name enforces the §16.2.2 ImportedBinding early errors on
+// the local name: eval/arguments, strict-reserved words, and always-reserved
+// words (the last both with an alias and in the no-alias same-name case).
+check_import_spec_binding_name :: proc(p: ^Parser, local, imported: Identifier, is_string_import: bool) {
 	// §16.2.2 — ImportedBinding `eval` / `arguments` early error.
 	// Module code is always strict, so eval/arguments are forbidden.
 	if is_eval_or_arguments(local.name) {
@@ -2190,8 +2212,6 @@ parse_import_specifier :: proc(p: ^Parser) -> ^ImportSpecifier {
 			report_error_coded(p, .K3020_ImportExportNameOrBinding, msg)
 		}
 	}
-
-	return spec
 }
 
 // parse_export_assignment handles the TS `export = <expr>;` legacy
