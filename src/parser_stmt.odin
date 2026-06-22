@@ -3266,7 +3266,15 @@ class_element_prop_name :: proc(key: ^Expression) -> string {
 report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 	if !allow_ts_mode(p) || p.ctx.in_ambient || p.source_is_dts { return }
 	if len(body) == 0 { return }
+	if ts_overload_prepass_skip(body) { return }
+	ts_overload_main_pass(p, body)
+}
 
+// ts_overload_prepass_skip returns true when the class body is a valid pure-
+// signature / overload pattern (no implementation, single name or a modified /
+// multi-sig overload set with consistent static-ness) that the main pass must
+// not flag as a missing implementation.
+ts_overload_prepass_skip :: proc(body: []ClassElement) -> bool {
 	// Pre-pass: skip pure-sig classes (no impl, single name, only methods).
 	has_any_impl := false
 	has_non_method := false
@@ -3294,7 +3302,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 		// If there's exactly ONE signature with ONE name AND only one method
 		// total → error (ClassDeclaration9: `class C { foo(); }`).
 		// If there are multiple sigs for the same name → valid overload pattern.
-		if name_count == 0 { return }
+		if name_count == 0 { return true }
 		// Count total method sigs and check for modifiers.
 		sig_count := 0
 		has_modifier := false
@@ -3322,11 +3330,46 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 		}
 		// Multiple sigs or modified sigs = overload signatures, valid.
 		// BUT: static/instance mismatch within sigs is always an error.
-		if (sig_count > 1 || has_modifier) && !has_static_mismatch { return }
+		if (sig_count > 1 || has_modifier) && !has_static_mismatch { return true }
 		// Single sig, single name, no modifiers, no body = missing implementation.
 		// Fall through to main pass which will report it.
 	}
+	return false
+}
 
+// ts_overload_main_pass walks the class body tracking each consecutive
+// same-name overload-signature chain and reports a missing or mis-named
+// implementation when the chain ends without a matching method body.
+// ts_overload_elem_fn returns the method's FunctionExpression, or is_field=true
+// when the element is a class field / non-method (which breaks an overload chain).
+ts_overload_elem_fn :: proc(elem: ClassElement) -> (fn: ^FunctionExpression, is_field: bool) {
+	val, have := elem.value.?
+	is_field = !have || val == nil
+	if !is_field {
+		ok: bool
+		fn, ok = val^.(^FunctionExpression)
+		if !ok || fn == nil { is_field = true }
+	}
+	return
+}
+
+// ts_overload_elem_name returns the method's property name (computed string-literal
+// keys included), or has_name=false when the element has no static name.
+ts_overload_elem_name :: proc(elem: ClassElement) -> (name: string, has_name: bool) {
+	if elem.key != nil {
+		if elem.computed {
+			if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
+				name = sl.value; has_name = true
+			}
+		} else {
+			n := class_element_prop_name(elem.key)
+			if n != "" { name = n; has_name = true }
+		}
+	}
+	return
+}
+
+ts_overload_main_pass :: proc(p: ^Parser, body: []ClassElement) {
 	// Main pass.
 	chain_active := false
 	chain_name := ""
@@ -3344,14 +3387,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 		}
 		// Class fields (kind=.Method but val is not FunctionExpression)
 		// break the overload chain — they're non-method elements.
-		val, have := elem.value.?;
-		is_field := !have || val == nil
-		fn: ^FunctionExpression
-		is_fn: bool
-		if !is_field {
-			fn, is_fn = val^.(^FunctionExpression)
-			if !is_fn || fn == nil { is_field = true }
-		}
+		fn, is_field := ts_overload_elem_fn(elem)
 		if is_field {
 			if chain_active {
 				report_overload_flush(p, body, chain_start, idx)
@@ -3368,19 +3404,7 @@ report_ts_overload_chain_errors :: proc(p: ^Parser, body: []ClassElement) {
 			continue
 		}
 
-		name := ""
-		has_name := false
-		if elem.key != nil {
-			if elem.computed {
-				// Computed string literal keys: ["foo"]
-				if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
-					name = sl.value; has_name = true
-				}
-			} else {
-				n := class_element_prop_name(elem.key)
-				if n != "" { name = n; has_name = true }
-			}
-		}
+		name, has_name := ts_overload_elem_name(elem)
 		if !has_name {
 			if chain_active {
 				report_overload_flush(p, body, chain_start, idx)
