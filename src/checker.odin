@@ -1916,83 +1916,85 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 //
 // Static and instance members live in DISJOINT slots: `static x` and
 // `x` never collide.
+
+// CkDup* support types for ck_check_ts_class_member_dups (class-member
+// duplicate-identifier detection).
+CkDupElemKind :: enum u8 { Field, MethodImpl, MethodSig, Get, Set }
+CkDupKeyKind  :: enum u8 { Ident, Str, Num }
+CkDupEntry :: struct {
+	at:           u32,
+	kind:         CkDupElemKind,
+	key_kind:     CkDupKeyKind,
+	name:         string,
+	static:       bool,
+	has_ts_mod:   bool,  // override / definite / optional present
+	has_type_pms: bool,  // method has type_parameters (gates TS2393)
+}
+
+ck_dup_classify_key :: proc(elem: ClassElement) -> (name: string, kk: CkDupKeyKind, ok: bool) {
+	if elem.computed || elem.key == nil { return "", .Ident, false }
+	#partial switch k in elem.key^ {
+	case ^Identifier:
+		if k != nil { return k.name, .Ident, true }
+	case ^StringLiteral:
+		if k != nil { return k.value, .Str, true }
+	case ^NumericLiteral:
+		if k != nil { return k.raw, .Num, true }
+	}
+	return "", .Ident, false
+}
+
+ck_dup_classify_elem :: proc(elem: ClassElement) -> (kind: CkDupElemKind, ok: bool) {
+	if elem.computed { return .Field, false }
+	if elem.abstract { return .Field, false }
+	if elem.kind == .StaticBlock { return .Field, false }
+	if elem.kind == .Constructor { return .Field, false }
+	if elem.key != nil {
+		if _, is_priv := elem.key^.(^PrivateIdentifier); is_priv {
+			return .Field, false
+		}
+	}
+	#partial switch elem.kind {
+	case .Get:
+		return .Get, true
+	case .Set:
+		return .Set, true
+	case .Method:
+		val, have := elem.value.(^Expression)
+		if !have || val == nil { return .Field, true }
+		fn, is_fn := val^.(^FunctionExpression)
+		if !is_fn || fn == nil { return .Field, true }
+		if method_fn_has_body(fn) { return .MethodImpl, true }
+		return .MethodSig, true
+	}
+	return .Field, false
+}
+
+ck_dup_method_has_type_params :: proc(elem: ClassElement) -> bool {
+	val, have := elem.value.(^Expression)
+	if !have || val == nil { return false }
+	fn, is_fn := val^.(^FunctionExpression)
+	if !is_fn || fn == nil { return false }
+	_, have_tp := fn.type_parameters.(^TSTypeParameterDeclaration)
+	return have_tp
+}
 ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 	if c == nil || cls == nil || len(cls.body.body) == 0 { return }
 
-	ElemKind :: enum u8 { Field, MethodImpl, MethodSig, Get, Set }
-	KeyKind  :: enum u8 { Ident, Str, Num }
-	Entry :: struct {
-		at:           u32,
-		kind:         ElemKind,
-		key_kind:     KeyKind,
-		name:         string,
-		static:       bool,
-		has_ts_mod:   bool,  // override / definite / optional present
-		has_type_pms: bool,  // method has type_parameters (gates TS2393)
-	}
-
-	classify_key :: proc(elem: ClassElement) -> (name: string, kk: KeyKind, ok: bool) {
-		if elem.computed || elem.key == nil { return "", .Ident, false }
-		#partial switch k in elem.key^ {
-		case ^Identifier:
-			if k != nil { return k.name, .Ident, true }
-		case ^StringLiteral:
-			if k != nil { return k.value, .Str, true }
-		case ^NumericLiteral:
-			if k != nil { return k.raw, .Num, true }
-		}
-		return "", .Ident, false
-	}
-
-	classify_elem :: proc(elem: ClassElement) -> (kind: ElemKind, ok: bool) {
-		if elem.computed { return .Field, false }
-		if elem.abstract { return .Field, false }
-		if elem.kind == .StaticBlock { return .Field, false }
-		if elem.kind == .Constructor { return .Field, false }
-		if elem.key != nil {
-			if _, is_priv := elem.key^.(^PrivateIdentifier); is_priv {
-				return .Field, false
-			}
-		}
-		#partial switch elem.kind {
-		case .Get:
-			return .Get, true
-		case .Set:
-			return .Set, true
-		case .Method:
-			val, have := elem.value.(^Expression)
-			if !have || val == nil { return .Field, true }
-			fn, is_fn := val^.(^FunctionExpression)
-			if !is_fn || fn == nil { return .Field, true }
-			if method_fn_has_body(fn) { return .MethodImpl, true }
-			return .MethodSig, true
-		}
-		return .Field, false
-	}
-
-	method_has_type_params :: proc(elem: ClassElement) -> bool {
-		val, have := elem.value.(^Expression)
-		if !have || val == nil { return false }
-		fn, is_fn := val^.(^FunctionExpression)
-		if !is_fn || fn == nil { return false }
-		_, have_tp := fn.type_parameters.(^TSTypeParameterDeclaration)
-		return have_tp
-	}
-
 	// Collect every named, non-skipped element with its (static, key)
 	// slot plus the per-element flags used by the slot-level gates.
-	entries: [dynamic]Entry
+	entries: [dynamic]CkDupEntry
 	entries.allocator = context.temp_allocator
 	defer delete(entries)
 	for elem in cls.body.body {
-		k, ok := classify_elem(elem)
+		k, ok := ck_dup_classify_elem(elem)
 		if !ok { continue }
-		name, kk, has_n := classify_key(elem)
+		name, kk, has_n := ck_dup_classify_key(elem)
 		if !has_n { continue }
 		ts_mod := elem.optional || elem.definite || elem.override_
 		has_tp := false
-		if k == .MethodImpl || k == .MethodSig { has_tp = method_has_type_params(elem) }
-		append(&entries, Entry{
+		if k == .MethodImpl || k == .MethodSig { has_tp = ck_dup_method_has_type_params(elem) }
+		append(&entries, CkDupEntry{
 			at = u32(elem.loc.start),
 			kind = k,
 			key_kind = kk,
@@ -2027,83 +2029,91 @@ ck_check_ts_class_member_dups :: proc(c: ^Checker, cls: ^ClassExpression) {
 		for idx in slot { processed[idx] = true }
 		if len(slot) < 2 { continue }
 
-		// Slot-level gate 1: any TS-only modifier (optional/definite/
-		// override) on any entry — skip the whole slot.
-		slot_has_ts_mod := false
-		for idx in slot {
-			if entries[idx].has_ts_mod { slot_has_ts_mod = true; break }
-		}
-		if slot_has_ts_mod { continue }
+		ck_emit_class_dup_slot(c, entries[:], slot[:], anchor)
+	}
+}
 
-		// Count by kind across the slot.
-		n_field, n_impl, n_sig, n_get, n_set := 0, 0, 0, 0, 0
-		n_impl_with_tp := 0
+// ck_emit_class_dup_slot emits the TS2393 (duplicate implementation) / TS2300
+// (duplicate identifier) diagnostics for one (static, key) slot holding >= 2
+// same-named class members, after the legal accessor-pair / overload-chain /
+// pure-field carve-outs.
+ck_emit_class_dup_slot :: proc(c: ^Checker, entries: []CkDupEntry, slot: []int, anchor: CkDupEntry) {
+	// Slot-level gate 1: any TS-only modifier (optional/definite/
+	// override) on any entry — skip the whole slot.
+	slot_has_ts_mod := false
+	for idx in slot {
+		if entries[idx].has_ts_mod { slot_has_ts_mod = true; break }
+	}
+	if slot_has_ts_mod { return }
+
+	// Count by kind across the slot.
+	n_field, n_impl, n_sig, n_get, n_set := 0, 0, 0, 0, 0
+	n_impl_with_tp := 0
+	for idx in slot {
+		switch entries[idx].kind {
+		case .Field:      n_field += 1
+		case .MethodImpl:
+			n_impl  += 1
+			if entries[idx].has_type_pms { n_impl_with_tp += 1 }
+		case .MethodSig:  n_sig   += 1
+		case .Get:        n_get   += 1
+		case .Set:        n_set   += 1
+		}
+	}
+
+	// Carve-out: legal accessor pair (1 getter + 1 setter, nothing
+	// else on this slot).
+	if n_get == 1 && n_set == 1 && n_field == 0 && n_impl == 0 && n_sig == 0 {
+		return
+	}
+
+	// Carve-out: overload chain (>=1 sig, at most 1 impl, all methods,
+	// nothing else). Already covered by ck_check_ts_class_overloads.
+	if n_field == 0 && n_get == 0 && n_set == 0 && n_impl <= 1 && n_sig >= 1 {
+		return
+	}
+
+	// Carve-out: pure all-field slot — OXC's checker doesn't fire on
+	// `class C { x; x; }` style duplicates. Mirroring keeps the babel
+	// parser-test fixtures (typescript/class/properties, /static-asi,
+	// /static-static) clean. The TSC negative fixtures we still close
+	// (propertyAndAccessorWithSameName, etc.) all involve at least one
+	// non-field member on the slot.
+	if n_impl == 0 && n_sig == 0 && n_get == 0 && n_set == 0 {
+		return
+	}
+
+	// Method-impl + method-impl on the same slot → TS2393 on every
+	// impl, UNLESS all impls have generic type_parameters. The latter
+	// gate avoids false-positives on babel parser-test fixtures of the
+	// shape `method<const T>(){} method<T, const U>(){}` (parser test,
+	// not real overload code). All TSC-corpus impl+impl negatives that
+	// we close use plain (non-generic) impls.
+	impls_suppressed_by_generics := n_impl >= 2 && n_impl_with_tp == n_impl
+	if n_impl >= 2 && !impls_suppressed_by_generics {
 		for idx in slot {
-			switch entries[idx].kind {
-			case .Field:      n_field += 1
-			case .MethodImpl:
-				n_impl  += 1
-				if entries[idx].has_type_pms { n_impl_with_tp += 1 }
-			case .MethodSig:  n_sig   += 1
-			case .Get:        n_get   += 1
-			case .Set:        n_set   += 1
+			if entries[idx].kind == .MethodImpl {
+				ck_report_coded(c, entries[idx].at, .K4080_DuplicateImplementation,
+					"Duplicate function implementation")
 			}
 		}
+	}
 
-		// Carve-out: legal accessor pair (1 getter + 1 setter, nothing
-		// else on this slot).
-		if n_get == 1 && n_set == 1 && n_field == 0 && n_impl == 0 && n_sig == 0 {
-			continue
-		}
+	// If the slot is exclusively method-impls (no field/get/set/sig
+	// mixed in), we're done after the TS2393 pass — don't fall through
+	// to TS2300 emission. Also bails out cleanly when TS2393 was
+	// suppressed by the generics gate (slot is impls-only with type_pms).
+	if n_field == 0 && n_get == 0 && n_set == 0 && n_sig == 0 {
+		return
+	}
 
-		// Carve-out: overload chain (>=1 sig, at most 1 impl, all methods,
-		// nothing else). Already covered by ck_check_ts_class_overloads.
-		if n_field == 0 && n_get == 0 && n_set == 0 && n_impl <= 1 && n_sig >= 1 {
-			continue
-		}
-
-		// Carve-out: pure all-field slot — OXC's checker doesn't fire on
-		// `class C { x; x; }` style duplicates. Mirroring keeps the babel
-		// parser-test fixtures (typescript/class/properties, /static-asi,
-		// /static-static) clean. The TSC negative fixtures we still close
-		// (propertyAndAccessorWithSameName, etc.) all involve at least one
-		// non-field member on the slot.
-		if n_impl == 0 && n_sig == 0 && n_get == 0 && n_set == 0 {
-			continue
-		}
-
-		// Method-impl + method-impl on the same slot → TS2393 on every
-		// impl, UNLESS all impls have generic type_parameters. The latter
-		// gate avoids false-positives on babel parser-test fixtures of the
-		// shape `method<const T>(){} method<T, const U>(){}` (parser test,
-		// not real overload code). All TSC-corpus impl+impl negatives that
-		// we close use plain (non-generic) impls.
-		impls_suppressed_by_generics := n_impl >= 2 && n_impl_with_tp == n_impl
-		if n_impl >= 2 && !impls_suppressed_by_generics {
-			for idx in slot {
-				if entries[idx].kind == .MethodImpl {
-					ck_report_coded(c, entries[idx].at, .K4080_DuplicateImplementation,
-						"Duplicate function implementation")
-				}
-			}
-		}
-
-		// If the slot is exclusively method-impls (no field/get/set/sig
-		// mixed in), we're done after the TS2393 pass — don't fall through
-		// to TS2300 emission. Also bails out cleanly when TS2393 was
-		// suppressed by the generics gate (slot is impls-only with type_pms).
-		if n_field == 0 && n_get == 0 && n_set == 0 && n_sig == 0 {
-			continue
-		}
-
-		// General TS2300: emit on each entry AFTER the first that isn't a
-		// method-impl already reported above.
-		msg := fmt.tprintf("Duplicate identifier '%s'", anchor.name)
-		for s_idx, slot_pos in slot {
-			if slot_pos == 0 { continue }
-			if n_impl >= 2 && !impls_suppressed_by_generics && entries[s_idx].kind == .MethodImpl { continue }
-			ck_report_coded(c, entries[s_idx].at, .K3037_DuplicateIdentifier, msg)
-		}
+	// General TS2300: emit on each entry AFTER the first that isn't a
+	// method-impl already reported above.
+	msg := fmt.tprintf("Duplicate identifier '%s'", anchor.name)
+	for s_idx, slot_pos in slot {
+		if slot_pos == 0 { continue }
+		if n_impl >= 2 && !impls_suppressed_by_generics && entries[s_idx].kind == .MethodImpl { continue }
+		ck_report_coded(c, entries[s_idx].at, .K3037_DuplicateIdentifier, msg)
 	}
 }
 
