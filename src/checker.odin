@@ -1737,6 +1737,26 @@ elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression,
 ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	if c == nil || len(body.body) == 0 { return }
 
+	if ck_class_overloads_skip(body) { return }
+	ck_class_overload_chain(c, body)
+}
+
+// ck_flush_unimplemented_overloads emits TS2391 (implementation missing) on each
+// unmatched overload signature in the [start, end_excl) class-body range.
+ck_flush_unimplemented_overloads :: proc(c: ^Checker, body: ClassBody, start, end_excl: int) {
+	// Emit TS2391 on each unmatched signature in [start, end_excl).
+	for i := start; i < end_excl; i += 1 {
+		elem := body.body[i]
+		fn, ok := elem_is_overloadable_method(elem)
+		if !ok || method_fn_has_body(fn) { continue }
+		ck_report_coded(c, u32(elem.loc.start), .K4080_DuplicateImplementation, "Function implementation is missing or not immediately following the declaration")
+	}
+}
+
+// ck_class_overloads_skip returns true for a pure overload-set class (no
+// implementation, no non-method element, signatures for a single name) that must
+// not be flagged as missing an implementation.
+ck_class_overloads_skip :: proc(body: ClassBody) -> bool {
 	// Pre-pass: skip when there's no implementation AND the class body
 	// consists ONLY of method sigs for a single name (pure overload-set
 	// pattern: `class C { f(); f(): void; }` accepted by OXC/babel).
@@ -1772,20 +1792,16 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 	if !has_any_impl && !has_non_method {
 		// Pure overload-set class: only skip if single method name.
 		if !has_constructor_sig && len(method_names) <= 1 && total_sigs >= 2 {
-			return
+			return true
 		}
 	}
+	return false
+}
 
-	flush_unimplemented :: proc(c: ^Checker, body: ClassBody, start, end_excl: int) {
-		// Emit TS2391 on each unmatched signature in [start, end_excl).
-		for i := start; i < end_excl; i += 1 {
-			elem := body.body[i]
-			fn, ok := elem_is_overloadable_method(elem)
-			if !ok || method_fn_has_body(fn) { continue }
-			ck_report_coded(c, u32(elem.loc.start), .K4080_DuplicateImplementation, "Function implementation is missing or not immediately following the declaration")
-		}
-	}
-
+// ck_class_overload_chain walks the class body tracking each consecutive same-name
+// method overload-signature chain and flushes an unimplemented chain (TS2391) or
+// reports a mis-named implementation (TS2389).
+ck_class_overload_chain :: proc(c: ^Checker, body: ClassBody) {
 	chain_active   := false
 	chain_name     := ""
 	chain_start    := 0
@@ -1796,7 +1812,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 			// non-method element (field, static block, getter/setter, abstract)
 			// breaks the overload chain.
 			if chain_active {
-				flush_unimplemented(c, body, chain_start, idx)
+				ck_flush_unimplemented_overloads(c, body, chain_start, idx)
 				chain_active = false
 			}
 			continue
@@ -1806,7 +1822,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 			// abstract method, no implementation is required and it does
 			// not participate in overload chains.
 			if chain_active {
-				flush_unimplemented(c, body, chain_start, idx)
+				ck_flush_unimplemented_overloads(c, body, chain_start, idx)
 				chain_active = false
 			}
 			continue
@@ -1815,7 +1831,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 		if !has_name {
 			// computed key — can't reason about chain identity.
 			if chain_active {
-				flush_unimplemented(c, body, chain_start, idx)
+				ck_flush_unimplemented_overloads(c, body, chain_start, idx)
 				chain_active = false
 			}
 			continue
@@ -1838,7 +1854,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 				} else {
 					// Different-name sig in middle of chain — prior chain ends
 					// unimplemented; this sig opens a new chain.
-					flush_unimplemented(c, body, chain_start, idx)
+					ck_flush_unimplemented_overloads(c, body, chain_start, idx)
 					chain_name  = name
 					chain_start = idx
 				}
@@ -1853,7 +1869,7 @@ ck_check_ts_class_overloads :: proc(c: ^Checker, body: ClassBody) {
 		}
 	}
 	if chain_active {
-		flush_unimplemented(c, body, chain_start, len(body.body))
+		ck_flush_unimplemented_overloads(c, body, chain_start, len(body.body))
 	}
 }
 
