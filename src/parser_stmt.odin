@@ -1918,6 +1918,27 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		return nil
 	}
 
+	params := parse_function_decl_params(p, start, async, generator)
+
+	// TypeScript return type annotation
+	return_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) && allow_ts_mode(p) {
+		return_type = parse_ts_return_type_annotation(p)
+	}
+
+	body, body_strict, is_ts_no_body := parse_function_decl_body(p, is_expr, allow_no_body, async, generator)
+
+	check_function_decl_retro(p, start, id, params[:], body, body_strict, async, is_ts_no_body)
+
+	return build_function_decl(p, start, id, params, body, generator, async, type_parameters, return_type, is_ts_no_body, is_expr)
+}
+
+// parse_function_decl_params parses the parenthesised FormalParameters of a
+// FunctionDeclaration / FunctionExpression with the generator/async/static-block
+// parameter-context save/set/restore dance, then runs the parameter-modifier +
+// duplicate-name checks and the RParen error recovery. Control flow stays in
+// parse_function_declaration.
+parse_function_decl_params :: proc(p: ^Parser, start: Loc, async, generator: bool) -> [dynamic]FunctionParameter {
 	// §15.5.1 / §15.6.1 - mark FormalParameters of a generator so
 	// parse_yield_expr can reject `yield` inside default initializers.
 	// §15.8.1 - same for async function: `await` in a parameter default
@@ -1973,13 +1994,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 			recovery_eat(p)
 		}
 	}
+	return params
+}
 
-	// TypeScript return type annotation
-	return_type: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) && allow_ts_mode(p) {
-		return_type = parse_ts_return_type_annotation(p)
-	}
-
+// parse_function_decl_body resolves the body-vs-no-body decision (TS overload /
+// ambient signatures) and parses the FunctionBody under the nested function scope
+// (the async/generator/method/derived-ctor/field-init context save/set/restore).
+// Returns the body, whether it promoted to strict via a "use strict" directive,
+// and whether it is a TS overload / ambient no-body signature.
+parse_function_decl_body :: proc(p: ^Parser, is_expr, allow_no_body, async, generator: bool) -> (body: FunctionBody, body_strict: bool, is_ts_no_body: bool) {
 	prev_async := p.ctx.in_async
 	p.ctx.in_async = async
 	prev_gen := p.ctx.in_generator
@@ -2020,8 +2043,6 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// agreement, etc.) - the parser just keeps the syntax; a downstream type
 	// checker owns the semantics. Gated on allow_ts_mode so pure JS keeps
 	// rejecting bodyless function declarations.
-	body: FunctionBody
-	body_strict := false
 	// Function EXPRESSIONS always require a body (TS overload signatures only
 	// apply to function DECLARATIONS / class methods). `const x = function();`
 	// is invalid even in TS mode.
@@ -2070,7 +2091,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// and exempt it from the duplicate-binding rule. Threaded through
 	// the local `is_ts_no_body` variable; consumed below where the
 	// FunctionExpression / FunctionDeclaration is constructed.
-	is_ts_no_body := is_no_body
+	is_ts_no_body = is_no_body
 
 	p.ctx.in_async = prev_async
 	p.ctx.in_generator = prev_gen
@@ -2079,7 +2100,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	p.ctx.in_method = prev_in_method
 	p.ctx.in_derived_constructor = prev_in_derived_ctor
 	p.ctx.in_field_init = prev_in_field_init_fn
+	return
+}
 
+// check_function_decl_retro runs the retroactive strict-mode / overload-signature
+// early-error checks that can only fire after the body parses (a "use strict"
+// directive may promote the body to strict): UniqueFormalParameters, K3052
+// non-simple params, strict binding patterns, the strict function-name reservation,
+// the params-vs-body lexical-name clash, and the TS signature parameter rules.
+check_function_decl_retro :: proc(p: ^Parser, start: Loc, id: Maybe(BindingIdentifier), params: []FunctionParameter, body: FunctionBody, body_strict, async, is_ts_no_body: bool) {
 	// Retroactive StrictFormalParameters check: if either the enclosing
 	// context was already strict or the body declared `"use strict"`, the
 	// params must have no duplicate bound names. Non-simple parameter
@@ -2104,7 +2133,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// the earlier parser_check_dup_params (pre-body) was sloppy and may have
 	// permitted simple duplicate params. Re-check with strict=true now.
 	if body_strict {
-		parser_check_dup_params(p, params[:], start.start, true, false)
+		parser_check_dup_params(p, params, start.start, true, false)
 	}
 
 	// §15.1.1 / §15.5.1 / §15.6.1 / §15.8.1 — it is a SyntaxError if
@@ -2113,7 +2142,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// The directive cannot promote params that have already been evaluated
 	// (or contain destructuring / defaults), so the spec rejects the
 	// combination outright.
-	force_non_simple := !params_are_simple(params[:])
+	force_non_simple := !params_are_simple(params)
 	if body_strict && force_non_simple {
 		report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start.start), u32(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
 	}
@@ -2127,7 +2156,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// the pre-body value before returning) so enclosing-strict callers
 	// don't double-fire.
 	if body_strict && !p.ctx.strict_mode {
-		report_strict_param_pattern_retro(p, params[:])
+		report_strict_param_pattern_retro(p, params)
 	}
 	check_function_name_strict_retro(p, id, body_strict, strict_for_check, async)
 
@@ -2136,11 +2165,15 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 	// of FunctionBody. e.g. `function f(a) { const a = 1; }` is SyntaxError.
 	// Collect param names and check against body's lex declarations.
  if !p.ast_only {
-	check_params_vs_body_lex(p, params[:], body.body[:])
+	check_params_vs_body_lex(p, params, body.body[:])
  }
 
-	check_ts_function_signature_params(p, params[:], is_ts_no_body)
+	check_ts_function_signature_params(p, params, is_ts_no_body)
+}
 
+// build_function_decl constructs the FunctionExpression-wrapped ExpressionStatement
+// (is_expr) or the FunctionDeclaration node and boxes it into a ^Statement.
+build_function_decl :: proc(p: ^Parser, start: Loc, id: Maybe(BindingIdentifier), params: [dynamic]FunctionParameter, body: FunctionBody, generator, async: bool, type_parameters: Maybe(^TSTypeParameterDeclaration), return_type: Maybe(^TSTypeAnnotation), is_ts_no_body, is_expr: bool) -> ^Statement {
 	if is_expr {
 		expr, expr_e := new_expr(p, FunctionExpression)
 		expr.loc = start
