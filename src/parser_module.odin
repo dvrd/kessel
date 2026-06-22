@@ -818,6 +818,216 @@ check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: [
 // Process one Statement and add its contributing lexical/var BoundNames
 // to the scope maps. Nested scopes are NOT recursed here - the caller's
 // walker handles that separately.
+scope_process_for_in :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^ForInStatement) {
+	// §14.7.5 — `for (let/const x in expr) { var x; }` is a SyntaxError.
+	// The for-in head's let/const creates a containing block scope;
+	// var declarations in the body hoist past the body's block but
+	// collide with the head's lexical binding.
+	if v == nil { return }
+	if left_decl, ok := v.left_decl.(^VariableDeclaration); ok && left_decl != nil && left_decl.kind != .Var {
+		head_names := make([dynamic]string, 0, 2, context.temp_allocator)
+		for d in left_decl.declarations { scope_collect_pattern(d.id, &head_names) }
+		body_vars := scope_map_make(4)
+		scope_hoist_vars(p, v.body, &body_vars)
+		for hn in head_names {
+			if at, found := scope_map_get(&body_vars, hn); found {
+				scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
+			}
+		}
+	}
+	// Also hoist vars from the body into the enclosing scope.
+	hoisted_fi := scope_map_make(4)
+	scope_hoist_vars(p, v.body, &hoisted_fi)
+	for it in hoisted_fi.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+}
+
+scope_process_for_of :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^ForOfStatement) {
+	// Same rule as ForInStatement above.
+	if v == nil { return }
+	if left_decl, ok := v.left_decl.(^VariableDeclaration); ok && left_decl != nil && left_decl.kind != .Var {
+		head_names := make([dynamic]string, 0, 2, context.temp_allocator)
+		for d in left_decl.declarations { scope_collect_pattern(d.id, &head_names) }
+		body_vars := scope_map_make(4)
+		scope_hoist_vars(p, v.body, &body_vars)
+		for hn in head_names {
+			if at, found := scope_map_get(&body_vars, hn); found {
+				scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
+			}
+		}
+	}
+	hoisted_fo := scope_map_make(4)
+	scope_hoist_vars(p, v.body, &hoisted_fo)
+	for it in hoisted_fo.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+}
+
+scope_process_for_stmt :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^ForStatement) {
+	// §14.7.4 — `for (let i = 0; ...) { var i; }` same pattern.
+	if v == nil { return }
+	if init_decl, ok := v.init_decl.(^VariableDeclaration); ok && init_decl != nil && init_decl.kind != .Var {
+		head_names := make([dynamic]string, 0, 2, context.temp_allocator)
+		for d in init_decl.declarations { scope_collect_pattern(d.id, &head_names) }
+		body_vars := scope_map_make(4)
+		scope_hoist_vars(p, v.body, &body_vars)
+		for hn in head_names {
+			if at, found := scope_map_get(&body_vars, hn); found {
+				scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
+			}
+		}
+	}
+	hoisted_fs := scope_map_make(4)
+	scope_hoist_vars(p, v.body, &hoisted_fs)
+	for it in hoisted_fs.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+}
+
+scope_process_function_decl :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^FunctionDeclaration, is_block_scope: bool) {
+	if v == nil { return }
+	// TS: function declarations can legitimately merge with same-
+	// named classes / namespaces / interfaces / type aliases / enums
+	// in the same module ("expando function", "function + namespace",
+	// overload signatures with declare-class, etc.). The type
+	// checker disambiguates which side a reference targets, so
+	// parser-side dup detection produces too many false positives
+	// in TS. Skip in TS mode entirely.
+	if allow_ts_mode(p) { return }
+	if id, ok := v.id.(BindingIdentifier); ok {
+		// Annex B.3.2 / §14.1.3 / §16.1.7 / §16.2.1:
+		//   - block scope: strict + sloppy-async/generator are .Lexical
+		//     (sibling dups error). Sloppy plain Function -> .FunctionAnnexB.
+		//   - module top level (§16.2.1.1): "At the top level of a Module,
+		//     function declarations are treated like lexical declarations."
+		//     Duplicates are SyntaxError -> .Lexical.
+		//   - script / function-body top level: HoistableDeclarations are
+		//     in VarDeclaredNames, NOT LexicallyDeclaredNames. Same-name
+		//     duplicates are valid (re-binding the same hoisted slot) in
+		//     both strict and sloppy modes.
+		kind: ScopeBindingKind = .Var
+		if is_block_scope {
+			if !p.ctx.strict_mode && !v.async && !v.generator {
+				kind = .FunctionAnnexB
+			} else {
+				kind = .Lexical
+			}
+		} else if p.in_module_top_level {
+			// Module top-level: spec treats fn decls as lexical for the
+			// duplicate check. parse_program runs the body scope check
+			// with `in_module_top_level` still set when --source-type=
+			// module is pinned; auto-detected modules upgrade after the
+			// parse so the check there falls back to .Var (the semantic
+			// checker still catches it via its own walk).
+			kind = .Lexical
+		}
+		scope_add(p, lex, vars, id.name, id.loc.start, kind)
+	}
+}
+
+scope_process_import :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^ImportDeclaration) {
+	if v == nil { return }
+	// TS: imports can legitimately merge with same-named
+	// FunctionDeclaration / ClassDeclaration / TSInterfaceDeclaration /
+	// TSTypeAliasDeclaration etc. in the same module — the
+	// type-checker resolves which side the reference targets. Skip
+	// the scope-add in TS mode so the parser-side check doesn't
+	// fire false positives on "expando function" patterns like
+	// `import Foo from "x"; export function Foo() {}`. JS-mode
+	// imports never have this carve-out.
+	if allow_ts_mode(p) { return }
+	for spec in v.specifiers {
+		if spec == nil { continue }
+		switch ss in spec^ {
+		case ImportSpecifier:
+			scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
+		case ImportDefaultSpecifier:
+			scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
+		case ImportNamespaceSpecifier:
+			scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
+		}
+	}
+}
+
+scope_process_export_named :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^ExportNamedDeclaration) {
+	if v == nil { return }
+	if d, have := v.declaration.(^Declaration); have && d != nil {
+		switch inner in d^ {
+		case ^VariableDeclaration:
+			if inner == nil { break }
+			kind: ScopeBindingKind = .Var
+			if inner.kind != .Var { kind = .Lexical }
+			names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
+			for n in names { scope_add(p, lex, vars, n, inner.loc.start, kind) }
+		case ^FunctionDeclaration:
+			if inner == nil { break }
+			if allow_ts_mode(p) { break }
+			if id, ok := inner.id.(BindingIdentifier); ok {
+				scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
+			}
+		case ^ClassDeclaration:
+			if inner == nil { break }
+			if allow_ts_mode(p) { break }
+			if id, ok := inner.id.(BindingIdentifier); ok {
+				scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
+			}
+		case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
+		     ^TSEnumDeclaration, ^TSModuleDeclaration,
+		     ^TSImportEqualsDeclaration,
+		     ^ImportDeclaration, ^ExportNamedDeclaration,
+		     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
+			// Types / nested decls - don't bind into the value scope
+			// for dup-check purposes.
+		}
+	}
+}
+
+scope_process_export_default :: proc(p: ^Parser, lex, vars: ^ScopeMap, v: ^ExportDefaultDeclaration) {
+	// `export default function F() {}` / `export default class F {}`
+	// - the name `F` is bound in the module scope as a lexical.
+	// In TS, multiple `export default function foo` overload
+	// signatures plus an implementation can coexist (and even merge
+	// with an `interface Foo {}`), so skip the scope-add in TS
+	// mode — same rationale as the FunctionDeclaration arm above.
+	if v == nil { return }
+	if allow_ts_mode(p) { return }
+	if d := v.declaration; d != nil {
+		#partial switch inner in d^ {
+		case ^Declaration:
+			if inner != nil {
+				#partial switch decl in inner^ {
+				case ^FunctionDeclaration:
+					if decl != nil {
+						if id, ok := decl.id.(BindingIdentifier); ok {
+							scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
+						}
+					}
+				case ^ClassDeclaration:
+					if decl != nil {
+						if id, ok := decl.id.(BindingIdentifier); ok {
+							scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
+						}
+					}
+				}
+			}
+		case ^Expression:
+			// `export default function F(){}` stores a FunctionExpression.
+			if inner != nil {
+				#partial switch fn in inner^ {
+				case ^FunctionExpression:
+					if fn != nil {
+						if id, ok := fn.id.(BindingIdentifier); ok {
+							scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
+						}
+					}
+				case ^ClassExpression:
+					if fn != nil {
+						if id, ok := fn.id.(BindingIdentifier); ok {
+							scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeMap, is_block_scope: bool = false) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
@@ -838,99 +1048,13 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 		for inner in v.body { scope_hoist_vars(p, inner, &hoisted) }
 		for it in hoisted.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
 	case ^ForInStatement:
-		// §14.7.5 — `for (let/const x in expr) { var x; }` is a SyntaxError.
-		// The for-in head's let/const creates a containing block scope;
-		// var declarations in the body hoist past the body's block but
-		// collide with the head's lexical binding.
-		if v == nil { return }
-		if left_decl, ok := v.left_decl.(^VariableDeclaration); ok && left_decl != nil && left_decl.kind != .Var {
-			head_names := make([dynamic]string, 0, 2, context.temp_allocator)
-			for d in left_decl.declarations { scope_collect_pattern(d.id, &head_names) }
-			body_vars := scope_map_make(4)
-			scope_hoist_vars(p, v.body, &body_vars)
-			for hn in head_names {
-				if at, found := scope_map_get(&body_vars, hn); found {
-					scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
-				}
-			}
-		}
-		// Also hoist vars from the body into the enclosing scope.
-		hoisted_fi := scope_map_make(4)
-		scope_hoist_vars(p, v.body, &hoisted_fi)
-		for it in hoisted_fi.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+		scope_process_for_in(p, lex, vars, v)
 	case ^ForOfStatement:
-		// Same rule as ForInStatement above.
-		if v == nil { return }
-		if left_decl, ok := v.left_decl.(^VariableDeclaration); ok && left_decl != nil && left_decl.kind != .Var {
-			head_names := make([dynamic]string, 0, 2, context.temp_allocator)
-			for d in left_decl.declarations { scope_collect_pattern(d.id, &head_names) }
-			body_vars := scope_map_make(4)
-			scope_hoist_vars(p, v.body, &body_vars)
-			for hn in head_names {
-				if at, found := scope_map_get(&body_vars, hn); found {
-					scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
-				}
-			}
-		}
-		hoisted_fo := scope_map_make(4)
-		scope_hoist_vars(p, v.body, &hoisted_fo)
-		for it in hoisted_fo.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+		scope_process_for_of(p, lex, vars, v)
 	case ^ForStatement:
-		// §14.7.4 — `for (let i = 0; ...) { var i; }` same pattern.
-		if v == nil { return }
-		if init_decl, ok := v.init_decl.(^VariableDeclaration); ok && init_decl != nil && init_decl.kind != .Var {
-			head_names := make([dynamic]string, 0, 2, context.temp_allocator)
-			for d in init_decl.declarations { scope_collect_pattern(d.id, &head_names) }
-			body_vars := scope_map_make(4)
-			scope_hoist_vars(p, v.body, &body_vars)
-			for hn in head_names {
-				if at, found := scope_map_get(&body_vars, hn); found {
-					scope_emit(p, at, fmt.tprintf("Identifier '%s' has already been declared", hn))
-				}
-			}
-		}
-		hoisted_fs := scope_map_make(4)
-		scope_hoist_vars(p, v.body, &hoisted_fs)
-		for it in hoisted_fs.items { scope_add(p, lex, vars, it.name, it.at, .Var) }
+		scope_process_for_stmt(p, lex, vars, v)
 	case ^FunctionDeclaration:
-		if v == nil { return }
-		// TS: function declarations can legitimately merge with same-
-		// named classes / namespaces / interfaces / type aliases / enums
-		// in the same module ("expando function", "function + namespace",
-		// overload signatures with declare-class, etc.). The type
-		// checker disambiguates which side a reference targets, so
-		// parser-side dup detection produces too many false positives
-		// in TS. Skip in TS mode entirely.
-		if allow_ts_mode(p) { return }
-		if id, ok := v.id.(BindingIdentifier); ok {
-			// Annex B.3.2 / §14.1.3 / §16.1.7 / §16.2.1:
-			//   - block scope: strict + sloppy-async/generator are .Lexical
-			//     (sibling dups error). Sloppy plain Function -> .FunctionAnnexB.
-			//   - module top level (§16.2.1.1): "At the top level of a Module,
-			//     function declarations are treated like lexical declarations."
-			//     Duplicates are SyntaxError -> .Lexical.
-			//   - script / function-body top level: HoistableDeclarations are
-			//     in VarDeclaredNames, NOT LexicallyDeclaredNames. Same-name
-			//     duplicates are valid (re-binding the same hoisted slot) in
-			//     both strict and sloppy modes.
-			kind: ScopeBindingKind = .Var
-			if is_block_scope {
-				if !p.ctx.strict_mode && !v.async && !v.generator {
-					kind = .FunctionAnnexB
-				} else {
-					kind = .Lexical
-				}
-			} else if p.in_module_top_level {
-				// Module top-level: spec treats fn decls as lexical for the
-				// duplicate check. parse_program runs the body scope check
-				// with `in_module_top_level` still set when --source-type=
-				// module is pinned; auto-detected modules upgrade after the
-				// parse so the check there falls back to .Var (the semantic
-				// checker still catches it via its own walk).
-				kind = .Lexical
-			}
-			scope_add(p, lex, vars, id.name, id.loc.start, kind)
-		}
+		scope_process_function_decl(p, lex, vars, v, is_block_scope)
 	case ^ClassDeclaration:
 		if v == nil { return }
 		// TS: class declarations also participate in declaration
@@ -940,107 +1064,11 @@ scope_process_statement :: proc(p: ^Parser, stmt: ^Statement, lex, vars: ^ScopeM
 			scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
 		}
 	case ^ImportDeclaration:
-		if v == nil { return }
-		// TS: imports can legitimately merge with same-named
-		// FunctionDeclaration / ClassDeclaration / TSInterfaceDeclaration /
-		// TSTypeAliasDeclaration etc. in the same module — the
-		// type-checker resolves which side the reference targets. Skip
-		// the scope-add in TS mode so the parser-side check doesn't
-		// fire false positives on "expando function" patterns like
-		// `import Foo from "x"; export function Foo() {}`. JS-mode
-		// imports never have this carve-out.
-		if allow_ts_mode(p) { return }
-		for spec in v.specifiers {
-			if spec == nil { continue }
-			switch ss in spec^ {
-			case ImportSpecifier:
-				scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
-			case ImportDefaultSpecifier:
-				scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
-			case ImportNamespaceSpecifier:
-				scope_add(p, lex, vars, ss.local.name, ss.local.loc.start, .Lexical)
-			}
-		}
+		scope_process_import(p, lex, vars, v)
 	case ^ExportNamedDeclaration:
-		if v == nil { return }
-		if d, have := v.declaration.(^Declaration); have && d != nil {
-			switch inner in d^ {
-			case ^VariableDeclaration:
-				if inner == nil { break }
-				kind: ScopeBindingKind = .Var
-				if inner.kind != .Var { kind = .Lexical }
-				names := make([dynamic]string, 0, 4, context.temp_allocator)
-				for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
-				for n in names { scope_add(p, lex, vars, n, inner.loc.start, kind) }
-			case ^FunctionDeclaration:
-				if inner == nil { break }
-				if allow_ts_mode(p) { break }
-				if id, ok := inner.id.(BindingIdentifier); ok {
-					scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
-				}
-			case ^ClassDeclaration:
-				if inner == nil { break }
-				if allow_ts_mode(p) { break }
-				if id, ok := inner.id.(BindingIdentifier); ok {
-					scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
-				}
-			case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration,
-			     ^TSEnumDeclaration, ^TSModuleDeclaration,
-			     ^TSImportEqualsDeclaration,
-			     ^ImportDeclaration, ^ExportNamedDeclaration,
-			     ^ExportDefaultDeclaration, ^ExportAllDeclaration:
-				// Types / nested decls - don't bind into the value scope
-				// for dup-check purposes.
-			}
-		}
+		scope_process_export_named(p, lex, vars, v)
 	case ^ExportDefaultDeclaration:
-		// `export default function F() {}` / `export default class F {}`
-		// - the name `F` is bound in the module scope as a lexical.
-		// In TS, multiple `export default function foo` overload
-		// signatures plus an implementation can coexist (and even merge
-		// with an `interface Foo {}`), so skip the scope-add in TS
-		// mode — same rationale as the FunctionDeclaration arm above.
-		if v == nil { return }
-		if allow_ts_mode(p) { return }
-		if d := v.declaration; d != nil {
-			#partial switch inner in d^ {
-			case ^Declaration:
-				if inner != nil {
-					#partial switch decl in inner^ {
-					case ^FunctionDeclaration:
-						if decl != nil {
-							if id, ok := decl.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
-							}
-						}
-					case ^ClassDeclaration:
-						if decl != nil {
-							if id, ok := decl.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
-							}
-						}
-					}
-				}
-			case ^Expression:
-				// `export default function F(){}` stores a FunctionExpression.
-				if inner != nil {
-					#partial switch fn in inner^ {
-					case ^FunctionExpression:
-						if fn != nil {
-							if id, ok := fn.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
-							}
-						}
-					case ^ClassExpression:
-						if fn != nil {
-							if id, ok := fn.id.(BindingIdentifier); ok {
-								scope_add(p, lex, vars, id.name, id.loc.start, .Lexical)
-							}
-						}
-					}
-				}
-			}
-		}
+		scope_process_export_default(p, lex, vars, v)
 	}
 }
 
