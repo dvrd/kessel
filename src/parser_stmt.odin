@@ -4500,156 +4500,196 @@ parse_class_element_name :: proc(
 	accessibility: ClassAccessibility,
 	access_name: string,
 ) -> ClassElementName {
-	kind := kind_in
-	is_private := false
-	computed := false
-	key: ^Expression
 	if is_token(p, .PrivateIdentifier) {
-		// Private field or method: #field, #method
-		current := snap_current(p)
-		is_private = true
-		// Accessibility modifiers are not allowed on private (#) fields.
-		if accessibility != .None {
-			report_error_coded(p, .K4021_PrivateNameWithModifier, "An accessibility modifier cannot be used with a private identifier")
-		}
-
-		// Create PrivateIdentifier (strip the # prefix)
-		name := current.value
-		if len(name) > 0 && name[0] == '#' {
-			name = name[1:]
-		}
-
-		private_ident, private_ident_e := new_expr(p, PrivateIdentifier)
-		private_ident.loc = loc_from_token(&current)
-		private_ident.name = name
-		key = private_ident_e
-		p.private_id_count += 1
-		eat(p)
+		return parse_class_name_private(p, kind_in, accessibility)
 	} else if is_token(p, .String) {
-		// String key: `get 'trusting-append'()` / `'method-name'()`. ESTree emits
-		// this as a Literal key, not an Identifier. Previously stuffed into
-		// new_identifier which copied the quoted raw source into `name`,
-		// hiding the real string from downstream walkers (ember.js etc.).
-		current := snap_current(p)
-		str_lit, str_lit_e := new_expr(p, StringLiteral)
-		str_lit.loc = loc_from_token(&current)
-		str_lit.value = current.literal.(string) or_else ""
-		str_lit.raw = current.value
-		key = str_lit_e
-		eat(p)
-		// String-literal key "constructor" promotes to Constructor kind,
-		// same rules as the identifier path: no get/set, no async/generator,
-		// and must be non-static.
-		if str_lit.value == "constructor" &&
-		   kind == .Method && !is_async && !is_generator && !static_ {
-			kind = .Constructor
-		}
-		// §15.7.6 — string-literal "constructor" must not be get/set/async/generator.
-		if !static_ && str_lit.value == "constructor" {
-			if is_async { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method") }
-			if is_generator { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be a generator") }
-		}
+		return parse_class_name_string(p, kind_in, is_async, is_generator, static_)
 	} else if is_token(p, .Number) {
-		// Numeric key: `1234()`. Similarly emit as NumericLiteral-backed Literal
-		// rather than an Identifier whose name is the numeric text.
-		current := snap_current(p)
-		num_lit, num_lit_e := new_expr(p, NumericLiteral)
-		num_lit.loc = loc_from_token(&current)
-		num_lit.raw = current.value
-		if v, ok := current.literal.(f64); ok {
-			num_lit.value = v
-		}
-		key = num_lit_e
-		eat(p)
+		return parse_class_name_number(p, kind_in)
 	} else if is_token(p, .BigInt) {
-		// BigInt key: `1n()`. Emit as BigIntLiteral per §13.2.3.
-		current := snap_current(p)
-		big, big_e := new_expr(p, BigIntLiteral)
-		big.loc = loc_from_token(&current)
-		big.raw = current.value
-		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
-			big.value = current.value[:len(current.value)-1]
-		} else {
-			big.value = current.value
-		}
-		big.loc.end = prev_end_offset(p)
-		key = big_e
-		eat(p)
+		return parse_class_name_bigint(p, kind_in)
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
-		key_type_snap := p.cur_type
-		key_value_snap := cur_value(p)
-		key = expression_from(p, new_identifier_from_cur(p))
-		eat(p)
-
-		// Check if it's actually a constructor. Only promote to .Constructor
-		// when no get/set modifier was seen - `get constructor() {}` is a
-		// non-instance accessor named "constructor" and stays in its own
-		// .Get / .Set kind so the post-parse §15.7.6 check below can flag
-		// it as a SyntaxError.
-		if (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) &&
-		   kind == .Method && !is_async && !is_generator && !static_ {
-			kind = .Constructor
-		}
-		// §15.7.6 ClassElement - a non-static method named "constructor"
-		// must be a plain Method (not get / set / async / generator). Catch
-		// the disallowed shapes here, where we still see the original
-		// modifiers + the literal name.
-		if !static_ && !is_private && !computed &&
-		   (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) {
-			if is_async {
-				report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method")
-			}
-			if is_generator {
-				report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
-					"Class constructor cannot be a generator method")
-			}
-			if kind == .Get {
-				report_error_coded(p, .K3034_ConstructorShape, "Class constructor cannot be a getter")
-			}
-			if kind == .Set {
-				report_error_coded(p, .K3034_ConstructorShape, "Class constructor cannot be a setter")
-			}
-		}
+		return parse_class_name_identifier(p, kind_in, is_async, is_generator, static_)
 	} else if is_token(p, .LBracket) {
-		// TS index signature in class body: `[s: string]: number`. Detect by
-		// peeking `[ Identifier : ...`. The interface-body parser
-		// (parse_ts_object_member) handles this; class bodies need the same
-		// detection. Without it, `[s: string]` is misparsed as a computed
-		// property key, choking on `:` while looking for `]`.
-		// cluster. Skipped at the AST level for
-		// now - the parser accepts the syntax, the corpus smoke gate passes,
-		// and a proper TSIndexSignature class-element node can come in W7+
-		// when the deep walker starts comparing class bodies.
-		// Return nil so the class-body loop swallows the element without
-		// erroring - mirrors the existing pattern for elements that the parser
-		// intentionally drops (TS overload signatures don't materialize either).
-		if try_consume_ts_class_index_signature(p, accessibility, access_name) {
-			return ClassElementName{drop = true}
-		}
-		// Computed property: [expr]
-		computed = true
-		eat(p)
-		// `[` opens a fresh expression context - the enclosing for-head
-		// no_in restriction does not apply inside computed property keys.
-		prev_no_in_cls := p.ctx.no_in
-		p.ctx.no_in = false
-		key = parse_assignment_expression(p)
-		p.ctx.no_in = prev_no_in_cls
-		// Array literal `[[]]` / `[[1,2]]` as computed class member key is
-		// rejected by OXC. (Object literal `[{}]` is accepted.)
-		if key != nil {
-			if _, is_arr := key^.(^ArrayExpression); is_arr {
-				report_error_coded(p, .K3030_ClassDeclarationStructure, "Array literal cannot be a computed class member name")
-			}
-		}
-		if !expect_token(p, .RBracket) {
-			return ClassElementName{drop = true}
-		}
+		return parse_class_name_computed(p, kind_in, accessibility, access_name)
+	}
+	report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method or property name")
+	return ClassElementName{drop = true}
+}
+
+// parse_class_name_private builds the key for a private (#) class member name,
+// rejecting an accessibility modifier on it.
+parse_class_name_private :: proc(p: ^Parser, kind: ClassElementKind, accessibility: ClassAccessibility) -> ClassElementName {
+	key: ^Expression
+	// Private field or method: #field, #method
+	current := snap_current(p)
+	// Accessibility modifiers are not allowed on private (#) fields.
+	if accessibility != .None {
+		report_error_coded(p, .K4021_PrivateNameWithModifier, "An accessibility modifier cannot be used with a private identifier")
+	}
+
+	// Create PrivateIdentifier (strip the # prefix)
+	name := current.value
+	if len(name) > 0 && name[0] == '#' {
+		name = name[1:]
+	}
+
+	private_ident, private_ident_e := new_expr(p, PrivateIdentifier)
+	private_ident.loc = loc_from_token(&current)
+	private_ident.name = name
+	key = private_ident_e
+	p.private_id_count += 1
+	eat(p)
+	return ClassElementName{key = key, kind = kind, computed = false}
+}
+
+// parse_class_name_string builds a StringLiteral-keyed class member name and
+// applies the string-"constructor" promotion + §15.7.6 shape checks.
+parse_class_name_string :: proc(p: ^Parser, kind_in: ClassElementKind, is_async, is_generator, static_: bool) -> ClassElementName {
+	kind := kind_in
+	key: ^Expression
+	// String key: `get 'trusting-append'()` / `'method-name'()`. ESTree emits
+	// this as a Literal key, not an Identifier. Previously stuffed into
+	// new_identifier which copied the quoted raw source into `name`,
+	// hiding the real string from downstream walkers (ember.js etc.).
+	current := snap_current(p)
+	str_lit, str_lit_e := new_expr(p, StringLiteral)
+	str_lit.loc = loc_from_token(&current)
+	str_lit.value = current.literal.(string) or_else ""
+	str_lit.raw = current.value
+	key = str_lit_e
+	eat(p)
+	// String-literal key "constructor" promotes to Constructor kind,
+	// same rules as the identifier path: no get/set, no async/generator,
+	// and must be non-static.
+	if str_lit.value == "constructor" &&
+	   kind == .Method && !is_async && !is_generator && !static_ {
+		kind = .Constructor
+	}
+	// §15.7.6 — string-literal "constructor" must not be get/set/async/generator.
+	if !static_ && str_lit.value == "constructor" {
+		if is_async { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method") }
+		if is_generator { report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be a generator") }
+	}
+	return ClassElementName{key = key, kind = kind, computed = false}
+}
+
+// parse_class_name_number builds a NumericLiteral-keyed class member name.
+parse_class_name_number :: proc(p: ^Parser, kind: ClassElementKind) -> ClassElementName {
+	key: ^Expression
+	// Numeric key: `1234()`. Similarly emit as NumericLiteral-backed Literal
+	// rather than an Identifier whose name is the numeric text.
+	current := snap_current(p)
+	num_lit, num_lit_e := new_expr(p, NumericLiteral)
+	num_lit.loc = loc_from_token(&current)
+	num_lit.raw = current.value
+	if v, ok := current.literal.(f64); ok {
+		num_lit.value = v
+	}
+	key = num_lit_e
+	eat(p)
+	return ClassElementName{key = key, kind = kind, computed = false}
+}
+
+// parse_class_name_bigint builds a BigIntLiteral-keyed class member name (§13.2.3).
+parse_class_name_bigint :: proc(p: ^Parser, kind: ClassElementKind) -> ClassElementName {
+	key: ^Expression
+	// BigInt key: `1n()`. Emit as BigIntLiteral per §13.2.3.
+	current := snap_current(p)
+	big, big_e := new_expr(p, BigIntLiteral)
+	big.loc = loc_from_token(&current)
+	big.raw = current.value
+	if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+		big.value = current.value[:len(current.value)-1]
 	} else {
-		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method or property name")
+		big.value = current.value
+	}
+	big.loc.end = prev_end_offset(p)
+	key = big_e
+	eat(p)
+	return ClassElementName{key = key, kind = kind, computed = false}
+}
+
+// parse_class_name_identifier builds an Identifier-keyed class member name and
+// applies the identifier-"constructor" promotion + §15.7.6 shape checks.
+parse_class_name_identifier :: proc(p: ^Parser, kind_in: ClassElementKind, is_async, is_generator, static_: bool) -> ClassElementName {
+	kind := kind_in
+	key: ^Expression
+	key_type_snap := p.cur_type
+	key_value_snap := cur_value(p)
+	key = expression_from(p, new_identifier_from_cur(p))
+	eat(p)
+
+	// Check if it's actually a constructor. Only promote to .Constructor
+	// when no get/set modifier was seen - `get constructor() {}` is a
+	// non-instance accessor named "constructor" and stays in its own
+	// .Get / .Set kind so the post-parse §15.7.6 check below can flag
+	// it as a SyntaxError.
+	if (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) &&
+	   kind == .Method && !is_async && !is_generator && !static_ {
+		kind = .Constructor
+	}
+	// §15.7.6 ClassElement - a non-static method named "constructor"
+	// must be a plain Method (not get / set / async / generator). Catch
+	// the disallowed shapes here, where we still see the original
+	// modifiers + the literal name.
+	if !static_ &&
+	   (key_type_snap == .Constructor || (key_type_snap == .Identifier && key_value_snap == "constructor")) {
+		if is_async {
+			report_error_coded(p, .K3034_ConstructorShape, "Constructor can't be an async method")
+		}
+		if is_generator {
+			report_error_coded(p, .K3012_AsyncGeneratorMisplaced,
+				"Class constructor cannot be a generator method")
+		}
+		if kind == .Get {
+			report_error_coded(p, .K3034_ConstructorShape, "Class constructor cannot be a getter")
+		}
+		if kind == .Set {
+			report_error_coded(p, .K3034_ConstructorShape, "Class constructor cannot be a setter")
+		}
+	}
+	return ClassElementName{key = key, kind = kind, computed = false}
+}
+
+// parse_class_name_computed builds a computed `[expr]` class member name (or
+// drops a TS class index signature), rejecting an array-literal computed key.
+parse_class_name_computed :: proc(p: ^Parser, kind: ClassElementKind, accessibility: ClassAccessibility, access_name: string) -> ClassElementName {
+	key: ^Expression
+	// TS index signature in class body: `[s: string]: number`. Detect by
+	// peeking `[ Identifier : ...`. The interface-body parser
+	// (parse_ts_object_member) handles this; class bodies need the same
+	// detection. Without it, `[s: string]` is misparsed as a computed
+	// property key, choking on `:` while looking for `]`.
+	// cluster. Skipped at the AST level for
+	// now - the parser accepts the syntax, the corpus smoke gate passes,
+	// and a proper TSIndexSignature class-element node can come in W7+
+	// when the deep walker starts comparing class bodies.
+	// Return nil so the class-body loop swallows the element without
+	// erroring - mirrors the existing pattern for elements that the parser
+	// intentionally drops (TS overload signatures don't materialize either).
+	if try_consume_ts_class_index_signature(p, accessibility, access_name) {
 		return ClassElementName{drop = true}
 	}
-	return ClassElementName{key = key, kind = kind, computed = computed}
+	// Computed property: [expr]
+	eat(p)
+	// `[` opens a fresh expression context - the enclosing for-head
+	// no_in restriction does not apply inside computed property keys.
+	prev_no_in_cls := p.ctx.no_in
+	p.ctx.no_in = false
+	key = parse_assignment_expression(p)
+	p.ctx.no_in = prev_no_in_cls
+	// Array literal `[[]]` / `[[1,2]]` as computed class member key is
+	// rejected by OXC. (Object literal `[{}]` is accepted.)
+	if key != nil {
+		if _, is_arr := key^.(^ArrayExpression); is_arr {
+			report_error_coded(p, .K3030_ClassDeclarationStructure, "Array literal cannot be a computed class member name")
+		}
+	}
+	if !expect_token(p, .RBracket) {
+		return ClassElementName{drop = true}
+	}
+	return ClassElementName{key = key, kind = kind, computed = true}
 }
 
 // Captured inputs for parse_class_field_element, gathered by the parent before
