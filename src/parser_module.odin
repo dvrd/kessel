@@ -2771,104 +2771,14 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		start_spec := cur_loc(p)
 
-		// TS per-specifier type modifier: `export { type Foo }`,
-		// `export { type Foo as Bar }`, `export { type "a" as "b" }`.
-		// Same disambiguation as parse_import_specifier above - only consume
-		// `type` when the following token can start a name AND isn't `as` /
-		// `}` / `,` (which would mean "type" is the local name itself).
-		if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
-			ensure_nxt(p)
-			if cur_has_escape(p) && p.lexer.nxt.kind == .As {
-				report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters")
-			}
-   ensure_nxt(p)
-			nxt := p.lexer.nxt.kind
-			nxt_is_name := nxt == .Identifier || nxt == .String ||
-			               is_keyword_usable_as_property_name(nxt)
-			// Same disambiguation as import: `type` is a modifier only when
-			// followed by a name that isn't `as`/`,`/`}`. When it IS a
-			// modifier and the outer export is type-only, reject.
-			type_is_modifier_export := nxt_is_name && nxt != .As
-			if !type_is_modifier_export && nxt == .As {
-				// `type as }` → modifier on `as`. Check token after `as`.
-				snap_e := lexer_snapshot(p)
-				advance_token(p) // type
-				advance_token(p) // as
-				after_as := p.cur_type
-				lexer_restore(p, snap_e)
-				if after_as != .Identifier && !can_be_binding_identifier(after_as) &&
-				   after_as != .String {
-					type_is_modifier_export = true
-				}
-			}
-			if export_kind == .Type && type_is_modifier_export {
-				report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only export")
-			}
-			if nxt_is_name && nxt != .As {
-				eat(p) // consume `type`
-			} else if nxt == .As {
-				// `export { type as }` / `export { type as as if }`. 4-token
-				// lookahead disambiguates whether `type` is a type modifier or
-				// a local name. After `type as`, check the next token:
-				//   `,` / `}` / `from` → `type` is modifier (`export { type as }`)
-				//   `as` → look one more: if a valid name follows (`as if`,
-				//          `as foo`), `type` is modifier; if `}` / `,` follows,
-				//          `type` is the local name (`export { type as as }`).
-				snap := lexer_snapshot(p)
-				eat(p) // consume `type`
-				eat(p) // consume first `as`
-				after := p.cur_type
-				consume_type := false
-				if after == .Comma || after == .RBrace || after == .From {
-					consume_type = true
-				} else if after == .As {
-					// `type as as X` - peek past the second `as`.
-					eat(p) // consume second `as`
-					after_as := p.cur_type
-					if after_as == .Identifier || after_as == .String ||
-					   is_keyword_usable_as_property_name(after_as) {
-						consume_type = true
-					}
-				}
-				lexer_restore(p, snap)
-				if consume_type {
-					eat(p)
-				}
-			}
-		}
+		parse_export_spec_type_modifier(p, export_kind)
 
-		// ES2022 allows either an identifier OR a string literal on either
-		// side of `as`. Parse each slot independently.
-		parse_spec_name :: proc(p: ^Parser) -> ExportSpecifierName {
-			if is_token(p, .String) {
-				current := snap_current(p)
-				str_lit := new_node(p, StringLiteral)
-				str_lit.loc = loc_from_token(&current)
-				str_lit.value = current.literal.(string) or_else ""
-				str_lit.raw = current.value
-				// §16.2.3 - ModuleExportName : StringLiteral must be well-formed Unicode.
-				if string_has_unpaired_surrogate(str_lit.value) {
-					report_error_coded(p, .K3020_ImportExportNameOrBinding, "Export name string must not contain unpaired surrogates")
-				}
-				eat(p)
-				return str_lit
-			}
-			// Numeric / BigInt literals are not valid export names.
-			if is_token(p, .Number) || is_token(p, .BigInt) {
-				report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an export name")
-				current := snap_current(p)
-				eat(p)
-				return IdentifierName{loc = loc_from_token(&current), name = current.value}
-			}
-			id := parse_identifier_name(p)
-			return IdentifierName{loc = id.loc, name = id.name}
-		}
 
-		local := parse_spec_name(p)
+		local := parse_export_spec_name(p)
 		exported := local
 		has_as := match_token(p, .As)
 		if has_as {
-			exported = parse_spec_name(p)
+			exported = parse_export_spec_name(p)
 		}
 
 		spec := ExportSpecifier{
@@ -2888,6 +2798,126 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		return nil
 	}
 
+	parse_export_from_clause(p, decl)
+
+	if !match_semicolon_or_asi_export(p) {
+		// `export {} null;` - unexpected token follows export clause on same line.
+		report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export declaration")
+	}
+
+	check_export_default_without_as(p, decl)
+
+	decl.loc.end = prev_end_offset(p)
+
+	record_esm_named_export(p, decl)
+
+	// Allocate Statement union and store the pointer
+	stmt := new_node(p, Statement)
+	stmt^ = (^ExportNamedDeclaration)(decl)
+	return stmt
+}
+
+// ES2022 allows either an identifier OR a string literal on either
+// side of `as`. Parse each slot independently.
+parse_export_spec_name :: proc(p: ^Parser) -> ExportSpecifierName {
+	if is_token(p, .String) {
+		current := snap_current(p)
+		str_lit := new_node(p, StringLiteral)
+		str_lit.loc = loc_from_token(&current)
+		str_lit.value = current.literal.(string) or_else ""
+		str_lit.raw = current.value
+		// §16.2.3 - ModuleExportName : StringLiteral must be well-formed Unicode.
+		if string_has_unpaired_surrogate(str_lit.value) {
+			report_error_coded(p, .K3020_ImportExportNameOrBinding, "Export name string must not contain unpaired surrogates")
+		}
+		eat(p)
+		return str_lit
+	}
+	// Numeric / BigInt literals are not valid export names.
+	if is_token(p, .Number) || is_token(p, .BigInt) {
+		report_error_coded(p, .K3020_ImportExportNameOrBinding, "Numeric or bigint literal cannot be an export name")
+		current := snap_current(p)
+		eat(p)
+		return IdentifierName{loc = loc_from_token(&current), name = current.value}
+	}
+	id := parse_identifier_name(p)
+	return IdentifierName{loc = id.loc, name = id.name}
+}
+
+// parse_export_spec_type_modifier consumes a per-specifier TS `type` modifier
+// (`export { type Foo as Bar }`) when the disambiguation says `type` is a
+// modifier and not the local name itself, rejecting it inside a type-only export.
+parse_export_spec_type_modifier :: proc(p: ^Parser, export_kind: ImportExportKind) {
+	// TS per-specifier type modifier: `export { type Foo }`,
+	// `export { type Foo as Bar }`, `export { type "a" as "b" }`.
+	// Same disambiguation as parse_import_specifier above - only consume
+	// `type` when the following token can start a name AND isn't `as` /
+	// `}` / `,` (which would mean "type" is the local name itself).
+	if allow_ts_mode(p) && p.cur_type == .Identifier && cur_value_eq(p, "type") {
+		ensure_nxt(p)
+		if cur_has_escape(p) && p.lexer.nxt.kind == .As {
+			report_error_coded(p, .K3015_KeywordContainsEscape, "Keyword 'type' must not contain escaped characters")
+		}
+   ensure_nxt(p)
+		nxt := p.lexer.nxt.kind
+		nxt_is_name := nxt == .Identifier || nxt == .String ||
+		               is_keyword_usable_as_property_name(nxt)
+		// Same disambiguation as import: `type` is a modifier only when
+		// followed by a name that isn't `as`/`,`/`}`. When it IS a
+		// modifier and the outer export is type-only, reject.
+		type_is_modifier_export := nxt_is_name && nxt != .As
+		if !type_is_modifier_export && nxt == .As {
+			// `type as }` → modifier on `as`. Check token after `as`.
+			snap_e := lexer_snapshot(p)
+			advance_token(p) // type
+			advance_token(p) // as
+			after_as := p.cur_type
+			lexer_restore(p, snap_e)
+			if after_as != .Identifier && !can_be_binding_identifier(after_as) &&
+			   after_as != .String {
+				type_is_modifier_export = true
+			}
+		}
+		if export_kind == .Type && type_is_modifier_export {
+			report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "The 'type' modifier cannot be used in a type-only export")
+		}
+		if nxt_is_name && nxt != .As {
+			eat(p) // consume `type`
+		} else if nxt == .As {
+			// `export { type as }` / `export { type as as if }`. 4-token
+			// lookahead disambiguates whether `type` is a type modifier or
+			// a local name. After `type as`, check the next token:
+			//   `,` / `}` / `from` → `type` is modifier (`export { type as }`)
+			//   `as` → look one more: if a valid name follows (`as if`,
+			//          `as foo`), `type` is modifier; if `}` / `,` follows,
+			//          `type` is the local name (`export { type as as }`).
+			snap := lexer_snapshot(p)
+			eat(p) // consume `type`
+			eat(p) // consume first `as`
+			after := p.cur_type
+			consume_type := false
+			if after == .Comma || after == .RBrace || after == .From {
+				consume_type = true
+			} else if after == .As {
+				// `type as as X` - peek past the second `as`.
+				eat(p) // consume second `as`
+				after_as := p.cur_type
+				if after_as == .Identifier || after_as == .String ||
+				   is_keyword_usable_as_property_name(after_as) {
+					consume_type = true
+				}
+			}
+			lexer_restore(p, snap)
+			if consume_type {
+				eat(p)
+			}
+		}
+	}
+}
+
+// parse_export_from_clause consumes the optional `from "module"` re-export source
+// (treating an escaped `from` identifier as the keyword) plus import attributes.
+parse_export_from_clause :: proc(p: ^Parser, decl: ^ExportNamedDeclaration) {
 	// §Grammar Notation: the `from` contextual keyword must appear literally.
 	// Escaped form `\u0066rom` is lexed as .Identifier with has_escape=true.
 	if is_token(p, .Identifier) && cur_value_eq(p, "from") {
@@ -2905,12 +2935,11 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		decl.source = parse_string_literal(p)
 		decl.attributes = parse_import_attributes(p)
 	}
+}
 
-	if !match_semicolon_or_asi_export(p) {
-		// `export {} null;` - unexpected token follows export clause on same line.
-		report_error_coded(p, .K2010_ExpectedSemicolon, "Expected semicolon after export declaration")
-	}
-
+// check_export_default_without_as enforces §16.2.3: `export { default }` with no
+// `as` and no `from` clause is a SyntaxError (the reserved word cannot bind).
+check_export_default_without_as :: proc(p: ^Parser, decl: ^ExportNamedDeclaration) {
 	// §16.2.3 ExportClause: `export { default }` without `as` is a
 	// SyntaxError when the local name is a ReservedWord and there's no
 	// `from` clause. With `from`, the local name is a ModuleExportName
@@ -2930,9 +2959,11 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 			}
 		}
 	}
+}
 
-	decl.loc.end = prev_end_offset(p)
-
+// record_esm_named_export records the ESM static-export entries for the named
+// export (its specifiers and optional module request) on the parser.
+record_esm_named_export :: proc(p: ^Parser, decl: ^ExportNamedDeclaration) {
 	// Collect ESM static export record for named exports
 	p.has_module_syntax = true
 	if len(decl.specifiers) > 0 {
@@ -2956,10 +2987,5 @@ parse_export_named :: proc(p: ^Parser, start: Loc, export_kind: ImportExportKind
 		}
 		bump_append(&p.staticExports, esm_export)
 	}
-
-	// Allocate Statement union and store the pointer
-	stmt := new_node(p, Statement)
-	stmt^ = (^ExportNamedDeclaration)(decl)
-	return stmt
 }
 
