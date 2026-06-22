@@ -190,73 +190,91 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 	if program.type != .Module { return }
 
 	// §16.2.1 - ExportedNames of ModuleItemList must not contain duplicates.
-	// Walk all export declarations and collect exported names, reporting
-	// duplicates.
+	check_export_duplicate_names(p, program)
+
+	// §16.2.2 "Export 'X' is not defined in the module" early error.
+	// Collect all module-level declared names only for JS modules with no
+	// prior parse errors (error recovery / TS global augmentation produce
+	// false positives otherwise); leaving the map empty is intentional for
+	// the JS-with-errors case so check_undefined_exports stays a no-op there.
+	module_names: map[string]bool
+	module_names.allocator = context.temp_allocator
+	if !allow_ts_mode(p) && len(p.errors) == 0 {
+		module_names = collect_module_declared_names(p, program)
+	}
+	check_undefined_exports(p, program, module_names)
+}
+
+// register_exported_name records an ExportedName, reporting the §16.2.1
+// duplicate-exported-name early error (JS mode only — TS resolves type-vs-value
+// merge / overload edge cases in the semantic checker). An empty name is ignored.
+register_exported_name :: proc(p: ^Parser, exported: ^ScopeMap, name: string, off: u32) {
+	if name == "" { return }
+	if _, exists := scope_map_get(exported, name); exists {
+		if !allow_ts_mode(p) {
+			msg := fmt.tprintf("Duplicate exported name '%s'", name)
+			report_error_coded_span(p, .K3020_ImportExportNameOrBinding, off, off, msg)
+		}
+	} else {
+		scope_map_set(exported, name, off)
+	}
+}
+
+// collect_export_decl_bound_names appends the BoundNames (and their source
+// offsets) of an `export <Decl>` declaration that contribute to ExportedNames:
+// VariableDeclaration pattern names and the FunctionDeclaration / ClassDeclaration
+// binding identifier (a no-body TS overload signature contributes none).
+collect_export_decl_bound_names :: proc(p: ^Parser, decl_ptr: ^Declaration, names: ^[dynamic]string, offs: ^[dynamic]u32) {
+	#partial switch d in decl_ptr^ {
+	case ^VariableDeclaration:
+		if d != nil {
+			for decl in d.declarations {
+				prev_len := len(names^)
+				collect_pattern_bound_names_list(decl.id, names)
+				// Pad offsets so the list aligns with names.
+				for _ in prev_len ..< len(names^) {
+					bump_append(offs, decl.loc.start)
+				}
+			}
+		}
+	case ^FunctionDeclaration:
+		if d != nil {
+			// TS overload signature (no body): same name across
+			// multiple declarations is the canonical TS overload
+			// pattern. Only the implementation (the one with a
+			// body) contributes a real binding for ExportedNames.
+			if d.no_body && allow_ts_mode(p) {
+			} else if id, ok := d.id.(BindingIdentifier); ok {
+				bump_append(names, id.name)
+				bump_append(offs, id.loc.start)
+			}
+		}
+	case ^ClassDeclaration:
+		if d != nil {
+			if id, ok := d.id.(BindingIdentifier); ok {
+				bump_append(names, id.name)
+				bump_append(offs, id.loc.start)
+			}
+		}
+	}
+}
+
+// check_export_duplicate_names enforces §16.2.1: the ExportedNames of the module
+// item list must be unique. Walks every export form (declaration BoundNames,
+// named specifiers, `export default`, `export * as ns`) into one ScopeMap.
+check_export_duplicate_names :: proc(p: ^Parser, program: ^Program) {
 	exported := scope_map_make(16)
 	for stmt in program.body {
 		if stmt == nil { continue }
 		#partial switch v in stmt^ {
 		case ^ExportNamedDeclaration:
 			if v == nil { continue }
-			// `export <Decl>` (no specifiers, no `from`) - ExportedNames
-			// of the declaration are derived from its BoundNames. We need
-			// this branch separately so `export var a, a;` and
-			// `export var [a, a] = [];` and `export function a() {}` /
-			// `export class a {}` get caught alongside specifier-form
-			// duplicates. Test262 staging/sm/module/duplicate-exported-
-			// names-in-single-export-var-declaration.js.
 			if decl_ptr, has_decl := v.declaration.?; has_decl && decl_ptr != nil {
 				decl_names := make([dynamic]string, 0, 8, context.temp_allocator)
 				decl_offs  := make([dynamic]u32, 0, 8, context.temp_allocator)
-				#partial switch d in decl_ptr^ {
-				case ^VariableDeclaration:
-					if d != nil {
-						for decl in d.declarations {
-							prev_len := len(decl_names)
-							collect_pattern_bound_names_list(decl.id, &decl_names)
-							// Pad offsets so the list aligns with names.
-							for _ in prev_len ..< len(decl_names) {
-								bump_append(&decl_offs, decl.loc.start)
-							}
-						}
-					}
-				case ^FunctionDeclaration:
-					if d != nil {
-						// TS overload signature (no body): same name across
-						// multiple declarations is the canonical TS overload
-						// pattern. Only the implementation (the one with a
-						// body) contributes a real binding for ExportedNames.
-						if d.no_body && allow_ts_mode(p) {
-						} else if id, ok := d.id.(BindingIdentifier); ok {
-							bump_append(&decl_names, id.name)
-							bump_append(&decl_offs, id.loc.start)
-						}
-					}
-				case ^ClassDeclaration:
-					if d != nil {
-						if id, ok := d.id.(BindingIdentifier); ok {
-							bump_append(&decl_names, id.name)
-							bump_append(&decl_offs, id.loc.start)
-						}
-					}
-				}
+				collect_export_decl_bound_names(p, decl_ptr, &decl_names, &decl_offs)
 				for i in 0 ..< len(decl_names) {
-					name := decl_names[i]
-					if name == "" { continue }
-					off := decl_offs[i]
-					if _, exists := scope_map_get(&exported, name); exists {
-						// JS mode — parser-side structural error.
-						// TS mode — semantic-checker-only
-						// (ck_check_export_dups). OXC's parser drops this
-						// in TS too because of overload / type-vs-value merge
-						// edge cases that oxc_semantic resolves later.
-						if !allow_ts_mode(p) {
-							msg := fmt.tprintf("Duplicate exported name '%s'", name)
-							report_error_coded_span(p, .K3020_ImportExportNameOrBinding, u32(off), u32(off), msg)
-						}
-					} else {
-						scope_map_set(&exported, name, off)
-					}
+					register_exported_name(p, &exported, decl_names[i], decl_offs[i])
 				}
 			}
 			for spec in v.specifiers {
@@ -272,25 +290,13 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 						var_off = exported_name.loc.start
 					}
 				}
-				if var_name != "" {
-					if _, exists := scope_map_get(&exported, var_name); exists {
-						if !allow_ts_mode(p) {
-							msg := fmt.tprintf("Duplicate exported name '%s'", var_name)
-							report_error_coded_span(p, .K3020_ImportExportNameOrBinding, u32(var_off), u32(var_off), msg)
-						}
-					} else {
-						scope_map_set(&exported, var_name, var_off)
-					}
-				}
+				register_exported_name(p, &exported, var_name, var_off)
 			}
-		// ExportNamedDeclaration has no "default" name (that's ExportDefaultDeclaration)
 		case ^ExportDefaultDeclaration:
 			if v == nil { continue }
-			// In TS mode, `export default` is allowed multiple times because
-			// (1) `export default interface I {}` is type-space and doesn't
-			// shadow a value default, and (2) TS surfaces this as a semantic
-			// rather than a syntax error — OXC and Babel both accept the
-			// duplicate. Skip the syntactic flag in TS / TSX modes.
+			// In TS mode `export default` may repeat (type-space default does not
+			// shadow a value default; TS surfaces this as a semantic, not syntax,
+			// error — OXC and Babel both accept the duplicate).
 			if allow_ts_mode(p) { continue }
 			if _, exists := scope_map_get(&exported, "default"); exists {
 				report_error_coded(p, .K2040_UnexpectedToken, "Duplicate exported name 'default'")
@@ -299,101 +305,103 @@ verify_export_locals :: proc(p: ^Parser, program: ^Program) {
 			if v == nil { continue }
 			// `export * as name from "m"` adds `name` to ExportedNames.
 			if ns_name, has_ns := v.exported.(IdentifierName); has_ns {
-				if _, exists := scope_map_get(&exported, ns_name.name); exists {
-					if !allow_ts_mode(p) {
-						msg := fmt.tprintf("Duplicate exported name '%s'", ns_name.name)
-						report_error_coded_span(p, .K3020_ImportExportNameOrBinding, u32(ns_name.loc.start), u32(ns_name.loc.start), msg)
-					}
-				} else { scope_map_set(&exported, ns_name.name, ns_name.loc.start) }
+				register_exported_name(p, &exported, ns_name.name, ns_name.loc.start)
 			}
 		}
 	}
-	// §16.2.2 "Export 'X' is not defined in the module" early error.
-	// The string-literal-without-from rule is structural; the undeclared
-	// name check was in the semantic checker but is now promoted to the
-	// parser so parser-only snaps match OXC (test262 early-export-global,
-	// early-export-unresolvable).
-	// Collect all module-level declared names (Var + Lex + imports).
-	// Skip when the program has parse errors — error recovery may produce
-	// invalid specifiers that trigger false "not defined" reports.
-	errors_before_export_check := len(p.errors)
+}
+
+// collect_module_declared_names gathers every module-level declared binding (var,
+// lexical, function, class, import locals, and hoisted nested vars) into a set so
+// check_undefined_exports can flag a bare `export { x }` whose `x` is undeclared.
+
+// collect_export_default_binding adds the names an `export default` introduces to
+// the module binding set: always "default", plus the inner FunctionDeclaration /
+// ClassDeclaration / FunctionExpression / ClassExpression binding identifier when
+// the default exports a named declaration or expression.
+collect_export_default_binding :: proc(v: ^ExportDefaultDeclaration, module_names: ^map[string]bool) {
+	module_names^["default"] = true
+	// `export default function foo(){}` also binds `foo`.
+	if v != nil && v.declaration != nil {
+		#partial switch dd in v.declaration^ {
+		case ^Declaration:
+			if dd != nil {
+				#partial switch inner in dd^ {
+				case ^FunctionDeclaration:
+					if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names^[id.name] = true } }
+				case ^ClassDeclaration:
+					if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names^[id.name] = true } }
+				}
+			}
+		case ^Expression:
+			if dd != nil {
+				#partial switch expr in dd^ {
+				case ^FunctionExpression:
+					if expr != nil { if id, ok := expr.id.(BindingIdentifier); ok { module_names^[id.name] = true } }
+				case ^ClassExpression:
+					if expr != nil { if id, ok := expr.id.(BindingIdentifier); ok { module_names^[id.name] = true } }
+				}
+			}
+		}
+	}
+}
+collect_module_declared_names :: proc(p: ^Parser, program: ^Program) -> map[string]bool {
 	module_names: map[string]bool
 	module_names.allocator = context.temp_allocator
-	if !allow_ts_mode(p) && errors_before_export_check == 0 {
-		// Only run for JS modules — TS has global augmentation, ambient
-		// modules, etc. that make this check produce false positives.
-		for stmt in program.body {
-			if stmt == nil { continue }
-			#partial switch v in stmt^ {
-			case ^VariableDeclaration:
-				if v == nil { continue }
-				names := make([dynamic]string, 0, 4, context.temp_allocator)
-				for d in v.declarations { scope_collect_pattern(d.id, &names) }
-				for n in names { module_names[n] = true }
-			case ^FunctionDeclaration:
-				if v == nil { continue }
-				if id, ok := v.id.(BindingIdentifier); ok { module_names[id.name] = true }
-			case ^ClassDeclaration:
-				if v == nil { continue }
-				if id, ok := v.id.(BindingIdentifier); ok { module_names[id.name] = true }
-			case ^ImportDeclaration:
-				if v == nil { continue }
-				for spec in v.specifiers {
-					if spec == nil { continue }
-					switch ss in spec^ {
-					case ImportSpecifier: module_names[ss.local.name] = true
-					case ImportDefaultSpecifier: module_names[ss.local.name] = true
-					case ImportNamespaceSpecifier: module_names[ss.local.name] = true
-					}
-				}
-			case ^ExportNamedDeclaration:
-				if v == nil { continue }
-				if d, have := v.declaration.(^Declaration); have && d != nil {
-					#partial switch inner in d^ {
-					case ^VariableDeclaration:
-						if inner == nil { break }
-						names := make([dynamic]string, 0, 4, context.temp_allocator)
-						for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
-						for n in names { module_names[n] = true }
-					case ^FunctionDeclaration:
-						if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
-					case ^ClassDeclaration:
-						if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
-					}
-				}
-			case ^ExportDefaultDeclaration:
-				module_names["default"] = true
-				// `export default function foo(){}` also binds `foo`.
-				if v != nil && v.declaration != nil {
-					#partial switch dd in v.declaration^ {
-					case ^Declaration:
-						if dd != nil {
-							#partial switch inner in dd^ {
-							case ^FunctionDeclaration:
-								if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
-							case ^ClassDeclaration:
-								if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
-							}
-						}
-					case ^Expression:
-						if dd != nil {
-							#partial switch expr in dd^ {
-							case ^FunctionExpression:
-								if expr != nil { if id, ok := expr.id.(BindingIdentifier); ok { module_names[id.name] = true } }
-							case ^ClassExpression:
-								if expr != nil { if id, ok := expr.id.(BindingIdentifier); ok { module_names[id.name] = true } }
-							}
-						}
-					}
+	for stmt in program.body {
+		if stmt == nil { continue }
+		#partial switch v in stmt^ {
+		case ^VariableDeclaration:
+			if v == nil { continue }
+			names := make([dynamic]string, 0, 4, context.temp_allocator)
+			for d in v.declarations { scope_collect_pattern(d.id, &names) }
+			for n in names { module_names[n] = true }
+		case ^FunctionDeclaration:
+			if v == nil { continue }
+			if id, ok := v.id.(BindingIdentifier); ok { module_names[id.name] = true }
+		case ^ClassDeclaration:
+			if v == nil { continue }
+			if id, ok := v.id.(BindingIdentifier); ok { module_names[id.name] = true }
+		case ^ImportDeclaration:
+			if v == nil { continue }
+			for spec in v.specifiers {
+				if spec == nil { continue }
+				switch ss in spec^ {
+				case ImportSpecifier: module_names[ss.local.name] = true
+				case ImportDefaultSpecifier: module_names[ss.local.name] = true
+				case ImportNamespaceSpecifier: module_names[ss.local.name] = true
 				}
 			}
-			// Also hoist var names from nested blocks/loops/etc.
-			hoisted_vars := scope_map_make(4)
-			scope_hoist_vars(p, stmt, &hoisted_vars)
-			for it in hoisted_vars.items { module_names[it.name] = true }
+		case ^ExportNamedDeclaration:
+			if v == nil { continue }
+			if d, have := v.declaration.(^Declaration); have && d != nil {
+				#partial switch inner in d^ {
+				case ^VariableDeclaration:
+					if inner == nil { break }
+					names := make([dynamic]string, 0, 4, context.temp_allocator)
+					for decl in inner.declarations { scope_collect_pattern(decl.id, &names) }
+					for n in names { module_names[n] = true }
+				case ^FunctionDeclaration:
+					if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+				case ^ClassDeclaration:
+					if inner != nil { if id, ok := inner.id.(BindingIdentifier); ok { module_names[id.name] = true } }
+				}
+			}
+		case ^ExportDefaultDeclaration:
+			collect_export_default_binding(v, &module_names)
 		}
+		// Also hoist var names from nested blocks/loops/etc.
+		hoisted_vars := scope_map_make(4)
+		scope_hoist_vars(p, stmt, &hoisted_vars)
+		for it in hoisted_vars.items { module_names[it.name] = true }
 	}
+	return module_names
+}
 
+// check_undefined_exports enforces the §16.2.2 structural rules: a string-literal
+// local without `from` is illegal, and (JS only) a bare `export { x }` whose `x`
+// is not in module_names is "Export 'x' is not defined in the module".
+check_undefined_exports :: proc(p: ^Parser, program: ^Program, module_names: map[string]bool) {
 	for stmt in program.body {
 		if stmt == nil { continue }
 		export, is_export := stmt^.(^ExportNamedDeclaration)
