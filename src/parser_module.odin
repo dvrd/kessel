@@ -2421,10 +2421,20 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		return stmt
 	}
 
+	return parse_export_es_declaration(p, start)
+}
+
+// parse_export_es_declaration handles every `export` form that is a real ES
+// ExportDeclaration (i.e. past the default / `*` / `{ }` / TS-export-assign
+// forks). It flags module syntax, dispatches the `export * as N`,
+// `export type ...`, and bare-declaration forms, then wraps the parsed inner
+// declaration in an ExportNamedDeclaration. Split out of
+// parse_export_declaration to keep both procs under the 70-line limit.
+parse_export_es_declaration :: proc(p: ^Parser, start: Loc) -> ^Statement {
 	// Past the TS-export-assign fork — this IS an ES ExportDeclaration.
 	// Flag module syntax now so error recovery can't lose it. (The
-	// save/restore at the top of this function ensures the flag only
-	// takes effect outside a TS namespace body — see fixture
+	// save/restore at the top of parse_export_declaration ensures the flag
+	// only takes effect outside a TS namespace body — see fixture
 	// spec/typescript/015_namespace_module which exercises the case.)
 	p.has_module_syntax = true
 	p.module_pre_scan_done = true
@@ -2455,22 +2465,44 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected string literal after 'export'")
 	}
 
-	// Export declaration. parse_statement_or_declaration returns a ^Statement
-	// union wrapping the underlying declaration variant. The previous code
-	// cast that ^Statement pointer directly to ^Declaration, reinterpreting
-	// the Statement union's tag bytes as a Declaration tag - different
-	// ordinal spaces (Declaration: 7 variants, Statement: 25), so downstream
-	// dispatch hit the wrong variant or "Unknown". Same UB class as Bug H.
-	// Fix: allocate a fresh Declaration union and re-assign the inner variant
-	// pointer so Odin computes the correct ^Declaration tag at assignment.
-	// Mirrors parse_export_default's handling of ^ClassDeclaration below.
 	decl := parse_statement_or_declaration(p)
 	if decl == nil {
 		return nil
 	}
 
-	decl_union := new_node(p, Declaration)
-	export_kind := ImportExportKind.Value
+	decl_union, export_kind, ok := wrap_export_named_declaration(p, decl)
+	if !ok {
+		return nil
+	}
+
+	export_decl := new_node(p, ExportNamedDeclaration)
+	export_decl.loc = start
+	export_decl.declaration = decl_union
+	export_decl.export_kind = export_kind
+	export_decl.loc.end = prev_end_offset(p)
+
+	// Allocate Statement union and store the pointer
+	stmt := new_node(p, Statement)
+	stmt^ = (^ExportNamedDeclaration)(export_decl)
+	return stmt
+}
+
+// wrap_export_named_declaration re-allocates a fresh Declaration union for the
+// inner declaration parsed after `export` and classifies its export_kind.
+//
+// parse_statement_or_declaration returns a ^Statement union wrapping the
+// declaration variant. Casting that ^Statement pointer directly to
+// ^Declaration would reinterpret the Statement union's tag (25 variants)
+// as a Declaration tag (7 variants) — different ordinal spaces, so downstream
+// dispatch would hit the wrong variant or "Unknown" (same UB class as Bug H).
+// Allocating a fresh Declaration and re-assigning the inner variant pointer
+// lets Odin compute the correct ^Declaration tag at assignment.
+//
+// Returns ok=false for the two reject paths (`export import X from ...`,
+// non-declaration statements) where the caller must `return nil`.
+wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_union: ^Declaration, export_kind: ImportExportKind, ok: bool) {
+	decl_union = new_node(p, Declaration)
+	export_kind = ImportExportKind.Value
 	#partial switch v in decl^ {
 	case ^FunctionDeclaration:
 		decl_union^ = v
@@ -2498,7 +2530,7 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// `export import X from "..."` is invalid — only the TS
 		// import-equals form `export import X = ...` is valid.
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected 'import' after 'export'. Only 'export import X = ...' (TypeScript) is valid here.")
-		return nil
+		return nil, .Value, false
 	case ^ExportNamedDeclaration:     decl_union^ = v
 	case ^ExportDefaultDeclaration:   decl_union^ = v
 	case ^ExportAllDeclaration:       decl_union^ = v
@@ -2522,19 +2554,9 @@ parse_export_declaration :: proc(p: ^Parser) -> ^Statement {
 		// statement types are SyntaxErrors. `export default <expr>` is handled
 		// by parse_export_default above.
 		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token")
-		return nil
+		return nil, .Value, false
 	}
-
-	export_decl := new_node(p, ExportNamedDeclaration)
-	export_decl.loc = start
-	export_decl.declaration = decl_union
-	export_decl.export_kind = export_kind
-	export_decl.loc.end = prev_end_offset(p)
-
-	// Allocate Statement union and store the pointer
-	stmt := new_node(p, Statement)
-	stmt^ = (^ExportNamedDeclaration)(export_decl)
-	return stmt
+	return decl_union, export_kind, true
 }
 
 // report_export_default_function_tail flags an LHS-tail token that would
