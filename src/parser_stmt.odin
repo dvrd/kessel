@@ -3735,147 +3735,37 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 	if !allow_ts_mode(p) { return }  // JS uses the private-only check
 	if p.ctx.in_ambient || p.source_is_dts { return }
 
-	MemberSeen :: struct {
-		has_get:                       bool,
-		has_set:                       bool,
-		has_prop:                      bool,  // property / field
-		has_prop_init:                 bool,  // property with initializer (= value)
-		has_method:                    bool,  // method with body (not overload sig)
-		has_method_with_type_params:   bool,  // method body + type parameters
-	}
-
-	static_seen:   map[string]MemberSeen
-	instance_seen: map[string]MemberSeen
+	static_seen:   map[string]ClassMemberSeen
+	instance_seen: map[string]ClassMemberSeen
 	static_seen.allocator   = context.temp_allocator
 	instance_seen.allocator = context.temp_allocator
 
 	constructor_impl_count := 0
 
 	for elem in elems {
-		if elem.key == nil { continue }
-		// Skip private identifiers — handled by report_private_class_member_errors.
-		if _, is_priv := elem.key.(^PrivateIdentifier); is_priv { continue }
-
-		name := ""
-		has_name := false
-		if elem.computed {
-			// Computed keys: only check string literals (["foo"]).
-			if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
-				name = sl.value
-				has_name = true  // empty string is valid computed key
-			} else {
-				continue  // dynamic [expr] — can't check
-			}
-		} else {
-			name = class_element_prop_name(elem.key)
-			if name != "" { has_name = true }
-		}
-		if !has_name { continue }
+		name, ok := class_member_dup_name(elem)
+		if !ok { continue }
 
 		// TS duplicate constructor: multiple constructor implementations.
-		// Overload signatures (no body) are fine.
+		// Overload signatures (no body) are fine. Constructors don't enter
+		// the name map.
 		if elem.kind == .Constructor {
-			if val, have := elem.value.?; have && val != nil {
-				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					has_body := fn.body.loc.end > fn.body.loc.start
-					if has_body {
-						constructor_impl_count += 1
-						if constructor_impl_count > 1 {
-							report_error_coded_span(p, .K4080_DuplicateImplementation,
-								u32(elem.loc.start), u32(elem.loc.start),
-								"Duplicate constructor implementations are not allowed")
-						}
-					}
+			if class_member_is_constructor_impl(elem) {
+				constructor_impl_count += 1
+				if constructor_impl_count > 1 {
+					report_error_coded_span(p, .K4080_DuplicateImplementation,
+						u32(elem.loc.start), u32(elem.loc.start),
+						"Duplicate constructor implementations are not allowed")
 				}
 			}
-			continue  // constructors don't enter the name map
+			continue
 		}
 
-		// TS overload signatures (body-less methods): skip from dup map.
-		// Override methods: skip (override can repeat with different modifiers).
-		// Properties without initializers (kind=.Method, val=nil) must NOT
-		// be treated as overloads — they're field declarations.
-		if elem.kind == .Method {
-			if elem.override_ { continue }
-			is_overload := false
-			if val, have := elem.value.?; have && val != nil {
-				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if fn.body.loc.end <= fn.body.loc.start {
-						is_overload = true  // body-less method sig
-					}
-				}
-			}
-			if is_overload { continue }
-		}
-
-		// Abstract members: skip (they have no body, handled by overload logic).
-		if elem.abstract { continue }
+		if class_member_dup_should_skip(elem) { continue }
 
 		seen := elem.static ? &static_seen : &instance_seen
-		prev := seen[name] or_else MemberSeen{}
-		dup := false
-
-		// Distinguish real methods from properties: kind=.Method is the
-		// AST default for ALL class elements. A real method has a
-		// FunctionExpression value; everything else is a property/field.
-		is_real_method := false
-		has_type_params := false
-		if elem.kind == .Method {
-			if v, hv := elem.value.?; hv && v != nil {
-				if fn, ok := v^.(^FunctionExpression); ok {
-					is_real_method = true
-					if fn != nil {
-						if tp, have_tp := fn.type_parameters.?; have_tp && tp != nil {
-							has_type_params = true
-						}
-					}
-				}
-			}
-		}
-
-		switch {
-		case elem.kind == .Get:
-			if prev.has_get || prev.has_prop { dup = true }
-			prev.has_get = true
-		case elem.kind == .Set:
-			if prev.has_set || prev.has_prop { dup = true }
-			prev.has_set = true
-		case is_real_method:
-			// Method vs property/accessor = duplicate.
-			if prev.has_get || prev.has_set || prev.has_prop { dup = true }
-			// TS2393: Two methods with bodies (implementations) = duplicate
-			// function implementation. Overload sigs are fine (they were
-			// skipped above), but two real bodies means a true dup.
-			// Skip when EITHER method has type parameters — different type
-			// params may constitute valid generic overloads that OXC accepts.
-			if prev.has_method && !has_type_params && !prev.has_method_with_type_params { dup = true }
-			prev.has_method = true
-			if has_type_params { prev.has_method_with_type_params = true }
-		case elem.kind == .Constructor:
-			// handled above
-		case:
-			// Property / field (including kind=.Method with non-FE value).
-			// Property vs accessor or method = dup.
-			// Property vs property: dup when BOTH have initializers
-			// (e.g. `0 = 1; 0.0 = 2;`), OR when both are computed string
-			// keys (["a"]: string; ["a"]: string;). Non-computed
-			// declarations without initializers (x; x?: number;) are
-			// valid TS redeclarations.
-			has_init := false
-			if v, hv := elem.value.?; hv && v != nil { has_init = true }
-			if prev.has_get || prev.has_set || prev.has_method { dup = true }
-			if has_init && prev.has_prop_init { dup = true }
-			if elem.computed && prev.has_prop { dup = true }  // computed string dups
-			// Numeric keys: `1; 1.0;` are dups even without initializers
-			// (numeric normalization makes them the same property).
-			is_numeric_key := false
-			if elem.key != nil {
-				if _, is_num := elem.key^.(^NumericLiteral); is_num { is_numeric_key = true }
-			}
-			if is_numeric_key && prev.has_prop { dup = true }
-			prev.has_prop = true
-			if has_init { prev.has_prop_init = true }
-		}
+		prev := seen[name] or_else ClassMemberSeen{}
+		dup := class_member_seen_update(&prev, elem)
 		seen[name] = prev
 
 		if dup {
@@ -3883,6 +3773,136 @@ report_duplicate_class_member_errors :: proc(p: ^Parser, elems: []ClassElement) 
 			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(elem.loc.start), u32(elem.loc.start), msg)
 		}
 	}
+}
+
+// ClassMemberSeen accumulates which member shapes have been seen for a given
+// (static/instance, name) slot, so report_duplicate_class_member_errors can
+// detect TS duplicate-identifier conflicts (method-vs-property, two impls,
+// numeric/computed-key dups, etc.).
+ClassMemberSeen :: struct {
+	has_get:                       bool,
+	has_set:                       bool,
+	has_prop:                      bool,  // property / field
+	has_prop_init:                 bool,  // property with initializer (= value)
+	has_method:                    bool,  // method with body (not overload sig)
+	has_method_with_type_params:   bool,  // method body + type parameters
+}
+
+// class_member_dup_name resolves the comparable name for a class element, or
+// ok=false when the element is skipped from the duplicate map: nil key,
+// private identifier (handled by report_private_class_member_errors), a
+// dynamic computed key, or an empty non-computed name.
+class_member_dup_name :: proc(elem: ClassElement) -> (name: string, ok: bool) {
+	if elem.key == nil { return "", false }
+	if _, is_priv := elem.key.(^PrivateIdentifier); is_priv { return "", false }
+	if elem.computed {
+		// Computed keys: only check string literals (["foo"]).
+		if sl, is_sl := elem.key^.(^StringLiteral); is_sl {
+			return sl.value, true  // empty string is valid computed key
+		}
+		return "", false  // dynamic [expr] — can't check
+	}
+	name = class_element_prop_name(elem.key)
+	return name, name != ""
+}
+
+// class_member_is_constructor_impl reports whether a constructor element has a
+// real body (an implementation), as opposed to a body-less overload signature.
+class_member_is_constructor_impl :: proc(elem: ClassElement) -> bool {
+	if val, have := elem.value.?; have && val != nil {
+		if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+			return fn.body.loc.end > fn.body.loc.start
+		}
+	}
+	return false
+}
+
+// class_member_dup_should_skip reports whether a non-constructor element is
+// excluded from the duplicate map: TS overload signatures (body-less methods),
+// override methods (may legally repeat), and abstract members.
+class_member_dup_should_skip :: proc(elem: ClassElement) -> bool {
+	if elem.kind == .Method {
+		if elem.override_ { return true }
+		if val, have := elem.value.?; have && val != nil {
+			if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+				if fn.body.loc.end <= fn.body.loc.start {
+					return true  // body-less method sig
+				}
+			}
+		}
+	}
+	if elem.abstract { return true }
+	return false
+}
+
+// class_member_seen_update folds one element into the running ClassMemberSeen
+// slot (mutated in place) and reports whether it conflicts with what was seen
+// before. Get/Set vs anything, method vs property/accessor, two real method
+// implementations (unless generic overloads), and numeric/computed-key /
+// initialized-property dups are all conflicts.
+class_member_seen_update :: proc(prev: ^ClassMemberSeen, elem: ClassElement) -> (dup: bool) {
+	// Distinguish real methods from properties: kind=.Method is the AST
+	// default for ALL class elements. A real method has a FunctionExpression
+	// value; everything else is a property/field.
+	is_real_method := false
+	has_type_params := false
+	if elem.kind == .Method {
+		if v, hv := elem.value.?; hv && v != nil {
+			if fn, ok := v^.(^FunctionExpression); ok {
+				is_real_method = true
+				if fn != nil {
+					if tp, have_tp := fn.type_parameters.?; have_tp && tp != nil {
+						has_type_params = true
+					}
+				}
+			}
+		}
+	}
+
+	switch {
+	case elem.kind == .Get:
+		if prev.has_get || prev.has_prop { dup = true }
+		prev.has_get = true
+	case elem.kind == .Set:
+		if prev.has_set || prev.has_prop { dup = true }
+		prev.has_set = true
+	case is_real_method:
+		// Method vs property/accessor = duplicate.
+		if prev.has_get || prev.has_set || prev.has_prop { dup = true }
+		// TS2393: Two methods with bodies (implementations) = duplicate
+		// function implementation. Overload sigs are fine (they were
+		// skipped above), but two real bodies means a true dup.
+		// Skip when EITHER method has type parameters — different type
+		// params may constitute valid generic overloads that OXC accepts.
+		if prev.has_method && !has_type_params && !prev.has_method_with_type_params { dup = true }
+		prev.has_method = true
+		if has_type_params { prev.has_method_with_type_params = true }
+	case elem.kind == .Constructor:
+		// handled by the caller
+	case:
+		// Property / field (including kind=.Method with non-FE value).
+		// Property vs accessor or method = dup.
+		// Property vs property: dup when BOTH have initializers
+		// (e.g. `0 = 1; 0.0 = 2;`), OR when both are computed string
+		// keys (["a"]: string; ["a"]: string;). Non-computed
+		// declarations without initializers (x; x?: number;) are
+		// valid TS redeclarations.
+		has_init := false
+		if v, hv := elem.value.?; hv && v != nil { has_init = true }
+		if prev.has_get || prev.has_set || prev.has_method { dup = true }
+		if has_init && prev.has_prop_init { dup = true }
+		if elem.computed && prev.has_prop { dup = true }  // computed string dups
+		// Numeric keys: `1; 1.0;` are dups even without initializers
+		// (numeric normalization makes them the same property).
+		is_numeric_key := false
+		if elem.key != nil {
+			if _, is_num := elem.key^.(^NumericLiteral); is_num { is_numeric_key = true }
+		}
+		if is_numeric_key && prev.has_prop { dup = true }
+		prev.has_prop = true
+		if has_init { prev.has_prop_init = true }
+	}
+	return dup
 }
 
 // report_duplicate_interface_member_errors — TS1117: duplicate property
