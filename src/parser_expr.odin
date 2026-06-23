@@ -4928,6 +4928,109 @@ arrow_build_params :: proc(p: ^Parser, left: ^Expression, saved_paren_start: u32
 	return params
 }
 
+// arrow_compute_start_span derives the arrow's start Loc (widening to an
+// enclosing `(` when present, per ESTree/OXC/Acorn span semantics so
+// `(x, y) => ...` spans the whole parenthesised form) and returns the
+// pre-clear pending_paren_start for double-paren detection. It clears
+// p.pending_paren_start except for the empty-params `() => ...` form, which
+// keeps it so a following CallExpression can still consume it.
+arrow_compute_start_span :: proc(p: ^Parser, left: ^Expression) -> (start: Loc, saved_paren_start: u32) {
+	is_empty_params := false
+	if left != nil {
+		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
+			is_empty_params = true
+		}
+	}
+	if left != nil {
+		start = loc_from_expr(left)
+		if !is_empty_params && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.start {
+			start.start = p.pending_paren_start
+		}
+	} else {
+		start = cur_loc(p)
+	}
+	saved_paren_start = p.pending_paren_start
+	if !is_empty_params {
+		p.pending_paren_start = max(u32)
+	}
+	return
+}
+
+// arrow_parse_body parses the concise / block body under the arrow's own
+// async/generator context. §15.3.4: the ConciseBody is parsed [~Yield]
+// (arrows have no [[Generator]] status, so `yield` in a non-generator arrow
+// nested in a generator is a plain identifier) and [+Await] only when the
+// arrow itself is async. The in_async/in_generator saves are restored before
+// returning. (in_static_block is handled by the caller's defer.)
+arrow_parse_body :: proc(p: ^Parser, is_async: bool) -> (body: ArrowFunctionBody, is_block_body: bool) {
+	prev_async := p.ctx.in_async
+	if is_async {
+		p.ctx.in_async = true
+	}
+	prev_in_generator := p.ctx.in_generator
+	p.ctx.in_generator = false
+	body, is_block_body = parse_arrow_function_body(p)
+	p.ctx.in_async = prev_async
+	p.ctx.in_generator = prev_in_generator
+	return
+}
+
+// arrow_check_strict_block_directive enforces §15.3.1 ContainsUseStrict +
+// !IsSimpleParameterList for a block-bodied arrow. parse_block_statement does
+// NOT promote a leading string-literal to a directive prologue, so
+// arrow_body_lifts_strict sniffs body[0] for `"use strict"`. When the body
+// promotes to strict but the outer scope was sloppy, §13.1.1 also requires a
+// retroactive strict-mode binding check on the (sloppily parsed) params.
+arrow_check_strict_block_directive :: proc(p: ^Parser, params: []FunctionParameter, start: Loc, body: ArrowFunctionBody) {
+	if !arrow_body_lifts_strict(body) { return }
+	if !params_are_simple(params) {
+		report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start.start), u32(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
+	}
+	if !p.ctx.strict_mode {
+		report_strict_param_pattern_retro(p, params)
+	}
+}
+
+// arrow_check_parenthesized_params enforces §14.1.2 CoverParenthesized... :
+// parenthesised binding elements (`(a, (b)) => 42`, `([(a)]) => {}`) are
+// rejected. Exception: a lone single-identifier param (`((a)) => 0`) is fine
+// because OXC strips the redundant grouping parens.
+arrow_check_parenthesized_params :: proc(p: ^Parser, params: []FunctionParameter, start: Loc) {
+	is_single_ident_param := len(params) == 1
+	if is_single_ident_param {
+		if _, ok := params[0].pattern.(^Identifier); !ok {
+			is_single_ident_param = false
+		}
+	}
+	if !is_single_ident_param && p.lexer != nil && len(params) > 0 {
+		src := p.lexer.source_bytes
+		outer_paren := int(start.start)
+		check_parenthesized_binding(p, params, src, outer_paren)
+	}
+}
+
+// arrow_validate_params runs the post-construction early-error checks on the
+// finished arrow parameter list: member-expression binding targets (§15.3.1),
+// UniqueFormalParameters duplicate check (always strict for arrows), the
+// block-body "use strict" directive check, and the parenthesised-binding
+// cover check. Kept out of parse_arrow_function so the parent stays a slim
+// orchestrator under the 70-line limit.
+arrow_validate_params :: proc(p: ^Parser, params: []FunctionParameter, start: Loc, body: ArrowFunctionBody, is_block_body: bool) {
+	for param in params {
+		if pattern_contains_member_expression(param.pattern) {
+			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Member expression cannot be used as a binding target")
+		}
+	}
+	// ArrowFunction params are always UniqueFormalParameters (ECMA-262
+	// §15.3.1) — strict_override=true fires the duplicate check even when
+	// the outer function isn't strict.
+	parser_check_dup_params(p, params, start.start, p.ctx.strict_mode, true)
+	if is_block_body {
+		arrow_check_strict_block_directive(p, params, start, body)
+	}
+	arrow_check_parenthesized_params(p, params, start)
+}
+
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
 
 	// §15.3.1 — ArrowParameters Contains check. The cover expression
@@ -4939,37 +5042,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	if left != nil && (p.ctx.in_generator || p.ctx.in_async || is_async) {
 		walk_arrow_cover_for_yield_await(p, left, p.ctx.in_generator, p.ctx.in_async || is_async)
 	}
-	start: Loc
-	if left != nil {
-		start = loc_from_expr(left)
-		// If a `(` was opened immediately before this expression, use its
-		// position as the arrow's start - matches ESTree/OXC/Acorn span
-		// semantics (`(x, y) => ...` spans the entire parenthesised form).
-		// A stamp of 0 means no paren was seen (bare identifier arrow
-		// `x => ...`); in that case keep the identifier's own start.
-		// Check if this is empty params - if so, don't adjust based on outer paren
-		is_empty_params_local := false
-		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
-			is_empty_params_local = true
-		}
-		if !is_empty_params_local && p.pending_paren_start != max(u32) && p.pending_paren_start <= start.start {
-			start.start = p.pending_paren_start
-		}
-	} else {
-		start = cur_loc(p)
-	}
-	// Save for double-paren detection before clearing.
-	saved_paren_start := p.pending_paren_start
-	// For empty params, don't clear pending_paren_start yet - let CallExpression use it
-	is_empty_params := false
-	if left != nil {
-		if seq, ok := left^.(^SequenceExpression); ok && len(seq.expressions) == 0 {
-			is_empty_params = true
-		}
-	}
-	if !is_empty_params {
-		p.pending_paren_start = max(u32)
-	}
+	start, saved_paren_start := arrow_compute_start_span(p, left)
 
 	// left should be parameters (identifier or parenthesized expression)
 	// nil left means empty params: () => ...
@@ -4981,29 +5054,15 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	// ck_walk_pattern + the YieldExpression / AwaitExpression cases
 	// emit the diagnostic. No retroactive cover-walk needed here.
 
-	// Set async context for body parsing
-	prev_async := p.ctx.in_async
-	if is_async {
-		p.ctx.in_async = true
-	}
-	// §15.3.4: ArrowFunction ConciseBody is parsed with [~Yield, ~Await]
-	// (unless the arrow itself is async, in which case [~Yield, +Await]).
-	// Arrow functions don't have their own [[Generator]] status, so
-	// `yield` inside a non-generator arrow in a generator function is
-	// just an identifier, not a YieldExpression. Reset `in_generator`
-	// so the expression parser treats `yield` as an identifier.
-	prev_in_generator := p.ctx.in_generator
-	p.ctx.in_generator = false
-	// Static block context does NOT propagate into arrow function bodies.
+	// Static block context does NOT propagate into arrow function bodies;
+	// restore it (via defer) only after the whole arrow proc returns, so
+	// the param-conversion / validation tail below also runs with it cleared.
 	prev_static_block_arrow := p.ctx.in_static_block
 	p.ctx.in_static_block = false
 	defer p.ctx.in_static_block = prev_static_block_arrow
-	// Parse the body (block or concise-expression form) under the context
-	// configured above.
-	body, is_block_body := parse_arrow_function_body(p)
-
-	p.ctx.in_async = prev_async
-	p.ctx.in_generator = prev_in_generator
+	// Parse the body (block or concise-expression form) under the arrow's
+	// own async/generator context.
+	body, is_block_body := arrow_parse_body(p, is_async)
 
 	// Convert left to parameters (nil left ⇒ empty params, empty-paren case).
 	params := arrow_build_params(p, left, saved_paren_start)
@@ -5024,71 +5083,7 @@ parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -
 	arrow.async = false
 	arrow.loc.end = prev_end_offset(p)
 
-	for param in params {
-		if pattern_contains_member_expression(param.pattern) {
-			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Member expression cannot be used as a binding target")
-		}
-	}
-
-	parser_check_dup_params(p, params[:], start.start, p.ctx.strict_mode, true)
-
-	// §15.3.1 — ContainsUseStrict + !IsSimpleParameterList for arrow
-	// functions. Arrow concise (expression) bodies cannot contain a
-	// directive, so only block bodies need the check. parse_block_statement
-	// does NOT promote leading string-literal statements to a directive
-	// prologue (only parse_function_body / parse_program do), so we sniff
-	// body[0]'s ExpressionStatement.expression as a StringLiteral with
-	// value == "use strict" — mirrors the checker's old
-	// ck_check_arrow_strict_directive_with_nonsimple_params shape.
-	if is_block_body {
-		if arrow_body_lifts_strict(body) {
-			if !params_are_simple(params[:]) {
-				report_error_coded_span(p, .K3052_UseStrictWithComplexParams, u32(start.start), u32(start.start), "Illegal 'use strict' directive in function with non-simple parameter list")
-			}
-			// §13.1.1 — retroactive strict-mode binding check on
-			// arrow params when the body promotes to strict and the
-			// outer scope was NOT strict (the params were parsed in
-			// sloppy mode). Catches `eval => {"use strict"}` etc.
-			if !p.ctx.strict_mode {
-				report_strict_param_pattern_retro(p, params[:])
-			}
-		}
-	}
-
-	// §14.1.2 - CoverParenthesizedExpressionAndArrowFormalParameters.
-	// Parenthesized binding elements in arrow params (`(a, (b)) => 42`,
-	// `([(a)]) => {}`, etc.) are rejected by both V8 and OXC.
-	// Exception: `((a)) => 0` — OXC with preserveParens=false strips
-	// the inner parens so a single-identifier param works. Skip the
-	// byte-level paren check only when the param list is a single
-	// plain identifier (the paren is just extra grouping).
-	is_single_ident_param := len(params) == 1
-	if is_single_ident_param {
-		if _, ok := params[0].pattern.(^Identifier); !ok {
-			is_single_ident_param = false
-		}
-	}
-	if !is_single_ident_param && p.lexer != nil && len(params) > 0 {
-		src := p.lexer.source_bytes
-		outer_paren := int(start.start)
-		check_parenthesized_binding(p, params[:], src, outer_paren)
-	}
-
-	// ArrowFunction params are always UniqueFormalParameters
-	// (ECMA-262 §15.3.1). No sloppy-mode escape hatch - pass
-	// strict_override=true so the duplicate-check fires even when the
-	// outer function isn't strict.
-
-	// §15.3.1 / §15.9.1 "ContainsUseStrict + !IsSimpleParameterList"
-	// early error: enforced by the semantic checker
-	// (ck_check_arrow_strict_directive_with_nonsimple_params).
-	if is_block_body {
-		// §15.3.1 / §15.9.1 - BoundNames(FormalParameters) ∩
-		// LexicallyDeclaredNames(ArrowConciseBody) must be empty.
-		// `(bar) => { let bar; }` and `async(bar) => { let bar; }`
-		// are SyntaxErrors. Test262 language/expressions/{,async-}
-		// arrow-function/early-errors-arrow-formals-body-duplicate.js.
-	}
+	arrow_validate_params(p, params[:], start, body, is_block_body)
 
 	return expression_from(p, arrow)
 }
