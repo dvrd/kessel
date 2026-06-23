@@ -3131,11 +3131,125 @@ parse_property_shorthand_checks :: proc(p: ^Parser, key: ^Expression, computed: 
 	return true
 }
 
+// check_property_shorthand_key_escape enforces §12.7.2 / §12.6.1.1: an escaped
+// always-reserved or strict-reserved word (incl. let/static/yield) is illegal
+// in an object-literal shorthand IdentifierReference position, regardless of
+// the enclosing strict/sloppy mode.
+check_property_shorthand_key_escape :: proc(p: ^Parser, key_had_escape: bool, key_name: string) {
+	if key_had_escape && is_always_reserved_word_name(key_name) {
+		msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
+		report_error_coded(p, .K3015_KeywordContainsEscape, msg)
+	}
+	if key_had_escape {
+		if is_strict_reserved_name(key_name) ||
+		   key_name == "let" || key_name == "static" ||
+		   key_name == "yield" {
+			msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
+			report_error_coded(p, .K3015_KeywordContainsEscape, msg)
+		}
+	}
+}
+
+// parse_property_key parses an object-property key: computed `[expr]`, a BigInt
+// literal key, or an identifier / string / number / usable-keyword name. For
+// the identifier form it also runs the shorthand escape check when the key is
+// not followed by `:` or `(`. Returns ok=false on a parse failure (the caller
+// returns nil).
+parse_property_key :: proc(p: ^Parser) -> (key: ^Expression, computed: bool, ok: bool) {
+	if match_token(p, .LBracket) {
+		// `[` clears the for-head no_in restriction - see parse_class_element /
+		// parse_object_pattern for the parallel resets.
+		prev_no_in_prop := p.ctx.no_in
+		p.ctx.no_in = false
+		key = parse_assignment_expression(p)
+		p.ctx.no_in = prev_no_in_prop
+		if key == nil { return nil, false, false }
+		if !expect_token(p, .RBracket) { return nil, false, false }
+		return key, true, true
+	}
+	if is_token(p, .BigInt) {
+		// BigInt literal key: `{ 1n: value }`. The numeric value is the
+		// string representation of the BigInt, per §13.2.3.1.
+		current := snap_current(p)
+		big, big_e := new_expr(p, BigIntLiteral)
+		big.loc = loc_from_token(&current)
+		big.raw = current.value
+		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
+			big.value = current.value[:len(current.value)-1]
+		} else {
+			big.value = current.value
+		}
+		big.loc.end = prev_end_offset(p)
+		eat(p)
+		return big_e, false, true
+	}
+	if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
+	   is_keyword_usable_as_property_name(p.cur_type) {
+		// Capture has_escape + name BEFORE parse_property_name consumes the
+		// token, for the shorthand escape check below.
+		key_had_escape := cur_has_escape(p) && p.cur_type == .Identifier
+		key_name := cur_value(p)
+		key = parse_property_name(p)
+		// Shorthand-only post-check. `{ foo }` = `{ foo: foo }` where the
+		// value is an IdentifierReference to `foo`; `{ key: value }` and
+		// `{ key() { ... } }` exit through earlier branches. Distinguish by
+		// looking at the next token.
+		if !is_token(p, .Colon) && !is_token(p, .LParen) {
+			check_property_shorthand_key_escape(p, key_had_escape, key_name)
+		}
+		return key, false, true
+	}
+	return nil, false, false
+}
+
+// parse_property_value parses the value side of an object property and returns
+// its PropertyKind + shorthand flag. Covers getter/setter accessors, method
+// shorthand (incl. TS generics), `key: value`, the `{ key = init }` cover
+// form, and bare shorthand. Returns ok=false on a parse failure / rejected
+// shorthand (the caller returns nil).
+parse_property_value :: proc(
+	p: ^Parser,
+	is_getter, is_setter, is_async, is_generator: bool,
+	start: Loc,
+	key: ^Expression,
+	computed: bool,
+) -> (value: ^Expression, kind: PropertyKind, shorthand: bool, ok: bool) {
+	kind = .Init
+	if is_getter || is_setter {
+		kind = .Set
+		if is_getter { kind = .Get }
+		value = parse_object_accessor_value(p, is_setter, is_generator, is_async, start, key)
+		if value == nil { return nil, kind, false, false }
+		return value, kind, false, true
+	}
+	if is_token(p, .LParen) || (allow_ts_mode(p) && is_open_angle_or_lshift(p)) {
+		kind = .Method
+		value = parse_object_method_value(p, is_generator, is_async, start)
+		if value == nil { return nil, kind, false, false }
+		return value, kind, false, true
+	}
+	if match_token(p, .Colon) {
+		// Regular property with value. `async a: v` / `*a: v` are not valid
+		// data properties; `async` and `*` only modify method definitions.
+		if is_async || is_generator {
+			report_error_coded(p, .K4032_ModifierMisplaced, "Object property modifier requires a method definition")
+		}
+		// Use Assignment precedence - comma separates properties, not expressions
+		value = parse_expr_with_prec(p, .Assignment)
+		return value, .Init, false, true
+	}
+	if match_token(p, .Assign) {
+		value = parse_property_cover_initialized(p, start, key)
+		return value, .Init, true, true
+	}
+	if !parse_property_shorthand_checks(p, key, computed, is_generator, is_async) {
+		return nil, .Init, false, false
+	}
+	return key, .Init, true, true
+}
+
 parse_property :: proc(p: ^Parser) -> ^Property {
 	start := cur_loc(p)
-
-	computed := false
-	key: ^Expression
 
 	if is_token(p, .Dot3) {
 		return parse_object_spread_property(p, start)
@@ -3156,116 +3270,13 @@ parse_property :: proc(p: ^Parser) -> ^Property {
 		}
 	}
 
-	// Parse key
-	if match_token(p, .LBracket) {
-		computed = true
-		// `[` clears the for-head no_in restriction - see parse_class_element /
-		// parse_object_pattern for the parallel resets.
-		prev_no_in_prop := p.ctx.no_in
-		p.ctx.no_in = false
-		key = parse_assignment_expression(p)
-		p.ctx.no_in = prev_no_in_prop
-		if key == nil {
-			return nil
-		}
-		if !expect_token(p, .RBracket) {
-			return nil
-		}
-	} else if is_token(p, .BigInt) {
-		// BigInt literal key: `{ 1n: value }`. The numeric value is
-		// the string representation of the BigInt, per §13.2.3.1.
-		current := snap_current(p)
-		big, big_e := new_expr(p, BigIntLiteral)
-		big.loc = loc_from_token(&current)
-		big.raw = current.value
-		if len(current.value) > 0 && current.value[len(current.value)-1] == 'n' {
-			big.value = current.value[:len(current.value)-1]
-		} else {
-			big.value = current.value
-		}
-		big.loc.end = prev_end_offset(p)
-		key = big_e
-		eat(p)
-	} else if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
-	          is_keyword_usable_as_property_name(p.cur_type) {
-		// Capture has_escape + name BEFORE parse_property_name consumes
-		// the token. Used below if the property ends up shorthand
-		// (§12.7.2: escaped ReservedWord in IdentifierReference position,
-		// §12.6.1.1 in strict mode).
-		key_tok_type := p.cur_type
-		key_had_escape := cur_has_escape(p) && p.cur_type == .Identifier
-		key_name := cur_value(p)
-		key = parse_property_name(p)
-		// Shorthand-only post-check. `{ foo }` = `{ foo: foo }` where the
-		// value is an IdentifierReference to `foo`; `{ key: value }` and
-		// `{ key() { ... } }` exit through earlier branches. Distinguish by
-		// looking at the next token.
-		if !is_token(p, .Colon) && !is_token(p, .LParen) {
-			if key_had_escape && is_always_reserved_word_name(key_name) {
-				msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
-				report_error_coded(p, .K3015_KeywordContainsEscape, msg)
-			}
-			// Escaped strict-reserved word in BindingIdentifier position is
-			// also forbidden by §12.7.2 (always, not just in strict mode):
-			// `({ l\u0065t })`, `({ st\u0061tic })`, `({ yi\u0065ld })` are
-			// SyntaxErrors regardless of enclosing strict / sloppy.
-			if key_had_escape {
-				if is_strict_reserved_name(key_name) ||
-				   key_name == "let" || key_name == "static" ||
-				   key_name == "yield" {
-					msg := fmt.tprintf("Keyword '%s' must not contain escaped characters", key_name)
-					report_error_coded(p, .K3015_KeywordContainsEscape, msg)
-				}
-			}
-			// §12.6.1.1 strict-mode IdentifierReference reservation check
-			// for shorthand-property names is enforced by the semantic
-			// checker (ck_check_identifier_reference_strict via the
-			// ObjectExpression walker's shorthand-Identifier visit).
-			_ = key_tok_type
-			_ = key_name
-		}
-	} else {
-		return nil
-	}
+	key, computed, key_ok := parse_property_key(p)
+	if !key_ok { return nil }
 
-	// Determine property kind and parse value
-	kind := PropertyKind.Init
-	value: ^Expression
-	shorthand := false
-
-	if is_getter || is_setter {
-		kind = .Set
-		if is_getter {
-			kind = .Get
-		}
-		value = parse_object_accessor_value(p, is_setter, is_generator, is_async, start, key)
-		if value == nil {
-			return nil
-		}
-	} else if is_token(p, .LParen) || (allow_ts_mode(p) && is_open_angle_or_lshift(p)) {
-		kind = .Method
-		value = parse_object_method_value(p, is_generator, is_async, start)
-		if value == nil {
-			return nil
-		}
-	} else if match_token(p, .Colon) {
-		// Regular property with value. `async a: v` / `*a: v` are not valid
-		// data properties; `async` and `*` only modify method definitions.
-		if is_async || is_generator {
-			report_error_coded(p, .K4032_ModifierMisplaced, "Object property modifier requires a method definition")
-		}
-		// Use Assignment precedence - comma separates properties, not expressions
-		value = parse_expr_with_prec(p, .Assignment)
-	} else if match_token(p, .Assign) {
-		value = parse_property_cover_initialized(p, start, key)
-		shorthand = true
-	} else {
-		if !parse_property_shorthand_checks(p, key, computed, is_generator, is_async) {
-			return nil
-		}
-		shorthand = true
-		value = key
-	}
+	value, kind, shorthand, val_ok := parse_property_value(
+		p, is_getter, is_setter, is_async, is_generator, start, key, computed,
+	)
+	if !val_ok { return nil }
 
 	prop := new_node(p, Property)
 	prop.loc = start
