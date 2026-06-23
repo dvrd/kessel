@@ -1662,74 +1662,35 @@ print_class_body_inline :: proc(e: ^Emitter, body: ^ClassBody, indent: int) {
 // bolt a parser-side kind flag on in this pass. Arrow-valued fields
 // (`field = () => ...`) are ArrowFunctionExpression, not
 // FunctionExpression, so they take the PropertyDefinition path correctly.
-print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int) {
-	// Unwrap Maybe(^Expression) once. value_expr is nil if the element has
-	// no initializer (bare `x;` field) or if disambiguation failed.
-	value_expr: ^Expression = nil
-	value_is_function := false
-	value_fn_has_id := false
-	if v, ok := elem.value.(^Expression); ok && v != nil {
-		value_expr = v
-		#partial switch fn in v^ {
-		case ^FunctionExpression:
-			value_is_function = true
-			if _, has := fn.id.?; has { value_fn_has_id = true }
-		}
-	}
-
-	// StaticBlock has a dedicated shape: only `body: [Statement]`. The
-	// parser stashes its statements inside a FunctionExpression.body.body
-	// (see parse_static_block), so we unwrap that container here.
-	if elem.kind == .StaticBlock {
-		print_class_element_static_block(e, value_expr, indent, elem.loc)
-		return
-	}
-
-	// A class method's FunctionExpression value cannot carry an `id`
-	// (methods are anonymous). A non-nil `id` therefore proves the source
-	// wrote `name = function id() {}` — a PropertyDefinition, not a
-	// MethodDefinition.
-	is_method := value_is_function && !value_fn_has_id
-	#partial switch elem.kind {
-	case .Constructor, .Get, .Set:
-		is_method = true
-	}
-
-	type_name := is_method ? "MethodDefinition" : "PropertyDefinition"
-	if elem.is_accessor {
-		type_name = "AccessorProperty"
+// print_class_element_decorators emits the `"decorators": [...]` array for a
+// class element, omitting the field entirely when there are no decorators
+// (OXC parity).
+print_class_element_decorators :: proc(e: ^Emitter, elem: ^ClassElement, indent: int) {
+	if len(elem.decorators) == 0 { return }
+	emit_raw(e, "\"decorators\": [\n")
+	for d, i in elem.decorators {
+		emit_indent(e, indent + 1)
+		emit_raw(e, "{\n")
+		emit_indent(e, indent + 2)
+		emit_raw(e, "\"type\": \"Decorator\",\n")
+		emit_indent(e, indent + 2)
+		emit_span_leading(e, d.loc, indent + 2)
+		emit_raw(e, "\"expression\": {\n")
+		print_expression_ast(e, d.expression, indent + 3)
+		emit_raw(e, "\n")
+		emit_indent(e, indent + 2)
+		emit_raw(e, "}\n")
+		emit_indent(e, indent + 1)
+		if i < len(elem.decorators) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
 	}
 	emit_indent(e, indent)
-	emit_raw(e, "\"type\": \"")
-	emit_raw(e, type_name)
-	emit_raw(e, "\",\n")
-	emit_indent(e, indent)
+	emit_raw(e, "],\n")
+}
 
-	// Emit decorators array only when non-empty (OXC omits it when empty).
-	if len(elem.decorators) > 0 {
-		emit_raw(e, "\"decorators\": [\n")
-		for d, i in elem.decorators {
-			emit_indent(e, indent + 1)
-			emit_raw(e, "{\n")
-			emit_indent(e, indent + 2)
-			emit_raw(e, "\"type\": \"Decorator\",\n")
-			emit_indent(e, indent + 2)
-			emit_span_leading(e, d.loc, indent + 2)
-			emit_raw(e, "\"expression\": {\n")
-			print_expression_ast(e, d.expression, indent + 3)
-			emit_raw(e, "\n")
-			emit_indent(e, indent + 2)
-			emit_raw(e, "}\n")
-			emit_indent(e, indent + 1)
-			if i < len(elem.decorators) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "],\n")
-	}
-
-	emit_indent(e, indent)
-	emit_span_leading(e, elem.loc, indent)
-
+// print_class_element_key_value emits the `key` and `value` fields of a class
+// element. Both are objects when present; `value` is null for an uninitialised
+// field (`x;`).
+print_class_element_key_value :: proc(e: ^Emitter, elem: ^ClassElement, value_expr: ^Expression, indent: int) {
 	// key: ^Expression. MethodDefinition and PropertyDefinition both carry
 	// a non-null key (Identifier, PrivateIdentifier, Literal, or an
 	// expression when `computed` is true).
@@ -1755,34 +1716,34 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 	} else {
 		emit_raw(e, "\"value\": null,\n")
 	}
+}
 
-	// kind is MethodDefinition-only per ESTree. PropertyDefinition has no
-	// kind field - OXC confirms.
-	if is_method {
-		kind_str := "method"
-		#partial switch elem.kind {
-		case .Constructor:
-			kind_str = "constructor"
-		case .Get:
-			kind_str = "get"
-		case .Set:
-			kind_str = "set"
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "\"kind\": \"")
-		emit_raw(e, kind_str)
-		emit_raw(e, "\",\n")
+// print_class_element_kind emits the MethodDefinition-only `kind` field
+// (method / constructor / get / set). PropertyDefinition has no kind field.
+print_class_element_kind :: proc(e: ^Emitter, elem: ^ClassElement, is_method: bool, indent: int) {
+	if !is_method { return }
+	kind_str := "method"
+	#partial switch elem.kind {
+	case .Constructor:
+		kind_str = "constructor"
+	case .Get:
+		kind_str = "get"
+	case .Set:
+		kind_str = "set"
 	}
-
 	emit_indent(e, indent)
-	emit_raw(e, "\"computed\": ")
-	emit_bool(e, elem.computed)
-	emit_raw(e, ",\n")
+	emit_raw(e, "\"kind\": \"")
+	emit_raw(e, kind_str)
+	emit_raw(e, "\",\n")
+}
 
-	emit_indent(e, indent)
-	emit_raw(e, "\"static\": ")
-	emit_bool(e, elem.static)
-
+// print_class_element_ts_modifiers emits the optional TS class-member modifier
+// fields (abstract / accessibility / readonly / override / optional /
+// definite / typeAnnotation). Each is emitted only when set, matching OXC /
+// typescript-eslint's omit-null-defaults convention so the JS output stays
+// byte-identical. Every field prepends `,\n` because it follows the always-
+// emitted `static` field in the caller.
+print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_method: bool, indent: int) {
 	// class-element abstract: emit only when true (OXC parity).
 	if elem.abstract {
 		emit_raw(e, ",\n")
@@ -1790,10 +1751,6 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 		emit_raw(e, "\"abstract\": true")
 	}
 
-	// TS class member modifiers (K12). Only emitted when set, matching
-	// OXC / typescript-eslint's convention of omitting null defaults. This
-	// keeps the JS output byte-identical; .ts / .tsx paths get the extra
-	// fields whenever the parser observed them.
 	#partial switch elem.accessibility {
 	case .Public:
 		emit_raw(e, ",\n")
@@ -1846,6 +1803,70 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 			emit_raw(e, "\"typeAnnotation\": null")
 		}
 	}
+}
+
+print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int) {
+	// Unwrap Maybe(^Expression) once. value_expr is nil if the element has
+	// no initializer (bare `x;` field) or if disambiguation failed.
+	value_expr: ^Expression = nil
+	value_is_function := false
+	value_fn_has_id := false
+	if v, ok := elem.value.(^Expression); ok && v != nil {
+		value_expr = v
+		#partial switch fn in v^ {
+		case ^FunctionExpression:
+			value_is_function = true
+			if _, has := fn.id.?; has { value_fn_has_id = true }
+		}
+	}
+
+	// StaticBlock has a dedicated shape: only `body: [Statement]`. The
+	// parser stashes its statements inside a FunctionExpression.body.body
+	// (see parse_static_block), so we unwrap that container here.
+	if elem.kind == .StaticBlock {
+		print_class_element_static_block(e, value_expr, indent, elem.loc)
+		return
+	}
+
+	// A class method's FunctionExpression value cannot carry an `id`
+	// (methods are anonymous). A non-nil `id` therefore proves the source
+	// wrote `name = function id() {}` — a PropertyDefinition, not a
+	// MethodDefinition.
+	is_method := value_is_function && !value_fn_has_id
+	#partial switch elem.kind {
+	case .Constructor, .Get, .Set:
+		is_method = true
+	}
+
+	type_name := is_method ? "MethodDefinition" : "PropertyDefinition"
+	if elem.is_accessor {
+		type_name = "AccessorProperty"
+	}
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"")
+	emit_raw(e, type_name)
+	emit_raw(e, "\",\n")
+	emit_indent(e, indent)
+
+	print_class_element_decorators(e, elem, indent)
+
+	emit_indent(e, indent)
+	emit_span_leading(e, elem.loc, indent)
+
+	print_class_element_key_value(e, elem, value_expr, indent)
+
+	print_class_element_kind(e, elem, is_method, indent)
+
+	emit_indent(e, indent)
+	emit_raw(e, "\"computed\": ")
+	emit_bool(e, elem.computed)
+	emit_raw(e, ",\n")
+
+	emit_indent(e, indent)
+	emit_raw(e, "\"static\": ")
+	emit_bool(e, elem.static)
+
+	print_class_element_ts_modifiers(e, elem, is_method, indent)
 	emit_raw(e, "\n")
 }
 
