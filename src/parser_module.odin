@@ -1694,142 +1694,161 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 	p.has_module_syntax = true
 	p.module_pre_scan_done = true
 
-	if is_token(p, .String) {
-		// import "module"
-		decl.source = parse_string_literal(p)
-	} else if is_token(p, .LBrace) {
-		// Named imports: import { x, y } from "module"
-		eat(p) // consume {
-
-		for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-			if decl.import_kind == .Type && allow_ts_mode(p) &&
-			   p.cur_type == .Identifier && cur_value_eq(p, "type") {
-				reject_inline_type_modifier_in_type_only_import(p)
-			}
-			spec := parse_import_specifier(p)
-			if spec != nil {
-				append_import_spec(&decl.specifiers, spec, p.allocator)
-			}
-
-			if !match_token(p, .Comma) {
-				break
-			}
-		}
-
-		if !expect_token(p, .RBrace) {
-			return nil
-		}
-
-		if !expect_token(p, .From) {
-			return nil
-		}
-
-		if !is_token(p, .String) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
-		}
-		decl.source = parse_string_literal(p)
-	} else if is_token(p, .Mul) {
-		// Namespace import: import * as name from "module". Spec.start must
-		// cover the leading `*` (OXC parity), not just the `name`.
-		star_loc := cur_loc(p)
-		eat(p)
-		if !expect_token(p, .As) {
-			return nil
-		}
-		local := parse_identifier(p)
-		check_import_binding_name(p, local)
-		spec := new_node(p, ImportNamespaceSpecifier)
-		spec.loc = star_loc
-		spec.local = BindingIdentifier{
-			loc  = local.loc,
-			name = local.name,
-		}
-		spec.loc.end = prev_end_offset(p)
-		append_import_spec(&decl.specifiers, spec, p.allocator)
-
-		if !expect_token(p, .From) {
-			return nil
-		}
-
-		if !is_token(p, .String) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
-		}
-		decl.source = parse_string_literal(p)
-	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
-		// Default import: import name from "module" or import name, { x } from "module"
-		local := parse_identifier(p)
-		check_import_binding_name(p, local)
-		spec := new_node(p, ImportDefaultSpecifier)
-		spec.loc = local.loc
-		spec.local = BindingIdentifier{
-			loc  = local.loc,
-			name = local.name,
-		}
-		spec.loc.end = prev_end_offset(p)
-		append_import_spec(&decl.specifiers, spec, p.allocator)
-
-		// Check for comma followed by named imports
-		if match_token(p, .Comma) {
-			if decl.import_kind == .Type {
-				report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "A type-only import cannot combine default and named bindings")
-			}
-			if is_token(p, .From) {
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected import specifier after comma")
-			} else if is_token(p, .LBrace) {
-				eat(p) // consume {
-
-				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-					if decl.import_kind == .Type && allow_ts_mode(p) &&
-					   p.cur_type == .Identifier && cur_value_eq(p, "type") {
-						reject_inline_type_modifier_in_type_only_import(p)
-					}
-					spec2 := parse_import_specifier(p)
-					if spec2 != nil {
-						append_import_spec(&decl.specifiers, spec2, p.allocator)
-					}
-
-					if !match_token(p, .Comma) {
-						break
-					}
-				}
-
-				if !expect_token(p, .RBrace) {
-					return nil
-				}
-			} else if is_token(p, .Mul) {
-				// import name, * as namespace from "module"
-				eat(p)
-				if !expect_token(p, .As) {
-					return nil
-				}
-				local2 := parse_identifier(p)
-				ns_spec := new_node(p, ImportNamespaceSpecifier)
-				ns_spec.loc = local2.loc
-				ns_spec.local = BindingIdentifier{
-					loc  = local2.loc,
-					name = local2.name,
-				}
-				ns_spec.loc.end = prev_end_offset(p)
-				append_import_spec(&decl.specifiers, ns_spec, p.allocator)
-			}
-		}
-
-		if !expect_token(p, .From) {
-			return nil
-		}
-
-		if !is_token(p, .String) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
-		}
-		decl.source = parse_string_literal(p)
-	} else if allow_ts_mode(p) {
-		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected import source or specifier")
-	}
+	if !parse_import_clause(p, decl) { return nil }
 
 	decl.attributes = parse_import_attributes(p)
 
 	match_semicolon_or_asi(p)
 
+	check_import_duplicate_bindings(p, decl)
+
+	decl.loc.end = prev_end_offset(p)
+
+	record_esm_import(p, decl)
+
+	// Allocate Statement union and store the pointer
+	stmt := new_node(p, Statement)
+	stmt^ = (^ImportDeclaration)(decl)
+	return stmt
+}
+
+// parse_named_import_list parses the `{ a, b as c, ... }` import specifier list up
+// to the closing `}` (left unconsumed), rejecting inline `type` in a type-only import.
+parse_named_import_list :: proc(p: ^Parser, decl: ^ImportDeclaration) {
+	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
+		if decl.import_kind == .Type && allow_ts_mode(p) &&
+		   p.cur_type == .Identifier && cur_value_eq(p, "type") {
+			reject_inline_type_modifier_in_type_only_import(p)
+		}
+		spec := parse_import_specifier(p)
+		if spec != nil {
+			append_import_spec(&decl.specifiers, spec, p.allocator)
+		}
+
+		if !match_token(p, .Comma) {
+			break
+		}
+	}
+}
+
+// parse_import_namespace_clause parses `* as name from "module"`. Returns false on
+// an unrecoverable error (so the caller returns nil).
+parse_import_namespace_clause :: proc(p: ^Parser, decl: ^ImportDeclaration) -> bool {
+	// Namespace import: import * as name from "module". Spec.start must
+	// cover the leading `*` (OXC parity), not just the `name`.
+	star_loc := cur_loc(p)
+	eat(p)
+	if !expect_token(p, .As) {
+		return false
+	}
+	local := parse_identifier(p)
+	check_import_binding_name(p, local)
+	spec := new_node(p, ImportNamespaceSpecifier)
+	spec.loc = star_loc
+	spec.local = BindingIdentifier{
+		loc  = local.loc,
+		name = local.name,
+	}
+	spec.loc.end = prev_end_offset(p)
+	append_import_spec(&decl.specifiers, spec, p.allocator)
+
+	if !expect_token(p, .From) {
+		return false
+	}
+
+	if !is_token(p, .String) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
+	}
+	decl.source = parse_string_literal(p)
+	return true
+}
+
+// parse_import_default_clause parses `name [, { ... } | * as ns] from "module"`.
+// Returns false on an unrecoverable error (so the caller returns nil).
+parse_import_default_clause :: proc(p: ^Parser, decl: ^ImportDeclaration) -> bool {
+	// Default import: import name from "module" or import name, { x } from "module"
+	local := parse_identifier(p)
+	check_import_binding_name(p, local)
+	spec := new_node(p, ImportDefaultSpecifier)
+	spec.loc = local.loc
+	spec.local = BindingIdentifier{
+		loc  = local.loc,
+		name = local.name,
+	}
+	spec.loc.end = prev_end_offset(p)
+	append_import_spec(&decl.specifiers, spec, p.allocator)
+
+	// Check for comma followed by named imports
+	if match_token(p, .Comma) {
+		if decl.import_kind == .Type {
+			report_error_coded(p, .K4010_TypeOnlyImportExportInvalid, "A type-only import cannot combine default and named bindings")
+		}
+		if is_token(p, .From) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected import specifier after comma")
+		} else if is_token(p, .LBrace) {
+			eat(p) // consume {
+
+			parse_named_import_list(p, decl)
+
+			if !expect_token(p, .RBrace) {
+				return false
+			}
+		} else if is_token(p, .Mul) {
+			// import name, * as namespace from "module"
+			eat(p)
+			if !expect_token(p, .As) {
+				return false
+			}
+			local2 := parse_identifier(p)
+			ns_spec := new_node(p, ImportNamespaceSpecifier)
+			ns_spec.loc = local2.loc
+			ns_spec.local = BindingIdentifier{
+				loc  = local2.loc,
+				name = local2.name,
+			}
+			ns_spec.loc.end = prev_end_offset(p)
+			append_import_spec(&decl.specifiers, ns_spec, p.allocator)
+		}
+	}
+
+	if !expect_token(p, .From) {
+		return false
+	}
+
+	if !is_token(p, .String) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
+	}
+	decl.source = parse_string_literal(p)
+	return true
+}
+
+// parse_import_clause dispatches the ES ImportClause forms (bare string, named,
+// namespace, default). Returns false on an unrecoverable error.
+parse_import_clause :: proc(p: ^Parser, decl: ^ImportDeclaration) -> bool {
+	if is_token(p, .String) {
+		decl.source = parse_string_literal(p)
+	} else if is_token(p, .LBrace) {
+		eat(p)
+		parse_named_import_list(p, decl)
+		if !expect_token(p, .RBrace) { return false }
+		if !expect_token(p, .From) { return false }
+		if !is_token(p, .String) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected string literal module specifier")
+		}
+		decl.source = parse_string_literal(p)
+	} else if is_token(p, .Mul) {
+		if !parse_import_namespace_clause(p, decl) { return false }
+	} else if is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type) {
+		if !parse_import_default_clause(p, decl) { return false }
+	} else if allow_ts_mode(p) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected import source or specifier")
+	}
+	return true
+}
+
+// check_import_duplicate_bindings enforces §16.2.2: BoundNames of the ImportClause
+// must be unique (O(n^2) over the small specifier list).
+check_import_duplicate_bindings :: proc(p: ^Parser, decl: ^ImportDeclaration) {
 	// ECMA-262 §16.2.2 - BoundNames of ImportClause must not contain any
 	// duplicate entries. All specifier kinds (ImportSpecifier,
 	// ImportDefaultSpecifier, ImportNamespaceSpecifier) contribute their
@@ -1848,9 +1867,11 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 			}
 		}
 	}
+}
 
-	decl.loc.end = prev_end_offset(p)
-
+// record_esm_import records the ESM static-import entries (specifiers + module
+// request) on the parser.
+record_esm_import :: proc(p: ^Parser, decl: ^ImportDeclaration) {
 	// Collect ESM static import record
 	p.has_module_syntax = true
 	if len(decl.specifiers) > 0 {
@@ -1870,11 +1891,6 @@ parse_import_declaration :: proc(p: ^Parser) -> ^Statement {
 		}
 		bump_append(&p.staticImports, esm_import)
 	}
-
-	// Allocate Statement union and store the pointer
-	stmt := new_node(p, Statement)
-	stmt^ = (^ImportDeclaration)(decl)
-	return stmt
 }
 
 // TS `import X = ModuleReference` / `import X = require("m")`.
