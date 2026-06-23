@@ -1424,59 +1424,60 @@ ts_decl_merge_inspect :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, stm
 	case ^ExportNamedDeclaration:
 		if v == nil { return }
 		if d, have := v.declaration.(^Declaration); have && d != nil {
-			// Re-wrap the inner Declaration as a Statement union so we
-			// can re-enter the switch above. Each Declaration arm is
-			// also a Statement arm by construction.
-			inner_stmt: ^Statement
-			#partial switch inner in d^ {
-			case ^ClassDeclaration:
-				if inner != nil {
-					if id, ok := inner.id.(BindingIdentifier); ok {
-						ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.start), inner.declare)
-					}
-				}
-			case ^FunctionDeclaration:
-				if inner != nil {
-					if id, ok := inner.id.(BindingIdentifier); ok {
-						ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.start), inner.declare)
-					}
-				}
-			case ^TSEnumDeclaration:
-				if inner != nil {
-					ts_decl_merge_add(c, seen, inner.id.name, .Enum, u32(inner.id.loc.start), inner.declare)
-				}
-			case ^TSInterfaceDeclaration:
-				if inner != nil {
-					ts_decl_merge_add(c, seen, inner.id.name, .Interface, u32(inner.id.loc.start), inner.declare)
-				}
-			case ^TSTypeAliasDeclaration:
-				if inner != nil {
-					ts_decl_merge_add(c, seen, inner.id.name, .TypeAlias, u32(inner.id.loc.start), inner.declare)
-				}
-			case ^TSModuleDeclaration:
-				if inner != nil && inner.id != nil {
-					if ident, is := inner.id^.(^Identifier); is && ident != nil {
-						ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.start), inner.declare)
-					}
-				}
-			case ^VariableDeclaration:
-				if inner != nil {
-					kind: DeclMergeKind
-					switch inner.kind {
-					case .Var:                       kind = .Var
-					case .Let:                       kind = .Let
-					case .Const, .Using, .AwaitUsing: kind = .Const
-					}
-					names: [dynamic]string
-					names.allocator = context.temp_allocator
-					reserve(&names, 4)
-					for d in inner.declarations { collect_bound_names(d.id, &names) }
-					for n in names {
-						ts_decl_merge_add(c, seen, n, kind, u32(inner.loc.start), inner.declare)
-					}
-				}
+			ts_decl_merge_inspect_export_decl(c, seen, d)
+		}
+	}
+}
+
+// ts_decl_merge_inspect_export_decl records the declaration-merge binding behind an
+// `export <Decl>` (the same Declaration variants handled directly above).
+ts_decl_merge_inspect_export_decl :: proc(c: ^Checker, seen: ^map[string]DeclMergeEntry, d: ^Declaration) {
+	#partial switch inner in d^ {
+	case ^ClassDeclaration:
+		if inner != nil {
+			if id, ok := inner.id.(BindingIdentifier); ok {
+				ts_decl_merge_add(c, seen, id.name, .Class, u32(id.loc.start), inner.declare)
 			}
-			_ = inner_stmt
+		}
+	case ^FunctionDeclaration:
+		if inner != nil {
+			if id, ok := inner.id.(BindingIdentifier); ok {
+				ts_decl_merge_add(c, seen, id.name, .Function, u32(id.loc.start), inner.declare)
+			}
+		}
+	case ^TSEnumDeclaration:
+		if inner != nil {
+			ts_decl_merge_add(c, seen, inner.id.name, .Enum, u32(inner.id.loc.start), inner.declare)
+		}
+	case ^TSInterfaceDeclaration:
+		if inner != nil {
+			ts_decl_merge_add(c, seen, inner.id.name, .Interface, u32(inner.id.loc.start), inner.declare)
+		}
+	case ^TSTypeAliasDeclaration:
+		if inner != nil {
+			ts_decl_merge_add(c, seen, inner.id.name, .TypeAlias, u32(inner.id.loc.start), inner.declare)
+		}
+	case ^TSModuleDeclaration:
+		if inner != nil && inner.id != nil {
+			if ident, is := inner.id^.(^Identifier); is && ident != nil {
+				ts_decl_merge_add(c, seen, ident.name, .Namespace, u32(ident.loc.start), inner.declare)
+			}
+		}
+	case ^VariableDeclaration:
+		if inner != nil {
+			kind: DeclMergeKind
+			switch inner.kind {
+			case .Var:                       kind = .Var
+			case .Let:                       kind = .Let
+			case .Const, .Using, .AwaitUsing: kind = .Const
+			}
+			names: [dynamic]string
+			names.allocator = context.temp_allocator
+			reserve(&names, 4)
+			for d in inner.declarations { collect_bound_names(d.id, &names) }
+			for n in names {
+				ts_decl_merge_add(c, seen, n, kind, u32(inner.loc.start), inner.declare)
+			}
 		}
 	}
 }
