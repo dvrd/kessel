@@ -2905,40 +2905,13 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	//   TSCallSignatureDeclaration with type_parameters set from the leading
 	//   `<...>` (or nil for the bare `(...)` form).
 	if is_token(p, .LParen) || is_token(p, .LAngle) {
-		type_params: Maybe(^TSTypeParameterDeclaration)
-		if is_token(p, .LAngle) {
-			type_params = parse_ts_type_parameters(p)
-			if !is_token(p, .LParen) {
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after type parameters in call signature")
-				return nil
-			}
-		}
-		params := parse_ts_sig_params(p)
-		ret: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) { ret = parse_ts_return_type_annotation(p) }
-		call_sig := TSCallSignatureDeclaration{
-			loc = start, type_parameters = type_params, params = params, return_type = ret,
-		}
-		call_sig.loc.end = prev_end_offset(p)
-		sig := new_node(p, TSSignature); sig^ = call_sig; return sig
+		return parse_ts_call_signature(p, start)
 	}
 
 	// --- NEW: detect construct signature `new (...): T` or `new <T>(...): T` -----
  ensure_nxt(p)
 	if is_token(p, .New) && (p.lexer.nxt.kind == .LParen || p.lexer.nxt.kind == .LAngle) {
-		eat(p) // consume `new`
-		ctor_type_params: Maybe(^TSTypeParameterDeclaration)
-		if is_token(p, .LAngle) {
-			ctor_type_params = parse_ts_type_parameters(p)
-		}
-		params := parse_ts_sig_params(p)
-		ret: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) { ret = parse_ts_return_type_annotation(p) }
-		ctor_sig := TSConstructSignatureDeclaration{
-			loc = start, type_parameters = ctor_type_params, params = params, return_type = ret,
-		}
-		ctor_sig.loc.end = prev_end_offset(p)
-		sig := new_node(p, TSSignature); sig^ = ctor_sig; return sig
+		return parse_ts_construct_signature(p, start)
 	}
 
 	// Handle `readonly` modifier on a property / method / index signature.
@@ -2953,27 +2926,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// method members (`readonly _A: T`, `readonly m(): U`). The previous
 	// implementation only matched `readonly [` which let the parser drop the
 	// modifier and re-parse the property as a separate bare signature.
-	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") {
-		readonly_is_modifier := false
-  ensure_nxt(p)
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-			#partial switch p.lexer.nxt.kind {
-			case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
-				// `readonly` IS the member name — leave it alone.
-			case:
-				readonly_is_modifier = true
-			}
-		}
-		if readonly_is_modifier {
-   ensure_nxt(p)
-			if p.lexer.nxt.kind == .LBracket {
-				idx_readonly = true   // signal to the index-sig branch below
-			} else {
-				readonly = true
-			}
-			eat(p) // consume `readonly`
-		}
-	}
+	readonly, idx_readonly = parse_ts_member_readonly_modifier(p)
 
 	// §A.5 - Invalid index signature forms: `[]`, `[...x]`, etc.
 	// in type members. Detect and report before falling through.
@@ -3032,6 +2985,78 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	}
 
 	// Parse key for method or property signature.
+	return parse_ts_method_or_property(p, start, readonly)
+}
+
+// parse_ts_call_signature builds a TSCallSignatureDeclaration `(...)` / `<T>(...)`.
+parse_ts_call_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
+	type_params: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) {
+		type_params = parse_ts_type_parameters(p)
+		if !is_token(p, .LParen) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '(' after type parameters in call signature")
+			return nil
+		}
+	}
+	params := parse_ts_sig_params(p)
+	ret: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) { ret = parse_ts_return_type_annotation(p) }
+	call_sig := TSCallSignatureDeclaration{
+		loc = start, type_parameters = type_params, params = params, return_type = ret,
+	}
+	call_sig.loc.end = prev_end_offset(p)
+	sig := new_node(p, TSSignature); sig^ = call_sig; return sig
+}
+
+// parse_ts_construct_signature builds a TSConstructSignatureDeclaration
+// `new (...)` / `new <T>(...)` (the leading `new` is consumed here).
+parse_ts_construct_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
+	eat(p) // consume `new`
+	ctor_type_params: Maybe(^TSTypeParameterDeclaration)
+	if is_token(p, .LAngle) {
+		ctor_type_params = parse_ts_type_parameters(p)
+	}
+	params := parse_ts_sig_params(p)
+	ret: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) { ret = parse_ts_return_type_annotation(p) }
+	ctor_sig := TSConstructSignatureDeclaration{
+		loc = start, type_parameters = ctor_type_params, params = params, return_type = ret,
+	}
+	ctor_sig.loc.end = prev_end_offset(p)
+	sig := new_node(p, TSSignature); sig^ = ctor_sig; return sig
+}
+
+// parse_ts_member_readonly_modifier consumes a leading `readonly` member modifier
+// when it is a modifier (not a member literally named `readonly`), reporting
+// whether it applies to an index signature.
+parse_ts_member_readonly_modifier :: proc(p: ^Parser) -> (readonly: bool, idx_readonly: bool) {
+	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") {
+		readonly_is_modifier := false
+  ensure_nxt(p)
+		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
+			#partial switch p.lexer.nxt.kind {
+			case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
+				// `readonly` IS the member name — leave it alone.
+			case:
+				readonly_is_modifier = true
+			}
+		}
+		if readonly_is_modifier {
+   ensure_nxt(p)
+			if p.lexer.nxt.kind == .LBracket {
+				idx_readonly = true   // signal to the index-sig branch below
+			} else {
+				readonly = true
+			}
+			eat(p) // consume `readonly`
+		}
+	}
+	return
+}
+
+// parse_ts_method_or_property parses the key then builds a TSMethodSignature (when
+// `(`/`<` follows) or a TSPropertySignature.
+parse_ts_method_or_property :: proc(p: ^Parser, start: Loc, readonly: bool) -> ^TSSignature {
 	key: ^Expression; computed := false
 	if is_token(p, .LBracket) {
 		computed = true; eat(p); key = parse_assignment_expression(p); expect_token(p, .RBracket)
