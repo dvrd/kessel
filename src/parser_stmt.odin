@@ -3964,76 +3964,30 @@ report_duplicate_interface_member_errors :: proc(p: ^Parser, members: []^TSSigna
 	}
 }
 
+
+// PrivateMemberSeen tracks per-private-name kinds for the §15.7.1 duplicate-
+// private-name detection in report_private_class_member_errors.
+PrivateMemberSeen :: struct {
+	has_get: bool,
+	has_set: bool,
+	has_other: bool,  // field or method
+	get_static: bool,
+	set_static: bool,
+}
 report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, class_is_abstract := false) {
-	PrivateSeen :: struct {
-		has_get: bool,
-		has_set: bool,
-		has_other: bool,  // field or method
-		get_static: bool,
-		set_static: bool,
-	}
-	seen: map[string]PrivateSeen
+	seen: map[string]PrivateMemberSeen
 	seen.allocator = p.allocator
 	defer delete(seen)
 
-	// §15.7.1 — track constructor bodies (JS only, TS defers to checker).
 	constructor_count := 0
 
-	// TS: abstract members in non-abstract class.
-	if allow_ts_mode(p) && !class_is_abstract {
-		for elem in elems {
-			if elem.abstract {
-				report_error_coded(p, .K2040_UnexpectedToken, "Abstract methods can only appear within an abstract class.")
-				break  // one diagnostic per class
-			}
-		}
-	}
+	check_class_abstract_in_nonabstract(p, elems, class_is_abstract)
 
 	for elem in elems {
 		if elem.key == nil { continue }
 
-		// TS: static + abstract is invalid.
-		if elem.static && elem.abstract && allow_ts_mode(p) {
-			report_error_coded(p, .K4032_ModifierMisplaced, "'static' modifier cannot be used with 'abstract' modifier")
-		}
-		// TS1242 — constructors cannot be abstract.
-		if elem.kind == .Constructor && elem.abstract && allow_ts_mode(p) {
-			report_error_coded(p, .K4020_ConstructorTSModifier, "'abstract' modifier cannot appear on a constructor declaration")
-		}
+		check_class_member_ts_modifiers(p, elem)
 
-		// TS: abstract on a private identifier (#name) is invalid for
-		// fields/properties. Private methods CAN be abstract.
-		if elem.abstract && allow_ts_mode(p) {
-			if _, is_priv := elem.key.(^PrivateIdentifier); is_priv {
-				is_method := false
-				if val, have := elem.value.?; have && val != nil {
-					if _, is_fn := val^.(^FunctionExpression); is_fn {
-						is_method = true
-					}
-				}
-				if !is_method {
-					report_error_coded(p, .K4021_PrivateNameWithModifier, "'abstract' modifier cannot be used with a private identifier")
-				}
-			}
-		}
-
-		// §15.7.1 - static ClassElement whose PropName is `"prototype"`
-		// is a SyntaxError. Applies to every static kind: field, method,
-		// getter, setter, accessor. Non-static `prototype` is legal.
-		if elem.static && !elem.computed && !p.ctx.in_ambient {
-			if class_element_prop_name(elem.key) == "prototype" {
-				report_error_coded(p, .K3030_ClassDeclarationStructure, "Classes may not have a static member named 'prototype'")
-			}
-		}
-
-		// §15.7.1 — at most one constructor. TS overload signatures
-		// have `FunctionBody.loc.start == 0` (body ended with
-		// `;`, `parse_function_body` was not called). Real
-		// constructors have a non-zero body start (from `{`).
-		// §15.7.1 "A class definition can have at most one constructor."
-		// In TS mode, multiple constructor bodies are deferred to the
-		// semantic checker (overload patterns are valid). In JS mode,
-		// duplicate constructors are always a parse error.
 		if !allow_ts_mode(p) && !elem.static && !elem.computed && elem.kind == .Constructor {
 			if val, has_val := elem.value.?; has_val && val != nil {
 				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
@@ -4047,60 +4001,119 @@ report_private_class_member_errors :: proc(p: ^Parser, elems: []ClassElement, cl
 			}
 		}
 
-		pid, is_private := elem.key.(^PrivateIdentifier)
-		if !is_private || pid == nil { continue }
-		name := pid.name
-		if name == "constructor" {
-			report_error_coded(p, .K3030_ClassDeclarationStructure, "Class private member name cannot be '#constructor'")
-			continue
+		check_class_private_dup(p, elem, &seen)
+	}
+}
+
+// check_class_abstract_in_nonabstract reports the TS "abstract method in a
+// non-abstract class" error (one diagnostic per class).
+check_class_abstract_in_nonabstract :: proc(p: ^Parser, elems: []ClassElement, class_is_abstract: bool) {
+	if allow_ts_mode(p) && !class_is_abstract {
+		for elem in elems {
+			if elem.abstract {
+				report_error_coded(p, .K2040_UnexpectedToken, "Abstract methods can only appear within an abstract class.")
+				break  // one diagnostic per class
+			}
 		}
-		// TS overload signatures (body-less methods/constructors): skip
-		// from the dup map entirely so the implementation can be added
-		// without false-flagging. Private fields (kind=.Method but val
-		// is not FE) must NOT be skipped.
-		if allow_ts_mode(p) && (elem.kind == .Method || elem.kind == .Constructor) {
-			is_overload := false
-			if val, has_val := elem.value.?; has_val && val != nil {
-				if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
-					if len(fn.body.body) == 0 && len(fn.body.directives) == 0 {
-						is_overload = true  // body-less method sig
-					}
+	}
+}
+
+// check_class_member_ts_modifiers runs the stateless per-element TS modifier early
+// errors: static+abstract, abstract constructor, abstract private field, and the
+// §15.7.1 static "prototype" member ban.
+check_class_member_ts_modifiers :: proc(p: ^Parser, elem: ClassElement) {
+	// TS: static + abstract is invalid.
+	if elem.static && elem.abstract && allow_ts_mode(p) {
+		report_error_coded(p, .K4032_ModifierMisplaced, "'static' modifier cannot be used with 'abstract' modifier")
+	}
+	// TS1242 — constructors cannot be abstract.
+	if elem.kind == .Constructor && elem.abstract && allow_ts_mode(p) {
+		report_error_coded(p, .K4020_ConstructorTSModifier, "'abstract' modifier cannot appear on a constructor declaration")
+	}
+
+	// TS: abstract on a private identifier (#name) is invalid for
+	// fields/properties. Private methods CAN be abstract.
+	if elem.abstract && allow_ts_mode(p) {
+		if _, is_priv := elem.key.(^PrivateIdentifier); is_priv {
+			is_method := false
+			if val, have := elem.value.?; have && val != nil {
+				if _, is_fn := val^.(^FunctionExpression); is_fn {
+					is_method = true
 				}
 			}
-			if is_overload { continue }
+			if !is_method {
+				report_error_coded(p, .K4021_PrivateNameWithModifier, "'abstract' modifier cannot be used with a private identifier")
+			}
 		}
-		prev, _ := seen[name]
-		dup := false
-		static_mismatch := false
-		switch elem.kind {
-		case .Get:
-			if prev.has_get || prev.has_other { dup = true }
-			if prev.has_set && prev.set_static != elem.static { static_mismatch = true }
-			prev.has_get = true
-			prev.get_static = elem.static
-		case .Set:
-			if prev.has_set || prev.has_other { dup = true }
-			if prev.has_get && prev.get_static != elem.static { static_mismatch = true }
-			prev.has_set = true
-			prev.set_static = elem.static
-		case .Method, .Constructor, .StaticBlock:
-			if prev.has_get || prev.has_set || prev.has_other { dup = true }
-			prev.has_other = true
+	}
+
+	// §15.7.1 - static ClassElement whose PropName is `"prototype"`
+	// is a SyntaxError. Applies to every static kind: field, method,
+	// getter, setter, accessor. Non-static `prototype` is legal.
+	if elem.static && !elem.computed && !p.ctx.in_ambient {
+		if class_element_prop_name(elem.key) == "prototype" {
+			report_error_coded(p, .K3030_ClassDeclarationStructure, "Classes may not have a static member named 'prototype'")
 		}
-		seen[name] = prev
-		// §15.7.1 — PrivateBoundIdentifiers must be pairwise distinct,
-		// except a single get/set pair on the same name. TS body-less
-		// overload signatures were skipped above and don't enter `seen`.
-		if dup {
-			msg := fmt.tprintf("Duplicate private name '#%s'", name)
-			report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(elem.loc.start), u32(elem.loc.start), msg)
+	}
+}
+
+// check_class_private_dup enforces the §15.7.1 private-name rules: distinct
+// PrivateBoundIdentifiers (except a single get/set pair), no static/instance share,
+// and no `#constructor`; TS body-less overload signatures are skipped.
+check_class_private_dup :: proc(p: ^Parser, elem: ClassElement, seen: ^map[string]PrivateMemberSeen) {
+	pid, is_private := elem.key.(^PrivateIdentifier)
+	if !is_private || pid == nil { return }
+	name := pid.name
+	if name == "constructor" {
+		report_error_coded(p, .K3030_ClassDeclarationStructure, "Class private member name cannot be '#constructor'")
+		return
+	}
+	// TS overload signatures (body-less methods/constructors): skip
+	// from the dup map entirely so the implementation can be added
+	// without false-flagging. Private fields (kind=.Method but val
+	// is not FE) must NOT be skipped.
+	if allow_ts_mode(p) && (elem.kind == .Method || elem.kind == .Constructor) {
+		is_overload := false
+		if val, has_val := elem.value.?; has_val && val != nil {
+			if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
+				if len(fn.body.body) == 0 && len(fn.body.directives) == 0 {
+					is_overload = true  // body-less method sig
+				}
+			}
 		}
-		// §15.7.1 — static and instance elements cannot share the same
-		// private name.
-		if static_mismatch {
-			msg := fmt.tprintf("Duplicate private name '#%s'. Static and instance elements cannot share the same private name.", name)
-			report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(elem.loc.start), u32(elem.loc.start), msg)
-		}
+		if is_overload { return }
+	}
+	prev, _ := seen^[name]
+	dup := false
+	static_mismatch := false
+	switch elem.kind {
+	case .Get:
+		if prev.has_get || prev.has_other { dup = true }
+		if prev.has_set && prev.set_static != elem.static { static_mismatch = true }
+		prev.has_get = true
+		prev.get_static = elem.static
+	case .Set:
+		if prev.has_set || prev.has_other { dup = true }
+		if prev.has_get && prev.get_static != elem.static { static_mismatch = true }
+		prev.has_set = true
+		prev.set_static = elem.static
+	case .Method, .Constructor, .StaticBlock:
+		if prev.has_get || prev.has_set || prev.has_other { dup = true }
+		prev.has_other = true
+	}
+	seen^[name] = prev
+	// §15.7.1 — PrivateBoundIdentifiers must be pairwise distinct,
+	// except a single get/set pair on the same name. TS body-less
+	// overload signatures were skipped above and don't enter `seen`.
+	if dup {
+		msg := fmt.tprintf("Duplicate private name '#%s'", name)
+		report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(elem.loc.start), u32(elem.loc.start), msg)
+	}
+	// §15.7.1 — static and instance elements cannot share the same
+	// private name.
+	if static_mismatch {
+		msg := fmt.tprintf("Duplicate private name '#%s'. Static and instance elements cannot share the same private name.", name)
+		report_error_coded_span(p, .K3032_PrivateNameInvalid, u32(elem.loc.start), u32(elem.loc.start), msg)
 	}
 }
 
