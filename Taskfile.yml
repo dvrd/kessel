@@ -58,6 +58,14 @@ tasks:
     cmds:
       - task: test:coverage
       - task: test:unit
+      - task: test:lint
+
+  test:lint:
+    desc: "Lint fixture gate — tests/lint/{pass,fail}/ exit-code assertions for kessel lint. Separate from the parser conformance harness."
+    deps: [build]
+    silent: true
+    cmds:
+      - bash tests/lint/run.sh
 
   test:coverage:
     desc: "OXC-style conformance harness — 10 snap files (parser + semantic for test262/babel/typescript/estree/misc). The parser_test262.snap / semantic_test262.snap files are the canonical conformance proof."

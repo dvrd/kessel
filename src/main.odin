@@ -296,6 +296,70 @@ main :: proc() {
 		}
 		run_server_mode(cli)
 
+	case "lint":
+		if len(os.args) < 3 {
+			out_println("Error: lint command requires at least one file")
+			out_println("Usage: kessel lint <files...>")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		cli := cli_config_default()
+		lint_files := make([dynamic]string)
+		lint_overrides := make([dynamic]LintOverride)
+		lint_config_path := ""
+		i := 2
+		for i < len(os.args) {
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
+			arg := os.args[i]
+			switch {
+			case arg == "--config" && i + 1 < len(os.args):
+				lint_config_path = os.args[i+1]
+				i += 2
+			case len(arg) > 9 && arg[:9] == "--config=":
+				lint_config_path = arg[9:]
+				i += 1
+			case arg == "--rule" && i + 1 < len(os.args):
+				if ov, ok := lint_parse_rule_flag(os.args[i+1]); ok {
+					append(&lint_overrides, ov)
+				} else {
+					fmt.eprintf("Error: invalid --rule value '%s' (want name:off|warn|error)\n", os.args[i+1])
+					os.exit(2)
+				}
+				i += 2
+			case len(arg) > 7 && arg[:7] == "--rule=":
+				if ov, ok := lint_parse_rule_flag(arg[7:]); ok {
+					append(&lint_overrides, ov)
+				} else {
+					fmt.eprintf("Error: invalid --rule value '%s' (want name:off|warn|error)\n", arg[7:])
+					os.exit(2)
+				}
+				i += 1
+			case:
+				append(&lint_files, arg)
+				i += 1
+			}
+		}
+		had_errors := false
+		// Config-file overrides apply first; CLI --rule flags win because they
+		// are appended after and lint_run_for_job applies overrides in order.
+		if lint_config_path != "" {
+			merged := make([dynamic]LintOverride)
+			if !lint_load_config(lint_config_path, &merged) {
+				fmt.eprintf("Error: could not read lint config: %s\n", lint_config_path)
+				os.exit(2)
+			}
+			for ov in lint_overrides { append(&merged, ov) }
+			delete(lint_overrides)
+			lint_overrides = merged
+		}
+		for f in lint_files {
+			if lint_file(f, cli, lint_overrides[:]) { had_errors = true }
+		}
+		delete(lint_files)
+		delete(lint_overrides)
+		flush_stdout_writer()
+		if had_errors { os.exit(1) }
+
 	case "codegen":
 		if len(os.args) < 3 {
 			out_println("Error: codegen command requires a file path")
@@ -378,6 +442,7 @@ print_usage :: proc() {
 	out_println("                                   Parallel parse, write JSON per file (default: tmp/ast/).")
 	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
 	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
+	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
 	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
 	out_println("  microbench parse <file> [--iterations N]   Parse benchmark (default 100).")
@@ -585,6 +650,59 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	if len(job.parser.errors) > 0 && !cli.emit_json {
 		os.exit(1)
 	}
+}
+
+// ============================================================================
+// Lint: walk the AST and report lint diagnostics (pass 4, opt-in)
+// ============================================================================
+//
+// Mirrors `parse_file`: open a ParseJob, run the parse, then run the lint pass
+// (src/lint.odin) and render its diagnostics with the shared rustc-style
+// renderer. Returns true if any diagnostic was reported so the caller can set
+// a non-zero process exit. Parse errors are surfaced first; the lint pass runs
+// regardless (a partial AST is still walkable and the visitor is nil-safe).
+lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil) -> bool {
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("error: could not read file: %s\n", file_path)
+		os.exit(1)
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+
+	// Ensure the line table exists for offset->line/col mapping in the renderer.
+	if job.parser.lexer != nil && job.parser.lexer.num_lines == 0 {
+		build_line_table(job.parser.lexer)
+	}
+
+	had_output := false
+	// Surface parse errors first (same shape as `kessel parse`).
+	if len(job.parser.errors) > 0 && job.parser.lexer != nil {
+		render_pretty_diagnostics(
+			job.parser.lexer.source,
+			file_path,
+			job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+			job.parser.errors[:],
+			cli.color,
+		)
+		had_output = true
+	}
+
+	// Run the lint pass and render its diagnostics.
+	l := lint_run_for_job(&job, overrides)
+	if len(l.diagnostics) > 0 && job.parser.lexer != nil {
+		if had_output { fmt.eprintln() }
+		render_pretty_diagnostics(
+			job.parser.lexer.source,
+			file_path,
+			job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+			l.diagnostics[:],
+			cli.color,
+		)
+		had_output = true
+	}
+
+	return had_output
 }
 
 // ============================================================================

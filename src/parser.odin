@@ -526,6 +526,11 @@ ParseError :: struct {
 	message:  string,
 	code:     ErrorCode,   // .None for legacy / un-migrated call sites
 	severity: Severity,    // .Error is the zero value
+	// lint_code carries the linter's L-code (src/lint.odin) for diagnostics
+	// produced by pass 4. Parser/checker diagnostics leave it `.None` and use
+	// `code` (the K-code) instead. Trailing field so the binary error layout
+	// (bin_emit_errors writes named fields) is unaffected.
+	lint_code: LintRule,
 }
 
 // String interner for identifier deduplication (lazy init)

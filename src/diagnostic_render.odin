@@ -100,6 +100,11 @@ render_one :: proc(
 	info := error_info(err.code)
 	sev  := severity_string(err.severity)
 	code := error_code_string(err.code)
+	// Lint diagnostics (pass 4) carry an L-code in `lint_code` rather than a
+	// K-code in `code`; surface it so `kessel lint` output shows `[L2001]` etc.
+	if code == "" && err.lint_code != .None {
+		code = lint_rule_code_string(err.lint_code)
+	}
 
 	line, col := offset_to_line_col(line_offsets, err.start)
 	end_line, end_col := offset_to_line_col(line_offsets, err.end if err.end > err.start else err.start + 1)

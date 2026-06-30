@@ -17,7 +17,7 @@ Tracked via a port of OXC's coverage harness (`tests/coverage/`) against the sta
 | Babel | **100.00%** (2 232 / 2 232) | **100.00%** (1 702 / 1 702) |
 | TypeScript | **100.00%** (10 773 / 10 773) | **100.00%** (1 629 / 1 629) |
 | ESTree | **100.00%** (39 / 39) | — |
-| Misc | **100.00%** (84 / 84) | **100.00%** (273 / 273) |
+| Misc | **100.00%** (88 / 88) | **100.00%** (274 / 274) |
 
 100% positive AND negative on every suite — kessel never fails on valid input
 and matches the reference parser on every invalid input in the corpora.
@@ -200,11 +200,16 @@ Three-pass pipeline:
 
 | File | Purpose |
 |---|---|
-| `src/parser.odin` | Pratt parser, `Parser` struct, parsing procedures |
+| `src/parser.odin` | Pratt parser core: `Parser` struct, arena, string interner, scope maps, entry points |
+| `src/parser_expr.odin` | Expressions section (Pratt precedence climbing) |
+| `src/parser_stmt.odin` | Statements + Declarations sections |
+| `src/parser_module.odin` | Module Import/Export + scope verification + TS declaration-conflict checking |
+| `src/parser_ts_types.odin` | TypeScript type parsing |
+| `src/parser_jsx.odin` | JSX / TSX parsing |
 | `src/checker.odin` | AST-walker semantic checker (pass 3) |
 | `src/emitter.odin` | ESTree JSON emitter with owned state |
 | `src/binary_emitter.odin` | Compact binary AST emitter (consumed by the npm package) |
-| `src/codegen*.odin` | AST → JS source emitter (incl. `--minified`) |
+| `src/codegen.odin` | AST → JS source emitter (incl. `--minified`) |
 | `src/diagnostic.odin` | K-code diagnostics model (codes + severity) |
 | `src/diagnostic_render.odin` | Pretty (rustc-style) error renderer |
 | `src/lexer.odin` | SIMD lexer, two-token lookahead |
@@ -213,14 +218,36 @@ Three-pass pipeline:
 | `src/raw_transfer.odin` | Zero-copy binary AST buffer wire format |
 | `src/main.odin` | CLI dispatch + worker pool + server mode |
 | `src/lib_exports.odin` | Shared-library exports for the npm FFI |
-| `src/napi.odin` | N-API addon (Darwin-only experimental) |
+| `src/sourcemap.odin` | Source-map v3 VLQ encoder |
 | `src/simd.odin` | Cross-platform SIMD intrinsics |
 | `src/parse_job.odin` | Source → parsed Program deep module |
 | `src/token.odin` | `TokenType` enum, `FastToken`, `LiteralValue` |
-| `src/unicode_tables.odin` | ID_Start / ID_Continue range tables (Unicode 17.0) |
+| `src/unicode_tables.odin` | ID_Start / ID_Continue range tables |
 | `src/cli_config.odin` | `CliConfig` struct + flag parser |
 | `src/source_io*.odin` | Cross-platform source reader (mmap on POSIX, stub on Windows) |
 | `src/qos_darwin.odin` | Apple Silicon QoS P-core pinning |
+
+## Roadmap
+
+Kessel is the first piece of a broader JS/TS toolchain. The parser, semantic
+checker, and codegen are **complete** — 100% parser + semantic conformance, with
+a verified `parse → codegen → re-parse` round-trip. The remaining phases are
+downstream consumers of the finished ESTree AST.
+
+| Phase | Surface | Status |
+|---|---|---|
+| 1 | SIMD lexer | ✅ Complete |
+| 2 | Pratt parser (ES2015–ES2025, TS, JSX/TSX) | ✅ Complete |
+| 3 | Semantic checker (ECMA-262 early errors) | ✅ Complete |
+| — | Codegen + source maps + binary/raw-transfer emitters | ✅ Complete |
+| 4 | **Linter (`kessel lint`)** | 🚧 Next |
+| 5 | Transformer (AST→AST, feeds codegen) | Planned |
+| 6 | Bundler | Planned |
+
+The linter is the active next phase: a single-pass, arena-only AST visitor with
+a built-in rule set (style + correctness), reusing the existing K-code diagnostic
+model and rustc-style renderer under a new `L####` code range. It is report-only;
+autofix lands with the transformer. See `HANDOFF.md` for the milestone breakdown.
 
 ## Releases
 

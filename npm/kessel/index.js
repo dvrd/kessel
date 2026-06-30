@@ -66,6 +66,15 @@ const ParseResult = koffi.struct('KesselParseResult', {
 
 const _parse_binary = lib.func('kessel_parse_binary', ParseResult, ['void *', 'int32', 'int32']);
 const _free_result  = lib.func('kessel_free_result',  'void',       ['void *']);
+let _lint_binary = null;
+try {
+  _lint_binary = lib.func('kessel_lint_binary', ParseResult, [
+    'void *', 'int32', 'void *', 'int32', 'int32',
+  ]);
+} catch (_) {
+  // Older development libraries don't export kessel_lint_binary; lintSync
+  // then throws a clear message until the shared library is rebuilt.
+}
 let _parse_binary_v2 = null;
 try {
   _parse_binary_v2 = lib.func('kessel_parse_binary_v2', ParseResult, [
@@ -441,4 +450,73 @@ function codegen(source, options) {
   }
 }
 
-module.exports = { parseSync, parseAsync, codegen };
+// ---------------------------------------------------------------------------
+// Lint FFI — run the linter (pass 4) and return diagnostics.
+// ---------------------------------------------------------------------------
+//
+// Decodes the compact lint wire format emitted by kessel_lint_binary
+// (see src/lib_exports.odin). Each diagnostic carries a byte span, a severity,
+// a message, and either a K-code (parser/checker) or an L-code (lint rule).
+
+function decodeLintBuffer(buf) {
+  const diagnostics = [];
+  if (buf.length < 4) return diagnostics;
+  let off = 0;
+  const count = buf.readUInt32LE(off); off += 4;
+  for (let i = 0; i < count; i++) {
+    const start = buf.readUInt32LE(off); off += 4;
+    const end = buf.readUInt32LE(off); off += 4;
+    const codeNum = buf.readUInt16LE(off); off += 2;
+    const severity = buf.readUInt8(off); off += 1;
+    const isLint = buf.readUInt8(off); off += 1;
+    const msgLen = buf.readUInt32LE(off); off += 4;
+    const message = buf.toString('utf8', off, off + msgLen); off += msgLen;
+    let code = '';
+    if (codeNum !== 0) {
+      code = (isLint ? 'L' : 'K') + String(codeNum).padStart(4, '0');
+    }
+    diagnostics.push({
+      start, end, message, code,
+      severity: severity === 1 ? 'warning' : 'error',
+    });
+  }
+  return diagnostics;
+}
+
+/**
+ * Lint source code synchronously and return diagnostics.
+ *
+ * Runs kessel's built-in rule set (no-debugger, no-empty, no-dupe-keys,
+ * no-sparse-arrays, no-dupe-class-members by default) plus any parse errors.
+ * The returned diagnostics carry `start`/`end` byte offsets, 1-based
+ * `line`/`column`, a `severity` ('error' | 'warning'), a stable `code`
+ * (`L####` for lint rules, `K####` for parser/checker), and a `message`.
+ *
+ * @param {string} filename  File path or synthetic name (drives lang detection).
+ * @param {string} source    Source code to lint.
+ * @param {object} [opts]    Options: { lang: 'js'|'jsx'|'ts'|'tsx' }.
+ * @returns {{ diagnostics: Array }}
+ */
+function lintSync(filename, source, opts) {
+  if (!_lint_binary) {
+    throw new Error('kessel: native library does not export kessel_lint_binary — rebuild libkessel');
+  }
+  if (typeof source !== 'string') {
+    throw new TypeError('kessel.lintSync(filename, source, opts): source must be a string');
+  }
+  const sourceBuf = Buffer.from(source, 'utf8');
+  const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
+  const lang = resolveLang(filename, opts);
+  const result = _lint_binary(sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length, lang);
+  if (!result.buf_ptr || result.buf_len <= 0) {
+    if (result.handle) _free_result(result.handle);
+    return { diagnostics: [] };
+  }
+  const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
+  _free_result(result.handle);
+  const diagnostics = decodeLintBuffer(buf);
+  enrichErrors(diagnostics, source, filename);
+  return { diagnostics };
+}
+
+module.exports = { parseSync, parseAsync, codegen, lintSync };

@@ -5,6 +5,7 @@
 
 'use strict';
 const { parseSync, parseAsync } = require('./index');
+const { lintSync } = require('./index');
 
 const tests = [
   ['const x = 1;', 'VariableDeclaration'],
@@ -329,6 +330,36 @@ try {
       passed++;
     }
   } catch (e) { console.error('CRASH: parseAsync event-loop:', e.message); failed++; }
+
+  // -- lintSync (pass 4) ----------------------------------------------------
+  try {
+    const d = lintSync('l.js', 'function f(){ debugger; }');
+    if (d.diagnostics.length === 1 && d.diagnostics[0].code === 'L2001' &&
+        d.diagnostics[0].severity === 'error' && d.diagnostics[0].line === 1) {
+      passed++;
+    } else {
+      console.error('FAIL: lintSync no-debugger', JSON.stringify(d.diagnostics));
+      failed++;
+    }
+  } catch (e) { console.error('CRASH: lintSync no-debugger:', e.message); failed++; }
+
+  try {
+    const d = lintSync('clean.js', 'const x = 1;\nconsole.log(x);\n');
+    if (d.diagnostics.length === 0) { passed++; }
+    else { console.error('FAIL: lintSync clean', JSON.stringify(d.diagnostics)); failed++; }
+  } catch (e) { console.error('CRASH: lintSync clean:', e.message); failed++; }
+
+  try {
+    const d = lintSync('dupe.js', 'const o = { a: 1, a: 2 };');
+    if (d.diagnostics.some((x) => x.code === 'L2002')) { passed++; }
+    else { console.error('FAIL: lintSync no-dupe-keys', JSON.stringify(d.diagnostics)); failed++; }
+  } catch (e) { console.error('CRASH: lintSync no-dupe-keys:', e.message); failed++; }
+
+  try {
+    const d = lintSync('perr.js', 'const x = ;');
+    if (d.diagnostics.length >= 1 && d.diagnostics[0].code[0] === 'K') { passed++; }
+    else { console.error('FAIL: lintSync parse error', JSON.stringify(d.diagnostics)); failed++; }
+  } catch (e) { console.error('CRASH: lintSync parse error:', e.message); failed++; }
 
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

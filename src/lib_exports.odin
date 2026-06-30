@@ -357,3 +357,106 @@ kessel_free_codegen_result :: proc "c" (handle: rawptr) {
 	delete(result.map_buf)
 	free(result)
 }
+
+// ============================================================================
+// Lint FFI — run the linter (pass 4) and return a compact diagnostics buffer.
+// ============================================================================
+//
+// Mirrors `kessel lint` on the CLI. Parses the source, runs the lint pass
+// (src/lint.odin) with the default rule set, and returns BOTH parse errors and
+// lint diagnostics in one self-describing buffer for the JS `lintSync` wrapper.
+//
+// Reuses KesselParseResult{handle, buf_ptr, buf_len} and kessel_free_result —
+// the LibResult layout is identical (a single [dynamic]u8). The buffer is the
+// lint wire format below, NOT the binary AST format.
+//
+// Wire format (little-endian):
+//   u32 count
+//   repeated `count` times:
+//     u32 start          byte offset
+//     u32 end            byte offset
+//     u16 code           K-code or L-code numeric value (0 = none)
+//     u8  severity       0=error, 1=warning
+//     u8  is_lint        1 = `code` is an L-code, 0 = K-code
+//     u32 message_len
+//     u8[message_len]    UTF-8 message bytes (inline, not a string table)
+
+lint_buf_u32 :: proc(b: ^[dynamic]u8, v: u32) {
+	append(b, u8(v), u8(v >> 8), u8(v >> 16), u8(v >> 24))
+}
+
+lint_buf_u16 :: proc(b: ^[dynamic]u8, v: u16) {
+	append(b, u8(v), u8(v >> 8))
+}
+
+// lint_emit_diagnostics_buffer serialises a diagnostics slice into the lint
+// wire format. Message bytes are copied inline so the buffer is self-contained
+// once the parse job's arena is freed.
+lint_emit_diagnostics_buffer :: proc(diags: []ParseError, alloc: mem.Allocator) -> [dynamic]u8 {
+	buf := make([dynamic]u8, 0, 256, alloc)
+	lint_buf_u32(&buf, u32(len(diags)))
+	for d in diags {
+		lint_buf_u32(&buf, d.start)
+		lint_buf_u32(&buf, d.end)
+		is_lint: u8 = 0
+		code: u16 = u16(d.code)
+		if d.lint_code != .None {
+			is_lint = 1
+			code = u16(d.lint_code)
+		}
+		lint_buf_u16(&buf, code)
+		append(&buf, u8(d.severity))
+		append(&buf, is_lint)
+		msg := transmute([]u8)d.message
+		lint_buf_u32(&buf, u32(len(msg)))
+		for c in msg { append(&buf, c) }
+	}
+	return buf
+}
+
+@(export, link_name="kessel_lint_binary")
+kessel_lint_binary :: proc "c" (
+	source_ptr:   [^]u8,
+	source_len:   i32,
+	filename_ptr: [^]u8,
+	filename_len: i32,
+	lang:         i32,         // -1=path detect, 0=JS, 1=JSX, 2=TS, 3=TSX
+) -> KesselParseResult {
+	context = runtime.default_context()
+	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
+	source := string(source_ptr[:source_len])
+	label := "lib"
+	if filename_ptr != nil && filename_len > 0 {
+		label = string(filename_ptr[:filename_len])
+	}
+
+	config := ParseConfig{
+		lang_override = kessel_lang_from_i32(lang),
+		ast_only      = true,
+	}
+	job: ParseJob
+	if !parse_job_open_inline(&job, source, config, label) {
+		return KesselParseResult{}
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+
+	// Run the lint pass (default rule set) and combine its diagnostics with any
+	// parse errors so the JS caller surfaces both through one array.
+	l := lint_run_for_job(&job, nil)
+	combined := make([dynamic]ParseError, 0, len(job.parser.errors) + len(l.diagnostics), context.temp_allocator)
+	for e in job.parser.errors { append(&combined, e) }
+	for d in l.diagnostics      { append(&combined, d) }
+
+	buf := lint_emit_diagnostics_buffer(combined[:], context.allocator)
+
+	result := new(LibResult, context.allocator)
+	result.buf = buf
+	result.buf_ptr = raw_data(buf[:])
+	result.buf_len = len(buf)
+	return KesselParseResult{
+		handle  = rawptr(result),
+		buf_ptr = result.buf_ptr,
+		buf_len = i32(result.buf_len),
+	}
+}
