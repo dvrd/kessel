@@ -361,6 +361,20 @@ try {
     else { console.error('FAIL: lintSync parse error', JSON.stringify(d.diagnostics)); failed++; }
   } catch (e) { console.error('CRASH: lintSync parse error:', e.message); failed++; }
 
+  // rules override: enable a default-off rule (eqeqeq) via opts.rules.
+  try {
+    const d = lintSync('eq.js', 'if (a == b) {}', { rules: { 'eqeqeq': 'error' } });
+    if (d.diagnostics.some((x) => x.code === 'L1003' && x.severity === 'error')) { passed++; }
+    else { console.error('FAIL: lintSync rules eqeqeq:error', JSON.stringify(d.diagnostics)); failed++; }
+  } catch (e) { console.error('CRASH: lintSync rules eqeqeq:', e.message); failed++; }
+
+  // rules override: disable a default-on rule (no-debugger) via opts.rules.
+  try {
+    const d = lintSync('dbg.js', 'function f(){ debugger; }', { rules: { 'no-debugger': 'off' } });
+    if (!d.diagnostics.some((x) => x.code === 'L2001')) { passed++; }
+    else { console.error('FAIL: lintSync rules no-debugger:off', JSON.stringify(d.diagnostics)); failed++; }
+  } catch (e) { console.error('CRASH: lintSync rules no-debugger:off:', e.message); failed++; }
+
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 })();

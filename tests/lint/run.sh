@@ -91,6 +91,14 @@ if [[ -f "$LINT_DIR/config/enable-eqeqeq.json" ]]; then
   if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --rule overrides --config" >&2; fi
 fi
 
+# Auto-discovery: with no --config, `kessel lint` walks up from the working
+# directory for a kessel.lint.json. Run from the fixture dir so the sibling
+# config (eqeqeq:error) is picked up and the loose-equality compare fires.
+if [[ -f "$LINT_DIR/config/autodiscover/kessel.lint.json" ]]; then
+  ( cd "$LINT_DIR/config/autodiscover" && "$BIN" lint eqeqeq.js ) >/dev/null 2>&1
+  if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: auto-discover kessel.lint.json" >&2; fi
+fi
+
 echo "================================"
 echo "Lint fixtures:"
 echo "  Passed: $pass"

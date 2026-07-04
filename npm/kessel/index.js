@@ -69,7 +69,7 @@ const _free_result  = lib.func('kessel_free_result',  'void',       ['void *']);
 let _lint_binary = null;
 try {
   _lint_binary = lib.func('kessel_lint_binary', ParseResult, [
-    'void *', 'int32', 'void *', 'int32', 'int32',
+    'void *', 'int32', 'void *', 'int32', 'int32', 'void *', 'int32',
   ]);
 } catch (_) {
   // Older development libraries don't export kessel_lint_binary; lintSync
@@ -454,6 +454,23 @@ function codegen(source, options) {
 // Lint FFI — run the linter (pass 4) and return diagnostics.
 // ---------------------------------------------------------------------------
 //
+// Serializes a `{ 'rule-name': 'off'|'warn'|'error' }` map into the compact
+// newline-separated `name:level` wire format kessel_lint_binary expects, or
+// returns null when there are no overrides (the native side then runs the
+// default rule set). Non-string levels are skipped; the native side ignores
+// unknown rule names.
+function serializeRules(rules) {
+  if (!rules || typeof rules !== 'object') return null;
+  const lines = [];
+  for (const name of Object.keys(rules)) {
+    const level = rules[name];
+    if (typeof level !== 'string') continue;
+    lines.push(`${name}:${level}`);
+  }
+  if (lines.length === 0) return null;
+  return Buffer.from(lines.join('\n'), 'utf8');
+}
+
 // Decodes the compact lint wire format emitted by kessel_lint_binary
 // (see src/lib_exports.odin). Each diagnostic carries a byte span, a severity,
 // a message, and either a K-code (parser/checker) or an L-code (lint rule).
@@ -494,7 +511,11 @@ function decodeLintBuffer(buf) {
  *
  * @param {string} filename  File path or synthetic name (drives lang detection).
  * @param {string} source    Source code to lint.
- * @param {object} [opts]    Options: { lang: 'js'|'jsx'|'ts'|'tsx' }.
+ * @param {object} [opts]    Options: { lang: 'js'|'jsx'|'ts'|'tsx',
+ *                           rules: { 'no-undef': 'error', 'eqeqeq': 'off' } }.
+ *                           `rules` maps a kebab-case rule name to a level
+ *                           ('off' | 'warn' | 'error'); unknown names are
+ *                           ignored. Overrides the built-in default rule set.
  * @returns {{ diagnostics: Array }}
  */
 function lintSync(filename, source, opts) {
@@ -507,7 +528,11 @@ function lintSync(filename, source, opts) {
   const sourceBuf = Buffer.from(source, 'utf8');
   const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
   const lang = resolveLang(filename, opts);
-  const result = _lint_binary(sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length, lang);
+  const rulesBuf = serializeRules(opts && opts.rules);
+  const result = _lint_binary(
+    sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length, lang,
+    rulesBuf, rulesBuf ? rulesBuf.length : 0,
+  );
   if (!result.buf_ptr || result.buf_len <= 0) {
     if (result.handle) _free_result(result.handle);
     return { diagnostics: [] };

@@ -340,6 +340,14 @@ main :: proc() {
 			}
 		}
 		had_errors := false
+		// With no explicit --config, search upward from the working directory
+		// for a kessel.lint.json so a project config is picked up automatically
+		// (ESLint-style). An explicit --config always wins.
+		if lint_config_path == "" {
+			if cwd, cwd_err := os.getwd(context.temp_allocator); cwd_err == nil {
+				if p, ok := lint_discover_config(cwd); ok { lint_config_path = p }
+			}
+		}
 		// Config-file overrides apply first; CLI --rule flags win because they
 		// are appended after and lint_run_for_job applies overrides in order.
 		if lint_config_path != "" {

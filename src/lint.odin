@@ -784,6 +784,41 @@ lint_parse_rule_flag :: proc(value: string) -> (LintOverride, bool) {
 	return lint_override_from_level(rule, level)
 }
 
+// lint_parse_rules_text parses a newline-separated list of `name:level` tokens
+// (the wire format the FFI receives from the JS `opts.rules` object) into
+// per-rule overrides, appending each valid entry to `out`. Blank tokens and
+// unrecognised names/levels are skipped so callers stay forward-compatible
+// with rule names this build does not know. The loop is bounded by the text
+// length (TigerStyle: put a limit on everything).
+lint_parse_rules_text :: proc(text: string, out: ^[dynamic]LintOverride) {
+	start := 0
+	for i := 0; i <= len(text); i += 1 {
+		if i < len(text) && text[i] != '\n' { continue }
+		token := text[start:i]
+		start = i + 1
+		if len(token) == 0 { continue }
+		if ov, ok := lint_parse_rule_flag(token); ok { append(out, ov) }
+	}
+}
+
+// lint_discover_config searches for a `kessel.lint.json` file starting at
+// `start_dir` and walking up toward the filesystem root, returning the path of
+// the first match (true) or "" (false) when none is found. This mirrors
+// ESLint's upward config search so a bare `kessel lint <files>` picks up a
+// project config without an explicit `--config`. The walk is capped at 64
+// levels so a pathological path can never loop unbounded (TigerStyle).
+lint_discover_config :: proc(start_dir: string) -> (string, bool) {
+	dir := start_dir
+	for _ in 0..<64 {
+		candidate := fmt.tprintf("%s/kessel.lint.json", dir)
+		if os.exists(candidate) { return candidate, true }
+		parent := os.dir(dir)
+		if parent == dir { break }
+		dir = parent
+	}
+	return "", false
+}
+
 // lint_load_config reads a `kessel.lint.json` config file and appends the
 // resolved per-rule overrides into `out`. Shape:
 //   { "rules": { "no-debugger": "off", "eqeqeq": "error" } }

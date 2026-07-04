@@ -421,6 +421,8 @@ kessel_lint_binary :: proc "c" (
 	filename_ptr: [^]u8,
 	filename_len: i32,
 	lang:         i32,         // -1=path detect, 0=JS, 1=JSX, 2=TS, 3=TSX
+	rules_ptr:    [^]u8,        // newline-separated `name:level` overrides, or nil
+	rules_len:    i32,
 ) -> KesselParseResult {
 	context = runtime.default_context()
 	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
@@ -441,9 +443,16 @@ kessel_lint_binary :: proc "c" (
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 
-	// Run the lint pass (default rule set) and combine its diagnostics with any
-	// parse errors so the JS caller surfaces both through one array.
-	l := lint_run_for_job(&job, nil)
+	// Run the lint pass and combine its diagnostics with any parse errors so
+	// the JS caller surfaces both through one array. `rules_ptr` carries the
+	// caller's per-rule enable/severity overrides (from `opts.rules`); nil
+	// runs the default rule set.
+	overrides: [dynamic]LintOverride
+	if rules_ptr != nil && rules_len > 0 {
+		overrides = make([dynamic]LintOverride, context.temp_allocator)
+		lint_parse_rules_text(string(rules_ptr[:rules_len]), &overrides)
+	}
+	l := lint_run_for_job(&job, overrides[:])
 	combined := make([dynamic]ParseError, 0, len(job.parser.errors) + len(l.diagnostics), context.temp_allocator)
 	for e in job.parser.errors { append(&combined, e) }
 	for d in l.diagnostics      { append(&combined, d) }
