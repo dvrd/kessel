@@ -4,6 +4,12 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.17.0] - 2026-07-04
+
+### Added
+- feat(lint): add kessel lint with rule engine and scope-aware rules
+
+
 ## [0.16.0] - 2026-06-24
 
 
