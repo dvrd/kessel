@@ -335,7 +335,7 @@ gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	case ^ExportAllDeclaration:       gen_export_all_declaration(cg, s)
 	case ^TSInterfaceDeclaration:     if !cg.cfg.strip_types { gen_ts_interface_declaration(cg, s) }
 	case ^TSTypeAliasDeclaration:     if !cg.cfg.strip_types { gen_ts_type_alias_declaration(cg, s) }
-	case ^TSEnumDeclaration:          if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "enum") } else { gen_ts_enum_declaration(cg, s) }
+	case ^TSEnumDeclaration:          if cg.cfg.strip_types { gen_ts_enum_lowered(cg, s) } else { gen_ts_enum_declaration(cg, s) }
 	case ^TSModuleDeclaration:        if cg.cfg.strip_types { gen_ts_module_declaration_stripped(cg, s) } else { gen_ts_module_declaration(cg, s) }
 	case ^TSImportEqualsDeclaration:  if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "import = require(...)") } else { gen_ts_import_equals(cg, s) }
 	case ^TSExportAssignment:         if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "export =") } else { gen_ts_export_assignment(cg, s) }
@@ -2418,6 +2418,83 @@ gen_ts_enum_declaration_full :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
 	cg.depth -= 1
 	cg_indent(cg)
 	cg_byte(cg, '}')
+}
+
+// gen_ts_enum_lowered emits the TypeScript enum as a JavaScript IIFE pattern:
+//   var Foo; (function(Foo) { Foo[Foo["A"] = 0] = "A"; ... })(Foo || (Foo = {}));
+// This is the standard TypeScript compiler output for non-const enums.
+gen_ts_enum_lowered :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
+	if s == nil { return }
+	// `declare enum` erases entirely in strip-types mode.
+	if s.declare { return }
+	name := s.id.name
+	// `var Name;`
+	cg_str(cg, "var ")
+	cg_str(cg, name)
+	cg_byte(cg, ';')
+	cg_newline(cg)
+	cg_indent(cg)
+	// `(function(Name) {`
+	cg_str(cg, "(function(")
+	cg_str(cg, name)
+	cg_str(cg, ") {")
+	cg_newline(cg)
+	cg.depth += 1
+	auto_val := 0
+	for m in s.body.members {
+		cg_indent(cg)
+		// Get member name as string.
+		member_name := enum_member_name(m.id)
+		if member_name == "" { continue }
+		has_init := false
+		if _, ok := m.initializer.?; ok { has_init = true }
+		if has_init {
+			// `Name[Name["Key"] = <init>] = "Key";`
+			cg_str(cg, name)
+			cg_byte(cg, '[')
+			cg_str(cg, name)
+			cg_str(cg, "[\"")
+			cg_str(cg, member_name)
+			cg_str(cg, "\"] = ")
+			gen_expression(cg, m.initializer.?, PREC_ASSIGN)
+			cg_str(cg, "] = \"")
+			cg_str(cg, member_name)
+			cg_str(cg, "\";")
+		} else {
+			// `Name[Name["Key"] = N] = "Key";`
+			cg_str(cg, name)
+			cg_byte(cg, '[')
+			cg_str(cg, name)
+			cg_str(cg, "[\"")
+			cg_str(cg, member_name)
+			cg_str(cg, "\"] = ")
+			cg_str(cg, fmt.tprintf("%d", auto_val))
+			cg_str(cg, "] = \"")
+			cg_str(cg, member_name)
+			cg_str(cg, "\";")
+		}
+		auto_val += 1
+		cg_newline(cg)
+	}
+	cg.depth -= 1
+	cg_indent(cg)
+	// `})(Name || (Name = {}));`
+	cg_str(cg, "})(")
+	cg_str(cg, name)
+	cg_str(cg, " || (")
+	cg_str(cg, name)
+	cg_str(cg, " = {}));")
+}
+
+// enum_member_name extracts the string name from an enum member's id
+// (Identifier or StringLiteral).
+enum_member_name :: proc(id: ^Expression) -> string {
+	if id == nil { return "" }
+	#partial switch v in id^ {
+	case ^Identifier:    if v != nil { return v.name }
+	case ^StringLiteral: if v != nil { return v.value }
+	}
+	return ""
 }
 
 gen_ts_module_declaration_full :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
