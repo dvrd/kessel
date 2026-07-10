@@ -99,6 +99,11 @@ if [[ -f "$LINT_DIR/config/autodiscover/kessel.lint.json" ]]; then
   if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: auto-discover kessel.lint.json" >&2; fi
 fi
 
+if [[ -f "$LINT_DIR/config/novar.js" ]]; then
+  check_rule "no-var:error" "$LINT_DIR/config/novar.js" 1
+  check_rule "no-var:off"   "$LINT_DIR/config/novar.js" 0
+fi
+
 echo "================================"
 echo "Lint fixtures:"
 echo "  Passed: $pass"

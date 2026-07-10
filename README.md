@@ -240,14 +240,29 @@ downstream consumers of the finished ESTree AST.
 | 2 | Pratt parser (ES2015–ES2025, TS, JSX/TSX) | ✅ Complete |
 | 3 | Semantic checker (ECMA-262 early errors) | ✅ Complete |
 | — | Codegen + source maps + binary/raw-transfer emitters | ✅ Complete |
-| 4 | **Linter (`kessel lint`)** | 🚧 Next |
-| 5 | Transformer (AST→AST, feeds codegen) | Planned |
-| 6 | Bundler | Planned |
+| 4 | **Linter (`kessel lint`)** | 🚧 29 rules (targeting oxlint's ~500) |
+| 5 | Transformer — TS type-stripping (`kessel strip-types`) | 🚧 In progress (M1 shipped) |
+| 6 | Semantic model · CFG · resolver · regexp AST (enablers) | Planned |
+| 7 | Formatter (`kessel fmt`, Prettier-compatible) | Planned |
+| 8 | Minifier + mangler (`kessel minify`) | Planned |
+| 9 | Isolated declarations (`kessel dts`) | Planned |
+| 10 | Bundler + language server | Planned |
 
-The linter is the active next phase: a single-pass, arena-only AST visitor with
-a built-in rule set (style + correctness), reusing the existing K-code diagnostic
-model and rustc-style renderer under a new `L####` code range. It is report-only;
-autofix lands with the transformer. See `HANDOFF.md` for the milestone breakdown.
+**Mission:** full feature parity with the entire [OXC suite](https://oxc.rs)
+— parser, linter, transformer, formatter, minifier, resolver, isolated
+declarations, semantic analysis, and Node/WASM bindings. The exhaustive
+component-by-component breakdown of all remaining work lives in `HANDOFF.md`
+under "OXC Suite Parity — Master Roadmap".
+
+The transformer is the active phase. Its first capability, `kessel strip-types`,
+re-emits plain JavaScript from TS/TSX input by erasing all *erasable* TypeScript
+syntax (type annotations, generics, interfaces, type aliases, `as` / `satisfies`
+/ non-null / type-assertion expressions, type-only imports/exports, `declare`,
+class-member modifiers, abstract/overload members). Non-erasable TS that carries
+runtime meaning (`enum`, namespace-with-body, `import =`, `export =`, parameter
+properties) is rejected with a clear error rather than mis-compiled — matching
+Node's `--experimental-strip-types` erasable-only contract. See `HANDOFF.md` for
+the milestone breakdown.
 
 ## Releases
 

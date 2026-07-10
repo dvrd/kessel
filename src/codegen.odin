@@ -36,6 +36,22 @@ import "core:strings"
 CodegenConfig :: struct {
 	minified: bool,  // true: no indentation / newlines; false: pretty form
 	indent:   string, // indent unit; default "\t" or "  "
+	// Type-stripping mode (`kessel strip-types`). When set, TS-only syntax
+	// (type annotations, generics, interfaces, `as`/`satisfies`, etc.) is
+	// erased so the output is plain JavaScript. Default false — every
+	// existing call site emits TS unchanged.
+	strip_types: bool,
+}
+
+// A non-erasable TypeScript construct encountered while type-stripping.
+// enum / namespace-with-body / import= / export= / parameter properties /
+// abstract members carry runtime meaning that a pure erasure cannot remove
+// without a real lowering pass. We record the first one and let the caller
+// fail loudly rather than emit invalid JavaScript — matching Node's
+// `--experimental-strip-types` erasable-only contract.
+StripDiagnostic :: struct {
+	loc:  Loc,
+	what: string,
 }
 
 Codegen :: struct {
@@ -59,6 +75,18 @@ Codegen :: struct {
 	// per Statement; everything else (line/col conversion, VLQ encoding)
 	// happens once at the end in sourcemap_to_json.
 	sm: ^SourceMap,
+
+	// First non-erasable TS construct hit during type-stripping (cfg.strip_types).
+	// nil on success. See StripDiagnostic.
+	strip_diag: Maybe(StripDiagnostic),
+}
+
+// Record the first non-erasable TS construct hit while type-stripping. Only
+// the first is kept: the caller reports it and exits non-zero, so later hits
+// would be noise.
+cg_strip_unsupported :: proc(cg: ^Codegen, loc: Loc, what: string) {
+	if _, ok := cg.strip_diag.?; ok { return }
+	cg.strip_diag = StripDiagnostic{loc = loc, what = what}
 }
 
 // ----------------------------------------------------------------------------
@@ -99,6 +127,7 @@ codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source_len_hint: int, all
 	cg.depth         = 0
 	cg.at_line_start = true
 	cg.sm            = nil
+	cg.strip_diag    = nil
 }
 
 // Opt the codegen into source-map recording. After codegen_program
@@ -297,20 +326,20 @@ gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	case ^WithStatement:              gen_with_statement(cg, s)
 	case ^ThrowStatement:             gen_throw_statement(cg, s)
 	case ^TryStatement:               gen_try_statement(cg, s)
-	case ^FunctionDeclaration:        gen_function_declaration(cg, s)
-	case ^VariableDeclaration:        gen_variable_declaration(cg, s, true)
-	case ^ClassDeclaration:           gen_class_declaration(cg, s)
+	case ^FunctionDeclaration:        if !(cg.cfg.strip_types && s.declare) { gen_function_declaration(cg, s) }
+	case ^VariableDeclaration:        if !(cg.cfg.strip_types && s.declare) { gen_variable_declaration(cg, s, true) }
+	case ^ClassDeclaration:           if !(cg.cfg.strip_types && s.declare) { gen_class_declaration(cg, s) }
 	case ^ImportDeclaration:          gen_import_declaration(cg, s)
 	case ^ExportNamedDeclaration:     gen_export_named_declaration(cg, s)
 	case ^ExportDefaultDeclaration:   gen_export_default_declaration(cg, s)
 	case ^ExportAllDeclaration:       gen_export_all_declaration(cg, s)
-	case ^TSInterfaceDeclaration:     gen_ts_interface_declaration(cg, s)
-	case ^TSTypeAliasDeclaration:     gen_ts_type_alias_declaration(cg, s)
-	case ^TSEnumDeclaration:          gen_ts_enum_declaration(cg, s)
-	case ^TSModuleDeclaration:        gen_ts_module_declaration(cg, s)
-	case ^TSImportEqualsDeclaration:  gen_ts_import_equals(cg, s)
-	case ^TSExportAssignment:         gen_ts_export_assignment(cg, s)
-	case ^TSNamespaceExportDeclaration: gen_ts_namespace_export(cg, s)
+	case ^TSInterfaceDeclaration:     if !cg.cfg.strip_types { gen_ts_interface_declaration(cg, s) }
+	case ^TSTypeAliasDeclaration:     if !cg.cfg.strip_types { gen_ts_type_alias_declaration(cg, s) }
+	case ^TSEnumDeclaration:          if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "enum") } else { gen_ts_enum_declaration(cg, s) }
+	case ^TSModuleDeclaration:        if cg.cfg.strip_types { gen_ts_module_declaration_stripped(cg, s) } else { gen_ts_module_declaration(cg, s) }
+	case ^TSImportEqualsDeclaration:  if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "import = require(...)") } else { gen_ts_import_equals(cg, s) }
+	case ^TSExportAssignment:         if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "export =") } else { gen_ts_export_assignment(cg, s) }
+	case ^TSNamespaceExportDeclaration: if !cg.cfg.strip_types { gen_ts_namespace_export(cg, s) }
 	}
 }
 
@@ -368,11 +397,11 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression) {
 	case ^JSXExpressionContainer:     gen_jsx_expression_container(cg, e)
 	case ^JSXEmptyExpression:         // empty
 	case ^JSXSpreadChild:             cg_byte(cg, '{'); cg_str(cg, "..."); gen_expression(cg, e.expression, PREC_ASSIGN); cg_byte(cg, '}')
-	case ^TSAsExpression:             gen_ts_as_expression(cg, e)
-	case ^TSSatisfiesExpression:      gen_ts_satisfies_expression(cg, e)
-	case ^TSNonNullExpression:        gen_expression(cg, e.expression, PREC_CALL); cg_byte(cg, '!')
-	case ^TSTypeAssertion:            gen_ts_type_assertion(cg, e)
-	case ^TSInstantiationExpression:  gen_ts_instantiation(cg, e)
+	case ^TSAsExpression:             if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_as_expression(cg, e) }
+	case ^TSSatisfiesExpression:      if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_satisfies_expression(cg, e) }
+	case ^TSNonNullExpression:        gen_expression(cg, e.expression, PREC_CALL); if !cg.cfg.strip_types { cg_byte(cg, '!') }
+	case ^TSTypeAssertion:            if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_type_assertion(cg, e) }
+	case ^TSInstantiationExpression:  if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_instantiation(cg, e) }
 	case ^ParenthesizedExpression:    cg_byte(cg, '('); gen_expression(cg, e.expression, PREC_LOWEST); cg_byte(cg, ')')
 	}
 }
@@ -735,7 +764,7 @@ gen_function_declaration :: proc(cg: ^Codegen, s: ^FunctionDeclaration) {
 	// declare=true and no body. The keyword must be preserved or the
 	// regen loses its ambient marker (and a body-less function without
 	// `declare` is a parse error).
-	if s.declare { cg_str(cg, "declare ") }
+	if s.declare && !cg.cfg.strip_types { cg_str(cg, "declare ") }
 	name := ""
 	if id, ok := s.id.?; ok { name = id.name }
 	gen_function_expression_like(cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters, s.return_type, true)
@@ -746,7 +775,7 @@ gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_sem
 	// with `declare = true` and no initializer. Emitting it without the
 	// keyword regenerates `const X: T;`, which is an early error because
 	// `const` requires an initializer outside of ambient context.
-	if s.declare { cg_str(cg, "declare ") }
+	if s.declare && !cg.cfg.strip_types { cg_str(cg, "declare ") }
 	switch s.kind {
 	case .Var:   cg_str(cg, "var")
 	case .Let:   cg_str(cg, "let")
@@ -779,14 +808,16 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 	// ClassDeclaration with the respective flag set. Forgetting either
 	// drops the modifier and, for `declare`, regresses the AST shape
 	// downstream consumers see.
-	if s.declare  { cg_str(cg, "declare ") }
-	if s.abstract { cg_str(cg, "abstract ") }
+	if s.declare  && !cg.cfg.strip_types { cg_str(cg, "declare ") }
+	if s.abstract && !cg.cfg.strip_types { cg_str(cg, "abstract ") }
 	name := ""
 	if id, ok := s.id.?; ok { name = id.name }
 	gen_class_like(cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements)
 }
 
 gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
+	// Type-only imports (`import type ...`) are always elided under strip.
+	if cg.cfg.strip_types && s.import_kind == .Type { return }
 	cg_str(cg, "import ")
 	if s.import_kind == .Type { cg_str(cg, "type ") }
 	// Source-phase / defer-phase imports (`import source x from "m"`,
@@ -879,7 +910,30 @@ export_name_eq :: proc(a, b: ExportSpecifierName) -> bool {
 	return false
 }
 
+// A declaration whose `export` wrapper disappears entirely under type
+// stripping: an interface / type alias, or a `declare` function / var / class.
+export_decl_is_erased :: proc(decl: Declaration) -> bool {
+	#partial switch d in decl {
+	case ^TSInterfaceDeclaration: return true
+	case ^TSTypeAliasDeclaration: return true
+	case ^FunctionDeclaration:    return d.declare
+	case ^VariableDeclaration:    return d.declare
+	case ^ClassDeclaration:       return d.declare
+	}
+	return false
+}
+
 gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
+	// Under strip, a type-only export (`export type {...}`) and an export
+	// wrapping an erasable declaration (interface / type alias / `declare`)
+	// disappear whole. enum / namespace inner declarations flow through and
+	// are reported by their own strip handling.
+	if cg.cfg.strip_types {
+		if s.export_kind == .Type { return }
+		if decl_ptr, ok := s.declaration.?; ok && decl_ptr != nil {
+			if export_decl_is_erased(decl_ptr^) { return }
+		}
+	}
 	cg_str(cg, "export ")
 	// `export type { A } from "x"`, `export type * from "x"`, and the
 	// inner type-alias / interface / enum / module forms all carry the
@@ -977,6 +1031,16 @@ gen_ts_interface_declaration   :: proc(cg: ^Codegen, s: ^TSInterfaceDeclaration)
 gen_ts_type_alias_declaration  :: proc(cg: ^Codegen, s: ^TSTypeAliasDeclaration)   { gen_ts_type_alias_declaration_full(cg, s) }
 gen_ts_enum_declaration        :: proc(cg: ^Codegen, s: ^TSEnumDeclaration)        { gen_ts_enum_declaration_full(cg, s) }
 gen_ts_module_declaration      :: proc(cg: ^Codegen, s: ^TSModuleDeclaration)      { gen_ts_module_declaration_full(cg, s) }
+
+// Type-stripping counterpart for TSModuleDeclaration. `declare namespace` and
+// body-less ambient module declarations carry no runtime and are erased. A
+// namespace WITH a runtime body compiles to an IIFE in tsc — pure erasure
+// cannot reproduce it, so we refuse rather than drop the values.
+gen_ts_module_declaration_stripped :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
+	if _, ok := s.body.?; ok && !s.declare {
+		cg_strip_unsupported(cg, s.loc, "namespace with a body")
+	}
+}
 gen_ts_import_equals           :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) { gen_ts_import_equals_full(cg, s) }
 gen_ts_export_assignment       :: proc(cg: ^Codegen, s: ^TSExportAssignment)       { gen_ts_export_assignment_full(cg, s) }
 gen_ts_namespace_export        :: proc(cg: ^Codegen, s: ^TSNamespaceExportDeclaration) { gen_ts_namespace_export_full(cg, s) }
@@ -1048,6 +1112,7 @@ gen_pattern :: proc(cg: ^Codegen, p: Pattern) {
 
 gen_pattern_identifier :: proc(cg: ^Codegen, e: ^Identifier) {
 	cg_str(cg, e.name)
+	if cg.cfg.strip_types { return }
 	if e.optional { cg_byte(cg, '?') }
 	if ta, ok := e.type_annotation.?; ok {
 		cg_str(cg, ": ")
@@ -1061,7 +1126,7 @@ gen_pattern_identifier :: proc(cg: ^Codegen, e: ^Identifier) {
 // assertion). The grammar only permits `!` after a bare Identifier, so
 // the non-Identifier fallback is a safety net rather than valid syntax.
 gen_var_declarator_id :: proc(cg: ^Codegen, id: Pattern, definite: bool) {
-	if !definite {
+	if !definite || cg.cfg.strip_types {
 		gen_pattern(cg, id)
 		return
 	}
@@ -1095,6 +1160,7 @@ gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern) {
 	// TS-position annotation lives on the ObjectPattern itself when the
 	// pattern is not a bare Identifier. Mirror the Identifier branch in
 	// gen_pattern_identifier so `function f({a, b}: Props)` round-trips.
+	if cg.cfg.strip_types { return }
 	if ta, ok := e.type_annotation.?; ok {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, ta.type_annotation)
@@ -1146,6 +1212,7 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern) {
 	cg_byte(cg, ']')
 	// Same TS-position annotation as ObjectPattern: `function
 	// f([a, b]: number[])` carries `: number[]` on the ArrayPattern.
+	if cg.cfg.strip_types { return }
 	if ta, ok := e.type_annotation.?; ok {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, ta.type_annotation)
@@ -1168,13 +1235,22 @@ gen_function_param :: proc(cg: ^Codegen, p: FunctionParameter) {
 	// Accessibility / readonly / override / parameter properties — emit
 	// the minimum keywords so the output still parses; full TS shape is a
 	// follow-up.
-	switch p.accessibility {
-	case .None:      // nothing
-	case .Public:    cg_str(cg, "public ")
-	case .Private:   cg_str(cg, "private ")
-	case .Protected: cg_str(cg, "protected ")
+	if cg.cfg.strip_types {
+		// A parameter property (`constructor(private x)`) declares AND
+		// assigns a class field — it is not erasable syntax. Refuse rather
+		// than silently drop the field assignment.
+		if p.accessibility != .None || p.readonly {
+			cg_strip_unsupported(cg, p.loc, "parameter property")
+		}
+	} else {
+		switch p.accessibility {
+		case .None:      // nothing
+		case .Public:    cg_str(cg, "public ")
+		case .Private:   cg_str(cg, "private ")
+		case .Protected: cg_str(cg, "protected ")
+		}
+		if p.readonly { cg_str(cg, "readonly ") }
 	}
-	if p.readonly { cg_str(cg, "readonly ") }
 	gen_pattern(cg, p.pattern)
 	if d, ok := p.default_val.?; ok {
 		cg_space(cg)
@@ -1221,7 +1297,7 @@ gen_function_params_and_body :: proc(
 		gen_function_param(cg, params[i])
 	}
 	cg_byte(cg, ')')
-	if rt, ok := return_type.?; ok {
+	if rt, ok := return_type.?; ok && !cg.cfg.strip_types {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, rt.type_annotation)
 	}
@@ -1264,7 +1340,7 @@ gen_class_like :: proc(
 		gen_expression(cg, sc, PREC_CALL)
 		gen_ts_type_arguments(cg, super_type_arguments)
 	}
-	if len(implements_list) > 0 {
+	if len(implements_list) > 0 && !cg.cfg.strip_types {
 		cg_str(cg, " implements ")
 		for i in 0..<len(implements_list) {
 			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
@@ -1279,6 +1355,9 @@ gen_class_like :: proc(
 	cg.depth += 1
 	for i in 0..<len(body.body) {
 		el := body.body[i]
+		// Type-stripping erases members that carry no runtime: abstract
+		// members and bodyless method / overload signatures.
+		if cg.cfg.strip_types && class_element_erased(el) { continue }
 		if cg.sm != nil {
 			// Force the indent before recording so the mapping points at
 			// the first non-whitespace column (e.g. the method key /
@@ -1293,6 +1372,22 @@ gen_class_like :: proc(
 	cg_byte(cg, '}')
 }
 
+// A class member that type-stripping erases entirely because it carries no
+// runtime: an abstract member, or a bodyless method / constructor (a TS
+// overload signature or ambient method declaration).
+class_element_erased :: proc(el: ClassElement) -> bool {
+	if el.abstract { return true }
+	#partial switch el.kind {
+	case .Method, .Constructor:
+		if v, ok := el.value.?; ok {
+			if fn, is_fn := v.(^FunctionExpression); is_fn {
+				return fn.no_body
+			}
+		}
+	}
+	return false
+}
+
 gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	for d in el.decorators {
 		gen_decorator(cg, d)
@@ -1300,14 +1395,14 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	}
 	switch el.accessibility {
 	case .None:      // nothing
-	case .Public:    cg_str(cg, "public ")
-	case .Private:   cg_str(cg, "private ")
-	case .Protected: cg_str(cg, "protected ")
+	case .Public:    if !cg.cfg.strip_types { cg_str(cg, "public ") }
+	case .Private:   if !cg.cfg.strip_types { cg_str(cg, "private ") }
+	case .Protected: if !cg.cfg.strip_types { cg_str(cg, "protected ") }
 	}
-	if el.abstract  { cg_str(cg, "abstract ") }
+	if el.abstract  && !cg.cfg.strip_types { cg_str(cg, "abstract ") }
 	if el.static    { cg_str(cg, "static ") }
-	if el.override_ { cg_str(cg, "override ") }
-	if el.readonly  { cg_str(cg, "readonly ") }
+	if el.override_ && !cg.cfg.strip_types { cg_str(cg, "override ") }
+	if el.readonly  && !cg.cfg.strip_types { cg_str(cg, "readonly ") }
 	if el.is_accessor { cg_str(cg, "accessor ") }
 	switch el.kind {
 	case .Method:
@@ -1339,9 +1434,9 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
 		if el.computed { cg_byte(cg, ']') }
-		if el.optional { cg_byte(cg, '?') }
-		if el.definite { cg_byte(cg, '!') }
-		if ta, ok := el.type_annotation.?; ok {
+		if el.optional && !cg.cfg.strip_types { cg_byte(cg, '?') }
+		if el.definite && !cg.cfg.strip_types { cg_byte(cg, '!') }
+		if ta, ok := el.type_annotation.?; ok && !cg.cfg.strip_types {
 			cg_str(cg, ": ")
 			gen_ts_type(cg, ta.type_annotation)
 		}
@@ -1673,7 +1768,7 @@ gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression) {
 		gen_function_param(cg, e.params[i])
 	}
 	cg_byte(cg, ')')
-	if rt, ok := e.return_type.?; ok {
+	if rt, ok := e.return_type.?; ok && !cg.cfg.strip_types {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, rt.type_annotation)
 	}
@@ -2118,6 +2213,7 @@ gen_ts_type_parameter_declaration :: proc(
 	cg: ^Codegen,
 	decl: Maybe(^TSTypeParameterDeclaration),
 ) {
+	if cg.cfg.strip_types { return }
 	d, ok := decl.?
 	if !ok || d == nil || len(d.params) == 0 { return }
 	cg_byte(cg, '<')
@@ -2147,6 +2243,7 @@ gen_ts_type_arguments :: proc(
 	cg: ^Codegen,
 	args: Maybe(^TSTypeParameterInstantiation),
 ) {
+	if cg.cfg.strip_types { return }
 	a, ok := args.?
 	if !ok || a == nil || len(a.params) == 0 { return }
 	cg_byte(cg, '<')

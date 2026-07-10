@@ -307,6 +307,7 @@ main :: proc() {
 		lint_files := make([dynamic]string)
 		lint_overrides := make([dynamic]LintOverride)
 		lint_config_path := ""
+		lint_format := "default"
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -317,6 +318,12 @@ main :: proc() {
 				i += 2
 			case len(arg) > 9 && arg[:9] == "--config=":
 				lint_config_path = arg[9:]
+				i += 1
+			case arg == "--format" && i + 1 < len(os.args):
+				lint_format = os.args[i+1]
+				i += 2
+			case len(arg) > 9 && arg[:9] == "--format=":
+				lint_format = arg[9:]
 				i += 1
 			case arg == "--rule" && i + 1 < len(os.args):
 				if ov, ok := lint_parse_rule_flag(os.args[i+1]); ok {
@@ -361,7 +368,7 @@ main :: proc() {
 			lint_overrides = merged
 		}
 		for f in lint_files {
-			if lint_file(f, cli, lint_overrides[:]) { had_errors = true }
+			if lint_file(f, cli, lint_overrides[:], lint_format) { had_errors = true }
 		}
 		delete(lint_files)
 		delete(lint_overrides)
@@ -417,6 +424,41 @@ main :: proc() {
 		}
 		codegen_file(cg_file, cli, cg_minified, cg_sourcemap)
 
+	case "strip-types":
+		if len(os.args) < 3 {
+			out_println("Error: strip-types command requires a file path")
+			out_println("Usage: kessel strip-types <file> [--minified]")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		cli := cli_config_default()
+		st_file := ""
+		st_minified := false
+		i := 2
+		for i < len(os.args) {
+			if cli_try_parse_flag(&cli, os.args, &i) { continue }
+			arg := os.args[i]
+			switch {
+			case arg == "--minified":
+				st_minified = true
+				i += 1
+			case:
+				if st_file == "" {
+					st_file = arg
+					i += 1
+				} else {
+					fmt.eprintf("Error: unrecognised argument '%s' for `kessel strip-types`\n", arg)
+					os.exit(2)
+				}
+			}
+		}
+		if st_file == "" {
+			out_println("Error: strip-types command requires a file path")
+			flush_stdout_writer()
+			os.exit(1)
+		}
+		strip_types_file(st_file, cli, st_minified)
+
 	case "help", "-h", "--help":
 		print_usage()
 
@@ -452,6 +494,7 @@ print_usage :: proc() {
 	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
 	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
+	out_println("  strip-types <file> [--minified] Erase TypeScript types, emit plain JavaScript.")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
 	out_println("  microbench parse <file> [--iterations N]   Parse benchmark (default 100).")
 	out_println("  microbench lex <file> [--iterations N]     Lex benchmark (default 100).")
@@ -669,7 +712,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 // renderer. Returns true if any diagnostic was reported so the caller can set
 // a non-zero process exit. Parse errors are surfaced first; the lint pass runs
 // regardless (a partial AST is still walkable and the visitor is nil-safe).
-lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil) -> bool {
+lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil, format: string = "default") -> bool {
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
@@ -700,13 +743,22 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 	l := lint_run_for_job(&job, overrides)
 	if len(l.diagnostics) > 0 && job.parser.lexer != nil {
 		if had_output { fmt.eprintln() }
-		render_pretty_diagnostics(
-			job.parser.lexer.source,
-			file_path,
-			job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
-			l.diagnostics[:],
-			cli.color,
-		)
+		if format == "json" {
+			lint_render_json(
+				job.parser.lexer.source,
+				file_path,
+				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+				l.diagnostics[:],
+			)
+		} else {
+			render_pretty_diagnostics(
+				job.parser.lexer.source,
+				file_path,
+				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+				l.diagnostics[:],
+				cli.color,
+			)
+		}
 		had_output = true
 	}
 
@@ -810,6 +862,65 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool, sourcema
 		cg_newline(&cg)
 	}
 
+	os.write(os.stdout, cg.buf[:cg.pos])
+}
+
+// `kessel strip-types <file>` — parse TS/TSX and re-emit plain JavaScript with
+// all erasable TypeScript syntax removed (annotations, generics, interfaces,
+// `as` / `satisfies`, type-only imports/exports, etc.). Non-erasable TS that
+// carries runtime meaning (enum, namespace-with-body, `import =`, `export =`,
+// parameter properties, abstract members) cannot be erased without a lowering
+// pass; the first one is reported on stderr and the command exits non-zero
+// rather than emit invalid JavaScript. Mirrors codegen_file otherwise.
+strip_types_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
+	job: ParseJob
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("error: could not read file: %s\n", file_path)
+		os.exit(1)
+	}
+	defer parse_job_close(&job)
+	parse_job_run(&job)
+
+	if len(job.parser.errors) > 0 {
+		if job.parser.lexer != nil && job.parser.lexer.num_lines == 0 {
+			build_line_table(job.parser.lexer)
+		}
+		if job.parser.lexer != nil {
+			render_pretty_diagnostics(
+				job.parser.lexer.source,
+				file_path,
+				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+				job.parser.errors[:],
+				cli.color,
+			)
+		}
+		os.exit(1)
+	}
+
+	cfg := CodegenConfig{minified = minified, indent = "  ", strip_types = true}
+	cg: Codegen
+	codegen_init(&cg, cfg, len(job.source.data), context.allocator)
+	defer codegen_destroy(&cg, context.allocator)
+
+	if job.lexer.has_hashbang {
+		cg_str(&cg, "#!")
+		cg_str(&cg, job.lexer.hashbang_value)
+		cg_byte(&cg, '\n')
+	}
+	codegen_program(&cg, job.program)
+
+	// Fail loudly on any non-erasable TS construct rather than emit broken JS.
+	if diag, ok := cg.strip_diag.?; ok {
+		fmt.eprintf(
+			"error: %s: cannot strip non-erasable TypeScript: %s\n",
+			file_path, diag.what,
+		)
+		os.exit(1)
+	}
+
+	if !minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
+		cg_byte(&cg, '\n')
+	}
 	os.write(os.stdout, cg.buf[:cg.pos])
 }
 

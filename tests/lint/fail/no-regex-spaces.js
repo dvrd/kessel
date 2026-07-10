@@ -1,0 +1,1 @@
+var re = /foo  bar/;
