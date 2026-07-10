@@ -4,6 +4,13 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.18.0] - 2026-07-10
+
+### Added
+- feat(lint): expand to 47 rules, add disable directives, JSON output, strip-types M1
+- feat(lint): thread rule config through FFI and auto-discover kessel.lint.json
+
+
 ## [0.17.0] - 2026-07-04
 
 ### Added
