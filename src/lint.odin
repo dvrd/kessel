@@ -100,6 +100,14 @@ LintRule :: enum u16 {
 	L3004_NoNamespace             = 3004,
 	L3005_NoNonNullAssertion      = 3005,
 	L3006_ConsistentTypeImports   = 3006,
+
+	// L4xxx — unicorn / best-practice.
+	L4001_NoEmptyFunction          = 4001,
+	L4002_NoConstantBinaryExpr     = 4002,
+	L4003_NoDoubleEquals           = 4003,
+	L4004_NoArrayConstructor       = 4004,
+	L4005_NoThrowLiteral           = 4005,
+	L4006_NoUnusedExpressions      = 4006,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -441,6 +449,42 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "use 'import type' for type-only imports",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L4001_NoEmptyFunction:
+		return LintRuleInfo{
+			name = "no-empty-function",
+			default_message = "unexpected empty function body",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4002_NoConstantBinaryExpr:
+		return LintRuleInfo{
+			name = "no-constant-binary-expression",
+			default_message = "this binary expression always evaluates to the same value",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4003_NoDoubleEquals:
+		return LintRuleInfo{
+			name = "no-eq-null",
+			default_message = "use '===' when comparing to null",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4004_NoArrayConstructor:
+		return LintRuleInfo{
+			name = "no-array-constructor",
+			default_message = "use array literal notation instead of new Array()",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4005_NoThrowLiteral:
+		return LintRuleInfo{
+			name = "no-throw-literal",
+			default_message = "expected an error object to be thrown",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4006_NoUnusedExpressions:
+		return LintRuleInfo{
+			name = "no-unused-expressions",
+			default_message = "expected an assignment or function call and instead saw an expression",
+			default_severity = .Warning, default_enabled = false,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -608,7 +652,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 			if e, ok := v.argument.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 		}
 	case ^ThrowStatement:
-		if v != nil { lint_walk_expr(l, ctx, v.argument) }
+		if v != nil { lint_check_no_throw_literal(l, v); lint_walk_expr(l, ctx, v.argument) }
 	case ^TryStatement:
 		lint_walk_try(l, ctx, v)
 	case ^WithStatement:
@@ -891,6 +935,7 @@ lint_walk_function :: proc(l: ^Linter, ctx: ^LintContext, fn: ^FunctionExpressio
 	if fn == nil { return }
 	lint_check_dupe_args(l, fn.params[:], u32(fn.loc.start), u32(fn.loc.end))
 	lint_check_require_yield(l, fn)
+	lint_check_no_empty_function(l, fn)
 	for pr in fn.params {
 		lint_walk_pattern(l, ctx, pr.pattern)
 		if d, ok := pr.default_val.(^Expression); ok && d != nil { lint_walk_expr(l, ctx, d) }
@@ -1798,6 +1843,41 @@ lint_check_ts_namespace :: proc(l: ^Linter, v: ^TSModuleDeclaration) {
 	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L3004_NoNamespace, info.default_message)
 }
 
+// lint_check_no_empty_function (no-empty-function, L4001): flags function
+// bodies with zero statements. Distinct from no-empty (L1001) which checks
+// block statements only.
+lint_check_no_empty_function :: proc(l: ^Linter, fn: ^FunctionExpression) {
+	if fn == nil || fn.no_body || !lint_rule_enabled(l, .L4001_NoEmptyFunction) { return }
+	if len(fn.body.body) == 0 {
+		info := lint_rule_info(.L4001_NoEmptyFunction)
+		lint_report(l, u32(fn.loc.start), u32(fn.loc.end), .L4001_NoEmptyFunction, info.default_message)
+	}
+}
+
+// lint_check_no_array_constructor (no-array-constructor, L4004): flags
+// `new Array()` and `new Array(1, 2)`. Single-arg `new Array(n)` is also
+// flagged since Array.from or literal `[]` is always clearer.
+lint_check_no_array_constructor :: proc(l: ^Linter, e: ^NewExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4004_NoArrayConstructor) { return }
+	callee, ok := e.callee^.(^Identifier)
+	if !ok || callee == nil || callee.name != "Array" { return }
+	info := lint_rule_info(.L4004_NoArrayConstructor)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4004_NoArrayConstructor, info.default_message)
+}
+
+// lint_check_no_throw_literal (no-throw-literal, L4005): flags `throw` of a
+// non-Error value (literal, identifier to a primitive). Only literal throws
+// are checked for simplicity.
+lint_check_no_throw_literal :: proc(l: ^Linter, v: ^ThrowStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4005_NoThrowLiteral) { return }
+	if v.argument == nil { return }
+	#partial switch _ in v.argument^ {
+	case ^StringLiteral, ^NumericLiteral, ^BooleanLiteral, ^NullLiteral, ^BigIntLiteral:
+		info := lint_rule_info(.L4005_NoThrowLiteral)
+		lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4005_NoThrowLiteral, info.default_message)
+	}
+}
+
 lint_check_no_extra_boolean_cast :: proc(l: ^Linter, test: ^Expression, start, end: u32) {
 	if test == nil || !lint_rule_enabled(l, .L2042_NoExtraBooleanCast) { return }
 	// Double negation: !!x
@@ -1832,7 +1912,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^CallExpression:
 		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
