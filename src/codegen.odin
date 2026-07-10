@@ -337,8 +337,8 @@ gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	case ^TSTypeAliasDeclaration:     if !cg.cfg.strip_types { gen_ts_type_alias_declaration(cg, s) }
 	case ^TSEnumDeclaration:          if cg.cfg.strip_types { gen_ts_enum_lowered(cg, s) } else { gen_ts_enum_declaration(cg, s) }
 	case ^TSModuleDeclaration:        if cg.cfg.strip_types { gen_ts_module_declaration_stripped(cg, s) } else { gen_ts_module_declaration(cg, s) }
-	case ^TSImportEqualsDeclaration:  if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "import = require(...)") } else { gen_ts_import_equals(cg, s) }
-	case ^TSExportAssignment:         if cg.cfg.strip_types { cg_strip_unsupported(cg, s.loc, "export =") } else { gen_ts_export_assignment(cg, s) }
+	case ^TSImportEqualsDeclaration:  if cg.cfg.strip_types { gen_ts_import_equals_lowered(cg, s) } else { gen_ts_import_equals(cg, s) }
+	case ^TSExportAssignment:         if cg.cfg.strip_types { gen_ts_export_assignment_lowered(cg, s) } else { gen_ts_export_assignment(cg, s) }
 	case ^TSNamespaceExportDeclaration: if !cg.cfg.strip_types { gen_ts_namespace_export(cg, s) }
 	}
 }
@@ -2591,6 +2591,35 @@ gen_ts_import_equals_full :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) {
 
 gen_ts_export_assignment_full :: proc(cg: ^Codegen, s: ^TSExportAssignment) {
 	cg_str(cg, "export = ")
+	gen_expression(cg, s.expression, PREC_ASSIGN)
+	cg_byte(cg, ';')
+}
+
+// gen_ts_import_equals_lowered emits `import X = require("m")` as
+// `const X = require("m");` in strip-types mode. Type-only import-equals
+// are erased entirely.
+gen_ts_import_equals_lowered :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) {
+	if s == nil { return }
+	if s.import_kind == .Type { return }
+	cg_str(cg, "const ")
+	cg_str(cg, s.id.name)
+	cg_str(cg, " = ")
+	switch r in s.module_reference {
+	case ^Expression:
+		gen_expression(cg, r, PREC_CALL)
+	case ^TSExternalModuleReference:
+		cg_str(cg, "require(")
+		gen_string_literal(cg, r.expression)
+		cg_byte(cg, ')')
+	}
+	cg_byte(cg, ';')
+}
+
+// gen_ts_export_assignment_lowered emits `export = X` as
+// `module.exports = X;` in strip-types mode.
+gen_ts_export_assignment_lowered :: proc(cg: ^Codegen, s: ^TSExportAssignment) {
+	if s == nil { return }
+	cg_str(cg, "module.exports = ")
 	gen_expression(cg, s.expression, PREC_ASSIGN)
 	cg_byte(cg, ';')
 }
