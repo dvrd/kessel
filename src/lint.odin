@@ -114,6 +114,17 @@ LintRule :: enum u16 {
 	L4010_NoReturnAssign           = 4010,
 	L4011_NoNewWrappers            = 4011,
 	L4012_PreferConst              = 4012,
+	L4013_NoLabelVar               = 4013,
+	L4014_NoLoneBlocks             = 4014,
+	L4015_NoMultiStr               = 4015,
+	L4016_NoNewFunc                = 4016,
+	L4017_NoOctalEscape            = 4017,
+	L4018_NoProto                  = 4018,
+	L4019_NoScriptUrl              = 4019,
+	L4020_NoSequences              = 4020,
+	L4021_NoUselessConcat          = 4021,
+	L4022_NoIterator               = 4022,
+	L4023_NoCallerCallee           = 4023,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -526,6 +537,72 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			name = "prefer-const",
 			default_message = "variable is never reassigned; use 'const' instead",
 			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4013_NoLabelVar:
+		return LintRuleInfo{
+			name = "no-label-var",
+			default_message = "label has the same name as a variable",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4014_NoLoneBlocks:
+		return LintRuleInfo{
+			name = "no-lone-blocks",
+			default_message = "unnecessary block statement",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4015_NoMultiStr:
+		return LintRuleInfo{
+			name = "no-multi-str",
+			default_message = "multiline strings are not allowed",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4016_NoNewFunc:
+		return LintRuleInfo{
+			name = "no-new-func",
+			default_message = "the Function constructor is eval",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4017_NoOctalEscape:
+		return LintRuleInfo{
+			name = "no-octal-escape",
+			default_message = "don't use octal escape sequences",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4018_NoProto:
+		return LintRuleInfo{
+			name = "no-proto",
+			default_message = "use Object.getPrototypeOf instead of __proto__",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4019_NoScriptUrl:
+		return LintRuleInfo{
+			name = "no-script-url",
+			default_message = "'javascript:' URLs are a form of eval",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4020_NoSequences:
+		return LintRuleInfo{
+			name = "no-sequences",
+			default_message = "unexpected use of comma operator",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4021_NoUselessConcat:
+		return LintRuleInfo{
+			name = "no-useless-concat",
+			default_message = "unnecessary concatenation of string literals",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4022_NoIterator:
+		return LintRuleInfo{
+			name = "no-iterator",
+			default_message = "reserved name '__iterator__'",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4023_NoCallerCallee:
+		return LintRuleInfo{
+			name = "no-caller",
+			default_message = "deprecated: avoid arguments.caller and arguments.callee",
+			default_severity = .Error, default_enabled = true,
 		}
 	}
 	return LintRuleInfo{}
@@ -1912,6 +1989,68 @@ lint_check_no_array_constructor :: proc(l: ^Linter, e: ^NewExpression) {
 // non-Error value (literal, identifier to a primitive). Only literal throws
 // are checked for simplicity.
 // lint_check_no_eval (no-eval, L4008): flags direct `eval()` calls.
+// lint_check_no_new_func (no-new-func, L4016): flags `new Function()`.
+lint_check_no_new_func :: proc(l: ^Linter, e: ^NewExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4016_NoNewFunc) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "Function" { return }
+	info := lint_rule_info(.L4016_NoNewFunc)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4016_NoNewFunc, info.default_message)
+}
+
+// lint_check_no_proto (no-proto, L4018): flags `obj.__proto__` access.
+lint_check_no_proto :: proc(l: ^Linter, e: ^MemberExpression) {
+	if e == nil || e.computed || !lint_rule_enabled(l, .L4018_NoProto) { return }
+	prop, ok := e.property^.(^Identifier)
+	if !ok || prop == nil || prop.name != "__proto__" { return }
+	info := lint_rule_info(.L4018_NoProto)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4018_NoProto, info.default_message)
+}
+
+// lint_check_no_iterator (no-iterator, L4022): flags `obj.__iterator__`.
+lint_check_no_iterator :: proc(l: ^Linter, e: ^MemberExpression) {
+	if e == nil || e.computed || !lint_rule_enabled(l, .L4022_NoIterator) { return }
+	prop, ok := e.property^.(^Identifier)
+	if !ok || prop == nil || prop.name != "__iterator__" { return }
+	info := lint_rule_info(.L4022_NoIterator)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4022_NoIterator, info.default_message)
+}
+
+// lint_check_no_caller (no-caller, L4023): flags `arguments.caller` and
+// `arguments.callee`.
+lint_check_no_caller :: proc(l: ^Linter, e: ^MemberExpression) {
+	if e == nil || e.computed || !lint_rule_enabled(l, .L4023_NoCallerCallee) { return }
+	obj, ook := e.object^.(^Identifier)
+	if !ook || obj == nil || obj.name != "arguments" { return }
+	prop, pok := e.property^.(^Identifier)
+	if !pok || prop == nil { return }
+	if prop.name == "caller" || prop.name == "callee" {
+		info := lint_rule_info(.L4023_NoCallerCallee)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4023_NoCallerCallee, info.default_message)
+	}
+}
+
+// lint_check_no_script_url (no-script-url, L4019): flags string literals
+// starting with "javascript:".
+lint_check_no_script_url :: proc(l: ^Linter, e: ^StringLiteral) {
+	if e == nil || !lint_rule_enabled(l, .L4019_NoScriptUrl) { return }
+	if len(e.value) >= 11 && e.value[:11] == "javascript:" {
+		info := lint_rule_info(.L4019_NoScriptUrl)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4019_NoScriptUrl, info.default_message)
+	}
+}
+
+// lint_check_no_useless_concat (no-useless-concat, L4021): flags "a" + "b".
+lint_check_no_useless_concat :: proc(l: ^Linter, e: ^BinaryExpression) {
+	if e == nil || e.operator != .Add || !lint_rule_enabled(l, .L4021_NoUselessConcat) { return }
+	_, lok := e.left^.(^StringLiteral)
+	_, rok := e.right^.(^StringLiteral)
+	if lok && rok {
+		info := lint_rule_info(.L4021_NoUselessConcat)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4021_NoUselessConcat, info.default_message)
+	}
+}
+
 lint_check_no_eval :: proc(l: ^Linter, e: ^CallExpression) {
 	if e == nil || !lint_rule_enabled(l, .L4008_NoEval) { return }
 	id, ok := e.callee^.(^Identifier)
@@ -1998,13 +2137,14 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	switch e in expr^ {
 	case ^MemberExpression:
 		if e != nil {
+			lint_check_no_proto(l, e); lint_check_no_iterator(l, e); lint_check_no_caller(l, e)
 			lint_walk_expr(l, ctx, e.object)
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
 		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
@@ -2013,7 +2153,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_walk_expr(l, ctx, e.consequent)
 			lint_walk_expr(l, ctx, e.alternate)
 		}
-	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
@@ -2066,7 +2206,9 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		if e != nil { lint_check_no_loss_of_precision(l, e) }
 	case ^RegExpLiteral:
 		if e != nil { lint_check_no_control_regex(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
-	case ^NullLiteral, ^BooleanLiteral, ^StringLiteral, ^BigIntLiteral,
+	case ^StringLiteral:
+		if e != nil { lint_check_no_script_url(l, e) }
+	case ^NullLiteral, ^BooleanLiteral, ^BigIntLiteral,
 	     ^Identifier, ^PrivateIdentifier, ^ThisExpression, ^Super,
 	     ^MetaProperty, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
 	     ^JSXSpreadChild:
