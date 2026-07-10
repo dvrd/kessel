@@ -4,6 +4,15 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.19.0] - 2026-07-10
+
+### Added
+- feat(lint): 78 rules with no-proto no-iterator no-caller no-script-url
+- feat(lint): add no-eval, no-implied-eval, no-return-assign, no-new-wrappers (67 rules, 76 fixtures)
+- feat(lint): add no-empty-function, no-array-constructor, no-throw-literal (61 rules, 72 fixtures)
+- feat(lint): add no-unreachable, no-fallthrough, TS rules, total 55 rules
+
+
 ## [0.18.0] - 2026-07-10
 
 ### Added
