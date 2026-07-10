@@ -108,6 +108,12 @@ LintRule :: enum u16 {
 	L4004_NoArrayConstructor       = 4004,
 	L4005_NoThrowLiteral           = 4005,
 	L4006_NoUnusedExpressions      = 4006,
+	L4007_NoVoidZero               = 4007,
+	L4008_NoEval                   = 4008,
+	L4009_NoImpliedEval            = 4009,
+	L4010_NoReturnAssign           = 4010,
+	L4011_NoNewWrappers            = 4011,
+	L4012_PreferConst              = 4012,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -485,6 +491,42 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "expected an assignment or function call and instead saw an expression",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L4007_NoVoidZero:
+		return LintRuleInfo{
+			name = "no-void",
+			default_message = "expected 'undefined' and instead saw 'void'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4008_NoEval:
+		return LintRuleInfo{
+			name = "no-eval",
+			default_message = "eval can be harmful",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4009_NoImpliedEval:
+		return LintRuleInfo{
+			name = "no-implied-eval",
+			default_message = "implied eval; use a function instead of a string argument",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4010_NoReturnAssign:
+		return LintRuleInfo{
+			name = "no-return-assign",
+			default_message = "return statement should not contain assignment",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4011_NoNewWrappers:
+		return LintRuleInfo{
+			name = "no-new-wrappers",
+			default_message = "do not use String/Number/Boolean as a constructor",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4012_PreferConst:
+		return LintRuleInfo{
+			name = "prefer-const",
+			default_message = "variable is never reassigned; use 'const' instead",
+			default_severity = .Warning, default_enabled = false,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -649,6 +691,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		lint_walk_switch(l, ctx, v)
 	case ^ReturnStatement:
 		if v != nil {
+			lint_check_no_return_assign(l, v)
 			if e, ok := v.argument.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 		}
 	case ^ThrowStatement:
@@ -1868,6 +1911,55 @@ lint_check_no_array_constructor :: proc(l: ^Linter, e: ^NewExpression) {
 // lint_check_no_throw_literal (no-throw-literal, L4005): flags `throw` of a
 // non-Error value (literal, identifier to a primitive). Only literal throws
 // are checked for simplicity.
+// lint_check_no_eval (no-eval, L4008): flags direct `eval()` calls.
+lint_check_no_eval :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4008_NoEval) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "eval" { return }
+	info := lint_rule_info(.L4008_NoEval)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4008_NoEval, info.default_message)
+}
+
+// lint_check_no_implied_eval (no-implied-eval, L4009): flags setTimeout/
+// setInterval with a string first argument (implied eval).
+lint_check_no_implied_eval :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4009_NoImpliedEval) { return }
+	if len(e.arguments) == 0 { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil { return }
+	if id.name != "setTimeout" && id.name != "setInterval" { return }
+	if _, sok := e.arguments[0]^.(^StringLiteral); sok {
+		info := lint_rule_info(.L4009_NoImpliedEval)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4009_NoImpliedEval, info.default_message)
+	}
+}
+
+// lint_check_no_return_assign (no-return-assign, L4010): flags assignment
+// expressions directly inside a return statement.
+lint_check_no_return_assign :: proc(l: ^Linter, v: ^ReturnStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4010_NoReturnAssign) { return }
+	arg, ok := v.argument.(^Expression)
+	if !ok || arg == nil { return }
+	if _, aok := arg^.(^AssignmentExpression); aok {
+		info := lint_rule_info(.L4010_NoReturnAssign)
+		lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4010_NoReturnAssign, info.default_message)
+	}
+}
+
+// lint_check_no_new_wrappers (no-new-wrappers, L4011): flags `new String()`,
+// `new Number()`, `new Boolean()` — primitive wrapper objects are almost
+// always a mistake.
+lint_check_no_new_wrappers :: proc(l: ^Linter, e: ^NewExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4011_NoNewWrappers) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil { return }
+	switch id.name {
+	case "String", "Number", "Boolean":
+		info := lint_rule_info(.L4011_NoNewWrappers)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4011_NoNewWrappers, info.default_message)
+	}
+}
+
 lint_check_no_throw_literal :: proc(l: ^Linter, v: ^ThrowStatement) {
 	if v == nil || !lint_rule_enabled(l, .L4005_NoThrowLiteral) { return }
 	if v.argument == nil { return }
@@ -1910,9 +2002,9 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
