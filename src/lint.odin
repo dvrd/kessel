@@ -90,6 +90,16 @@ LintRule :: enum u16 {
 	L2041_NoRegexSpaces           = 2041,
 	L2042_NoExtraBooleanCast      = 2042,
 	L2043_NoNonoctalDecimalEscape = 2043,
+	L2044_NoUnreachable           = 2044,
+	L2045_NoFallthrough           = 2045,
+
+	// L3xxx — TypeScript-specific.
+	L3001_BanTsComment            = 3001,
+	L3002_NoExplicitAny           = 3002,
+	L3003_PreferAsConst           = 3003,
+	L3004_NoNamespace             = 3004,
+	L3005_NoNonNullAssertion      = 3005,
+	L3006_ConsistentTypeImports   = 3006,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -383,6 +393,54 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "'\\8' and '\\9' are not octal escape sequences",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L2044_NoUnreachable:
+		return LintRuleInfo{
+			name = "no-unreachable",
+			default_message = "unreachable code after return, throw, break, or continue",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L2045_NoFallthrough:
+		return LintRuleInfo{
+			name = "no-fallthrough",
+			default_message = "expected a 'break' or 'return' before 'case'",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L3001_BanTsComment:
+		return LintRuleInfo{
+			name = "ban-ts-comment",
+			default_message = "do not use @ts-ignore or @ts-nocheck directives",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L3002_NoExplicitAny:
+		return LintRuleInfo{
+			name = "no-explicit-any",
+			default_message = "unexpected 'any' type; specify a more precise type",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L3003_PreferAsConst:
+		return LintRuleInfo{
+			name = "prefer-as-const",
+			default_message = "expected 'as const' instead of literal type assertion",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L3004_NoNamespace:
+		return LintRuleInfo{
+			name = "no-namespace",
+			default_message = "ES2015 module syntax is preferred over custom TypeScript namespaces",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L3005_NoNonNullAssertion:
+		return LintRuleInfo{
+			name = "no-non-null-assertion",
+			default_message = "forbidden non-null assertion (postfix '!')",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L3006_ConsistentTypeImports:
+		return LintRuleInfo{
+			name = "consistent-type-imports",
+			default_message = "use 'import type' for type-only imports",
+			default_severity = .Warning, default_enabled = false,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -491,6 +549,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		if v != nil {
 			lint_check_redeclare(l, ctx, v.body[:])
 			lint_check_no_inner_declarations(l, ctx, v.body[:], false)
+			lint_check_no_unreachable(l, v.body[:])
 			// no-empty (L1001): a bare `{}` block with no statements. Function
 			// bodies are a distinct AST type (FunctionBody), so only standalone /
 			// nested / control-flow-body blocks reach here — matching ESLint's
@@ -575,9 +634,11 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 			info := lint_rule_info(.L2001_NoDebugger)
 			lint_report(l, u32(v.loc.start), u32(v.loc.end), .L2001_NoDebugger, info.default_message)
 		}
+	case ^TSModuleDeclaration:
+		if v != nil { lint_check_ts_namespace(l, v) }
 	case ^EmptyStatement, ^BreakStatement, ^ContinueStatement,
 	     ^ImportDeclaration, ^ExportAllDeclaration, ^TSInterfaceDeclaration,
-	     ^TSTypeAliasDeclaration, ^TSEnumDeclaration, ^TSModuleDeclaration,
+	     ^TSTypeAliasDeclaration, ^TSEnumDeclaration,
 	     ^TSImportEqualsDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 		// Leaf for traversal purposes: no JS statement/expression children the
 		// current rule set inspects. TS type internals and namespace bodies are
@@ -631,6 +692,7 @@ lint_walk_switch :: proc(l: ^Linter, ctx: ^LintContext, v: ^SwitchStatement) {
 	if v == nil { return }
 	lint_walk_expr(l, ctx, v.discriminant)
 	lint_check_duplicate_case(l, v)
+	lint_check_no_fallthrough(l, v)
 	for sc in v.cases {
 		if t, ok := sc.test.(^Expression); ok && t != nil { lint_walk_expr(l, ctx, t) }
 		lint_check_case_declarations(l, sc.consequent[:])
@@ -835,6 +897,7 @@ lint_walk_function :: proc(l: ^Linter, ctx: ^LintContext, fn: ^FunctionExpressio
 	}
 	if !fn.no_body {
 		lint_check_redeclare(l, ctx, fn.body.body[:])
+		lint_check_no_unreachable(l, fn.body.body[:])
 		for s in fn.body.body { lint_walk_stmt(l, ctx, s) }
 	}
 }
@@ -1644,6 +1707,97 @@ lint_check_no_regex_spaces :: proc(l: ^Linter, e: ^RegExpLiteral) {
 	}
 }
 
+// lint_check_no_unreachable (no-unreachable, L2044): basic version without
+// CFG. Flags statements that follow a return, throw, break, or continue in
+// the same block — those statements can never execute.
+lint_check_no_unreachable :: proc(l: ^Linter, body: []^Statement) {
+	if !lint_rule_enabled(l, .L2044_NoUnreachable) { return }
+	hit_terminator := false
+	for s in body {
+		if s == nil { continue }
+		if hit_terminator {
+			// Skip function/class declarations — they're hoisted.
+			#partial switch _ in s^ {
+			case ^FunctionDeclaration, ^ClassDeclaration: continue
+			}
+			loc := lint_stmt_loc(s)
+			info := lint_rule_info(.L2044_NoUnreachable)
+			lint_report(l, u32(loc.start), u32(loc.end), .L2044_NoUnreachable, info.default_message)
+			return // one report per block
+		}
+		if lint_stmt_is_terminator(s) { hit_terminator = true }
+	}
+}
+
+lint_stmt_is_terminator :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	#partial switch _ in s^ {
+	case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement:
+		return true
+	}
+	return false
+}
+
+lint_stmt_loc :: proc(s: ^Statement) -> Loc {
+	if s == nil { return {} }
+	#partial switch v in s^ {
+	case ^ExpressionStatement:  if v != nil { return v.loc }
+	case ^VariableDeclaration:  if v != nil { return v.loc }
+	case ^ReturnStatement:      if v != nil { return v.loc }
+	case ^ThrowStatement:       if v != nil { return v.loc }
+	case ^IfStatement:          if v != nil { return v.loc }
+	case ^BlockStatement:       if v != nil { return v.loc }
+	case ^ForStatement:         if v != nil { return v.loc }
+	case ^WhileStatement:       if v != nil { return v.loc }
+	case ^FunctionDeclaration:  if v != nil { return v.loc }
+	case ^ClassDeclaration:     if v != nil { return v.loc }
+	case ^BreakStatement:       if v != nil { return v.loc }
+	case ^ContinueStatement:    if v != nil { return v.loc }
+	case ^EmptyStatement:       if v != nil { return v.loc }
+	case ^DebuggerStatement:    if v != nil { return v.loc }
+	case ^LabeledStatement:     if v != nil { return v.loc }
+	case ^SwitchStatement:      if v != nil { return v.loc }
+	case ^TryStatement:         if v != nil { return v.loc }
+	case ^DoWhileStatement:     if v != nil { return v.loc }
+	}
+	return {}
+}
+
+// lint_check_no_fallthrough (no-fallthrough, L2045): basic version. Flags a
+// case clause that has statements but does not end with break, return, throw,
+// or continue — it falls through to the next case.
+lint_check_no_fallthrough :: proc(l: ^Linter, v: ^SwitchStatement) {
+	if v == nil || !lint_rule_enabled(l, .L2045_NoFallthrough) { return }
+	for idx in 0..<len(v.cases) - 1 {
+		sc := v.cases[idx]
+		if len(sc.consequent) == 0 { continue } // empty case = intentional group
+		last := sc.consequent[len(sc.consequent) - 1]
+		if last == nil { continue }
+		if lint_stmt_is_terminator(last) { continue }
+		// Check if last is a block ending with a terminator.
+		if blk, ok := last^.(^BlockStatement); ok && blk != nil && len(blk.body) > 0 {
+			if lint_stmt_is_terminator(blk.body[len(blk.body) - 1]) { continue }
+		}
+		next_sc := v.cases[idx + 1]
+		info := lint_rule_info(.L2045_NoFallthrough)
+		lint_report(l, u32(next_sc.loc.start), u32(next_sc.loc.end), .L2045_NoFallthrough, info.default_message)
+	}
+}
+
+// lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
+lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
+	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
+	info := lint_rule_info(.L3005_NoNonNullAssertion)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L3005_NoNonNullAssertion, info.default_message)
+}
+
+// lint_check_ts_namespace (no-namespace, L3004): flags TSModuleDeclaration.
+lint_check_ts_namespace :: proc(l: ^Linter, v: ^TSModuleDeclaration) {
+	if v == nil || !lint_rule_enabled(l, .L3004_NoNamespace) { return }
+	info := lint_rule_info(.L3004_NoNamespace)
+	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L3004_NoNamespace, info.default_message)
+}
+
 lint_check_no_extra_boolean_cast :: proc(l: ^Linter, test: ^Expression, start, end: u32) {
 	if test == nil || !lint_rule_enabled(l, .L2042_NoExtraBooleanCast) { return }
 	// Double negation: !!x
@@ -1724,7 +1878,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^ClassExpression:           if e != nil { lint_walk_class(l, ctx, e) }
 	case ^TSAsExpression:            if e != nil { lint_walk_expr(l, ctx, e.expression) }
 	case ^TSSatisfiesExpression:     if e != nil { lint_walk_expr(l, ctx, e.expression) }
-	case ^TSNonNullExpression:       if e != nil { lint_walk_expr(l, ctx, e.expression) }
+	case ^TSNonNullExpression:       if e != nil { lint_check_ts_non_null(l, e); lint_walk_expr(l, ctx, e.expression) }
 	case ^TSTypeAssertion:           if e != nil { lint_walk_expr(l, ctx, e.expression) }
 	case ^TSInstantiationExpression: if e != nil { lint_walk_expr(l, ctx, e.expression) }
 	case ^JSXElement:
