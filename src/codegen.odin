@@ -1236,12 +1236,9 @@ gen_function_param :: proc(cg: ^Codegen, p: FunctionParameter) {
 	// the minimum keywords so the output still parses; full TS shape is a
 	// follow-up.
 	if cg.cfg.strip_types {
-		// A parameter property (`constructor(private x)`) declares AND
-		// assigns a class field — it is not erasable syntax. Refuse rather
-		// than silently drop the field assignment.
-		if p.accessibility != .None || p.readonly {
-			cg_strip_unsupported(cg, p.loc, "parameter property")
-		}
+		// Parameter properties are now lowered: the accessibility/readonly
+		// keywords are stripped and `this.x = x;` is injected into the body
+		// by gen_function_params_and_body. Just emit the bare parameter.
 	} else {
 		switch p.accessibility {
 		case .None:      // nothing
@@ -1304,12 +1301,36 @@ gen_function_params_and_body :: proc(
 	if no_body { cg_byte(cg, ';'); return }
 	cg_space(cg)
 	cg_byte(cg, '{')
-	if len(body.body) == 0 { cg_byte(cg, '}'); return }
+	// In strip-types mode, inject `this.x = x;` for parameter properties.
+	param_prop_names: [dynamic]string
+	if cg.cfg.strip_types {
+		param_prop_names = make([dynamic]string, 0, 4, context.temp_allocator)
+		for p in params {
+			if p.accessibility != .None || p.readonly {
+				if id, ok := p.pattern.(^Identifier); ok && id != nil {
+					append(&param_prop_names, id.name)
+				}
+			}
+		}
+	}
+	has_param_props := len(param_prop_names) > 0
+	if len(body.body) == 0 && !has_param_props { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
 	// Directive prologue (e.g. "use strict") is already present at the
 	// front of body.body[] as an ExpressionStatement; emitting it from
 	// body.directives too would duplicate output. See codegen_program.
+	if has_param_props {
+		for pname in param_prop_names {
+			cg_indent(cg)
+			cg_str(cg, "this.")
+			cg_str(cg, pname)
+			cg_str(cg, " = ")
+			cg_str(cg, pname)
+			cg_byte(cg, ';')
+			cg_newline(cg)
+		}
+	}
 	for i in 0..<len(body.body) {
 		gen_statement(cg, body.body[i]^)
 		cg_newline(cg)
