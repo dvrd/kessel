@@ -125,6 +125,11 @@ LintRule :: enum u16 {
 	L4021_NoUselessConcat          = 4021,
 	L4022_NoIterator               = 4022,
 	L4023_NoCallerCallee           = 4023,
+	L4024_NoUnsafeFinally          = 4024,
+	L4025_NoExtendNative           = 4025,
+	L4026_PreferObjectSpread       = 4026,
+	L4027_NoUselessRename          = 4027,
+	L4028_SymbolDescription        = 4028,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -604,6 +609,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "deprecated: avoid arguments.caller and arguments.callee",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L4024_NoUnsafeFinally:
+		return LintRuleInfo{
+			name = "no-unsafe-finally",
+			default_message = "unsafe use of break/continue/return/throw in finally block",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4025_NoExtendNative:
+		return LintRuleInfo{
+			name = "no-extend-native",
+			default_message = "do not extend native objects",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4026_PreferObjectSpread:
+		return LintRuleInfo{
+			name = "prefer-object-spread",
+			default_message = "use object spread instead of Object.assign",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4027_NoUselessRename:
+		return LintRuleInfo{
+			name = "no-useless-rename",
+			default_message = "destructuring rename to the same name is unnecessary",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4028_SymbolDescription:
+		return LintRuleInfo{
+			name = "symbol-description",
+			default_message = "expected Symbol to have a description",
+			default_severity = .Warning, default_enabled = true,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -918,6 +953,7 @@ lint_check_duplicate_case :: proc(l: ^Linter, v: ^SwitchStatement) {
 
 lint_walk_try :: proc(l: ^Linter, ctx: ^LintContext, v: ^TryStatement) {
 	if v == nil { return }
+	lint_check_no_unsafe_finally(l, v)
 	for s in v.block.body { lint_walk_stmt(l, ctx, s) }
 	if h, ok := v.handler.(CatchClause); ok {
 		lint_check_useless_catch(l, h)
@@ -2051,6 +2087,68 @@ lint_check_no_useless_concat :: proc(l: ^Linter, e: ^BinaryExpression) {
 	}
 }
 
+// lint_check_no_unsafe_finally (no-unsafe-finally, L4024): flags
+// break/continue/return/throw inside a finally block — these override the
+// try/catch completion value and are almost always a bug.
+lint_check_no_unsafe_finally :: proc(l: ^Linter, v: ^TryStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4024_NoUnsafeFinally) { return }
+	f, ok := v.finalizer.(BlockStatement)
+	if !ok { return }
+	for s in f.body {
+		lint_scan_unsafe_finally(l, s)
+	}
+}
+
+lint_scan_unsafe_finally :: proc(l: ^Linter, stmt: ^Statement) {
+	if stmt == nil { return }
+	#partial switch v in stmt^ {
+	case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement:
+		sloc := lint_stmt_loc(stmt)
+		info := lint_rule_info(.L4024_NoUnsafeFinally)
+		lint_report(l, u32(sloc.start), u32(sloc.end), .L4024_NoUnsafeFinally, info.default_message)
+	case ^BlockStatement:
+		if v != nil { for s in v.body { lint_scan_unsafe_finally(l, s) } }
+	case ^IfStatement:
+		if v != nil {
+			lint_scan_unsafe_finally(l, v.consequent)
+			if alt, ok := v.alternate.(^Statement); ok { lint_scan_unsafe_finally(l, alt) }
+		}
+	}
+}
+
+// lint_check_no_extend_native (no-extend-native, L4025): flags
+// `Object.prototype.foo = ...` and similar native prototype extensions.
+lint_check_no_extend_native :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4025_NoExtendNative) { return }
+	member, ok := e.left.(^MemberExpression)
+	if !ok || member == nil { return }
+	// Check if the object is X.prototype where X is a known native.
+	inner, iok := member.object^.(^MemberExpression)
+	if !iok || inner == nil || inner.computed { return }
+	prop, pok := inner.property^.(^Identifier)
+	if !pok || prop == nil || prop.name != "prototype" { return }
+	obj_id, oid_ok := inner.object^.(^Identifier)
+	if !oid_ok || obj_id == nil { return }
+	switch obj_id.name {
+	case "Object", "Array", "String", "Number", "Boolean", "Function",
+		"RegExp", "Date", "Error", "Map", "Set", "WeakMap", "WeakSet", "Promise":
+		info := lint_rule_info(.L4025_NoExtendNative)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4025_NoExtendNative, info.default_message)
+	}
+}
+
+// lint_check_symbol_description (symbol-description, L4028): flags
+// `Symbol()` without a description argument.
+lint_check_symbol_description :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4028_SymbolDescription) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "Symbol" { return }
+	if len(e.arguments) == 0 {
+		info := lint_rule_info(.L4028_SymbolDescription)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4028_SymbolDescription, info.default_message)
+	}
+}
+
 lint_check_no_eval :: proc(l: ^Linter, e: ^CallExpression) {
 	if e == nil || !lint_rule_enabled(l, .L4008_NoEval) { return }
 	id, ok := e.callee^.(^Identifier)
@@ -2142,7 +2240,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
@@ -2155,7 +2253,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		}
 	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
