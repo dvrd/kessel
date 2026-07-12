@@ -92,6 +92,11 @@ LintRule :: enum u16 {
 	L2043_NoNonoctalDecimalEscape = 2043,
 	L2044_NoUnreachable           = 2044,
 	L2045_NoFallthrough           = 2045,
+	L2046_GetterReturn            = 2046,
+	L2047_NoGlobalAssign          = 2047,
+	L2048_NoImportAssign          = 2048,
+	L2049_NoClassAssign           = 2049,
+	L2050_NoFuncAssign            = 2050,
 
 	// L3xxx — TypeScript-specific.
 	L3001_BanTsComment            = 3001,
@@ -445,6 +450,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "expected a 'break' or 'return' before 'case'",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L2046_GetterReturn:
+		return LintRuleInfo{
+			name = "getter-return",
+			default_message = "getter must return a value",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L2047_NoGlobalAssign:
+		return LintRuleInfo{
+			name = "no-global-assign",
+			default_message = "read-only global should not be modified",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L2048_NoImportAssign:
+		return LintRuleInfo{
+			name = "no-import-assign",
+			default_message = "imported binding should not be reassigned",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L2049_NoClassAssign:
+		return LintRuleInfo{
+			name = "no-class-assign",
+			default_message = "class declaration should not be reassigned",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L2050_NoFuncAssign:
+		return LintRuleInfo{
+			name = "no-func-assign",
+			default_message = "function declaration should not be reassigned",
+			default_severity = .Error, default_enabled = true,
+		}
 	case .L3001_BanTsComment:
 		return LintRuleInfo{
 			name = "ban-ts-comment",
@@ -744,6 +779,7 @@ Linter :: struct {
 	// no-dupe-else-if (L2023) scan, so the whole-chain scan runs exactly once
 	// per if/else-if chain (at its head) rather than re-firing on every link.
 	dupe_else_if_seen: map[rawptr]bool,
+	semantic: ^SemanticModel,
 }
 
 // init_linter constructs a Linter bound to the parse arena allocator.
@@ -1248,6 +1284,7 @@ lint_walk_class :: proc(l: ^Linter, ctx: ^LintContext, cls: ^ClassExpression) {
 	if sc, ok := cls.super_class.(^Expression); ok && sc != nil { lint_walk_expr(l, ctx, sc) }
 	for elem in cls.body.body {
 		lint_check_no_setter_return(l, elem)
+		lint_check_getter_return(l, elem)
 		if elem.computed && elem.key != nil { lint_walk_expr(l, ctx, elem.key) }
 		if val, ok := elem.value.(^Expression); ok && val != nil { lint_walk_expr(l, ctx, val) }
 	}
@@ -2056,6 +2093,157 @@ lint_check_no_fallthrough :: proc(l: ^Linter, v: ^SwitchStatement) {
 	}
 }
 
+// lint_check_getter_return (getter-return, L2046): every getter property or
+// method must contain at least one return statement (basic scan, not CFG).
+lint_check_getter_return :: proc(l: ^Linter, elem: ClassElement) {
+	if !lint_rule_enabled(l, .L2046_GetterReturn) { return }
+	if elem.kind != .Get { return }
+	val, has_val := elem.value.(^Expression)
+	if !has_val || val == nil { return }
+	fn, is_fn := val^.(^FunctionExpression)
+	if !is_fn || fn == nil || fn.no_body { return }
+	if lint_body_has_return(fn.body.body[:]) { return }
+	info := lint_rule_info(.L2046_GetterReturn)
+	lint_report(l, u32(elem.loc.start), u32(elem.loc.end), .L2046_GetterReturn, info.default_message)
+}
+
+// lint_body_has_return scans a statement list for any return statement
+// (shallow — does not descend into nested functions).
+lint_body_has_return :: proc(body: []^Statement) -> bool {
+	for s in body {
+		if s == nil { continue }
+		#partial switch v in s^ {
+		case ^ReturnStatement:  return true
+		case ^IfStatement:
+			if v != nil {
+				if lint_stmt_has_return(v.consequent) { return true }
+				if alt, aok := v.alternate.(^Statement); aok {
+					if lint_stmt_has_return(alt) { return true }
+				}
+			}
+		case ^BlockStatement:
+			if v != nil && lint_body_has_return(v.body[:]) { return true }
+		case ^SwitchStatement:
+			if v != nil {
+				for sc in v.cases {
+					if lint_body_has_return(sc.consequent[:]) { return true }
+				}
+			}
+		case ^TryStatement:
+			if v != nil {
+				if lint_body_has_return(v.block.body[:]) { return true }
+			}
+		}
+	}
+	return false
+}
+
+lint_stmt_has_return :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	#partial switch v in s^ {
+	case ^ReturnStatement: return true
+	case ^BlockStatement:  if v != nil { return lint_body_has_return(v.body[:]) }
+	}
+	return false
+}
+
+// lint_check_getter_return_obj is the object-literal variant.
+lint_check_getter_return_obj :: proc(l: ^Linter, prop: Property) {
+	if !lint_rule_enabled(l, .L2046_GetterReturn) { return }
+	if prop.kind != .Get { return }
+	if prop.value == nil { return }
+	fn, is_fn := prop.value^.(^FunctionExpression)
+	if !is_fn || fn == nil || fn.no_body { return }
+	if lint_body_has_return(fn.body.body[:]) { return }
+	info := lint_rule_info(.L2046_GetterReturn)
+	lint_report(l, u32(prop.loc.start), u32(prop.loc.end), .L2046_GetterReturn, info.default_message)
+}
+
+// lint_check_no_global_assign (no-global-assign, L2047): forbids assignment to
+// well-known read-only globals (undefined, NaN, Infinity, eval, arguments, etc.).
+lint_check_no_global_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L2047_NoGlobalAssign) { return }
+	id, ok := e.left.(^Identifier)
+	if !ok || id == nil { return }
+	if lint_is_readonly_global(id.name) {
+		info := lint_rule_info(.L2047_NoGlobalAssign)
+		lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2047_NoGlobalAssign, info.default_message)
+	}
+}
+
+lint_is_readonly_global :: proc(name: string) -> bool {
+	switch name {
+	case "undefined", "NaN", "Infinity", "eval", "arguments",
+	     "Object", "Array", "Function", "Number", "String",
+	     "Boolean", "Symbol", "BigInt", "Math", "JSON",
+	     "Reflect", "Proxy", "Promise", "Map", "Set",
+	     "WeakMap", "WeakSet", "WeakRef", "Error", "TypeError",
+	     "RangeError", "ReferenceError", "SyntaxError", "URIError",
+	     "EvalError", "AggregateError", "parseInt", "parseFloat",
+	     "isNaN", "isFinite", "decodeURI", "decodeURIComponent",
+	     "encodeURI", "encodeURIComponent", "globalThis",
+	     "ArrayBuffer", "SharedArrayBuffer", "DataView",
+	     "Float32Array", "Float64Array", "Int8Array",
+	     "Int16Array", "Int32Array", "Uint8Array",
+	     "Uint16Array", "Uint32Array", "Uint8ClampedArray",
+	     "Atomics", "Intl", "RegExp", "Date", "console":
+		return true
+	}
+	return false
+}
+
+// lint_check_no_import_assign (no-import-assign, L2048): uses the semantic
+// model to check whether any assignment target resolves to an import binding.
+lint_check_no_import_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L2048_NoImportAssign) { return }
+	if l.semantic == nil { return }
+	id, ok := e.left.(^Identifier)
+	if !ok || id == nil { return }
+	// Search the semantic model for an import symbol with this name.
+	for i in 1..<len(l.semantic.symbols) {
+		sym := &l.semantic.symbols[i]
+		if sym.name == id.name && sym.kind == .Import {
+			info := lint_rule_info(.L2048_NoImportAssign)
+			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2048_NoImportAssign, info.default_message)
+			return
+		}
+	}
+}
+
+// lint_check_no_class_assign (no-class-assign, L2049): flags assignment to a
+// name that was declared as a class in the same file.
+lint_check_no_class_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L2049_NoClassAssign) { return }
+	if l.semantic == nil { return }
+	id, ok := e.left.(^Identifier)
+	if !ok || id == nil { return }
+	for i in 1..<len(l.semantic.symbols) {
+		sym := &l.semantic.symbols[i]
+		if sym.name == id.name && sym.kind == .Class {
+			info := lint_rule_info(.L2049_NoClassAssign)
+			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2049_NoClassAssign, info.default_message)
+			return
+		}
+	}
+}
+
+// lint_check_no_func_assign (no-func-assign, L2050): flags assignment to a
+// name that was declared as a function declaration in the same file.
+lint_check_no_func_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L2050_NoFuncAssign) { return }
+	if l.semantic == nil { return }
+	id, ok := e.left.(^Identifier)
+	if !ok || id == nil { return }
+	for i in 1..<len(l.semantic.symbols) {
+		sym := &l.semantic.symbols[i]
+		if sym.name == id.name && sym.kind == .Function {
+			info := lint_rule_info(.L2050_NoFuncAssign)
+			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2050_NoFuncAssign, info.default_message)
+			return
+		}
+	}
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -2360,7 +2548,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		}
 	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
@@ -2373,6 +2561,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		if e != nil {
 			lint_check_dupe_keys(l, e)
 			for prop in e.properties {
+				lint_check_getter_return_obj(l, prop)
 				if prop.computed && prop.key != nil { lint_walk_expr(l, ctx, prop.key) }
 				if prop.value != nil { lint_walk_expr(l, ctx, prop.value) }
 			}
