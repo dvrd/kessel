@@ -97,6 +97,7 @@ LintRule :: enum u16 {
 	L2048_NoImportAssign          = 2048,
 	L2049_NoClassAssign           = 2049,
 	L2050_NoFuncAssign            = 2050,
+	L2051_NoPromiseExecReturn     = 2051,
 
 	// L3xxx — TypeScript-specific.
 	L3001_BanTsComment            = 3001,
@@ -145,6 +146,7 @@ LintRule :: enum u16 {
 	L4036_PreferTemplate           = 4036,
 	L4037_NoConsole                = 4037,
 	L4038_GuardForIn               = 4038,
+	L4039_NoTemplateCurlyInString  = 4039,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -480,6 +482,12 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "function declaration should not be reassigned",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L2051_NoPromiseExecReturn:
+		return LintRuleInfo{
+			name = "no-promise-executor-return",
+			default_message = "do not return a value from a Promise executor",
+			default_severity = .Error, default_enabled = true,
+		}
 	case .L3001_BanTsComment:
 		return LintRuleInfo{
 			name = "ban-ts-comment",
@@ -743,6 +751,12 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			name = "guard-for-in",
 			default_message = "for-in loop body should be filtered with an if statement",
 			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4039_NoTemplateCurlyInString:
+		return LintRuleInfo{
+			name = "no-template-curly-in-string",
+			default_message = "unexpected template string expression in regular string",
+			default_severity = .Warning, default_enabled = true,
 		}
 	}
 	return LintRuleInfo{}
@@ -2244,6 +2258,60 @@ lint_check_no_func_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
 	}
 }
 
+// lint_check_no_promise_exec_return (no-promise-executor-return, L2051):
+// flags `return <value>` inside a `new Promise((resolve, reject) => { ... })`
+// executor. The return value is ignored by the Promise constructor.
+lint_check_no_promise_exec_return :: proc(l: ^Linter, e: ^NewExpression) {
+	if e == nil || !lint_rule_enabled(l, .L2051_NoPromiseExecReturn) { return }
+	// Callee must be `Promise`.
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "Promise" { return }
+	if len(e.arguments) < 1 { return }
+	arg := e.arguments[0]
+	if arg == nil { return }
+	// The executor can be a function expression or arrow.
+	#partial switch fn in arg^ {
+	case ^FunctionExpression:
+		if fn != nil && !fn.no_body {
+			lint_check_exec_body_return(l, fn.body.body[:])
+		}
+	case ^ArrowFunctionExpression:
+		if fn != nil {
+			if blk, bok := fn.body.(^BlockStatement); bok && blk != nil {
+				lint_check_exec_body_return(l, blk.body[:])
+			}
+		}
+	}
+}
+
+lint_check_exec_body_return :: proc(l: ^Linter, body: []^Statement) {
+	for s in body {
+		if s == nil { continue }
+		ret, is_ret := s^.(^ReturnStatement)
+		if !is_ret || ret == nil { continue }
+		// `return;` (no argument) is fine — only `return <expr>` is flagged.
+		if _, has_arg := ret.argument.(^Expression); has_arg {
+			info := lint_rule_info(.L2051_NoPromiseExecReturn)
+			lint_report(l, u32(ret.loc.start), u32(ret.loc.end), .L2051_NoPromiseExecReturn, info.default_message)
+		}
+	}
+}
+
+// lint_check_template_curly_in_string (no-template-curly-in-string, L4039):
+// flags regular string literals that contain `${...}` — likely a mistaken
+// use of quotes instead of backticks.
+lint_check_template_curly_in_string :: proc(l: ^Linter, e: ^StringLiteral) {
+	if e == nil || !lint_rule_enabled(l, .L4039_NoTemplateCurlyInString) { return }
+	s := e.value
+	for i in 0..<len(s) {
+		if s[i] == '$' && i + 1 < len(s) && s[i+1] == '{' {
+			info := lint_rule_info(.L4039_NoTemplateCurlyInString)
+			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4039_NoTemplateCurlyInString, info.default_message)
+			return // one report per string
+		}
+	}
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -2537,7 +2605,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^CallExpression:
 		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
@@ -2601,7 +2669,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^RegExpLiteral:
 		if e != nil { lint_check_no_control_regex(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
 	case ^StringLiteral:
-		if e != nil { lint_check_no_script_url(l, e) }
+		if e != nil { lint_check_no_script_url(l, e); lint_check_template_curly_in_string(l, e) }
 	case ^NullLiteral, ^BooleanLiteral, ^BigIntLiteral,
 	     ^Identifier, ^PrivateIdentifier, ^ThisExpression, ^Super,
 	     ^MetaProperty, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
