@@ -4,6 +4,18 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.20.0] - 2026-07-12
+
+### Added
+- feat(lint): add no-alert, no-object-constructor, default-case-last + 10 enum entries (94 rules, 82 fixtures)
+- feat(lint): add no-unsafe-finally, no-extend-native, symbol-description (84 rules, 79 fixtures)
+- feat(cfg): add Phase 7 control-flow graph with basic blocks, typed edges, BFS reachability
+- feat(semantic): add Phase 6 semantic model - symbol table, scope tree, reference resolution
+- feat(transform): lower parameter properties to this-assignments in strip-types (Phase 5a)
+- feat(transform): lower import-eq and export-eq in strip-types
+- feat(transform): lower TS enums to IIFE pattern in strip-types mode (Phase 5a)
+
+
 ## [0.19.0] - 2026-07-10
 
 ### Added
