@@ -130,6 +130,16 @@ LintRule :: enum u16 {
 	L4026_PreferObjectSpread       = 4026,
 	L4027_NoUselessRename          = 4027,
 	L4028_SymbolDescription        = 4028,
+	L4029_NoAlert                  = 4029,
+	L4030_NoEmptyStaticBlock       = 4030,
+	L4031_DefaultCaseLast          = 4031,
+	L4032_NoConstructorReturn      = 4032,
+	L4033_NoNewObject              = 4033,
+	L4034_NoUselessConstructor     = 4034,
+	L4035_NoCommaOperatorSeq       = 4035,
+	L4036_PreferTemplate           = 4036,
+	L4037_NoConsole                = 4037,
+	L4038_GuardForIn               = 4038,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -639,6 +649,66 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "expected Symbol to have a description",
 			default_severity = .Warning, default_enabled = true,
 		}
+	case .L4029_NoAlert:
+		return LintRuleInfo{
+			name = "no-alert",
+			default_message = "unexpected alert, confirm, or prompt",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4030_NoEmptyStaticBlock:
+		return LintRuleInfo{
+			name = "no-empty-static-block",
+			default_message = "unexpected empty class static block",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4031_DefaultCaseLast:
+		return LintRuleInfo{
+			name = "default-case-last",
+			default_message = "default clause should be the last clause",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4032_NoConstructorReturn:
+		return LintRuleInfo{
+			name = "no-constructor-return",
+			default_message = "unexpected return statement in constructor",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4033_NoNewObject:
+		return LintRuleInfo{
+			name = "no-object-constructor",
+			default_message = "use object literal notation instead of new Object()",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4034_NoUselessConstructor:
+		return LintRuleInfo{
+			name = "no-useless-constructor",
+			default_message = "empty constructor is unnecessary",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4035_NoCommaOperatorSeq:
+		return LintRuleInfo{
+			name = "no-sequences",
+			default_message = "unexpected use of comma operator",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4036_PreferTemplate:
+		return LintRuleInfo{
+			name = "prefer-template",
+			default_message = "use template literals instead of string concatenation",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4037_NoConsole:
+		return LintRuleInfo{
+			name = "no-console",
+			default_message = "unexpected console statement",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4038_GuardForIn:
+		return LintRuleInfo{
+			name = "guard-for-in",
+			default_message = "for-in loop body should be filtered with an if statement",
+			default_severity = .Warning, default_enabled = false,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -892,6 +962,7 @@ lint_walk_switch :: proc(l: ^Linter, ctx: ^LintContext, v: ^SwitchStatement) {
 	lint_walk_expr(l, ctx, v.discriminant)
 	lint_check_duplicate_case(l, v)
 	lint_check_no_fallthrough(l, v)
+	lint_check_default_case_last(l, v)
 	for sc in v.cases {
 		if t, ok := sc.test.(^Expression); ok && t != nil { lint_walk_expr(l, ctx, t) }
 		lint_check_case_declarations(l, sc.consequent[:])
@@ -2090,6 +2161,42 @@ lint_check_no_useless_concat :: proc(l: ^Linter, e: ^BinaryExpression) {
 // lint_check_no_unsafe_finally (no-unsafe-finally, L4024): flags
 // break/continue/return/throw inside a finally block — these override the
 // try/catch completion value and are almost always a bug.
+// lint_check_no_alert (no-alert, L4029): flags alert/confirm/prompt calls.
+lint_check_no_alert :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4029_NoAlert) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil { return }
+	switch id.name {
+	case "alert", "confirm", "prompt":
+		info := lint_rule_info(.L4029_NoAlert)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4029_NoAlert, info.default_message)
+	}
+}
+
+// lint_check_default_case_last (default-case-last, L4031): the default clause
+// in a switch should be last.
+lint_check_default_case_last :: proc(l: ^Linter, v: ^SwitchStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4031_DefaultCaseLast) { return }
+	for idx in 0..<len(v.cases) {
+		sc := v.cases[idx]
+		_, has_test := sc.test.(^Expression)
+		if !has_test && idx < len(v.cases) - 1 {
+			info := lint_rule_info(.L4031_DefaultCaseLast)
+			lint_report(l, u32(sc.loc.start), u32(sc.loc.end), .L4031_DefaultCaseLast, info.default_message)
+			return
+		}
+	}
+}
+
+// lint_check_no_new_object (no-object-constructor, L4033): flags `new Object()`.
+lint_check_no_new_object :: proc(l: ^Linter, e: ^NewExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4033_NoNewObject) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "Object" { return }
+	info := lint_rule_info(.L4033_NoNewObject)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4033_NoNewObject, info.default_message)
+}
+
 lint_check_no_unsafe_finally :: proc(l: ^Linter, v: ^TryStatement) {
 	if v == nil || !lint_rule_enabled(l, .L4024_NoUnsafeFinally) { return }
 	f, ok := v.finalizer.(BlockStatement)
@@ -2240,9 +2347,9 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
