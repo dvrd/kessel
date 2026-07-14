@@ -147,6 +147,11 @@ LintRule :: enum u16 {
 	L4037_NoConsole                = 4037,
 	L4038_GuardForIn               = 4038,
 	L4039_NoTemplateCurlyInString  = 4039,
+	L4040_NoNestedTernary          = 4040,
+	L4041_NoUnneededTernary         = 4041,
+	L4042_NoLonelyIf                = 4042,
+	L4043_PreferNumericLiterals     = 4043,
+	L4044_NoUselessCall             = 4044,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -758,6 +763,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "unexpected template string expression in regular string",
 			default_severity = .Warning, default_enabled = true,
 		}
+	case .L4040_NoNestedTernary:
+		return LintRuleInfo{
+			name = "no-nested-ternary",
+			default_message = "do not nest ternary expressions",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4041_NoUnneededTernary:
+		return LintRuleInfo{
+			name = "no-unneeded-ternary",
+			default_message = "unnecessary ternary; use the condition directly",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4042_NoLonelyIf:
+		return LintRuleInfo{
+			name = "no-lonely-if",
+			default_message = "unexpected 'if' as the only statement in an 'else' block",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4043_PreferNumericLiterals:
+		return LintRuleInfo{
+			name = "prefer-numeric-literals",
+			default_message = "use binary, octal, or hex literal instead of parseInt",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4044_NoUselessCall:
+		return LintRuleInfo{
+			name = "no-useless-call",
+			default_message = "unnecessary use of .call() or .apply()",
+			default_severity = .Warning, default_enabled = true,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -881,6 +916,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^IfStatement:
 		if v != nil {
 			lint_check_dupe_else_if(l, v)
+			lint_check_no_lonely_if(l, v)
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_no_extra_boolean_cast(l, v.test, u32(v.loc.start), u32(v.loc.end))
@@ -2312,6 +2348,95 @@ lint_check_template_curly_in_string :: proc(l: ^Linter, e: ^StringLiteral) {
 	}
 }
 
+// lint_check_no_nested_ternary (no-nested-ternary, L4040): flags ternary
+// expressions whose consequent or alternate is itself a ternary.
+lint_check_no_nested_ternary :: proc(l: ^Linter, e: ^ConditionalExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4040_NoNestedTernary) { return }
+	if e.consequent != nil {
+		if _, ok := e.consequent^.(^ConditionalExpression); ok {
+			info := lint_rule_info(.L4040_NoNestedTernary)
+			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4040_NoNestedTernary, info.default_message)
+			return
+		}
+	}
+	if e.alternate != nil {
+		if _, ok := e.alternate^.(^ConditionalExpression); ok {
+			info := lint_rule_info(.L4040_NoNestedTernary)
+			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4040_NoNestedTernary, info.default_message)
+		}
+	}
+}
+
+// lint_check_no_unneeded_ternary (no-unneeded-ternary, L4041): flags
+// `x ? true : false` or `x ? false : true` — use the condition directly.
+lint_check_no_unneeded_ternary :: proc(l: ^Linter, e: ^ConditionalExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4041_NoUnneededTernary) { return }
+	if e.consequent == nil || e.alternate == nil { return }
+	c_bool, c_ok := e.consequent^.(^BooleanLiteral)
+	a_bool, a_ok := e.alternate^.(^BooleanLiteral)
+	if !c_ok || !a_ok || c_bool == nil || a_bool == nil { return }
+	if (c_bool.value && !a_bool.value) || (!c_bool.value && a_bool.value) {
+		info := lint_rule_info(.L4041_NoUnneededTernary)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4041_NoUnneededTernary, info.default_message)
+	}
+}
+
+// lint_check_no_lonely_if (no-lonely-if, L4042): flags an `else` block whose
+// only statement is an `if` — should be `else if` instead.
+lint_check_no_lonely_if :: proc(l: ^Linter, v: ^IfStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4042_NoLonelyIf) { return }
+	alt, has_alt := v.alternate.(^Statement)
+	if !has_alt || alt == nil { return }
+	blk, is_blk := alt^.(^BlockStatement)
+	if !is_blk || blk == nil || len(blk.body) != 1 { return }
+	only := blk.body[0]
+	if only == nil { return }
+	if _, is_if := only^.(^IfStatement); is_if {
+		info := lint_rule_info(.L4042_NoLonelyIf)
+		lint_report(l, u32(blk.loc.start), u32(blk.loc.end), .L4042_NoLonelyIf, info.default_message)
+	}
+}
+
+// lint_check_prefer_numeric_literals (prefer-numeric-literals, L4043): flags
+// parseInt("0xFF", 16) / parseInt("0b11", 2) / parseInt("0o77", 8) — use
+// the literal directly.
+lint_check_prefer_numeric_literals :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4043_PreferNumericLiterals) { return }
+	if len(e.arguments) != 2 { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "parseInt" { return }
+	str_arg := e.arguments[0]
+	if str_arg == nil { return }
+	sl, sl_ok := str_arg^.(^StringLiteral)
+	if !sl_ok || sl == nil { return }
+	val := sl.value
+	if len(val) < 2 { return }
+	// Check for 0x, 0b, 0o prefixes.
+	if val[0] == '0' && (val[1] == 'x' || val[1] == 'X' || val[1] == 'b' || val[1] == 'B' || val[1] == 'o' || val[1] == 'O') {
+		info := lint_rule_info(.L4043_PreferNumericLiterals)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4043_PreferNumericLiterals, info.default_message)
+	}
+}
+
+// lint_check_no_useless_call (no-useless-call, L4044): flags `foo.call(this)`
+// and `foo.apply(this, args)` where the thisArg is the literal `this`.
+lint_check_no_useless_call :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4044_NoUselessCall) { return }
+	if len(e.arguments) < 1 { return }
+	mem, is_mem := e.callee^.(^MemberExpression)
+	if !is_mem || mem == nil || mem.computed { return }
+	prop_id, p_ok := mem.property^.(^Identifier)
+	if !p_ok || prop_id == nil { return }
+	if prop_id.name != "call" && prop_id.name != "apply" { return }
+	// First argument must be literal `this`.
+	first := e.arguments[0]
+	if first == nil { return }
+	if _, is_this := first^.(^ThisExpression); is_this {
+		info := lint_rule_info(.L4044_NoUselessCall)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4044_NoUselessCall, info.default_message)
+	}
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -2603,13 +2728,15 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
 			lint_check_cond_assign(l, e.test, u32(e.loc.start), u32(e.loc.end))
+			lint_check_no_nested_ternary(l, e)
+			lint_check_no_unneeded_ternary(l, e)
 			lint_walk_expr(l, ctx, e.test)
 			lint_walk_expr(l, ctx, e.consequent)
 			lint_walk_expr(l, ctx, e.alternate)

@@ -8,4 +8,4 @@ class Foo { set bar(val) { this._bar = val; } }
 foo: for (var k = 0; k < 10; k++) { break foo; }
 function* gen() { yield 1; }
 class Child extends Parent { constructor() { super(); } }
-var z = x ? true : false;
+var z = x ? 1 : 0;
