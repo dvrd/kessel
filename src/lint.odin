@@ -152,6 +152,11 @@ LintRule :: enum u16 {
 	L4042_NoLonelyIf                = 4042,
 	L4043_PreferNumericLiterals     = 4043,
 	L4044_NoUselessCall             = 4044,
+	L4045_NoVoid                    = 4045,
+	L4046_NoBitwise                 = 4046,
+	L4047_NoContinue                = 4047,
+	L4048_NoPlusplus                = 4048,
+	L4049_Yoda                      = 4049,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -793,6 +798,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "unnecessary use of .call() or .apply()",
 			default_severity = .Warning, default_enabled = true,
 		}
+	case .L4045_NoVoid:
+		return LintRuleInfo{
+			name = "no-void",
+			default_message = "unexpected use of void operator",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4046_NoBitwise:
+		return LintRuleInfo{
+			name = "no-bitwise",
+			default_message = "unexpected use of bitwise operator",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4047_NoContinue:
+		return LintRuleInfo{
+			name = "no-continue",
+			default_message = "unexpected use of 'continue'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4048_NoPlusplus:
+		return LintRuleInfo{
+			name = "no-plusplus",
+			default_message = "unary operator '++/--' used",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4049_Yoda:
+		return LintRuleInfo{
+			name = "yoda",
+			default_message = "expected literal to be on the right side of comparison",
+			default_severity = .Warning, default_enabled = false,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -991,7 +1026,9 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		}
 	case ^TSModuleDeclaration:
 		if v != nil { lint_check_ts_namespace(l, v) }
-	case ^EmptyStatement, ^BreakStatement, ^ContinueStatement,
+	case ^ContinueStatement:
+		if v != nil { lint_check_no_continue(l, v) }
+	case ^EmptyStatement, ^BreakStatement,
 	     ^ImportDeclaration, ^ExportAllDeclaration, ^TSInterfaceDeclaration,
 	     ^TSTypeAliasDeclaration, ^TSEnumDeclaration,
 	     ^TSImportEqualsDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
@@ -2437,6 +2474,60 @@ lint_check_no_useless_call :: proc(l: ^Linter, e: ^CallExpression) {
 	}
 }
 
+// lint_check_no_void (no-void, L4045): flags `void expr`.
+lint_check_no_void :: proc(l: ^Linter, e: ^UnaryExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4045_NoVoid) { return }
+	if e.operator != .Void { return }
+	info := lint_rule_info(.L4045_NoVoid)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4045_NoVoid, info.default_message)
+}
+
+// lint_check_no_bitwise (no-bitwise, L4046): flags bitwise operators.
+lint_check_no_bitwise :: proc(l: ^Linter, e: ^BinaryExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4046_NoBitwise) { return }
+	#partial switch e.operator {
+	case .BitAnd, .BitOr, .BitXor, .ShiftLeft, .ShiftRight, .ShiftRightUnsigned:
+		info := lint_rule_info(.L4046_NoBitwise)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4046_NoBitwise, info.default_message)
+	}
+}
+
+// lint_check_no_continue (no-continue, L4047): flags `continue` statements.
+lint_check_no_continue :: proc(l: ^Linter, v: ^ContinueStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4047_NoContinue) { return }
+	info := lint_rule_info(.L4047_NoContinue)
+	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4047_NoContinue, info.default_message)
+}
+
+// lint_check_no_plusplus (no-plusplus, L4048): flags `++` and `--`.
+lint_check_no_plusplus :: proc(l: ^Linter, e: ^UpdateExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4048_NoPlusplus) { return }
+	info := lint_rule_info(.L4048_NoPlusplus)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4048_NoPlusplus, info.default_message)
+}
+
+// lint_check_yoda (yoda, L4049): flags `"red" === color` style comparisons
+// where the literal is on the left.
+lint_check_yoda :: proc(l: ^Linter, e: ^BinaryExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4049_Yoda) { return }
+	#partial switch e.operator {
+	case .Eq, .NotEq, .StrictEq, .StrictNotEq:
+		if e.left != nil && lint_is_literal(e.left) && e.right != nil && !lint_is_literal(e.right) {
+			info := lint_rule_info(.L4049_Yoda)
+			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4049_Yoda, info.default_message)
+		}
+	}
+}
+
+lint_is_literal :: proc(expr: ^Expression) -> bool {
+	if expr == nil { return false }
+	#partial switch _ in expr^ {
+	case ^StringLiteral, ^NumericLiteral, ^BooleanLiteral, ^NullLiteral, ^BigIntLiteral:
+		return true
+	}
+	return false
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -2741,7 +2832,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_walk_expr(l, ctx, e.consequent)
 			lint_walk_expr(l, ctx, e.alternate)
 		}
-	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
@@ -2762,8 +2853,8 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			}
 		}
 	case ^SpreadElement:           if e != nil { lint_walk_expr(l, ctx, e.argument) }
-	case ^UnaryExpression:         if e != nil { lint_check_delete_var(l, e); lint_walk_expr(l, ctx, e.argument) }
-	case ^UpdateExpression:        if e != nil { lint_walk_expr(l, ctx, e.argument) }
+	case ^UnaryExpression:         if e != nil { lint_check_delete_var(l, e); lint_check_no_void(l, e); lint_walk_expr(l, ctx, e.argument) }
+	case ^UpdateExpression:        if e != nil { lint_check_no_plusplus(l, e); lint_walk_expr(l, ctx, e.argument) }
 	case ^ParenthesizedExpression: if e != nil { lint_walk_expr(l, ctx, e.expression) }
 	case ^AwaitExpression:         if e != nil { lint_walk_expr(l, ctx, e.argument) }
 	case ^YieldExpression:
