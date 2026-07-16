@@ -98,6 +98,7 @@ LintRule :: enum u16 {
 	L2049_NoClassAssign           = 2049,
 	L2050_NoFuncAssign            = 2050,
 	L2051_NoPromiseExecReturn     = 2051,
+	L2052_NoDuplicateImports      = 2052,
 
 	// L3xxx — TypeScript-specific.
 	L3001_BanTsComment            = 3001,
@@ -157,6 +158,10 @@ LintRule :: enum u16 {
 	L4047_NoContinue                = 4047,
 	L4048_NoPlusplus                = 4048,
 	L4049_Yoda                      = 4049,
+	L4050_NoUselessComputedKey      = 4050,
+	L4051_NoUselessReturn           = 4051,
+	L4052_PreferArrowCallback       = 4052,
+	L4053_NoElseReturn              = 4053,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -498,6 +503,12 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "do not return a value from a Promise executor",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L2052_NoDuplicateImports:
+		return LintRuleInfo{
+			name = "no-duplicate-imports",
+			default_message = "duplicate import from the same module",
+			default_severity = .Warning, default_enabled = true,
+		}
 	case .L3001_BanTsComment:
 		return LintRuleInfo{
 			name = "ban-ts-comment",
@@ -828,6 +839,30 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "expected literal to be on the right side of comparison",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L4050_NoUselessComputedKey:
+		return LintRuleInfo{
+			name = "no-useless-computed-key",
+			default_message = "unnecessary computed property key",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4051_NoUselessReturn:
+		return LintRuleInfo{
+			name = "no-useless-return",
+			default_message = "unnecessary return statement",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4052_PreferArrowCallback:
+		return LintRuleInfo{
+			name = "prefer-arrow-callback",
+			default_message = "prefer arrow function as callback",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4053_NoElseReturn:
+		return LintRuleInfo{
+			name = "no-else-return",
+			default_message = "unnecessary 'else' after 'return'",
+			default_severity = .Warning, default_enabled = false,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -912,6 +947,7 @@ lint_report :: proc(l: ^Linter, start, end: u32, rule: LintRule, message: string
 lint_program :: proc(l: ^Linter, ctx: ^LintContext, program: ^Program) {
 	if program == nil { return }
 	lint_check_redeclare(l, ctx, program.body[:])
+	lint_check_no_duplicate_imports(l, program.body[:])
 	for stmt in program.body {
 		lint_walk_stmt(l, ctx, stmt)
 	}
@@ -952,6 +988,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		if v != nil {
 			lint_check_dupe_else_if(l, v)
 			lint_check_no_lonely_if(l, v)
+			lint_check_no_else_return(l, v)
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_no_extra_boolean_cast(l, v.test, u32(v.loc.start), u32(v.loc.end))
@@ -1293,6 +1330,7 @@ lint_walk_function :: proc(l: ^Linter, ctx: ^LintContext, fn: ^FunctionExpressio
 	if !fn.no_body {
 		lint_check_redeclare(l, ctx, fn.body.body[:])
 		lint_check_no_unreachable(l, fn.body.body[:])
+		lint_check_no_useless_return(l, fn.body.body[:])
 		for s in fn.body.body { lint_walk_stmt(l, ctx, s) }
 	}
 }
@@ -1372,6 +1410,7 @@ lint_walk_class :: proc(l: ^Linter, ctx: ^LintContext, cls: ^ClassExpression) {
 	for elem in cls.body.body {
 		lint_check_no_setter_return(l, elem)
 		lint_check_getter_return(l, elem)
+		lint_check_no_useless_computed_key_class(l, elem)
 		if elem.computed && elem.key != nil { lint_walk_expr(l, ctx, elem.key) }
 		if val, ok := elem.value.(^Expression); ok && val != nil { lint_walk_expr(l, ctx, val) }
 	}
@@ -2528,6 +2567,103 @@ lint_is_literal :: proc(expr: ^Expression) -> bool {
 	return false
 }
 
+// lint_check_no_duplicate_imports (no-duplicate-imports, L2052): flags
+// multiple import declarations from the same module specifier.
+lint_check_no_duplicate_imports :: proc(l: ^Linter, program_body: []^Statement) {
+	if !lint_rule_enabled(l, .L2052_NoDuplicateImports) { return }
+	seen := make(map[string]bool, 0, context.temp_allocator)
+	for s in program_body {
+		if s == nil { continue }
+		imp, ok := s^.(^ImportDeclaration)
+		if !ok || imp == nil { continue }
+		src := imp.source.value
+		if seen[src] {
+			info := lint_rule_info(.L2052_NoDuplicateImports)
+			lint_report(l, u32(imp.loc.start), u32(imp.loc.end), .L2052_NoDuplicateImports, info.default_message)
+		} else {
+			seen[src] = true
+		}
+	}
+}
+
+// lint_check_no_useless_computed_key (no-useless-computed-key, L4050): flags
+// `{["foo"]: 1}` or `{[0]: 1}` where the computed key is a static literal.
+lint_check_no_useless_computed_key :: proc(l: ^Linter, prop: Property) {
+	if !lint_rule_enabled(l, .L4050_NoUselessComputedKey) { return }
+	if !prop.computed || prop.key == nil { return }
+	#partial switch _ in prop.key^ {
+	case ^StringLiteral, ^NumericLiteral:
+		info := lint_rule_info(.L4050_NoUselessComputedKey)
+		lint_report(l, u32(prop.loc.start), u32(prop.loc.end), .L4050_NoUselessComputedKey, info.default_message)
+	}
+}
+
+// lint_check_no_useless_computed_key_class (class variant of L4050).
+lint_check_no_useless_computed_key_class :: proc(l: ^Linter, elem: ClassElement) {
+	if !lint_rule_enabled(l, .L4050_NoUselessComputedKey) { return }
+	if !elem.computed || elem.key == nil { return }
+	#partial switch _ in elem.key^ {
+	case ^StringLiteral, ^NumericLiteral:
+		info := lint_rule_info(.L4050_NoUselessComputedKey)
+		lint_report(l, u32(elem.loc.start), u32(elem.loc.end), .L4050_NoUselessComputedKey, info.default_message)
+	}
+}
+
+// lint_check_no_useless_return (no-useless-return, L4051): flags a `return;`
+// (no argument) as the last statement in a function body.
+lint_check_no_useless_return :: proc(l: ^Linter, fn_body: []^Statement) {
+	if !lint_rule_enabled(l, .L4051_NoUselessReturn) { return }
+	if len(fn_body) == 0 { return }
+	last := fn_body[len(fn_body) - 1]
+	if last == nil { return }
+	ret, is_ret := last^.(^ReturnStatement)
+	if !is_ret || ret == nil { return }
+	// Only flag bare `return;` — `return expr` is meaningful.
+	if _, has_arg := ret.argument.(^Expression); has_arg { return }
+	info := lint_rule_info(.L4051_NoUselessReturn)
+	lint_report(l, u32(ret.loc.start), u32(ret.loc.end), .L4051_NoUselessReturn, info.default_message)
+}
+
+// lint_check_prefer_arrow_callback (prefer-arrow-callback, L4052): flags
+// function expressions used as callbacks (arguments to calls).
+lint_check_prefer_arrow_callback :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4052_PreferArrowCallback) { return }
+	for arg in e.arguments {
+		if arg == nil { continue }
+		if fn, ok := arg^.(^FunctionExpression); ok && fn != nil {
+			// Skip named function expressions — they may reference themselves.
+			if _, has_id := fn.id.(BindingIdentifier); has_id { continue }
+			info := lint_rule_info(.L4052_PreferArrowCallback)
+			lint_report(l, u32(fn.loc.start), u32(fn.loc.end), .L4052_PreferArrowCallback, info.default_message)
+		}
+	}
+}
+
+// lint_check_no_else_return (no-else-return, L4053): flags `else` after an
+// `if` block that ends with `return`.
+lint_check_no_else_return :: proc(l: ^Linter, v: ^IfStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4053_NoElseReturn) { return }
+	// Must have an else branch.
+	alt, has_alt := v.alternate.(^Statement)
+	if !has_alt || alt == nil { return }
+	// Consequent must end with return.
+	if !lint_block_ends_with_return(v.consequent) { return }
+	info := lint_rule_info(.L4053_NoElseReturn)
+	lint_report(l, u32(alt^.(^BlockStatement).loc.start) if alt != nil else 0,
+		u32(alt^.(^BlockStatement).loc.end) if alt != nil else 0,
+		.L4053_NoElseReturn, info.default_message)
+}
+
+lint_block_ends_with_return :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	blk, ok := s^.(^BlockStatement)
+	if !ok || blk == nil || len(blk.body) == 0 { return false }
+	last := blk.body[len(blk.body) - 1]
+	if last == nil { return false }
+	_, is_ret := last^.(^ReturnStatement)
+	return is_ret
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -2819,7 +2955,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
@@ -2848,6 +2984,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_check_dupe_keys(l, e)
 			for prop in e.properties {
 				lint_check_getter_return_obj(l, prop)
+				lint_check_no_useless_computed_key(l, prop)
 				if prop.computed && prop.key != nil { lint_walk_expr(l, ctx, prop.key) }
 				if prop.value != nil { lint_walk_expr(l, ctx, prop.value) }
 			}
