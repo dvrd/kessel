@@ -99,6 +99,7 @@ LintRule :: enum u16 {
 	L2050_NoFuncAssign            = 2050,
 	L2051_NoPromiseExecReturn     = 2051,
 	L2052_NoDuplicateImports      = 2052,
+	L2053_NoThisBeforeSuper       = 2053,
 
 	// L3xxx — TypeScript-specific.
 	L3001_BanTsComment            = 3001,
@@ -162,6 +163,11 @@ LintRule :: enum u16 {
 	L4051_NoUselessReturn           = 4051,
 	L4052_PreferArrowCallback       = 4052,
 	L4053_NoElseReturn              = 4053,
+	L4054_AccessorPairs             = 4054,
+	L4055_GroupedAccessorPairs      = 4055,
+	L4056_PreferRestParams          = 4056,
+	L4057_PreferSpread              = 4057,
+	L4058_NoParamReassign           = 4058,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -508,6 +514,12 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			name = "no-duplicate-imports",
 			default_message = "duplicate import from the same module",
 			default_severity = .Warning, default_enabled = true,
+		}
+	case .L2053_NoThisBeforeSuper:
+		return LintRuleInfo{
+			name = "no-this-before-super",
+			default_message = "'this' used before 'super()' in constructor",
+			default_severity = .Error, default_enabled = true,
 		}
 	case .L3001_BanTsComment:
 		return LintRuleInfo{
@@ -861,6 +873,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{
 			name = "no-else-return",
 			default_message = "unnecessary 'else' after 'return'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4054_AccessorPairs:
+		return LintRuleInfo{
+			name = "accessor-pairs",
+			default_message = "expected getter and setter to be defined as a pair",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4055_GroupedAccessorPairs:
+		return LintRuleInfo{
+			name = "grouped-accessor-pairs",
+			default_message = "getter and setter for the same property should be adjacent",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4056_PreferRestParams:
+		return LintRuleInfo{
+			name = "prefer-rest-params",
+			default_message = "use rest parameters instead of 'arguments'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4057_PreferSpread:
+		return LintRuleInfo{
+			name = "prefer-spread",
+			default_message = "use spread syntax instead of '.apply()'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4058_NoParamReassign:
+		return LintRuleInfo{
+			name = "no-param-reassign",
+			default_message = "assignment to function parameter",
 			default_severity = .Warning, default_enabled = false,
 		}
 	}
@@ -1406,6 +1448,9 @@ lint_walk_class :: proc(l: ^Linter, ctx: ^LintContext, cls: ^ClassExpression) {
 	if cls == nil { return }
 	lint_check_dupe_class_members(l, cls)
 	lint_check_constructor_super(l, cls)
+	lint_check_no_this_before_super(l, cls)
+	lint_check_accessor_pairs(l, cls)
+	lint_check_grouped_accessor_pairs(l, cls)
 	if sc, ok := cls.super_class.(^Expression); ok && sc != nil { lint_walk_expr(l, ctx, sc) }
 	for elem in cls.body.body {
 		lint_check_no_setter_return(l, elem)
@@ -2664,6 +2709,164 @@ lint_block_ends_with_return :: proc(s: ^Statement) -> bool {
 	return is_ret
 }
 
+// lint_check_no_this_before_super (no-this-before-super, L2053): in a
+// derived class constructor, flags `this` or `this.x` before `super()`.
+lint_check_no_this_before_super :: proc(l: ^Linter, cls: ^ClassExpression) {
+	if cls == nil || !lint_rule_enabled(l, .L2053_NoThisBeforeSuper) { return }
+	// Only derived classes (those with super_class).
+	if _, has_super := cls.super_class.(^Expression); !has_super { return }
+	for elem in cls.body.body {
+		if elem.kind != .Constructor { continue }
+		val, has_val := elem.value.(^Expression)
+		if !has_val || val == nil { continue }
+		fn, is_fn := val^.(^FunctionExpression)
+		if !is_fn || fn == nil || fn.no_body { continue }
+		// Scan body: flag any `this` that appears before a `super()` call.
+		for s in fn.body.body {
+			if s == nil { continue }
+			// If this stmt is a super() call, we're done — everything after is fine.
+			if lint_stmt_is_super_call(s) { break }
+			// Check if statement uses `this`.
+			if loc, found := lint_stmt_uses_this(s); found {
+				info := lint_rule_info(.L2053_NoThisBeforeSuper)
+				lint_report(l, u32(loc.start), u32(loc.end), .L2053_NoThisBeforeSuper, info.default_message)
+				break // one report per constructor
+			}
+		}
+	}
+}
+
+lint_stmt_is_super_call :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	expr_stmt, ok := s^.(^ExpressionStatement)
+	if !ok || expr_stmt == nil || expr_stmt.expression == nil { return false }
+	call, is_call := expr_stmt.expression^.(^CallExpression)
+	if !is_call || call == nil || call.callee == nil { return false }
+	_, is_super := call.callee^.(^Super)
+	return is_super
+}
+
+lint_stmt_uses_this :: proc(s: ^Statement) -> (loc: Loc, found: bool) {
+	if s == nil { return {}, false }
+	expr_stmt, ok := s^.(^ExpressionStatement)
+	if !ok || expr_stmt == nil { return {}, false }
+	return lint_expr_uses_this(expr_stmt.expression)
+}
+
+lint_expr_uses_this :: proc(e: ^Expression) -> (loc: Loc, found: bool) {
+	if e == nil { return {}, false }
+	#partial switch v in e^ {
+	case ^ThisExpression:    if v != nil { return v.loc, true }
+	case ^MemberExpression:  if v != nil { return lint_expr_uses_this(v.object) }
+	case ^CallExpression:    if v != nil { return lint_expr_uses_this(v.callee) }
+	case ^AssignmentExpression: if v != nil {
+		if l, f := lint_expr_uses_this(v.left); f { return l, f }
+		return lint_expr_uses_this(v.right)
+	}
+	}
+	return {}, false
+}
+
+// lint_check_accessor_pairs (accessor-pairs, L4054): flags an object or class
+// that has a setter without a matching getter.
+lint_check_accessor_pairs :: proc(l: ^Linter, cls: ^ClassExpression) {
+	if cls == nil || !lint_rule_enabled(l, .L4054_AccessorPairs) { return }
+	getters := make(map[string]bool, 0, context.temp_allocator)
+	setters := make(map[string]Loc, 0, context.temp_allocator)
+	for elem in cls.body.body {
+		if elem.computed || elem.key == nil { continue }
+		name: string
+		#partial switch k in elem.key^ {
+		case ^Identifier:    if k != nil { name = k.name }
+		case ^StringLiteral: if k != nil { name = k.value }
+		case: continue
+		}
+		if elem.kind == .Get { getters[name] = true }
+		if elem.kind == .Set { setters[name] = elem.loc }
+	}
+	for name, loc in setters {
+		if !getters[name] {
+			info := lint_rule_info(.L4054_AccessorPairs)
+			lint_report(l, u32(loc.start), u32(loc.end), .L4054_AccessorPairs, info.default_message)
+		}
+	}
+}
+
+// lint_check_grouped_accessor_pairs (grouped-accessor-pairs, L4055): flags
+// getter and setter for the same property that are not adjacent.
+lint_check_grouped_accessor_pairs :: proc(l: ^Linter, cls: ^ClassExpression) {
+	if cls == nil || !lint_rule_enabled(l, .L4055_GroupedAccessorPairs) { return }
+	// Map name -> index of first accessor seen.
+	first_idx := make(map[string]int, 0, context.temp_allocator)
+	for elem, idx in cls.body.body {
+		if elem.computed || elem.key == nil { continue }
+		if elem.kind != .Get && elem.kind != .Set { continue }
+		name: string
+		#partial switch k in elem.key^ {
+		case ^Identifier:    if k != nil { name = k.name }
+		case ^StringLiteral: if k != nil { name = k.value }
+		case: continue
+		}
+		if prev, has := first_idx[name]; has {
+			if idx != prev + 1 {
+				info := lint_rule_info(.L4055_GroupedAccessorPairs)
+				lint_report(l, u32(elem.loc.start), u32(elem.loc.end), .L4055_GroupedAccessorPairs, info.default_message)
+			}
+		} else {
+			first_idx[name] = idx
+		}
+	}
+}
+
+// lint_check_prefer_rest_params (prefer-rest-params, L4056): flags use of
+// the `arguments` identifier inside functions.
+lint_check_prefer_rest_params :: proc(l: ^Linter, e: ^Identifier) {
+	if e == nil || !lint_rule_enabled(l, .L4056_PreferRestParams) { return }
+	if e.name != "arguments" { return }
+	info := lint_rule_info(.L4056_PreferRestParams)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4056_PreferRestParams, info.default_message)
+}
+
+// lint_check_prefer_spread (prefer-spread, L4057): flags `foo.apply(null, args)`
+// or `foo.apply(undefined, args)` — use spread instead.
+lint_check_prefer_spread :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4057_PreferSpread) { return }
+	if len(e.arguments) != 2 { return }
+	mem, is_mem := e.callee^.(^MemberExpression)
+	if !is_mem || mem == nil || mem.computed { return }
+	prop_id, p_ok := mem.property^.(^Identifier)
+	if !p_ok || prop_id == nil || prop_id.name != "apply" { return }
+	first := e.arguments[0]
+	if first == nil { return }
+	#partial switch v in first^ {
+	case ^NullLiteral:
+		info := lint_rule_info(.L4057_PreferSpread)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4057_PreferSpread, info.default_message)
+	case ^Identifier:
+		if v != nil && v.name == "undefined" {
+			info := lint_rule_info(.L4057_PreferSpread)
+			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4057_PreferSpread, info.default_message)
+		}
+	}
+}
+
+// lint_check_no_param_reassign (no-param-reassign, L4058): flags assignment
+// to a function parameter name. Uses the semantic model.
+lint_check_no_param_reassign :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4058_NoParamReassign) { return }
+	if l.semantic == nil { return }
+	id, ok := e.left.(^Identifier)
+	if !ok || id == nil { return }
+	for i in 1..<len(l.semantic.symbols) {
+		sym := &l.semantic.symbols[i]
+		if sym.name == id.name && sym.kind == .Param {
+			info := lint_rule_info(.L4058_NoParamReassign)
+			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L4058_NoParamReassign, info.default_message)
+			return
+		}
+	}
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -2955,7 +3158,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
@@ -2970,7 +3173,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		}
 	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
