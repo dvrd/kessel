@@ -100,6 +100,7 @@ LintRule :: enum u16 {
 	L2051_NoPromiseExecReturn     = 2051,
 	L2052_NoDuplicateImports      = 2052,
 	L2053_NoThisBeforeSuper       = 2053,
+	L2054_NoAwaitInLoop           = 2054,
 
 	// L3xxx — TypeScript-specific.
 	L3001_BanTsComment            = 3001,
@@ -113,6 +114,7 @@ LintRule :: enum u16 {
 	L3009_PreferTsExpectError     = 3009,
 	L3010_NoEmptyInterface        = 3010,
 	L3011_NoRequireImports        = 3011,
+	L3012_NoTypeAlias             = 3012,
 
 	// L4xxx — unicorn / best-practice.
 	L4001_NoEmptyFunction          = 4001,
@@ -173,6 +175,11 @@ LintRule :: enum u16 {
 	L4056_PreferRestParams          = 4056,
 	L4057_PreferSpread              = 4057,
 	L4058_NoParamReassign           = 4058,
+	L4059_NoUselessAssignment       = 4059,
+	L4060_NoMixedOperators          = 4060,
+	L4061_NoUndefined              = 4061,
+	L4062_NoInstanceof             = 4062,
+	L4063_NoExtraLabel             = 4063,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -526,6 +533,12 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "'this' used before 'super()' in constructor",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L2054_NoAwaitInLoop:
+		return LintRuleInfo{
+			name = "no-await-in-loop",
+			default_message = "unexpected 'await' inside a loop",
+			default_severity = .Error, default_enabled = false,
+		}
 	case .L3001_BanTsComment:
 		return LintRuleInfo{
 			name = "ban-ts-comment",
@@ -590,6 +603,12 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{
 			name = "no-require-imports",
 			default_message = "use ES module imports instead of require()",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L3012_NoTypeAlias:
+		return LintRuleInfo{
+			name = "no-type-alias",
+			default_message = "type aliases are not recommended",
 			default_severity = .Warning, default_enabled = false,
 		}
 	case .L4001_NoEmptyFunction:
@@ -940,6 +959,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "assignment to function parameter",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L4059_NoUselessAssignment:
+		return LintRuleInfo{
+			name = "no-useless-assignment",
+			default_message = "unnecessary assignment — value is never read",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4060_NoMixedOperators:
+		return LintRuleInfo{
+			name = "no-mixed-operators",
+			default_message = "mixed binary operators should be parenthesized",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4061_NoUndefined:
+		return LintRuleInfo{
+			name = "no-undefined",
+			default_message = "unexpected use of 'undefined'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4062_NoInstanceof:
+		return LintRuleInfo{
+			name = "no-instanceof",
+			default_message = "unexpected use of 'instanceof'",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4063_NoExtraLabel:
+		return LintRuleInfo{
+			name = "no-extra-label",
+			default_message = "unnecessary label on statement",
+			default_severity = .Warning, default_enabled = true,
+		}
 	}
 	return LintRuleInfo{}
 }
@@ -1118,7 +1167,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^WithStatement:
 		if v != nil { lint_check_no_with(l, v); lint_walk_expr(l, ctx, v.object); lint_walk_stmt(l, ctx, v.body) }
 	case ^LabeledStatement:
-		if v != nil { lint_check_no_unused_labels(l, v); lint_walk_stmt(l, ctx, v.body) }
+		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_walk_stmt(l, ctx, v.body) }
 	case ^VariableDeclaration:
 		if v != nil { lint_check_no_inferrable_types(l, v); lint_walk_var_decl(l, ctx, v) }
 	case ^FunctionDeclaration:
@@ -1146,9 +1195,10 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		if v != nil { lint_check_no_empty_interface(l, v) }
 	case ^TSEnumDeclaration:
 		if v != nil { lint_check_no_duplicate_enum_values(l, v) }
+	case ^TSTypeAliasDeclaration:
+		if v != nil { lint_check_no_type_alias(l, v) }
 	case ^EmptyStatement, ^BreakStatement,
 	     ^ImportDeclaration, ^ExportAllDeclaration,
-	     ^TSTypeAliasDeclaration,
 	     ^TSImportEqualsDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 		// Leaf for traversal purposes: no JS statement/expression children the
 		// current rule set inspects. TS type internals and namespace bodies are
@@ -2958,6 +3008,121 @@ lint_check_no_require_imports :: proc(l: ^Linter, e: ^CallExpression) {
 	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L3011_NoRequireImports, info.default_message)
 }
 
+// lint_check_no_await_in_loop (no-await-in-loop, L2054): flags `await`
+// inside for/while/do-while bodies (shallow scan).
+lint_check_no_await_in_loop :: proc(l: ^Linter, body: []^Statement) {
+	if !lint_rule_enabled(l, .L2054_NoAwaitInLoop) { return }
+	lint_scan_await_in_loop(l, body)
+}
+
+lint_scan_await_in_loop :: proc(l: ^Linter, body: []^Statement) {
+	for s in body {
+		if s == nil { continue }
+		#partial switch v in s^ {
+		case ^ExpressionStatement:
+			if v != nil && lint_expr_has_await(v.expression) {
+				info := lint_rule_info(.L2054_NoAwaitInLoop)
+				lint_report(l, u32(v.loc.start), u32(v.loc.end), .L2054_NoAwaitInLoop, info.default_message)
+			}
+		case ^ForStatement, ^WhileStatement, ^DoWhileStatement:
+			// Recurse into loop body with await scan disabled
+			// (we only flag await one level deep in non-async loops).
+		case ^BlockStatement:
+			if v != nil { lint_scan_await_in_loop(l, v.body[:]) }
+		}
+	}
+}
+
+lint_expr_has_await :: proc(e: ^Expression) -> bool {
+	if e == nil { return false }
+	#partial switch v in e^ {
+	case ^AwaitExpression: return true
+	case ^BinaryExpression: return lint_expr_has_await(v.left) || lint_expr_has_await(v.right)
+	case ^CallExpression:
+		if lint_expr_has_await(v.callee) { return true }
+		for a in v.arguments { if lint_expr_has_await(a) { return true } }
+		return false
+	case ^MemberExpression: return lint_expr_has_await(v.object)
+	}
+	return false
+}
+
+// lint_check_no_type_alias (no-type-alias, L3012): flags `type X = ...`.
+lint_check_no_type_alias :: proc(l: ^Linter, v: ^TSTypeAliasDeclaration) {
+	if v == nil || !lint_rule_enabled(l, .L3012_NoTypeAlias) { return }
+	info := lint_rule_info(.L3012_NoTypeAlias)
+	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L3012_NoTypeAlias, info.default_message)
+}
+
+// lint_check_no_undefined (no-undefined, L4061): flags `undefined` identifiers.
+lint_check_no_undefined :: proc(l: ^Linter, e: ^Identifier) {
+	if e == nil || !lint_rule_enabled(l, .L4061_NoUndefined) { return }
+	if e.name != "undefined" { return }
+	info := lint_rule_info(.L4061_NoUndefined)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4061_NoUndefined, info.default_message)
+}
+
+// lint_check_no_instanceof (no-instanceof, L4062): flags `instanceof` operator.
+lint_check_no_instanceof :: proc(l: ^Linter, e: ^BinaryExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4062_NoInstanceof) { return }
+	if e.operator != .Instanceof { return }
+	info := lint_rule_info(.L4062_NoInstanceof)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4062_NoInstanceof, info.default_message)
+}
+
+// lint_check_no_mixed_operators (no-mixed-operators, L4060): flags `a + b * c`
+// where different operator precedence levels are mixed without parens.
+lint_check_no_mixed_operators :: proc(l: ^Linter, e: ^BinaryExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4060_NoMixedOperators) { return }
+	// Check if left or right is a BinaryExpression with a different precedence.
+	cur_prec := lint_op_precedence(e.operator)
+	if e.left != nil {
+		if left_bin, ok := e.left^.(^BinaryExpression); ok && left_bin != nil {
+			if lint_op_precedence(left_bin.operator) != cur_prec {
+				info := lint_rule_info(.L4060_NoMixedOperators)
+				lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4060_NoMixedOperators, info.default_message)
+				return
+			}
+		}
+	}
+	if e.right != nil {
+		if right_bin, ok := e.right^.(^BinaryExpression); ok && right_bin != nil {
+			if lint_op_precedence(right_bin.operator) != cur_prec {
+				info := lint_rule_info(.L4060_NoMixedOperators)
+				lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4060_NoMixedOperators, info.default_message)
+			}
+		}
+	}
+}
+
+lint_op_precedence :: proc(op: BinaryOperator) -> u8 {
+	switch op {
+	case .Mul, .Div, .Mod, .Pow: return 5
+	case .Add, .Sub: return 4
+	case .ShiftLeft, .ShiftRight, .ShiftRightUnsigned: return 3
+	case .BitAnd, .BitOr, .BitXor: return 2
+	case .Eq, .NotEq, .StrictEq, .StrictNotEq, .Lt, .LtEq, .Gt, .GtEq, .Instanceof, .In: return 1
+	}
+	return 0
+}
+
+// lint_check_no_extra_label (no-extra-label, L4063): flags labels on statements
+// that don't need them (anything that's not break/continue target).
+lint_check_no_extra_label :: proc(l: ^Linter, v: ^LabeledStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4063_NoExtraLabel) { return }
+	// A label is "extra" if the labeled statement is not a loop or block.
+	// (break/continue only target loops; labels on non-loops are usually noise.)
+	has_break := false
+	#partial switch _ in v.body^ {
+	case ^ForStatement, ^WhileStatement, ^DoWhileStatement, ^ForInStatement, ^ForOfStatement:
+		has_break = true // loops legitimately use labels
+	}
+	if !has_break {
+		info := lint_rule_info(.L4063_NoExtraLabel)
+		lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4063_NoExtraLabel, info.default_message)
+	}
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -3262,7 +3427,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_walk_expr(l, ctx, e.consequent)
 			lint_walk_expr(l, ctx, e.alternate)
 		}
-	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
