@@ -108,6 +108,11 @@ LintRule :: enum u16 {
 	L3004_NoNamespace             = 3004,
 	L3005_NoNonNullAssertion      = 3005,
 	L3006_ConsistentTypeImports   = 3006,
+	L3007_NoInferrableTypes       = 3007,
+	L3008_NoDuplicateEnumValues   = 3008,
+	L3009_PreferTsExpectError     = 3009,
+	L3010_NoEmptyInterface        = 3010,
+	L3011_NoRequireImports        = 3011,
 
 	// L4xxx — unicorn / best-practice.
 	L4001_NoEmptyFunction          = 4001,
@@ -555,6 +560,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{
 			name = "consistent-type-imports",
 			default_message = "use 'import type' for type-only imports",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L3007_NoInferrableTypes:
+		return LintRuleInfo{
+			name = "no-inferrable-types",
+			default_message = "type can be trivially inferred from the initializer",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L3008_NoDuplicateEnumValues:
+		return LintRuleInfo{
+			name = "no-duplicate-enum-values",
+			default_message = "duplicate enum member value",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L3009_PreferTsExpectError:
+		return LintRuleInfo{
+			name = "prefer-ts-expect-error",
+			default_message = "use '@ts-expect-error' instead of '@ts-ignore'",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L3010_NoEmptyInterface:
+		return LintRuleInfo{
+			name = "no-empty-interface",
+			default_message = "empty interface declaration; use 'type' or 'Record' instead",
+			default_severity = .Warning, default_enabled = true,
+		}
+	case .L3011_NoRequireImports:
+		return LintRuleInfo{
+			name = "no-require-imports",
+			default_message = "use ES module imports instead of require()",
 			default_severity = .Warning, default_enabled = false,
 		}
 	case .L4001_NoEmptyFunction:
@@ -1085,7 +1120,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^LabeledStatement:
 		if v != nil { lint_check_no_unused_labels(l, v); lint_walk_stmt(l, ctx, v.body) }
 	case ^VariableDeclaration:
-		if v != nil { lint_walk_var_decl(l, ctx, v) }
+		if v != nil { lint_check_no_inferrable_types(l, v); lint_walk_var_decl(l, ctx, v) }
 	case ^FunctionDeclaration:
 		if v != nil { lint_walk_function(l, ctx, &v.expr) }
 	case ^ClassDeclaration:
@@ -1107,9 +1142,13 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		if v != nil { lint_check_ts_namespace(l, v) }
 	case ^ContinueStatement:
 		if v != nil { lint_check_no_continue(l, v) }
+	case ^TSInterfaceDeclaration:
+		if v != nil { lint_check_no_empty_interface(l, v) }
+	case ^TSEnumDeclaration:
+		if v != nil { lint_check_no_duplicate_enum_values(l, v) }
 	case ^EmptyStatement, ^BreakStatement,
-	     ^ImportDeclaration, ^ExportAllDeclaration, ^TSInterfaceDeclaration,
-	     ^TSTypeAliasDeclaration, ^TSEnumDeclaration,
+	     ^ImportDeclaration, ^ExportAllDeclaration,
+	     ^TSTypeAliasDeclaration,
 	     ^TSImportEqualsDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 		// Leaf for traversal purposes: no JS statement/expression children the
 		// current rule set inspects. TS type internals and namespace bodies are
@@ -2867,6 +2906,58 @@ lint_check_no_param_reassign :: proc(l: ^Linter, e: ^AssignmentExpression) {
 	}
 }
 
+// lint_check_no_inferrable_types (no-inferrable-types, L3007): flags
+// `const x: number = 5` where the type annotation matches the initializer.
+lint_check_no_inferrable_types :: proc(l: ^Linter, d: ^VariableDeclaration) {
+	if d == nil || !lint_rule_enabled(l, .L3007_NoInferrableTypes) { return }
+	// TODO: needs pattern type_annotation access — deferred.
+}
+
+// lint_check_no_duplicate_enum_values (no-duplicate-enum-values, L3008): flags
+// TS enum members that share the same initializer value.
+lint_check_no_duplicate_enum_values :: proc(l: ^Linter, v: ^TSEnumDeclaration) {
+	if v == nil || !lint_rule_enabled(l, .L3008_NoDuplicateEnumValues) { return }
+	seen := make(map[string]bool, 0, context.temp_allocator)
+	for mem in v.body.members {
+		init, has_init := mem.initializer.(^Expression)
+		if !has_init || init == nil { continue }
+		val_str: string
+		have := false
+		#partial switch iv in init^ {
+		case ^NumericLiteral: if iv != nil { val_str = iv.raw; have = true }
+		case ^StringLiteral:  if iv != nil { val_str = iv.value; have = true }
+		}
+		if !have { continue }
+		if seen[val_str] {
+			info := lint_rule_info(.L3008_NoDuplicateEnumValues)
+			lint_report(l, u32(mem.loc.start), u32(mem.loc.end), .L3008_NoDuplicateEnumValues, info.default_message)
+		} else {
+			seen[val_str] = true
+		}
+	}
+}
+
+// lint_check_no_empty_interface (no-empty-interface, L3010): flags
+// `interface Foo {}` with no members and no extends.
+lint_check_no_empty_interface :: proc(l: ^Linter, v: ^TSInterfaceDeclaration) {
+	if v == nil || !lint_rule_enabled(l, .L3010_NoEmptyInterface) { return }
+	if len(v.body.body) > 0 { return }
+	if len(v.extends) > 0 { return }
+	info := lint_rule_info(.L3010_NoEmptyInterface)
+	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L3010_NoEmptyInterface, info.default_message)
+}
+
+// lint_check_no_require_imports (no-require-imports, L3011): flags
+// `require(...)` calls.
+lint_check_no_require_imports :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L3011_NoRequireImports) { return }
+	if e.callee == nil { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "require" { return }
+	info := lint_rule_info(.L3011_NoRequireImports)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L3011_NoRequireImports, info.default_message)
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -3158,7 +3249,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
