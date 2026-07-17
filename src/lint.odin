@@ -185,6 +185,13 @@ LintRule :: enum u16 {
 	L4066_NoMultilineStrings       = 4066,
 	L4067_NoStringCase            = 4067,
 	L4068_PreferDotNotation       = 4068,
+	L4069_NoUnsafeDeclaration      = 4069,
+	L4070_NoMagicNumbers           = 4070,
+	L4071_MaxDepth                 = 4071,
+	L4072_MaxLines                 = 4072,
+	L4073_MaxParams                = 4073,
+	L4074_NoLoopFunc               = 4074,
+	L4075_NoMagicStrings           = 4075,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -1024,6 +1031,20 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "use dot notation instead of member expression",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L4069_NoUnsafeDeclaration:
+		return LintRuleInfo{name="no-unsafe-declaration", default_message="unsafe 'declare' usage", default_severity=.Error, default_enabled=false}
+	case .L4070_NoMagicNumbers:
+		return LintRuleInfo{name="no-magic-numbers", default_message="magic number — extract to a named constant", default_severity=.Warning, default_enabled=false}
+	case .L4071_MaxDepth:
+		return LintRuleInfo{name="max-depth", default_message="maximum block nesting depth exceeded", default_severity=.Warning, default_enabled=false}
+	case .L4072_MaxLines:
+		return LintRuleInfo{name="max-lines", default_message="file has too many lines", default_severity=.Warning, default_enabled=false}
+	case .L4073_MaxParams:
+		return LintRuleInfo{name="max-params", default_message="too many function parameters", default_severity=.Warning, default_enabled=false}
+	case .L4074_NoLoopFunc:
+		return LintRuleInfo{name="no-loop-func", default_message="function declared inside a loop body", default_severity=.Error, default_enabled=true}
+	case .L4075_NoMagicStrings:
+		return LintRuleInfo{name="no-magic-strings", default_message="magic string literal — extract to a named constant", default_severity=.Warning, default_enabled=false}
 	}
 	return LintRuleInfo{}
 }
@@ -3043,7 +3064,25 @@ lint_check_no_require_imports :: proc(l: ^Linter, e: ^CallExpression) {
 	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L3011_NoRequireImports, info.default_message)
 }
 
-// lint_check_no_await_in_loop (no-await-in-loop, L2054): flags `await`
+// lint_check_no_loop_func (no-loop-func, L4074): flags function declarations
+// or function expressions inside a loop body.
+lint_check_no_loop_func :: proc(l: ^Linter, body: []^Statement) {
+	if !lint_rule_enabled(l, .L4074_NoLoopFunc) { return }
+	for s in body {
+		if s == nil { continue }
+		#partial switch v in s^ {
+		case ^FunctionDeclaration:
+			if v != nil {
+				info := lint_rule_info(.L4074_NoLoopFunc)
+				lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4074_NoLoopFunc, info.default_message)
+			}
+		case ^BlockStatement:
+			if v != nil { lint_check_no_loop_func(l, v.body[:]) }
+		}
+	}
+}
+
+// lint_check_await_in_loop (no-await-in-loop, L2054): flags `await`
 // inside for/while/do-while bodies (shallow scan).
 lint_check_no_await_in_loop :: proc(l: ^Linter, body: []^Statement) {
 	if !lint_rule_enabled(l, .L2054_NoAwaitInLoop) { return }
