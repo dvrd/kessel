@@ -180,6 +180,11 @@ LintRule :: enum u16 {
 	L4061_NoUndefined              = 4061,
 	L4062_NoInstanceof             = 4062,
 	L4063_NoExtraLabel             = 4063,
+	L4064_NoComparisonWithNaN      = 4064,
+	L4065_NoNewSymbol             = 4065,
+	L4066_NoMultilineStrings       = 4066,
+	L4067_NoStringCase            = 4067,
+	L4068_PreferDotNotation       = 4068,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -988,6 +993,36 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			name = "no-extra-label",
 			default_message = "unnecessary label on statement",
 			default_severity = .Warning, default_enabled = true,
+		}
+	case .L4064_NoComparisonWithNaN:
+		return LintRuleInfo{
+			name = "no-comparison-with-nan",
+			default_message = "use isNaN() instead of comparing with NaN",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4065_NoNewSymbol:
+		return LintRuleInfo{
+			name = "no-new-symbol",
+			default_message = "Symbol must not be called with 'new'",
+			default_severity = .Error, default_enabled = true,
+		}
+	case .L4066_NoMultilineStrings:
+		return LintRuleInfo{
+			name = "no-multi-str",
+			default_message = "multi-line string literal",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4067_NoStringCase:
+		return LintRuleInfo{
+			name = "no-string-case",
+			default_message = "use toLowerCase/toUpperCase before case-insensitive comparison",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L4068_PreferDotNotation:
+		return LintRuleInfo{
+			name = "prefer-dot-notation",
+			default_message = "use dot notation instead of member expression",
+			default_severity = .Warning, default_enabled = false,
 		}
 	}
 	return LintRuleInfo{}
@@ -3123,6 +3158,64 @@ lint_check_no_extra_label :: proc(l: ^Linter, v: ^LabeledStatement) {
 	}
 }
 
+// lint_check_no_comparison_with_nan (no-comparison-with-nan, L4064):
+// flags `x === NaN` or `NaN === x` etc.
+lint_check_no_comparison_with_nan :: proc(l: ^Linter, e: ^BinaryExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4064_NoComparisonWithNaN) { return }
+	if e.operator != .Eq && e.operator != .NotEq && e.operator != .StrictEq && e.operator != .StrictNotEq { return }
+	if lint_expr_is_nan(e.left) || lint_expr_is_nan(e.right) {
+		info := lint_rule_info(.L4064_NoComparisonWithNaN)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4064_NoComparisonWithNaN, info.default_message)
+	}
+}
+
+// lint_check_no_new_symbol (no-new-symbol, L4065): flags `new Symbol()`.
+lint_check_no_new_symbol :: proc(l: ^Linter, e: ^NewExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4065_NoNewSymbol) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "Symbol" { return }
+	info := lint_rule_info(.L4065_NoNewSymbol)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4065_NoNewSymbol, info.default_message)
+}
+
+// lint_check_no_multiline_strings (no-multi-str, L4066): flags string literals
+// whose value contains a newline (backslash continuation).
+lint_check_no_multiline_strings :: proc(l: ^Linter, e: ^StringLiteral) {
+	if e == nil || !lint_rule_enabled(l, .L4066_NoMultilineStrings) { return }
+	for ch in e.value {
+		if ch == '\n' {
+			info := lint_rule_info(.L4066_NoMultilineStrings)
+			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4066_NoMultilineStrings, info.default_message)
+			return
+		}
+	}
+}
+
+// lint_check_prefer_dot_notation (prefer-dot-notation, L4068): flags computed
+// member expression with a string literal key that is a valid identifier.
+lint_check_prefer_dot_notation :: proc(l: ^Linter, e: ^MemberExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4068_PreferDotNotation) { return }
+	if !e.computed || e.property == nil { return }
+	str, ok := e.property^.(^StringLiteral)
+	if !ok || str == nil { return }
+	if lint_valid_identifier(str.value) {
+		info := lint_rule_info(.L4068_PreferDotNotation)
+		lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4068_PreferDotNotation, info.default_message)
+	}
+}
+
+lint_valid_identifier :: proc(s: string) -> bool {
+	if len(s) == 0 { return false }
+	// Must be a valid JS identifier: start with letter/_/$, rest alnum/_/$.
+	c := s[0]
+	if !(c >= 'a' && c <= 'z') && !(c >= 'A' && c <= 'Z') && c != '_' && c != '$' { return false }
+	for i in 1..<len(s) {
+		c2 := s[i]
+		if !(c2 >= 'a' && c2 <= 'z') && !(c2 >= 'A' && c2 <= 'Z') && !(c2 >= '0' && c2 <= '9') && c2 != '_' && c2 != '$' { return false }
+	}
+	return true
+}
+
 // lint_check_ts_non_null (no-non-null-assertion, L3005): flags `x!` postfix.
 lint_check_ts_non_null :: proc(l: ^Linter, e: ^TSNonNullExpression) {
 	if e == nil || !lint_rule_enabled(l, .L3005_NoNonNullAssertion) { return }
@@ -3409,14 +3502,14 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	switch e in expr^ {
 	case ^MemberExpression:
 		if e != nil {
-			lint_check_no_proto(l, e); lint_check_no_iterator(l, e); lint_check_no_caller(l, e)
+			lint_check_no_proto(l, e); lint_check_no_iterator(l, e); lint_check_no_caller(l, e); lint_check_prefer_dot_notation(l, e)
 			lint_walk_expr(l, ctx, e.object)
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
 		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_new_symbol(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
@@ -3427,7 +3520,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_walk_expr(l, ctx, e.consequent)
 			lint_walk_expr(l, ctx, e.alternate)
 		}
-	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_check_no_comparison_with_nan(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
@@ -3483,7 +3576,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^RegExpLiteral:
 		if e != nil { lint_check_no_control_regex(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
 	case ^StringLiteral:
-		if e != nil { lint_check_no_script_url(l, e); lint_check_template_curly_in_string(l, e) }
+		if e != nil { lint_check_no_script_url(l, e); lint_check_template_curly_in_string(l, e); lint_check_no_multiline_strings(l, e) }
 	case ^NullLiteral, ^BooleanLiteral, ^BigIntLiteral,
 	     ^Identifier, ^PrivateIdentifier, ^ThisExpression, ^Super,
 	     ^MetaProperty, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
