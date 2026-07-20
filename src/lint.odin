@@ -192,6 +192,13 @@ LintRule :: enum u16 {
 	L4073_MaxParams                = 4073,
 	L4074_NoLoopFunc               = 4074,
 	L4075_NoMagicStrings           = 4075,
+	L4076_NoImplicitCoercion        = 4076,
+	L4077_NoBufferConstructor       = 4077,
+	L4078_NoOctalEscape             = 4078,
+	L4079_NoImplicitGlobals         = 4079,
+	L4080_NoRestrictedGlobals       = 4080,
+	L4081_NoRestrictedSyntax        = 4081,
+	L4082_PreferExponentiationOperator = 4082,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -1045,6 +1052,20 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{name="no-loop-func", default_message="function declared inside a loop body", default_severity=.Error, default_enabled=true}
 	case .L4075_NoMagicStrings:
 		return LintRuleInfo{name="no-magic-strings", default_message="magic string literal — extract to a named constant", default_severity=.Warning, default_enabled=false}
+	case .L4076_NoImplicitCoercion:
+		return LintRuleInfo{name="no-implicit-coercion", default_message="use explicit conversion instead of shorthand coercion", default_severity=.Warning, default_enabled=false}
+	case .L4077_NoBufferConstructor:
+		return LintRuleInfo{name="no-buffer-constructor", default_message="Buffer() called without 'new'", default_severity=.Error, default_enabled=true}
+	case .L4078_NoOctalEscape:
+		return LintRuleInfo{name="no-octal-escape", default_message="octal escape sequence in string literal", default_severity=.Error, default_enabled=true}
+	case .L4079_NoImplicitGlobals:
+		return LintRuleInfo{name="no-implicit-globals", default_message="implicit global variable assignment", default_severity=.Error, default_enabled=false}
+	case .L4080_NoRestrictedGlobals:
+		return LintRuleInfo{name="no-restricted-globals", default_message="use of restricted global variable", default_severity=.Error, default_enabled=false}
+	case .L4081_NoRestrictedSyntax:
+		return LintRuleInfo{name="no-restricted-syntax", default_message="use of restricted syntax", default_severity=.Error, default_enabled=false}
+	case .L4082_PreferExponentiationOperator:
+		return LintRuleInfo{name="prefer-exponentiation-operator", default_message="use '** operator instead of Math.pow()", default_severity=.Warning, default_enabled=false}
 	}
 	return LintRuleInfo{}
 }
@@ -3064,6 +3085,47 @@ lint_check_no_require_imports :: proc(l: ^Linter, e: ^CallExpression) {
 	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L3011_NoRequireImports, info.default_message)
 }
 
+// lint_check_no_buffer_constructor (no-buffer-constructor, L4077): flags
+// `Buffer()` called without `new`.
+lint_check_no_buffer_constructor :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4077_NoBufferConstructor) { return }
+	id, ok := e.callee^.(^Identifier)
+	if !ok || id == nil || id.name != "Buffer" { return }
+	info := lint_rule_info(.L4077_NoBufferConstructor)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4077_NoBufferConstructor, info.default_message)
+}
+
+// lint_check_no_octal_escape (no-octal-escape, L4078): flags string literals
+// containing octal escape sequences (\1, \01, etc.).
+lint_check_no_octal_escape :: proc(l: ^Linter, e: ^StringLiteral) {
+	if e == nil || !lint_rule_enabled(l, .L4078_NoOctalEscape) { return }
+	raw := e.raw
+	for i in 0..<len(raw) {
+		if raw[i] == '\\' && i + 1 < len(raw) {
+			next := raw[i + 1]
+			if next >= '0' && next <= '7' {
+				info := lint_rule_info(.L4078_NoOctalEscape)
+				lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4078_NoOctalEscape, info.default_message)
+				return
+			}
+		}
+	}
+}
+
+// lint_check_prefer_exponentiation_operator (prefer-exponentiation-operator,
+// L4082): flags `Math.pow(a, b)` — should use `a ** b`.
+lint_check_prefer_exponentiation_operator :: proc(l: ^Linter, e: ^CallExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4082_PreferExponentiationOperator) { return }
+	mem, ok := e.callee^.(^MemberExpression)
+	if !ok || mem == nil || mem.computed { return }
+	obj_id, ok2 := mem.object^.(^Identifier)
+	if !ok2 || obj_id == nil || obj_id.name != "Math" { return }
+	prop_id, ok3 := mem.property^.(^Identifier)
+	if !ok3 || prop_id == nil || prop_id.name != "pow" { return }
+	info := lint_rule_info(.L4082_PreferExponentiationOperator)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4082_PreferExponentiationOperator, info.default_message)
+}
+
 // lint_check_no_loop_func (no-loop-func, L4074): flags function declarations
 // or function expressions inside a loop body.
 lint_check_no_loop_func :: proc(l: ^Linter, body: []^Statement) {
@@ -3546,7 +3608,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_check_no_buffer_constructor(l, e); lint_check_prefer_exponentiation_operator(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^NewExpression:
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_new_symbol(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
@@ -3615,7 +3677,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^RegExpLiteral:
 		if e != nil { lint_check_no_control_regex(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
 	case ^StringLiteral:
-		if e != nil { lint_check_no_script_url(l, e); lint_check_template_curly_in_string(l, e); lint_check_no_multiline_strings(l, e) }
+		if e != nil { lint_check_no_script_url(l, e); lint_check_template_curly_in_string(l, e); lint_check_no_multiline_strings(l, e); lint_check_no_octal_escape(l, e) }
 	case ^NullLiteral, ^BooleanLiteral, ^BigIntLiteral,
 	     ^Identifier, ^PrivateIdentifier, ^ThisExpression, ^Super,
 	     ^MetaProperty, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
