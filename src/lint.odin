@@ -205,6 +205,11 @@ LintRule :: enum u16 {
 	L4087_PreferObjectHasOwn         = 4087,
 	L4088_NoUselessUnary               = 4088,
 	L4089_NoUselessOperator             = 4089,
+	L4093_NoUselessElse              = 4093,
+	L4094_PreferObjectLiteral        = 4094,
+	L4095_NoObjectConstructor        = 4095,
+	L4096_NoArrowFunctionsInClass    = 4096,
+	L4097_NoClassAssignInClass       = 4097,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -1084,6 +1089,16 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{name="no-useless-unary", default_message="unary operator applied to a literal", default_severity=.Warning, default_enabled=false}
 	case .L4089_NoUselessOperator:
 		return LintRuleInfo{name="no-useless-operator", default_message="operator applied with no effect", default_severity=.Warning, default_enabled=false}
+	case .L4093_NoUselessElse:
+		return LintRuleInfo{name="no-useless-else", default_message="'else' after a 'return' is unnecessary", default_severity=.Warning, default_enabled=false}
+	case .L4094_PreferObjectLiteral:
+		return LintRuleInfo{name="prefer-object-literal", default_message="use object literal instead of Object.create()", default_severity=.Warning, default_enabled=false}
+	case .L4095_NoObjectConstructor:
+		return LintRuleInfo{name="no-object-constructor", default_message="unnecessary Object constructor", default_severity=.Warning, default_enabled=false}
+	case .L4096_NoArrowFunctionsInClass:
+		return LintRuleInfo{name="no-arrow-functions-in-class", default_message="arrow function in class body", default_severity=.Warning, default_enabled=false}
+	case .L4097_NoClassAssignInClass:
+		return LintRuleInfo{name="no-class-assign-in-class", default_message="assignment to class name inside class body", default_severity=.Error, default_enabled=false}
 	}
 	return LintRuleInfo{}
 }
