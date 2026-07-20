@@ -199,6 +199,12 @@ LintRule :: enum u16 {
 	L4080_NoRestrictedGlobals       = 4080,
 	L4081_NoRestrictedSyntax        = 4081,
 	L4082_PreferExponentiationOperator = 4082,
+	L4084_NoUselessCatch             = 4084,
+	L4085_NoUselessConstructor      = 4085,
+	L4086_NoUselessRename            = 4086,
+	L4087_PreferObjectHasOwn         = 4087,
+	L4088_NoUselessUnary               = 4088,
+	L4089_NoUselessOperator             = 4089,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -1066,6 +1072,18 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{name="no-restricted-syntax", default_message="use of restricted syntax", default_severity=.Error, default_enabled=false}
 	case .L4082_PreferExponentiationOperator:
 		return LintRuleInfo{name="prefer-exponentiation-operator", default_message="use '** operator instead of Math.pow()", default_severity=.Warning, default_enabled=false}
+	case .L4084_NoUselessCatch:
+		return LintRuleInfo{name="no-useless-catch", default_message="unnecessary try/catch wrapper around throw", default_severity=.Error, default_enabled=true}
+	case .L4085_NoUselessConstructor:
+		return LintRuleInfo{name="no-useless-constructor", default_message="unnecessary constructor in class", default_severity=.Error, default_enabled=true}
+	case .L4086_NoUselessRename:
+		return LintRuleInfo{name="no-useless-rename", default_message="import/export renamed to same name", default_severity=.Warning, default_enabled=false}
+	case .L4087_PreferObjectHasOwn:
+		return LintRuleInfo{name="prefer-object-has-own", default_message="use Object.hasOwn() instead of Object.prototype.hasOwnProperty.call()", default_severity=.Warning, default_enabled=false}
+	case .L4088_NoUselessUnary:
+		return LintRuleInfo{name="no-useless-unary", default_message="unary operator applied to a literal", default_severity=.Warning, default_enabled=false}
+	case .L4089_NoUselessOperator:
+		return LintRuleInfo{name="no-useless-operator", default_message="operator applied with no effect", default_severity=.Warning, default_enabled=false}
 	}
 	return LintRuleInfo{}
 }
