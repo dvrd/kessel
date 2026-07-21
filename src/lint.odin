@@ -3930,70 +3930,111 @@ lint_offset_to_line :: proc(line_offsets: []u32, offset: u32) -> int {
 	return lo - 1 if lo > 0 else 0
 }
 
-// lint_apply_disable_directives scans the source for disable comments and
-// removes suppressed diagnostics from the linter's diagnostic buffer.
+// lint_directive_rule_list returns the comma-separated rule names that follow a
+// disable/enable directive keyword. An empty slice means "all rules", matching
+// ESLint's bare `// eslint-disable-next-line` (no rule = suppress everything).
+lint_directive_rule_list :: proc(comment_text: string, keyword: string) -> []string {
+	if len(comment_text) < len(keyword) { return nil }
+	rest := lint_trim_spaces(comment_text[len(keyword):])
+	if len(rest) == 0 { return nil }
+	out := make([dynamic]string, 0, context.temp_allocator)
+	start := 0
+	for j := 0; j <= len(rest); j += 1 {
+		if j == len(rest) || rest[j] == ',' {
+			name := lint_trim_spaces(rest[start:j])
+			if len(name) > 0 { append(&out, name) }
+			start = j + 1
+		}
+	}
+	return out[:]
+}
+
+// lint_suppress_line records suppression for one line. An empty `rules` slice
+// blanket-suppresses the line; otherwise only the named rules are suppressed.
+lint_suppress_line :: proc(all_lines: ^map[int]bool, line_rules: ^map[int]map[string]bool, line: int, rules: []string) {
+	if len(rules) == 0 {
+		all_lines^[line] = true
+		return
+	}
+	set, ok := line_rules^[line]
+	if !ok { set = make(map[string]bool, 0, context.temp_allocator) }
+	for r in rules { set[r] = true }
+	line_rules^[line] = set
+}
+
+// lint_diag_suppressed reports whether a diagnostic on `line` for rule `code`
+// is suppressed by a blanket line entry or a targeted per-rule entry.
+lint_diag_suppressed :: proc(all_lines: map[int]bool, line_rules: map[int]map[string]bool, line: int, code: LintRule) -> bool {
+	if all_lines[line] { return true }
+	set, ok := line_rules[line]
+	if !ok { return false }
+	return set[lint_rule_info(code).name]
+}
+
+// lint_scan_directive applies a single disable/enable directive comment to the
+// suppression maps and returns the updated open-range state. Centralizes all
+// directive branching so the caller only walks source and slices comments.
+lint_scan_directive :: proc(
+	text: string, line: int,
+	all_lines: ^map[int]bool, line_rules: ^map[int]map[string]bool,
+	range_active: bool, range_start_line: int, range_rules: []string,
+) -> (bool, int, []string) {
+	if lint_starts_with(text, "eslint-disable-next-line") {
+		lint_suppress_line(all_lines, line_rules, line + 1, lint_directive_rule_list(text, "eslint-disable-next-line"))
+	} else if lint_starts_with(text, "eslint-disable-line") {
+		lint_suppress_line(all_lines, line_rules, line, lint_directive_rule_list(text, "eslint-disable-line"))
+	} else if lint_starts_with(text, "eslint-enable") {
+		if range_active {
+			for ln := range_start_line; ln <= line; ln += 1 {
+				lint_suppress_line(all_lines, line_rules, ln, range_rules)
+			}
+			return false, 0, nil
+		}
+	} else if lint_starts_with(text, "eslint-disable") {
+		return true, line, lint_directive_rule_list(text, "eslint-disable")
+	}
+	return range_active, range_start_line, range_rules
+}
+
 lint_apply_disable_directives :: proc(l: ^Linter, source: string, line_offsets: []u32) {
 	if len(l.diagnostics) == 0 { return }
 
-	// Build suppression sets: per-line suppression (next-line / same-line)
-	// and range suppression (disable/enable blocks).
-	// Key: line number (0-based). Value: true = suppress all, or we store
-	// rule names per line for targeted suppression.
-	// For simplicity, start with suppress-all-on-line.
+	// `suppressed_lines` blanket-suppresses a line; `suppressed_line_rules`
+	// suppresses only the rules named on a `// eslint-disable-* rule, …` line.
 	suppressed_lines := make(map[int]bool, 0, context.temp_allocator)
+	suppressed_line_rules := make(map[int]map[string]bool, 0, context.temp_allocator)
 
-	// Range tracking: lines currently under a /* eslint-disable */ block.
+	// Range tracking for /* eslint-disable [rules] */ … /* eslint-enable */.
 	range_active := false
 	range_start_line := 0
+	range_rules: []string
 
 	i := 0
 	for i < len(source) {
 		ch := source[i]
-		if ch == '/' && i + 1 < len(source) {
-			if source[i+1] == '/' {
-				// Line comment — scan to end of line.
-				comment_start := i + 2
-				line_end := comment_start
-				for line_end < len(source) && source[line_end] != '\n' { line_end += 1 }
-				comment_text := lint_trim_spaces(source[comment_start:line_end])
-				comment_line := lint_offset_to_line(line_offsets, u32(i))
-				if lint_starts_with(comment_text, "eslint-disable-next-line") {
-					suppressed_lines[comment_line + 1] = true
-				} else if lint_starts_with(comment_text, "eslint-disable-line") {
-					suppressed_lines[comment_line] = true
-				}
-				i = line_end
-				continue
-			}
-			if source[i+1] == '*' {
-				// Block comment — find closing */.
-				comment_start := i + 2
-				comment_end := comment_start
+		if ch == '/' && i + 1 < len(source) && (source[i+1] == '/' || source[i+1] == '*') {
+			block := source[i+1] == '*'
+			comment_start := i + 2
+			comment_end := comment_start
+			if block {
 				for comment_end + 1 < len(source) {
 					if source[comment_end] == '*' && source[comment_end+1] == '/' { break }
 					comment_end += 1
 				}
-				comment_text := lint_trim_spaces(source[comment_start:comment_end])
-				block_line := lint_offset_to_line(line_offsets, u32(i))
-				if lint_starts_with(comment_text, "eslint-disable-next-line") {
-					suppressed_lines[block_line + 1] = true
-				} else if lint_starts_with(comment_text, "eslint-disable-line") {
-					suppressed_lines[block_line] = true
-				} else if lint_starts_with(comment_text, "eslint-enable") {
-					if range_active {
-						end_line := block_line
-						for ln := range_start_line; ln <= end_line; ln += 1 {
-							suppressed_lines[ln] = true
-						}
-						range_active = false
-					}
-				} else if lint_starts_with(comment_text, "eslint-disable") {
-					range_active = true
-					range_start_line = block_line
-				}
-				i = comment_end + 2 if comment_end + 1 < len(source) else len(source)
-				continue
+			} else {
+				for comment_end < len(source) && source[comment_end] != '\n' { comment_end += 1 }
 			}
+			text := lint_trim_spaces(source[comment_start:comment_end])
+			line := lint_offset_to_line(line_offsets, u32(i))
+			range_active, range_start_line, range_rules = lint_scan_directive(
+				text, line, &suppressed_lines, &suppressed_line_rules,
+				range_active, range_start_line, range_rules)
+			if block {
+				i = comment_end + 2 if comment_end + 1 < len(source) else len(source)
+			} else {
+				i = comment_end
+			}
+			continue
 		}
 		// Skip string literals to avoid false matches.
 		if ch == '\'' || ch == '"' || ch == '`' {
@@ -4006,24 +4047,25 @@ lint_apply_disable_directives :: proc(l: ^Linter, source: string, line_offsets: 
 		i += 1
 	}
 
-	// If a disable block was never closed, suppress to end of file.
+	// An unclosed disable block suppresses through to end of file.
 	if range_active {
 		last_line := len(line_offsets)
 		for ln := range_start_line; ln <= last_line; ln += 1 {
-			suppressed_lines[ln] = true
+			lint_suppress_line(&suppressed_lines, &suppressed_line_rules, ln, range_rules)
 		}
 	}
 
-	if len(suppressed_lines) == 0 { return }
+	if len(suppressed_lines) == 0 && len(suppressed_line_rules) == 0 { return }
 
-	// Filter: compact diagnostics, removing any on suppressed lines.
+	// Compact diagnostics, dropping any that a directive suppresses.
 	write_idx := 0
 	for idx in 0..<len(l.diagnostics) {
 		diag_line := lint_offset_to_line(line_offsets, l.diagnostics[idx].start)
-		if !suppressed_lines[diag_line] {
-			l.diagnostics[write_idx] = l.diagnostics[idx]
-			write_idx += 1
+		if lint_diag_suppressed(suppressed_lines, suppressed_line_rules, diag_line, l.diagnostics[idx].lint_code) {
+			continue
 		}
+		l.diagnostics[write_idx] = l.diagnostics[idx]
+		write_idx += 1
 	}
 	resize(&l.diagnostics, write_idx)
 }
