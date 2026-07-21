@@ -104,6 +104,18 @@ if [[ -f "$LINT_DIR/config/novar.js" ]]; then
   check_rule "no-var:off"   "$LINT_DIR/config/novar.js" 0
 fi
 
+# Output formatters (Phase 8e): --format={unix,github,json} must emit the
+# format-specific shape for a known diagnostic. Assert a signature substring of
+# each formatter's output for a file that trips no-debugger (default-on).
+printf 'debugger;\n' > "$LINT_DIR/.fmt-probe.js"
+fmt_out=$("$BIN" lint --format=unix "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == *":1:1: "*"[error/no-debugger]"* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=unix ($fmt_out)" >&2; fi
+fmt_out=$("$BIN" lint --format=github "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == "::error file="*"line=1,col=1::"*"(no-debugger)" ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=github ($fmt_out)" >&2; fi
+fmt_out=$("$BIN" lint --format=json "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == *'"ruleId":"no-debugger"'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=json ($fmt_out)" >&2; fi
+rm -f "$LINT_DIR/.fmt-probe.js"
+
 echo "================================"
 echo "Lint fixtures:"
 echo "  Passed: $pass"

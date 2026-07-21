@@ -743,18 +743,19 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 	l := lint_run_for_job(&job, overrides)
 	if len(l.diagnostics) > 0 && job.parser.lexer != nil {
 		if had_output { fmt.eprintln() }
-		if format == "json" {
-			lint_render_json(
-				job.parser.lexer.source,
-				file_path,
-				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
-				l.diagnostics[:],
-			)
-		} else {
+		lofs := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
+		switch format {
+		case "json":
+			lint_render_json(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+		case "unix":
+			lint_render_unix(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+		case "github":
+			lint_render_github(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+		case:
 			render_pretty_diagnostics(
 				job.parser.lexer.source,
 				file_path,
-				job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
+				lofs,
 				l.diagnostics[:],
 				cli.color,
 			)

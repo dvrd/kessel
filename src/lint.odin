@@ -4108,3 +4108,29 @@ lint_render_json :: proc(source: string, file_path: string, line_offsets: []u32,
 	}
 	fmt.eprintf("\n]}}]\n")
 }
+
+// lint_render_unix emits one diagnostic per line in the classic ESLint `unix`
+// formatter shape: `path:line:column: message [severity/rule]`. Grep-friendly
+// and consumable by editor quickfix lists.
+lint_render_unix :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
+	for diag in diagnostics {
+		line := lint_offset_to_line(line_offsets, diag.start)
+		col := int(diag.start) - int(line_offsets[line]) + 1 if line < len(line_offsets) else 1
+		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
+		sev := "warning" if diag.severity == .Warning else "error"
+		fmt.eprintf("%s:%d:%d: %s [%s/%s]\n", file_path, line + 1, col, diag.message, sev, rule_id)
+	}
+}
+
+// lint_render_github emits GitHub Actions workflow-command annotations so lint
+// findings surface inline on pull requests:
+// `::error file=path,line=L,col=C::message (rule)`.
+lint_render_github :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
+	for diag in diagnostics {
+		line := lint_offset_to_line(line_offsets, diag.start)
+		col := int(diag.start) - int(line_offsets[line]) + 1 if line < len(line_offsets) else 1
+		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
+		level := "warning" if diag.severity == .Warning else "error"
+		fmt.eprintf("::%s file=%s,line=%d,col=%d::%s (%s)\n", level, file_path, line + 1, col, diag.message, rule_id)
+	}
+}
