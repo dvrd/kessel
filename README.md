@@ -96,6 +96,15 @@ bin/kessel lex app.js
 bin/kessel codegen app.js
 bin/kessel codegen app.js --minified
 
+# Lint — walk the AST and report lint diagnostics (157 built-in rules)
+bin/kessel lint app.js
+bin/kessel lint src/*.ts --rule no-console:error --rule eqeqeq:warn
+bin/kessel lint app.js --format=json          # also: unix, github, compact, checkstyle
+bin/kessel lint app.js --config kessel.lint.json
+
+# Strip TypeScript types — re-emit plain JavaScript (erasable-only)
+bin/kessel strip-types app.ts
+
 # Benchmark
 bin/kessel microbench parse app.js --iterations 500
 bin/kessel microbench parse app.js --iterations 500 --ast-only
@@ -143,6 +152,34 @@ programmatic handling. Full API and visitor helpers documented in
 | `--module-record` | Emit static import/export module record |
 | `--json` | Emit errors as JSON instead of the pretty renderer |
 | `--color=<bool>` | Force color on/off (overrides `KESSEL_COLOR` env) |
+
+### Linting (`kessel lint`)
+
+157 built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
+rules are default-on; style/restriction rules are default-off and enabled
+explicitly. Every rule is addressable by its ESLint-style kebab-case name.
+
+| Flag | Description |
+|---|---|
+| `--rule <name>:off\|warn\|error` | Override a rule's severity (repeatable) |
+| `--config <file>` | Load a `kessel.lint.json` (auto-discovered upward from cwd if omitted) |
+| `--format=<fmt>` | Output format: `default`, `json`, `unix`, `github`, `compact`, `checkstyle` |
+
+Inline suppression uses ESLint-compatible disable directives, including
+targeted per-rule suppression:
+
+```js
+// eslint-disable-next-line no-console
+console.log(x);
+
+/* eslint-disable no-debugger */
+debugger;
+/* eslint-enable no-debugger */
+```
+
+A bare `// eslint-disable-next-line` (no rule names) suppresses every rule on
+the next line; naming rules suppresses only those.
+
 
 ## Tests
 
@@ -240,7 +277,7 @@ downstream consumers of the finished ESTree AST.
 | 2 | Pratt parser (ES2015–ES2025, TS, JSX/TSX) | ✅ Complete |
 | 3 | Semantic checker (ECMA-262 early errors) | ✅ Complete |
 | — | Codegen + source maps + binary/raw-transfer emitters | ✅ Complete |
-| 4 | **Linter (`kessel lint`)** | 🚧 29 rules (targeting oxlint's ~500) |
+| 4 | **Linter (`kessel lint`)** | 🚧 157 rules (targeting oxlint's ~500) |
 | 5 | Transformer — TS type-stripping (`kessel strip-types`) | 🚧 In progress (M1 shipped) |
 | 6 | Semantic model · CFG · resolver · regexp AST (enablers) | Planned |
 | 7 | Formatter (`kessel fmt`, Prettier-compatible) | Planned |

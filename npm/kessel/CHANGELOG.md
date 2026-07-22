@@ -4,6 +4,18 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [Unreleased]
+
+### Added
+- feat(lint): add `unix`, `github`, `compact`, and `checkstyle` output formatters via `--format=` (Phase 8e; joins existing `default`/`json`)
+- feat(lint): support targeted per-rule disable directives (`// eslint-disable-next-line no-console` suppresses only the named rule; bare directive suppresses all)
+- feat(lint): add no-negated-condition (L4098) and operator-assignment (L4099) rules
+- feat(lint): add no-implicit-coercion, no-buffer-constructor, no-octal-escape, no-implicit-globals, no-restricted-globals, no-restricted-syntax, prefer-exponentiation-operator
+- feat(lint): add no-useless-else, prefer-object-literal, no-object-constructor, no-arrow-functions-in-class, no-class-assign-in-class, prefer-object-has-own, no-useless-unary (157 rules total)
+
+### Fixed
+- fix(lint): make every rule `--rule`/config-addressable by name — `lint_rule_by_name` was a hand-maintained switch that stopped at L2025, leaving ~90 already-implemented L40xx rules unreachable; it now scans the static rule-info table
+
 ## [0.20.0] - 2026-07-12
 
 ### Added
