@@ -751,6 +751,10 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 			lint_render_unix(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
 		case "github":
 			lint_render_github(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+		case "compact":
+			lint_render_compact(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+		case "checkstyle":
+			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
 		case:
 			render_pretty_diagnostics(
 				job.parser.lexer.source,

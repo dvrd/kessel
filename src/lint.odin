@@ -4134,3 +4134,33 @@ lint_render_github :: proc(source: string, file_path: string, line_offsets: []u3
 		fmt.eprintf("::%s file=%s,line=%d,col=%d::%s (%s)\n", level, file_path, line + 1, col, diag.message, rule_id)
 	}
 }
+
+// lint_render_compact emits the ESLint `compact` formatter shape:
+// `path: line L, col C, Severity - message (rule)`. One line per diagnostic.
+lint_render_compact :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
+	for diag in diagnostics {
+		line := lint_offset_to_line(line_offsets, diag.start)
+		col := int(diag.start) - int(line_offsets[line]) + 1 if line < len(line_offsets) else 1
+		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
+		sev := "Warning" if diag.severity == .Warning else "Error"
+		fmt.eprintf("%s: line %d, col %d, %s - %s (%s)\n", file_path, line + 1, col, sev, diag.message, rule_id)
+	}
+}
+
+// lint_render_checkstyle emits a Checkstyle-compatible XML document for one
+// file, consumable by Jenkins/GitLab CI and other Checkstyle-aware tooling.
+lint_render_checkstyle :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
+	fmt.eprintf("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<checkstyle version=\"4.3\">\n")
+	fmt.eprintf("<file name=\"%s\">\n", file_path)
+	for diag in diagnostics {
+		line := lint_offset_to_line(line_offsets, diag.start)
+		col := int(diag.start) - int(line_offsets[line]) + 1 if line < len(line_offsets) else 1
+		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
+		sev := "warning" if diag.severity == .Warning else "error"
+		fmt.eprintf(
+			"<error line=\"%d\" column=\"%d\" severity=\"%s\" message=\"%s\" source=\"%s\" />\n",
+			line + 1, col, sev, diag.message, rule_id,
+		)
+	}
+	fmt.eprintf("</file>\n</checkstyle>\n")
+}

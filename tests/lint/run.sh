@@ -114,6 +114,10 @@ fmt_out=$("$BIN" lint --format=github "$LINT_DIR/.fmt-probe.js" 2>&1)
 if [[ "$fmt_out" == "::error file="*"line=1,col=1::"*"(no-debugger)" ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=github ($fmt_out)" >&2; fi
 fmt_out=$("$BIN" lint --format=json "$LINT_DIR/.fmt-probe.js" 2>&1)
 if [[ "$fmt_out" == *'"ruleId":"no-debugger"'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=json ($fmt_out)" >&2; fi
+fmt_out=$("$BIN" lint --format=compact "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == *": line 1, col 1, Error - "*"(no-debugger)"* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=compact ($fmt_out)" >&2; fi
+fmt_out=$("$BIN" lint --format=checkstyle "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == *'<checkstyle version="4.3">'*'source="no-debugger"'*'</checkstyle>'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=checkstyle ($fmt_out)" >&2; fi
 rm -f "$LINT_DIR/.fmt-probe.js"
 
 echo "================================"
