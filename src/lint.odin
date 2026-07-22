@@ -210,6 +210,8 @@ LintRule :: enum u16 {
 	L4095_NoObjectConstructor        = 4095,
 	L4096_NoArrowFunctionsInClass    = 4096,
 	L4097_NoClassAssignInClass       = 4097,
+	L4098_NoNegatedCondition         = 4098,
+	L4099_OperatorAssignment         = 4099,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -1099,6 +1101,10 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{name="no-arrow-functions-in-class", default_message="arrow function in class body", default_severity=.Warning, default_enabled=false}
 	case .L4097_NoClassAssignInClass:
 		return LintRuleInfo{name="no-class-assign-in-class", default_message="assignment to class name inside class body", default_severity=.Error, default_enabled=false}
+	case .L4098_NoNegatedCondition:
+		return LintRuleInfo{name="no-negated-condition", default_message="negated condition in an if/else — invert for readability", default_severity=.Warning, default_enabled=false}
+	case .L4099_OperatorAssignment:
+		return LintRuleInfo{name="operator-assignment", default_message="assignment can be shortened to a compound operator (e.g. x += y)", default_severity=.Warning, default_enabled=false}
 	}
 	return LintRuleInfo{}
 }
@@ -1224,6 +1230,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		if v != nil {
 			lint_check_dupe_else_if(l, v)
 			lint_check_no_lonely_if(l, v)
+			lint_check_no_negated_condition(l, v)
 			lint_check_no_else_return(l, v)
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
@@ -2701,6 +2708,56 @@ lint_check_no_unneeded_ternary :: proc(l: ^Linter, e: ^ConditionalExpression) {
 	}
 }
 
+// lint_check_no_negated_condition (no-negated-condition, L4098): flags an
+// `if` with an `else` whose test is negated (`!x`, `a != b`, `a !== b`).
+// Inverting the test and swapping the branches reads more clearly. Only fires
+// when an else branch exists (a bare negated `if` is fine).
+lint_check_no_negated_condition :: proc(l: ^Linter, v: ^IfStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4098_NoNegatedCondition) { return }
+	if _, ok := v.alternate.(^Statement); !ok { return }
+	negated := false
+	#partial switch t in v.test^ {
+	case ^UnaryExpression:
+		if t != nil && t.operator == .LogicalNot { negated = true }
+	case ^BinaryExpression:
+		if t != nil && (t.operator == .NotEq || t.operator == .StrictNotEq) { negated = true }
+	}
+	if !negated { return }
+	info := lint_rule_info(.L4098_NoNegatedCondition)
+	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4098_NoNegatedCondition, info.default_message)
+}
+
+// lint_check_operator_assignment (operator-assignment, L4099): flags a plain
+// assignment `x = x <op> y` that could use a compound operator (`x += y`).
+// Requires the assignment target and the binary expression's left operand to be
+// the same identifier, and the binary operator to have a compound form.
+lint_check_operator_assignment :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4099_OperatorAssignment) { return }
+	if e.operator != .Assign { return }
+	bin, ok := e.right^.(^BinaryExpression)
+	if !ok || bin == nil { return }
+	if !lint_binary_op_has_compound(bin.operator) { return }
+	lhs, ok2 := e.left^.(^Identifier)
+	if !ok2 || lhs == nil { return }
+	blhs, ok3 := bin.left^.(^Identifier)
+	if !ok3 || blhs == nil { return }
+	if lhs.name != blhs.name { return }
+	info := lint_rule_info(.L4099_OperatorAssignment)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4099_OperatorAssignment, info.default_message)
+}
+
+// lint_binary_op_has_compound reports whether a binary operator has a compound
+// assignment form (`+` → `+=`, etc.). Relational/equality operators do not.
+lint_binary_op_has_compound :: proc(op: BinaryOperator) -> bool {
+	#partial switch op {
+	case .Add, .Sub, .Mul, .Div, .Mod, .Pow,
+	     .BitOr, .BitXor, .BitAnd,
+	     .ShiftLeft, .ShiftRight, .ShiftRightUnsigned:
+		return true
+	}
+	return false
+}
+
 // lint_check_no_lonely_if (no-lonely-if, L4042): flags an `else` block whose
 // only statement is an `if` — should be `else if` instead.
 lint_check_no_lonely_if :: proc(l: ^Linter, v: ^IfStatement) {
@@ -3656,7 +3713,7 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		}
 	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_check_no_comparison_with_nan(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_check_operator_assignment(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
@@ -3761,36 +3818,13 @@ LintOverride :: struct {
 // lint_rule_by_name maps an ESLint-style kebab-case rule name to its LintRule.
 // Returns (rule, true) on a hit, (.None, false) otherwise.
 lint_rule_by_name :: proc(name: string) -> (LintRule, bool) {
-	switch name {
-	case "no-empty":              return .L1001_NoEmpty, true
-	case "no-sparse-arrays":      return .L1002_NoSparseArrays, true
-	case "eqeqeq":               return .L1003_Eqeqeq, true
-	case "no-debugger":           return .L2001_NoDebugger, true
-	case "no-dupe-keys":          return .L2002_NoDupeKeys, true
-	case "no-constant-condition": return .L2003_NoConstantCondition, true
-	case "no-dupe-class-members": return .L2004_NoDupeClassMembers, true
-	case "no-redeclare":          return .L2005_NoRedeclare, true
-	case "no-undef":              return .L2006_NoUndef, true
-	case "no-unused-vars":        return .L2007_NoUnusedVars, true
-	case "no-shadow":             return .L2008_NoShadow, true
-	case "no-var":                return .L1004_NoVar, true
-	case "no-cond-assign":        return .L2009_NoCondAssign, true
-	case "no-unsafe-negation":    return .L2010_NoUnsafeNegation, true
-	case "no-compare-neg-zero":   return .L2011_NoCompareNegZero, true
-	case "no-self-assign":        return .L2012_NoSelfAssign, true
-	case "no-async-promise-executor": return .L2013_NoAsyncPromiseExecutor, true
-	case "no-duplicate-case":         return .L2014_NoDuplicateCase, true
-	case "no-empty-pattern":          return .L2015_NoEmptyPattern, true
-	case "no-useless-catch":          return .L2016_NoUselessCatch, true
-	case "no-self-compare":           return .L2017_NoSelfCompare, true
-	case "use-isnan":                 return .L2018_UseIsnan, true
-	case "no-new-native-nonconstructor": return .L2019_NoNewNativeNonconstructor, true
-	case "no-obj-calls":              return .L2020_NoObjCalls, true
-	case "no-delete-var":             return .L2021_NoDeleteVar, true
-	case "no-dupe-args":              return .L2022_NoDupeArgs, true
-	case "no-dupe-else-if":           return .L2023_NoDupeElseIf, true
-	case "no-prototype-builtins":     return .L2024_NoPrototypeBuiltins, true
-	case "no-case-declarations":      return .L2025_NoCaseDeclarations, true
+	// Resolve by scanning the static info table so every rule — including the
+	// L40xx set — is reachable by name without a hand-maintained parallel switch
+	// (which historically drifted and left ~90 rules unaddressable via --rule).
+	if name == "" { return .None, false }
+	for rule in LintRule {
+		if rule == .None { continue }
+		if lint_rule_info(rule).name == name { return rule, true }
 	}
 	return .None, false
 }

@@ -104,6 +104,14 @@ if [[ -f "$LINT_DIR/config/novar.js" ]]; then
   check_rule "no-var:off"   "$LINT_DIR/config/novar.js" 0
 fi
 
+# New AST-local rules (default-off), exercised via --rule + fixtures under config/.
+if [[ -f "$LINT_DIR/config/operator-assignment.js" ]]; then
+  check_rule "operator-assignment:error" "$LINT_DIR/config/operator-assignment.js" 1
+fi
+if [[ -f "$LINT_DIR/config/negated-condition.js" ]]; then
+  check_rule "no-negated-condition:error" "$LINT_DIR/config/negated-condition.js" 1
+fi
+
 # Output formatters (Phase 8e): --format={unix,github,json} must emit the
 # format-specific shape for a known diagnostic. Assert a signature substring of
 # each formatter's output for a file that trips no-debugger (default-on).
