@@ -128,6 +128,19 @@ fmt_out=$("$BIN" lint --format=checkstyle "$LINT_DIR/.fmt-probe.js" 2>&1)
 if [[ "$fmt_out" == *'<checkstyle version="4.3">'*'source="no-debugger"'*'</checkstyle>'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=checkstyle ($fmt_out)" >&2; fi
 rm -f "$LINT_DIR/.fmt-probe.js"
 
+# Warning-severity flags (Phase 8e): --quiet and --max-warnings. no-debugger is
+# default-on; forcing it to :warn exercises the warning path without a new rule.
+printf 'debugger;\n' > "$LINT_DIR/.warn-probe.js"
+"$BIN" lint --rule no-debugger:warn "$LINT_DIR/.warn-probe.js" >/dev/null 2>&1
+if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: warning fails run by default" >&2; fi
+"$BIN" lint --rule no-debugger:warn --quiet "$LINT_DIR/.warn-probe.js" >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --quiet drops warning failure" >&2; fi
+"$BIN" lint --rule no-debugger:warn --max-warnings 0 "$LINT_DIR/.warn-probe.js" >/dev/null 2>&1
+if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --max-warnings 0 gate" >&2; fi
+"$BIN" lint --rule no-debugger:warn --max-warnings 1 "$LINT_DIR/.warn-probe.js" >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --max-warnings 1 tolerates one warning" >&2; fi
+rm -f "$LINT_DIR/.warn-probe.js"
+
 echo "================================"
 echo "Lint fixtures:"
 echo "  Passed: $pass"

@@ -308,6 +308,8 @@ main :: proc() {
 		lint_overrides := make([dynamic]LintOverride)
 		lint_config_path := ""
 		lint_format := "default"
+		lint_quiet := false
+		lint_max_warnings := -1
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -324,6 +326,25 @@ main :: proc() {
 				i += 2
 			case len(arg) > 9 && arg[:9] == "--format=":
 				lint_format = arg[9:]
+				i += 1
+			case arg == "--quiet":
+				lint_quiet = true
+				i += 1
+			case arg == "--max-warnings" && i + 1 < len(os.args):
+				if n, ok := strconv.parse_int(os.args[i+1]); ok {
+					lint_max_warnings = n
+				} else {
+					fmt.eprintf("Error: invalid --max-warnings value '%s' (want an integer)\n", os.args[i+1])
+					os.exit(2)
+				}
+				i += 2
+			case len(arg) > 15 && arg[:15] == "--max-warnings=":
+				if n, ok := strconv.parse_int(arg[15:]); ok {
+					lint_max_warnings = n
+				} else {
+					fmt.eprintf("Error: invalid --max-warnings value '%s' (want an integer)\n", arg[15:])
+					os.exit(2)
+				}
 				i += 1
 			case arg == "--rule" && i + 1 < len(os.args):
 				if ov, ok := lint_parse_rule_flag(os.args[i+1]); ok {
@@ -367,8 +388,21 @@ main :: proc() {
 			delete(lint_overrides)
 			lint_overrides = merged
 		}
+		lint_warn_count := 0
 		for f in lint_files {
-			if lint_file(f, cli, lint_overrides[:], lint_format) { had_errors = true }
+			if lint_file(f, cli, lint_overrides[:], lint_format, lint_quiet, &lint_warn_count) { had_errors = true }
+		}
+		// Warning-failure policy (kessel is stricter than ESLint by default):
+		//   --max-warnings N : fail iff the warning total exceeds N.
+		//   --quiet          : warnings neither print nor fail; only errors fail.
+		//   (neither)        : any warning fails the run, like any other diagnostic.
+		if lint_max_warnings >= 0 {
+			if lint_warn_count > lint_max_warnings {
+				fmt.eprintf("Error: too many warnings (%d, max allowed %d)\n", lint_warn_count, lint_max_warnings)
+				had_errors = true
+			}
+		} else if !lint_quiet && lint_warn_count > 0 {
+			had_errors = true
 		}
 		delete(lint_files)
 		delete(lint_overrides)
@@ -712,7 +746,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 // renderer. Returns true if any diagnostic was reported so the caller can set
 // a non-zero process exit. Parse errors are surfaced first; the lint pass runs
 // regardless (a partial AST is still walkable and the visitor is nil-safe).
-lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil, format: string = "default") -> bool {
+lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil, format: string = "default", quiet: bool = false, warn_total: ^int = nil) -> bool {
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
@@ -739,35 +773,56 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 		had_output = true
 	}
 
-	// Run the lint pass and render its diagnostics.
+	// Run the lint pass. Count severities over the full set (before any --quiet
+	// filtering) so --max-warnings still sees suppressed warnings. Warnings fail
+	// the run by default (kessel is stricter than ESLint here); --quiet and
+	// --max-warnings relax that in the caller.
 	l := lint_run_for_job(&job, overrides)
-	if len(l.diagnostics) > 0 && job.parser.lexer != nil {
+	error_count := 0
+	warning_count := 0
+	for d in l.diagnostics {
+		if d.severity == .Warning { warning_count += 1 } else { error_count += 1 }
+	}
+	if warn_total != nil { warn_total^ += warning_count }
+	// Under --quiet, drop warning-severity diagnostics from the rendered output.
+	diags := l.diagnostics[:]
+	if quiet {
+		w := 0
+		for d in diags {
+			if d.severity != .Warning { diags[w] = d; w += 1 }
+		}
+		diags = diags[:w]
+	}
+
+	if len(diags) > 0 && job.parser.lexer != nil {
 		if had_output { fmt.eprintln() }
 		lofs := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
 		switch format {
 		case "json":
-			lint_render_json(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_json(job.parser.lexer.source, file_path, lofs, diags)
 		case "unix":
-			lint_render_unix(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_unix(job.parser.lexer.source, file_path, lofs, diags)
 		case "github":
-			lint_render_github(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_github(job.parser.lexer.source, file_path, lofs, diags)
 		case "compact":
-			lint_render_compact(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_compact(job.parser.lexer.source, file_path, lofs, diags)
 		case "checkstyle":
-			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, diags)
 		case:
 			render_pretty_diagnostics(
 				job.parser.lexer.source,
 				file_path,
 				lofs,
-				l.diagnostics[:],
+				diags,
 				cli.color,
 			)
 		}
 		had_output = true
 	}
+	_ = had_output
 
-	return had_output
+	// Exit-1 conditions: a parse error, or an error-severity lint diagnostic.
+	return len(job.parser.errors) > 0 || error_count > 0
 }
 
 // ============================================================================
