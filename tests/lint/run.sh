@@ -126,6 +126,10 @@ fmt_out=$("$BIN" lint --format=compact "$LINT_DIR/.fmt-probe.js" 2>&1)
 if [[ "$fmt_out" == *": line 1, col 1, Error - "*"(no-debugger)"* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=compact ($fmt_out)" >&2; fi
 fmt_out=$("$BIN" lint --format=checkstyle "$LINT_DIR/.fmt-probe.js" 2>&1)
 if [[ "$fmt_out" == *'<checkstyle version="4.3">'*'source="no-debugger"'*'</checkstyle>'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=checkstyle ($fmt_out)" >&2; fi
+fmt_out=$("$BIN" lint --format=gitlab "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == *'"check_name":"no-debugger"'*'"severity":"major"'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=gitlab ($fmt_out)" >&2; fi
+fmt_out=$("$BIN" lint --format=junit "$LINT_DIR/.fmt-probe.js" 2>&1)
+if [[ "$fmt_out" == *'<testsuite name="kessel"'*'<failure message='*'</testsuites>'* ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --format=junit ($fmt_out)" >&2; fi
 rm -f "$LINT_DIR/.fmt-probe.js"
 
 # Warning-severity flags (Phase 8e): --quiet and --max-warnings. no-debugger is
@@ -140,6 +144,16 @@ if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL:
 "$BIN" lint --rule no-debugger:warn --max-warnings 1 "$LINT_DIR/.warn-probe.js" >/dev/null 2>&1
 if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --max-warnings 1 tolerates one warning" >&2; fi
 rm -f "$LINT_DIR/.warn-probe.js"
+
+# Severity alias flags (Phase 8e): --deny/--warn/--allow are shorthands for
+# --rule name:error|warn|off.
+printf 'debugger;\n' > "$LINT_DIR/.alias-probe.js"
+"$BIN" lint --allow no-debugger "$LINT_DIR/.alias-probe.js" >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --allow silences default-on rule" >&2; fi
+printf 'let x = 0;\nx = x + 1;\n' > "$LINT_DIR/.alias-probe.js"
+"$BIN" lint --deny operator-assignment "$LINT_DIR/.alias-probe.js" >/dev/null 2>&1
+if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --deny enables default-off rule" >&2; fi
+rm -f "$LINT_DIR/.alias-probe.js"
 
 echo "================================"
 echo "Lint fixtures:"

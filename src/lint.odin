@@ -3854,6 +3854,15 @@ lint_parse_rule_flag :: proc(value: string) -> (LintOverride, bool) {
 	return lint_override_from_level(rule, level)
 }
 
+// lint_severity_alias resolves a rule name plus a fixed level word into a
+// LintOverride. Backs the ESLint-style `--deny`/`--warn`/`--allow` flags, which
+// are shorthands for `--rule name:error|warn|off`.
+lint_severity_alias :: proc(name: string, level: string) -> (LintOverride, bool) {
+	rule, have := lint_rule_by_name(name)
+	if !have { return LintOverride{}, false }
+	return lint_override_from_level(rule, level)
+}
+
 // lint_parse_rules_text parses a newline-separated list of `name:level` tokens
 // (the wire format the FFI receives from the JS `opts.rules` object) into
 // per-rule overrides, appending each valid entry to `out`. Blank tokens and
@@ -4197,4 +4206,55 @@ lint_render_checkstyle :: proc(source: string, file_path: string, line_offsets: 
 		)
 	}
 	fmt.eprintf("</file>\n</checkstyle>\n")
+}
+
+// lint_render_gitlab emits a GitLab Code Quality report (JSON array) consumable
+// by GitLab CI's `codequality` artifact. Severity maps warning->minor,
+// error->major; the fingerprint is an FNV-1a hash of path + rule + message +
+// line so the same finding keeps a stable id across runs.
+lint_render_gitlab :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
+	fmt.eprintf("[")
+	for diag, idx in diagnostics {
+		line := lint_offset_to_line(line_offsets, diag.start)
+		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
+		severity := "minor" if diag.severity == .Warning else "major"
+		fp: u64 = 0xcbf29ce484222325
+		parts := [3]string{file_path, rule_id, diag.message}
+		for part in parts {
+			for i in 0..<len(part) {
+				fp ~= u64(part[i])
+				fp *= 0x100000001b3
+			}
+		}
+		fp ~= u64(line + 1)
+		fp *= 0x100000001b3
+		fmt.eprintf(
+			"{{\"description\":\"%s\",\"check_name\":\"%s\",\"fingerprint\":\"%016x\",\"severity\":\"%s\",\"location\":{{\"path\":\"%s\",\"lines\":{{\"begin\":%d}}}}}}",
+			diag.message, rule_id, fp, severity, file_path, line + 1,
+		)
+		if idx < len(diagnostics) - 1 { fmt.eprintf(",") }
+	}
+	fmt.eprintf("]\n")
+}
+
+// lint_render_junit emits a JUnit XML report: one <testcase> per diagnostic,
+// each carrying a <failure>, wrapped in a single <testsuite> for the file.
+lint_render_junit :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
+	n := len(diagnostics)
+	fmt.eprintf("<?xml version=\"1.0\" encoding=\"utf-8\"?>\n")
+	fmt.eprintf("<testsuites>\n")
+	fmt.eprintf("<testsuite name=\"kessel\" package=\"%s\" tests=\"%d\" failures=\"%d\">\n", file_path, n, n)
+	for diag in diagnostics {
+		line := lint_offset_to_line(line_offsets, diag.start)
+		col := int(diag.start) - int(line_offsets[line]) + 1 if line < len(line_offsets) else 1
+		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
+		sev := "warning" if diag.severity == .Warning else "error"
+		fmt.eprintf("  <testcase name=\"%s\" classname=\"%s\">\n", rule_id, file_path)
+		fmt.eprintf(
+			"    <failure message=\"%s\" type=\"%s\">line %d, col %d</failure>\n",
+			diag.message, sev, line + 1, col,
+		)
+		fmt.eprintf("  </testcase>\n")
+	}
+	fmt.eprintf("</testsuite>\n</testsuites>\n")
 }

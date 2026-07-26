@@ -362,6 +362,15 @@ main :: proc() {
 					os.exit(2)
 				}
 				i += 1
+			case arg == "--deny" && i + 1 < len(os.args):
+				if ov, ok := lint_severity_alias(os.args[i+1], "error"); ok { append(&lint_overrides, ov) }
+				i += 2
+			case arg == "--warn" && i + 1 < len(os.args):
+				if ov, ok := lint_severity_alias(os.args[i+1], "warn"); ok { append(&lint_overrides, ov) }
+				i += 2
+			case arg == "--allow" && i + 1 < len(os.args):
+				if ov, ok := lint_severity_alias(os.args[i+1], "off"); ok { append(&lint_overrides, ov) }
+				i += 2
 			case:
 				append(&lint_files, arg)
 				i += 1
@@ -808,6 +817,10 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 			lint_render_compact(job.parser.lexer.source, file_path, lofs, diags)
 		case "checkstyle":
 			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, diags)
+		case "gitlab":
+			lint_render_gitlab(job.parser.lexer.source, file_path, lofs, diags)
+		case "junit":
+			lint_render_junit(job.parser.lexer.source, file_path, lofs, diags)
 		case:
 			render_pretty_diagnostics(
 				job.parser.lexer.source,
