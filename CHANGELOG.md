@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- feat(lint): add `gitlab` (GitLab Code Quality JSON) and `junit` (JUnit XML) output formatters, and `--deny`/`--warn`/`--allow` severity-alias flags (completes Phase 8e)
 - feat(lint): add `--quiet` (report errors only) and `--max-warnings <N>` (CI warning-count gate) flags
 - feat(lint): add `unix`, `github`, `compact`, and `checkstyle` output formatters via `--format=` (Phase 8e; joins existing `default`/`json`)
 - feat(lint): support targeted per-rule disable directives (`// eslint-disable-next-line no-console` suppresses only the named rule; bare directive suppresses all)

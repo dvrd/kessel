@@ -163,9 +163,10 @@ explicitly. Every rule is addressable by its ESLint-style kebab-case name.
 |---|---|
 | `--rule <name>:off\|warn\|error` | Override a rule's severity (repeatable) |
 | `--config <file>` | Load a `kessel.lint.json` (auto-discovered upward from cwd if omitted) |
-| `--format=<fmt>` | Output format: `default`, `json`, `unix`, `github`, `compact`, `checkstyle` |
+| `--format=<fmt>` | Output format: `default`, `json`, `unix`, `github`, `compact`, `checkstyle`, `gitlab`, `junit` |
 | `--quiet` | Report errors only — warnings are neither printed nor counted toward the exit code |
 | `--max-warnings <N>` | Return non-zero only if the warning total exceeds `N` (CI gate) |
+| `--deny\|--warn\|--allow <name>` | Shorthand for `--rule name:error\|warn\|off` |
 
 By default kessel is stricter than ESLint: **any** diagnostic (error or
 warning) yields a non-zero exit. `--quiet` and `--max-warnings` opt into the
