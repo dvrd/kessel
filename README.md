@@ -172,6 +172,20 @@ By default kessel is stricter than ESLint: **any** diagnostic (error or
 warning) yields a non-zero exit. `--quiet` and `--max-warnings` opt into the
 looser ESLint-style policy where warnings are tolerated.
 
+The `kessel.lint.json` config file sets per-rule severities and file globs to
+skip:
+
+```json
+{
+  "ignorePatterns": ["dist", "*.min.js"],
+  "rules": { "eqeqeq": "error", "no-console": "warn", "no-debugger": "off" }
+}
+```
+
+Glob patterns in `ignorePatterns` support `*` (any run, including `/`) and `?`
+(one character), matched against the full path and the basename; a literal name
+like `dist` matches an exact path, basename, prefix, or interior segment.
+
 Inline suppression uses ESLint-compatible disable directives, including
 targeted per-rule suppression:
 

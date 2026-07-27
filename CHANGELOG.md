@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- feat(lint): support `kessel.lint.json` `ignorePatterns` (glob file-exclusion) (Phase 8d)
 - feat(lint): add `gitlab` (GitLab Code Quality JSON) and `junit` (JUnit XML) output formatters, and `--deny`/`--warn`/`--allow` severity-alias flags (completes Phase 8e)
 - feat(lint): add `--quiet` (report errors only) and `--max-warnings <N>` (CI warning-count gate) flags
 - feat(lint): add `unix`, `github`, `compact`, and `checkstyle` output formatters via `--format=` (Phase 8e; joins existing `default`/`json`)
