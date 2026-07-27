@@ -29,6 +29,7 @@ import "core:fmt"
 import "core:mem"
 import "core:os"
 import "core:encoding/json"
+import "core:strings"
 
 // LintRule is the stable, machine-readable identifier for a lint diagnostic.
 // The numeric ranges mirror the planned rule families:
@@ -3905,13 +3906,25 @@ lint_discover_config :: proc(start_dir: string) -> (string, bool) {
 // compatible). Returns false only when the file cannot be read or is not a
 // valid JSON object. CLI `--rule` flags are applied AFTER these so the CLI
 // wins.
-lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride) -> bool {
+lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: ^[dynamic]string = nil) -> bool {
 	data, read_err := os.read_entire_file_from_path(path, context.temp_allocator)
 	if read_err != nil { return false }
 	v, err := json.parse(data, allocator = context.temp_allocator)
 	if err != .None { return false }
 	obj, is_obj := v.(json.Object)
 	if !is_obj { return false }
+	// ignorePatterns: array of glob strings; matching files are skipped entirely.
+	if ignore_out != nil {
+		if ig_v, has_ig := obj["ignorePatterns"]; has_ig {
+			if ig_arr, is_arr := ig_v.(json.Array); is_arr {
+				for pat_v in ig_arr {
+					if pat, is_str := pat_v.(json.String); is_str {
+						append(ignore_out, strings.clone(string(pat)))
+					}
+				}
+			}
+		}
+	}
 	rules_v, has_rules := obj["rules"]
 	if !has_rules { return true }
 	rules, is_rules := rules_v.(json.Object)
@@ -3926,6 +3939,75 @@ lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride) -> bool {
 		}
 	}
 	return true
+}
+
+// lint_glob_match performs a full-string glob match where `*` matches any run
+// of characters (including `/`) and `?` matches exactly one. Two-pointer
+// backtracking, no allocation.
+lint_glob_match :: proc(pattern: string, text: string) -> bool {
+	p, t := 0, 0
+	star := -1
+	star_t := 0
+	for t < len(text) {
+		if p < len(pattern) && (pattern[p] == text[t] || pattern[p] == '?') {
+			p += 1
+			t += 1
+		} else if p < len(pattern) && pattern[p] == '*' {
+			star = p
+			star_t = t
+			p += 1
+		} else if star >= 0 {
+			p = star + 1
+			star_t += 1
+			t = star_t
+		} else {
+			return false
+		}
+	}
+	for p < len(pattern) && pattern[p] == '*' { p += 1 }
+	return p == len(pattern)
+}
+
+// lint_path_ignored reports whether a file path is excluded by any
+// ignorePattern. Glob patterns (containing `*`/`?`) are matched against both
+// the full path and the basename; literal patterns match an exact path, a
+// basename, a leading `pat/` prefix, or an interior `/pat/` segment.
+lint_path_ignored :: proc(patterns: []string, path: string) -> bool {
+	base := path
+	for i := len(path) - 1; i >= 0; i -= 1 {
+		if path[i] == '/' { base = path[i + 1:]; break }
+	}
+	for pat in patterns {
+		if len(pat) == 0 { continue }
+		has_glob := false
+		for i in 0..<len(pat) {
+			if pat[i] == '*' || pat[i] == '?' { has_glob = true; break }
+		}
+		if has_glob {
+			if lint_glob_match(pat, path) { return true }
+			if lint_glob_match(pat, base) { return true }
+		} else {
+			if path == pat || base == pat { return true }
+			if lint_starts_with(path, pat) && len(path) > len(pat) && path[len(pat)] == '/' { return true }
+			if lint_str_contains(path, tprint_slash(pat)) { return true }
+		}
+	}
+	return false
+}
+
+// tprint_slash returns "/pat/" for interior-segment matching, temp-allocated.
+tprint_slash :: proc(pat: string) -> string {
+	return fmt.tprintf("/%s/", pat)
+}
+
+// lint_str_contains reports whether haystack contains needle (byte search).
+lint_str_contains :: proc(haystack: string, needle: string) -> bool {
+	if len(needle) == 0 { return true }
+	if len(needle) > len(haystack) { return false }
+	for i in 0..=len(haystack) - len(needle) {
+		if haystack[i:i + len(needle)] == needle { return true }
+	}
+	return false
 }
 
 // lint_run_for_job runs the lint pass over a parsed ParseJob, populating the

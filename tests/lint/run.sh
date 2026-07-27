@@ -91,6 +91,17 @@ if [[ -f "$LINT_DIR/config/enable-eqeqeq.json" ]]; then
   if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: --rule overrides --config" >&2; fi
 fi
 
+# ignorePatterns: files matching a config ignore glob are skipped entirely.
+if [[ -f "$LINT_DIR/config/ignore.json" ]]; then
+  printf 'debugger;\n' > "$LINT_DIR/.ig-probe.min.js"
+  "$BIN" lint --config "$LINT_DIR/config/ignore.json" "$LINT_DIR/.ig-probe.min.js" >/dev/null 2>&1
+  if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: ignorePatterns skips *.min.js" >&2; fi
+  printf 'debugger;\n' > "$LINT_DIR/.ig-probe.js"
+  "$BIN" lint --config "$LINT_DIR/config/ignore.json" "$LINT_DIR/.ig-probe.js" >/dev/null 2>&1
+  if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: non-ignored file still linted" >&2; fi
+  rm -f "$LINT_DIR/.ig-probe.min.js" "$LINT_DIR/.ig-probe.js"
+fi
+
 # Auto-discovery: with no --config, `kessel lint` walks up from the working
 # directory for a kessel.lint.json. Run from the fixture dir so the sibling
 # config (eqeqeq:error) is picked up and the loose-equality compare fires.

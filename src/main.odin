@@ -310,6 +310,7 @@ main :: proc() {
 		lint_format := "default"
 		lint_quiet := false
 		lint_max_warnings := -1
+		lint_ignores := make([dynamic]string)
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -389,7 +390,7 @@ main :: proc() {
 		// are appended after and lint_run_for_job applies overrides in order.
 		if lint_config_path != "" {
 			merged := make([dynamic]LintOverride)
-			if !lint_load_config(lint_config_path, &merged) {
+			if !lint_load_config(lint_config_path, &merged, &lint_ignores) {
 				fmt.eprintf("Error: could not read lint config: %s\n", lint_config_path)
 				os.exit(2)
 			}
@@ -399,6 +400,7 @@ main :: proc() {
 		}
 		lint_warn_count := 0
 		for f in lint_files {
+			if lint_path_ignored(lint_ignores[:], f) { continue }
 			if lint_file(f, cli, lint_overrides[:], lint_format, lint_quiet, &lint_warn_count) { had_errors = true }
 		}
 		// Warning-failure policy (kessel is stricter than ESLint by default):

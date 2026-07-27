@@ -1,0 +1,4 @@
+{
+  "ignorePatterns": ["*.min.js", "vendor"],
+  "rules": { "no-debugger": "error" }
+}
