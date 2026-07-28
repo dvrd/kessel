@@ -3906,6 +3906,26 @@ lint_discover_config :: proc(start_dir: string) -> (string, bool) {
 	return "", false
 }
 
+// lint_dir_of returns the directory portion of a path (everything up to and
+// including the last `/`), or "" when the path has no separator.
+lint_dir_of :: proc(path: string) -> string {
+	for i := len(path) - 1; i >= 0; i -= 1 {
+		if path[i] == '/' { return path[:i + 1] }
+	}
+	return ""
+}
+
+// lint_join_path joins a base directory with a (possibly relative) path.
+// Absolute `rel` values are returned as-is; otherwise `dir + rel` is temp-
+// allocated. A leading `./` on `rel` is stripped.
+lint_join_path :: proc(dir: string, rel: string) -> string {
+	if len(rel) > 0 && rel[0] == '/' { return rel }
+	r := rel
+	if len(r) >= 2 && r[0] == '.' && r[1] == '/' { r = r[2:] }
+	if len(dir) == 0 { return r }
+	return fmt.tprintf("%s%s", dir, r)
+}
+
 // lint_load_config reads a `kessel.lint.json` config file and appends the
 // resolved per-rule overrides into `out`. Shape:
 //   { "rules": { "no-debugger": "off", "eqeqeq": "error" } }
@@ -3913,13 +3933,31 @@ lint_discover_config :: proc(start_dir: string) -> (string, bool) {
 // compatible). Returns false only when the file cannot be read or is not a
 // valid JSON object. CLI `--rule` flags are applied AFTER these so the CLI
 // wins.
-lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: ^[dynamic]string = nil, overrides_out: ^[dynamic]LintConfigOverride = nil) -> bool {
+lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: ^[dynamic]string = nil, overrides_out: ^[dynamic]LintConfigOverride = nil, depth: int = 0) -> bool {
 	data, read_err := os.read_entire_file_from_path(path, context.temp_allocator)
 	if read_err != nil { return false }
 	v, err := json.parse(data, allocator = context.temp_allocator)
 	if err != .None { return false }
 	obj, is_obj := v.(json.Object)
 	if !is_obj { return false }
+	// extends: load one or more parent configs first (relative to this file's
+	// directory) so this config's own settings override them. Depth-guarded
+	// against cycles / runaway inheritance.
+	if depth < 16 {
+		if ext_v, has_ext := obj["extends"]; has_ext {
+			base_dir := lint_dir_of(path)
+			#partial switch ev in ext_v {
+			case json.String:
+				lint_load_config(lint_join_path(base_dir, string(ev)), out, ignore_out, overrides_out, depth + 1)
+			case json.Array:
+				for p_v in ev {
+					if p, is_str := p_v.(json.String); is_str {
+						lint_load_config(lint_join_path(base_dir, string(p)), out, ignore_out, overrides_out, depth + 1)
+					}
+				}
+			}
+		}
+	}
 	// ignorePatterns: array of glob strings; matching files are skipped entirely.
 	if ignore_out != nil {
 		if ig_v, has_ig := obj["ignorePatterns"]; has_ig {
