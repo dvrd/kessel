@@ -178,13 +178,18 @@ skip:
 ```json
 {
   "ignorePatterns": ["dist", "*.min.js"],
-  "rules": { "eqeqeq": "error", "no-console": "warn", "no-debugger": "off" }
+  "rules": { "eqeqeq": "error", "no-console": "warn", "no-debugger": "off" },
+  "overrides": [
+    { "files": ["*.test.js"], "rules": { "no-debugger": "error" } }
+  ]
 }
 ```
 
 Glob patterns in `ignorePatterns` support `*` (any run, including `/`) and `?`
 (one character), matched against the full path and the basename; a literal name
-like `dist` matches an exact path, basename, prefix, or interior segment.
+like `dist` matches an exact path, basename, prefix, or interior segment. Each
+`overrides` block layers its `rules` on top of the base rules for files matching
+one of its `files` globs (more specific wins).
 
 Inline suppression uses ESLint-compatible disable directives, including
 targeted per-rule suppression:
