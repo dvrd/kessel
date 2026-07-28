@@ -144,6 +144,21 @@ fi
 if [[ -f "$LINT_DIR/config/negated-condition.js" ]]; then
   check_rule "no-negated-condition:error" "$LINT_DIR/config/negated-condition.js" 1
 fi
+if [[ -f "$LINT_DIR/config/no-labels.js" ]]; then
+  check_rule "no-labels:error"        "$LINT_DIR/config/no-labels.js"        1
+fi
+if [[ -f "$LINT_DIR/config/no-multi-assign.js" ]]; then
+  check_rule "no-multi-assign:error"  "$LINT_DIR/config/no-multi-assign.js"  1
+fi
+if [[ -f "$LINT_DIR/config/no-ternary.js" ]]; then
+  check_rule "no-ternary:error"       "$LINT_DIR/config/no-ternary.js"       1
+fi
+if [[ -f "$LINT_DIR/config/no-new.js" ]]; then
+  check_rule "no-new:error"           "$LINT_DIR/config/no-new.js"           1
+fi
+if [[ -f "$LINT_DIR/config/no-return-await.js" ]]; then
+  check_rule "no-return-await:error"  "$LINT_DIR/config/no-return-await.js"  1
+fi
 
 # Output formatters (Phase 8e): --format={unix,github,json} must emit the
 # format-specific shape for a known diagnostic. Assert a signature substring of

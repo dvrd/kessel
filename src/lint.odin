@@ -213,6 +213,11 @@ LintRule :: enum u16 {
 	L4097_NoClassAssignInClass       = 4097,
 	L4098_NoNegatedCondition         = 4098,
 	L4099_OperatorAssignment         = 4099,
+	L4100_NoLabels                   = 4100,
+	L4101_NoMultiAssign              = 4101,
+	L4102_NoTernary                  = 4102,
+	L4103_NoNew                      = 4103,
+	L4104_NoReturnAwait              = 4104,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -1106,6 +1111,16 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{name="no-negated-condition", default_message="negated condition in an if/else — invert for readability", default_severity=.Warning, default_enabled=false}
 	case .L4099_OperatorAssignment:
 		return LintRuleInfo{name="operator-assignment", default_message="assignment can be shortened to a compound operator (e.g. x += y)", default_severity=.Warning, default_enabled=false}
+	case .L4100_NoLabels:
+		return LintRuleInfo{name="no-labels", default_message="labeled statement", default_severity=.Warning, default_enabled=false}
+	case .L4101_NoMultiAssign:
+		return LintRuleInfo{name="no-multi-assign", default_message="chained assignment", default_severity=.Warning, default_enabled=false}
+	case .L4102_NoTernary:
+		return LintRuleInfo{name="no-ternary", default_message="ternary (conditional) expression", default_severity=.Warning, default_enabled=false}
+	case .L4103_NoNew:
+		return LintRuleInfo{name="no-new", default_message="'new' expression used only for its side effects", default_severity=.Warning, default_enabled=false}
+	case .L4104_NoReturnAwait:
+		return LintRuleInfo{name="no-return-await", default_message="redundant 'return await'", default_severity=.Warning, default_enabled=false}
 	}
 	return LintRuleInfo{}
 }
@@ -1211,7 +1226,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	if stmt == nil { return }
 	switch v in stmt^ {
 	case ^ExpressionStatement:
-		if v != nil { lint_walk_expr(l, ctx, v.expression) }
+		if v != nil { lint_check_no_new(l, v); lint_walk_expr(l, ctx, v.expression) }
 	case ^BlockStatement:
 		if v != nil {
 			lint_check_redeclare(l, ctx, v.body[:])
@@ -1276,6 +1291,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^ReturnStatement:
 		if v != nil {
 			lint_check_no_return_assign(l, v)
+			lint_check_no_return_await(l, v)
 			if e, ok := v.argument.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 		}
 	case ^ThrowStatement:
@@ -1285,7 +1301,7 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^WithStatement:
 		if v != nil { lint_check_no_with(l, v); lint_walk_expr(l, ctx, v.object); lint_walk_stmt(l, ctx, v.body) }
 	case ^LabeledStatement:
-		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_walk_stmt(l, ctx, v.body) }
+		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_check_no_labels(l, v); lint_walk_stmt(l, ctx, v.body) }
 	case ^VariableDeclaration:
 		if v != nil { lint_check_no_inferrable_types(l, v); lint_walk_var_decl(l, ctx, v) }
 	case ^FunctionDeclaration:
@@ -2759,6 +2775,51 @@ lint_binary_op_has_compound :: proc(op: BinaryOperator) -> bool {
 	return false
 }
 
+// lint_check_no_labels (no-labels, L4100): flags a labeled statement.
+lint_check_no_labels :: proc(l: ^Linter, v: ^LabeledStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4100_NoLabels) { return }
+	info := lint_rule_info(.L4100_NoLabels)
+	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L4100_NoLabels, info.default_message)
+}
+
+// lint_check_no_multi_assign (no-multi-assign, L4101): flags a chained
+// assignment `a = b = c` (an assignment whose right side is another assignment).
+lint_check_no_multi_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4101_NoMultiAssign) { return }
+	if _, ok := e.right^.(^AssignmentExpression); !ok { return }
+	info := lint_rule_info(.L4101_NoMultiAssign)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4101_NoMultiAssign, info.default_message)
+}
+
+// lint_check_no_ternary (no-ternary, L4102): flags any conditional expression.
+lint_check_no_ternary :: proc(l: ^Linter, e: ^ConditionalExpression) {
+	if e == nil || !lint_rule_enabled(l, .L4102_NoTernary) { return }
+	info := lint_rule_info(.L4102_NoTernary)
+	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4102_NoTernary, info.default_message)
+}
+
+// lint_check_no_new (no-new, L4103): flags a `new` expression used as a whole
+// statement (its result is discarded — constructed only for side effects).
+lint_check_no_new :: proc(l: ^Linter, v: ^ExpressionStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4103_NoNew) { return }
+	ne, ok := v.expression^.(^NewExpression)
+	if !ok || ne == nil { return }
+	info := lint_rule_info(.L4103_NoNew)
+	lint_report(l, u32(ne.loc.start), u32(ne.loc.end), .L4103_NoNew, info.default_message)
+}
+
+// lint_check_no_return_await (no-return-await, L4104): flags `return await x`,
+// where the await is redundant (the value is awaited by the caller anyway).
+lint_check_no_return_await :: proc(l: ^Linter, v: ^ReturnStatement) {
+	if v == nil || !lint_rule_enabled(l, .L4104_NoReturnAwait) { return }
+	arg, has_arg := v.argument.(^Expression)
+	if !has_arg || arg == nil { return }
+	await, ok := arg^.(^AwaitExpression)
+	if !ok || await == nil { return }
+	info := lint_rule_info(.L4104_NoReturnAwait)
+	lint_report(l, u32(await.loc.start), u32(await.loc.end), .L4104_NoReturnAwait, info.default_message)
+}
+
 // lint_check_no_lonely_if (no-lonely-if, L4042): flags an `else` block whose
 // only statement is an `if` — should be `else if` instead.
 lint_check_no_lonely_if :: proc(l: ^Linter, v: ^IfStatement) {
@@ -3708,13 +3769,14 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_check_cond_assign(l, e.test, u32(e.loc.start), u32(e.loc.end))
 			lint_check_no_nested_ternary(l, e)
 			lint_check_no_unneeded_ternary(l, e)
+			lint_check_no_ternary(l, e)
 			lint_walk_expr(l, ctx, e.test)
 			lint_walk_expr(l, ctx, e.consequent)
 			lint_walk_expr(l, ctx, e.alternate)
 		}
 	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_check_no_comparison_with_nan(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_check_operator_assignment(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_check_operator_assignment(l, e); lint_check_no_multi_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
