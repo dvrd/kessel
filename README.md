@@ -189,7 +189,9 @@ Glob patterns in `ignorePatterns` support `*` (any run, including `/`) and `?`
 (one character), matched against the full path and the basename; a literal name
 like `dist` matches an exact path, basename, prefix, or interior segment. Each
 `overrides` block layers its `rules` on top of the base rules for files matching
-one of its `files` globs (more specific wins).
+one of its `files` globs (more specific wins). An `"extends": "./base.json"`
+key (string or array) inherits one or more parent configs first, resolved
+relative to the config file, so the child's own settings override them.
 
 Inline suppression uses ESLint-compatible disable directives, including
 targeted per-rule suppression:
