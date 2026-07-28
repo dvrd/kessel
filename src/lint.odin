@@ -3816,6 +3816,13 @@ LintOverride :: struct {
 	set_severity: bool,
 }
 
+// LintConfigOverride is a per-glob rule block from a config `overrides` array:
+// its `rules` apply only to files whose path matches one of `globs`.
+LintConfigOverride :: struct {
+	globs: []string,
+	rules: []LintOverride,
+}
+
 // lint_rule_by_name maps an ESLint-style kebab-case rule name to its LintRule.
 // Returns (rule, true) on a hit, (.None, false) otherwise.
 lint_rule_by_name :: proc(name: string) -> (LintRule, bool) {
@@ -3906,7 +3913,7 @@ lint_discover_config :: proc(start_dir: string) -> (string, bool) {
 // compatible). Returns false only when the file cannot be read or is not a
 // valid JSON object. CLI `--rule` flags are applied AFTER these so the CLI
 // wins.
-lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: ^[dynamic]string = nil) -> bool {
+lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: ^[dynamic]string = nil, overrides_out: ^[dynamic]LintConfigOverride = nil) -> bool {
 	data, read_err := os.read_entire_file_from_path(path, context.temp_allocator)
 	if read_err != nil { return false }
 	v, err := json.parse(data, allocator = context.temp_allocator)
@@ -3925,10 +3932,30 @@ lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: 
 			}
 		}
 	}
-	rules_v, has_rules := obj["rules"]
-	if !has_rules { return true }
-	rules, is_rules := rules_v.(json.Object)
-	if !is_rules { return false }
+	// overrides: [{ files: [globs], rules: { name: level } }] — the rules in each
+	// block apply only to files matching one of its globs.
+	if overrides_out != nil {
+		if ov_v, has_ov := obj["overrides"]; has_ov {
+			if ov_arr, is_arr := ov_v.(json.Array); is_arr {
+				for blk_v in ov_arr {
+					if co, ok := lint_parse_override_block(blk_v); ok {
+						append(overrides_out, co)
+					}
+				}
+			}
+		}
+	}
+	if rules_v, has_rules := obj["rules"]; has_rules {
+		rules, is_rules := rules_v.(json.Object)
+		if !is_rules { return false }
+		lint_parse_rules_object(rules, out)
+	}
+	return true
+}
+
+// lint_parse_rules_object appends a LintOverride for each valid `name: level`
+// entry in a config `rules` object. Unknown names / non-string levels skip.
+lint_parse_rules_object :: proc(rules: json.Object, out: ^[dynamic]LintOverride) {
 	for name, lvl_v in rules {
 		lvl, is_str := lvl_v.(json.String)
 		if !is_str { continue }
@@ -3938,7 +3965,31 @@ lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: 
 			append(out, ov)
 		}
 	}
-	return true
+}
+
+// lint_parse_override_block parses one `overrides` array element into a
+// LintConfigOverride. Requires a non-empty `files` glob array; `rules` is
+// optional. Glob strings and rule slices are heap-cloned to outlive the
+// temp-allocated JSON.
+lint_parse_override_block :: proc(blk_v: json.Value) -> (LintConfigOverride, bool) {
+	blk, is_obj := blk_v.(json.Object)
+	if !is_obj { return LintConfigOverride{}, false }
+	files_v, has_files := blk["files"]
+	if !has_files { return LintConfigOverride{}, false }
+	files_arr, is_arr := files_v.(json.Array)
+	if !is_arr || len(files_arr) == 0 { return LintConfigOverride{}, false }
+	globs := make([dynamic]string)
+	for g_v in files_arr {
+		if g, is_str := g_v.(json.String); is_str { append(&globs, strings.clone(string(g))) }
+	}
+	if len(globs) == 0 { return LintConfigOverride{}, false }
+	rules := make([dynamic]LintOverride)
+	if rules_v, has_rules := blk["rules"]; has_rules {
+		if robj, is_robj := rules_v.(json.Object); is_robj {
+			lint_parse_rules_object(robj, &rules)
+		}
+	}
+	return LintConfigOverride{globs = globs[:], rules = rules[:]}, true
 }
 
 // lint_glob_match performs a full-string glob match where `*` matches any run

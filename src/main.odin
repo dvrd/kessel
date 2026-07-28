@@ -311,6 +311,7 @@ main :: proc() {
 		lint_quiet := false
 		lint_max_warnings := -1
 		lint_ignores := make([dynamic]string)
+		lint_glob_overrides := make([dynamic]LintConfigOverride)
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -390,7 +391,7 @@ main :: proc() {
 		// are appended after and lint_run_for_job applies overrides in order.
 		if lint_config_path != "" {
 			merged := make([dynamic]LintOverride)
-			if !lint_load_config(lint_config_path, &merged, &lint_ignores) {
+			if !lint_load_config(lint_config_path, &merged, &lint_ignores, &lint_glob_overrides) {
 				fmt.eprintf("Error: could not read lint config: %s\n", lint_config_path)
 				os.exit(2)
 			}
@@ -399,10 +400,24 @@ main :: proc() {
 			lint_overrides = merged
 		}
 		lint_warn_count := 0
+		// Reused per-file buffer for base overrides + any matching per-glob
+		// `overrides` block. Config overrides are applied after base rules (more
+		// specific wins); lint_run_for_job applies the slice in order.
+		eff_buf := make([dynamic]LintOverride)
 		for f in lint_files {
 			if lint_path_ignored(lint_ignores[:], f) { continue }
-			if lint_file(f, cli, lint_overrides[:], lint_format, lint_quiet, &lint_warn_count) { had_errors = true }
+			eff := lint_overrides[:]
+			if len(lint_glob_overrides) > 0 {
+				clear(&eff_buf)
+				append(&eff_buf, ..lint_overrides[:])
+				for co in lint_glob_overrides {
+					if lint_path_ignored(co.globs, f) { append(&eff_buf, ..co.rules) }
+				}
+				eff = eff_buf[:]
+			}
+			if lint_file(f, cli, eff, lint_format, lint_quiet, &lint_warn_count) { had_errors = true }
 		}
+		delete(eff_buf)
 		// Warning-failure policy (kessel is stricter than ESLint by default):
 		//   --max-warnings N : fail iff the warning total exceeds N.
 		//   --quiet          : warnings neither print nor fail; only errors fail.

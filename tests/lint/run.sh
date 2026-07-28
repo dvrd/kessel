@@ -102,6 +102,17 @@ if [[ -f "$LINT_DIR/config/ignore.json" ]]; then
   rm -f "$LINT_DIR/.ig-probe.min.js" "$LINT_DIR/.ig-probe.js"
 fi
 
+# overrides: per-glob rule blocks apply on top of base rules for matching files.
+if [[ -f "$LINT_DIR/config/overrides.json" ]]; then
+  printf 'debugger;\n' > "$LINT_DIR/.ov-probe.js"
+  "$BIN" lint --config "$LINT_DIR/config/overrides.json" "$LINT_DIR/.ov-probe.js" >/dev/null 2>&1
+  if [[ $? -eq 0 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: base rule (no-debugger:off) applies to plain file" >&2; fi
+  printf 'debugger;\n' > "$LINT_DIR/.ov-probe.test.js"
+  "$BIN" lint --config "$LINT_DIR/config/overrides.json" "$LINT_DIR/.ov-probe.test.js" >/dev/null 2>&1
+  if [[ $? -eq 1 ]]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo "FAIL: per-glob override re-enables rule for *.test.js" >&2; fi
+  rm -f "$LINT_DIR/.ov-probe.js" "$LINT_DIR/.ov-probe.test.js"
+fi
+
 # Auto-discovery: with no --config, `kessel lint` walks up from the working
 # directory for a kessel.lint.json. Run from the fixture dir so the sibling
 # config (eqeqeq:error) is picked up and the loose-equality compare fires.
