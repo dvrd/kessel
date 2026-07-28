@@ -96,7 +96,7 @@ bin/kessel lex app.js
 bin/kessel codegen app.js
 bin/kessel codegen app.js --minified
 
-# Lint — walk the AST and report lint diagnostics (157 built-in rules)
+# Lint — walk the AST and report lint diagnostics (162 built-in rules)
 bin/kessel lint app.js
 bin/kessel lint src/*.ts --rule no-console:error --rule eqeqeq:warn
 bin/kessel lint app.js --format=json          # also: unix, github, compact, checkstyle
@@ -155,7 +155,7 @@ programmatic handling. Full API and visitor helpers documented in
 
 ### Linting (`kessel lint`)
 
-157 built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
+162 built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
 rules are default-on; style/restriction rules are default-off and enabled
 explicitly. Every rule is addressable by its ESLint-style kebab-case name.
 
@@ -305,7 +305,7 @@ downstream consumers of the finished ESTree AST.
 | 2 | Pratt parser (ES2015–ES2025, TS, JSX/TSX) | ✅ Complete |
 | 3 | Semantic checker (ECMA-262 early errors) | ✅ Complete |
 | — | Codegen + source maps + binary/raw-transfer emitters | ✅ Complete |
-| 4 | **Linter (`kessel lint`)** | 🚧 157 rules (targeting oxlint's ~500) |
+| 4 | **Linter (`kessel lint`)** | 🚧 162 rules (targeting oxlint's ~500) |
 | 5 | Transformer — TS type-stripping (`kessel strip-types`) | 🚧 In progress (M1 shipped) |
 | 6 | Semantic model · CFG · resolver · regexp AST (enablers) | Planned |
 | 7 | Formatter (`kessel fmt`, Prettier-compatible) | Planned |

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## [Unreleased]
 
 ### Added
+- feat(lint): add no-labels, no-multi-assign, no-ternary, no-new, no-return-await rules (162 rules total)
 - feat(lint): support `kessel.lint.json` `ignorePatterns` (glob file-exclusion) (Phase 8d)
 - feat(lint): support `kessel.lint.json` per-glob `overrides` (file-scoped rule severities) (Phase 8d)
 - feat(lint): support `kessel.lint.json` `extends` (config inheritance, string or array) (Phase 8d)
