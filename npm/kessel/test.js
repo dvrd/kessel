@@ -308,6 +308,25 @@ try {
 // final tally + exit code waits for the IIFE to settle.
 (async () => {
   try {
+    const cases = [
+      ['if (x) { return 1; } else if (y) log();', 0],
+      ['if (x) log(); else if (y) return 2; else log();', 0],
+      ['if (x) { return 1; } else log();', 1],
+      ['if (x) return 1; else if (y) { return 2; } else log();', 1],
+      ['if (x) { if (y) return 1; else return 2; } else { log(); }', 2],
+      ['while (x) if (y) return 1; else log();', 0],
+    ];
+    for (const [body, count] of cases) {
+      const source = 'function f(x, y) { ' + body + ' }';
+      const { diagnostics } = lintSync('else.js', source, { rules: { 'no-else-return': 'warn' } });
+      const warnings = diagnostics.filter(d => d.code === 'L4053');
+      assert.equal(warnings.length, count, body);
+      for (const d of warnings) assert.equal(source.slice(d.start, d.end).trim(), 'else');
+    }
+    passed++;
+  } catch (error) { console.error('FAIL: no-else-return alternatives', error); failed++; }
+
+  try {
     const source = '/*🚀e\u0301*/\r\nconst café = <View title="東京">hé🚀</View>;\n' +
       'const text = "\\uFEFFvalue";';
     for (const parse of [parseSync, parseAsync]) {

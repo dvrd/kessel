@@ -1222,7 +1222,7 @@ lint_program :: proc(l: ^Linter, ctx: ^LintContext, program: ^Program) {
 	}
 }
 
-lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
+lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement, required_body := false) {
 	if stmt == nil { return }
 	switch v in stmt^ {
 	case ^ExpressionStatement:
@@ -1247,27 +1247,27 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 			lint_check_dupe_else_if(l, v)
 			lint_check_no_lonely_if(l, v)
 			lint_check_no_negated_condition(l, v)
-			lint_check_no_else_return(l, v)
+			if !required_body { lint_check_no_else_return(l, v) }
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_no_extra_boolean_cast(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_walk_expr(l, ctx, v.test)
-			lint_walk_stmt(l, ctx, v.consequent)
+			lint_walk_stmt(l, ctx, v.consequent, true)
 			if alt, ok := v.alternate.(^Statement); ok && alt != nil {
-				lint_walk_stmt(l, ctx, alt)
+				lint_walk_stmt(l, ctx, alt, true)
 			}
 		}
 	case ^WhileStatement:
 		if v != nil {
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
-			lint_walk_expr(l, ctx, v.test); lint_walk_stmt(l, ctx, v.body)
+			lint_walk_expr(l, ctx, v.test); lint_walk_stmt(l, ctx, v.body, true)
 		}
 	case ^DoWhileStatement:
 		if v != nil {
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
-			lint_walk_stmt(l, ctx, v.body); lint_walk_expr(l, ctx, v.test)
+			lint_walk_stmt(l, ctx, v.body, true); lint_walk_expr(l, ctx, v.test)
 		}
 	case ^ForStatement:
 		lint_check_for_direction(l, v)
@@ -1277,14 +1277,14 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 			if e, ok := v.left_expr.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 			if d, ok := v.left_decl.(^VariableDeclaration); ok && d != nil { lint_walk_var_decl(l, ctx, d) }
 			lint_walk_expr(l, ctx, v.right)
-			lint_walk_stmt(l, ctx, v.body)
+			lint_walk_stmt(l, ctx, v.body, true)
 		}
 	case ^ForOfStatement:
 		if v != nil {
 			if e, ok := v.left_expr.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 			if d, ok := v.left_decl.(^VariableDeclaration); ok && d != nil { lint_walk_var_decl(l, ctx, d) }
 			lint_walk_expr(l, ctx, v.right)
-			lint_walk_stmt(l, ctx, v.body)
+			lint_walk_stmt(l, ctx, v.body, true)
 		}
 	case ^SwitchStatement:
 		lint_walk_switch(l, ctx, v)
@@ -1299,9 +1299,9 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^TryStatement:
 		lint_walk_try(l, ctx, v)
 	case ^WithStatement:
-		if v != nil { lint_check_no_with(l, v); lint_walk_expr(l, ctx, v.object); lint_walk_stmt(l, ctx, v.body) }
+		if v != nil { lint_check_no_with(l, v); lint_walk_expr(l, ctx, v.object); lint_walk_stmt(l, ctx, v.body, true) }
 	case ^LabeledStatement:
-		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_check_no_labels(l, v); lint_walk_stmt(l, ctx, v.body) }
+		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_check_no_labels(l, v); lint_walk_stmt(l, ctx, v.body, true) }
 	case ^VariableDeclaration:
 		if v != nil { lint_check_no_inferrable_types(l, v); lint_walk_var_decl(l, ctx, v) }
 	case ^FunctionDeclaration:
@@ -1379,7 +1379,7 @@ lint_walk_for :: proc(l: ^Linter, ctx: ^LintContext, v: ^ForStatement) {
 	if d, ok := v.init_decl.(^VariableDeclaration); ok && d != nil { lint_walk_var_decl(l, ctx, d) }
 	if t, ok := v.test.(^Expression); ok && t != nil { lint_walk_expr(l, ctx, t) }
 	if u, ok := v.update.(^Expression); ok && u != nil { lint_walk_expr(l, ctx, u) }
-	lint_walk_stmt(l, ctx, v.body)
+	lint_walk_stmt(l, ctx, v.body, true)
 }
 
 lint_walk_switch :: proc(l: ^Linter, ctx: ^LintContext, v: ^SwitchStatement) {
@@ -3002,23 +3002,44 @@ lint_check_prefer_arrow_callback :: proc(l: ^Linter, e: ^CallExpression) {
 	}
 }
 
-// lint_check_no_else_return (no-else-return, L4053): flags `else` after an
-// `if` block that ends with `return`.
+// An else-if chain can lose its final else only when every preceding branch returns.
 lint_check_no_else_return :: proc(l: ^Linter, v: ^IfStatement) {
 	if v == nil || !lint_rule_enabled(l, .L4053_NoElseReturn) { return }
-	// Must have an else branch.
-	alt, has_alt := v.alternate.(^Statement)
-	if !has_alt || alt == nil { return }
-	// Consequent must end with return.
-	if !lint_block_ends_with_return(v.consequent) { return }
-	info := lint_rule_info(.L4053_NoElseReturn)
-	lint_report(l, u32(alt^.(^BlockStatement).loc.start) if alt != nil else 0,
-		u32(alt^.(^BlockStatement).loc.end) if alt != nil else 0,
-		.L4053_NoElseReturn, info.default_message)
+	for branch := v; branch != nil; {
+		alt, ok := branch.alternate.(^Statement)
+		if !ok || alt == nil || !lint_else_consequent_returns(branch.consequent) { return }
+		if nested, ok := alt^.(^IfStatement); ok { branch = nested; continue }
+		start := get_statement_loc(branch.consequent).end
+		end := get_statement_loc(alt).start
+		if start > end { return }
+		lint_report(l, start, end, .L4053_NoElseReturn, lint_rule_info(.L4053_NoElseReturn).default_message)
+		return
+	}
 }
 
-lint_block_ends_with_return :: proc(s: ^Statement) -> bool {
+lint_else_consequent_returns :: proc(s: ^Statement) -> bool {
 	if s == nil { return false }
+	if block, ok := s^.(^BlockStatement); ok && block != nil {
+		for child in block.body { if lint_else_child_returns(child) { return true } }
+		return false
+	}
+	return lint_else_child_returns(s)
+}
+
+lint_else_child_returns :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	if _, ok := s^.(^ReturnStatement); ok { return true }
+	if branch, ok := s^.(^IfStatement); ok && branch != nil {
+		if alt, ok := branch.alternate.(^Statement); ok {
+			return lint_else_ends_with_return(branch.consequent) && lint_else_ends_with_return(alt)
+		}
+	}
+	return false
+}
+
+lint_else_ends_with_return :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	if _, ok := s^.(^ReturnStatement); ok { return true }
 	blk, ok := s^.(^BlockStatement)
 	if !ok || blk == nil || len(blk.body) == 0 { return false }
 	last := blk.body[len(blk.body) - 1]

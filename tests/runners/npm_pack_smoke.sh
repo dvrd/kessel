@@ -52,6 +52,9 @@ const parsed = kessel.parseSync('test.ts', '/*🚀*/ const café: number = 1;');
 assert.deepEqual(parsed.errors, []);
 assert.equal(parsed.program.body[0].type, 'VariableDeclaration');
 assert.equal(parsed.program.body[0].declarations[0].id.name, 'café');
+const branches = 'function f(x, y) { if (x) { return 1; } else if (y) return 2; else log(); }';
+const warnings = kessel.lintSync('branches.js', branches, { rules: { 'no-else-return': 'error' } }).diagnostics;
+assert.deepEqual(warnings.filter(d => d.code === 'L4053').map(d => branches.slice(d.start, d.end).trim()), ['else']);
 const fields = kessel.parseSync('fields.ts', 'class C { declare static x: number; declare = 2; }');
 assert.deepEqual(fields.errors, []);
 assert.deepEqual(fields.program.body[0].body.body.map(m => [m.type, m.static, m.declare]), [
