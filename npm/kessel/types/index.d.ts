@@ -179,23 +179,9 @@ export function parseSync(
 ): ParseResult;
 
 /**
- * Asynchronously parse `source` on a libuv worker thread and return an
- * ESTree-compatible AST.
- *
- * Same signature and return shape as {@link parseSync}, but the native
- * parse runs off the Node main thread via koffi's `.async()`. The event
- * loop stays responsive during the parse and concurrent calls fan out
- * across libuv's worker pool (default 4 threads; raise with the
- * `UV_THREADPOOL_SIZE` environment variable for more parallelism).
- *
- * Throughput notes:
- *  - One-shot parseAsync is marginally slower than parseSync because of
- *    a small thread-handoff overhead (~10-50µs).
- *  - For N concurrent parses on M-core hosts, parseAsync scales close to
- *    `min(N, UV_THREADPOOL_SIZE)` until the pool saturates.
- *  - The post-parse JS work (binary AST decode + error enrichment) still
- *    runs on the awaiting thread; only the native parse itself is
- *    offloaded.
+ * Asynchronously parse source off the calling thread and return an
+ * ESTree-compatible AST. Uses libuv or a dedicated Node worker depending
+ * on Koffi's stack configuration.
  *
  * @param filename Path or synthetic name. Drives language detection
  *                 unless overridden by `options.lang`.
@@ -207,3 +193,47 @@ export function parseAsync(
   source: string,
   options?: ParseOptions
 ): Promise<ParseResult>;
+
+export interface CodegenOptions {
+  filename?: string;
+  lang?: Lang;
+  sourceType?: Exclude<SourceType, 'unambiguous'>;
+  minified?: boolean;
+  sourceMap?: boolean;
+}
+
+export interface SourceMap {
+  version: 3;
+  file: string;
+  sourceRoot: string;
+  sources: string[];
+  names: string[];
+  sourcesContent?: string[];
+  mappings: string;
+}
+
+export interface CodegenResult {
+  code: string;
+  map: SourceMap | null;
+  errors: Array<{ message: string }>;
+}
+
+/** Print source from the parsed AST and optionally return a version 3 source map. */
+export function codegen(source: string, options?: CodegenOptions): CodegenResult;
+
+export interface LintOptions {
+  lang?: Lang;
+  rules?: Record<string, 'off' | 'warn' | 'error'>;
+}
+
+export interface LintDiagnostic extends Omit<ParseError, 'code' | 'severity'> {
+  code: ErrorCode | `L${number}` | '';
+  severity: Severity;
+}
+
+/** Run the built-in lint rules and return diagnostics with UTF-8 byte offsets. */
+export function lintSync(
+  filename: string,
+  source: string,
+  options?: LintOptions
+): { diagnostics: LintDiagnostic[] };

@@ -7,44 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  # Canonical full-test job. POSIX-only because tests/runners/run_tests.sh
-  # and the coverage harness assume bash + GNU tools. Runs on Apple Silicon
-  # to exercise the NEON SIMD path.
   test:
-    name: test (darwin-arm64, full)
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Odin
-        uses: laytan/setup-odin@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          version: '3.x'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Build
-        run: task build
-
-      - name: Build shared library
-        run: task build:lib
-
-      - name: Test (unit)
-        run: tests/runners/run_tests.sh --update
-
-      - name: Test npm package
-        run: |
-          cd npm/kessel
-          npm install
-          node test.js
+    uses: ./.github/workflows/primary-tests.yml
 
   # Portability matrix. Proves each release target compiles cleanly and the
   # FFI binding works end-to-end. Does NOT publish anything.
@@ -143,6 +107,30 @@ jobs:
           cd npm/kessel
           npm install
           node test.js
+
+      - name: Test isolated npm bindings
+        shell: bash
+        run: bash tests/runners/npm_coexistence.sh
+
+      - name: Test packed install (Node 22)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test packed install (Node 18)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test packed install (Node 24)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

@@ -42,6 +42,14 @@ task test:release      # Zero-tolerance pre-release gate
 
 ### Primary Gate (`task test`)
 
+CI uses Odin's `dev-2026-11` release for this gate. Fetch the four pinned
+corpora from a fresh checkout before running it. The fetcher reuses existing
+checkouts at the expected revisions.
+
+```bash
+bash tests/runners/oxc_corpus_fetch.sh
+```
+
 Runs the coverage harness across 50K+ fixtures from test262, Babel, TypeScript,
 and ESTree corpora, plus 430 hand-authored unit fixtures. The gate passes when
 the current run matches the committed snapshot files.
@@ -51,6 +59,35 @@ task test                      # Run the gate
 task test:coverage:update      # Regenerate snaps after a deliberate fix
 task test:conformance:report   # Human-readable summary
 ```
+
+### Release Gate (`task test:release`)
+
+The Rust comparison binaries use the pinned sibling OXC checkout, and the
+JavaScript verifiers use the locked dependencies under `bench/`.
+
+```bash
+git clone --no-checkout https://github.com/oxc-project/oxc.git ../oxc
+git -C ../oxc checkout --detach "$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")"
+npm ci --prefix bench
+task bench:oxc:verify
+```
+
+The release gate also reads the 467-file real-world bundle corpus. Transfer
+the fixture archive from an existing checkout or the release host, extract it
+under `bench/`, and verify it before running the performance comparison.
+
+```bash
+# On a checkout that already has the corpus:
+task test:real:verify-inputs
+tar -czf kessel-real-world.tar.gz -C bench real_world
+
+# On the release host:
+tar -xzf kessel-real-world.tar.gz -C bench
+task test:real:verify-inputs
+task test:release
+```
+
+Use a host comparable to the one used to record the performance baseline.
 
 ### Individual Checks
 

@@ -19,8 +19,10 @@ on:
       - 'bench/**'
       - 'scripts/xcheck.sh'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/primary-tests.yml'
       - '.github/workflows/deprecate.yml'
       - '.gitignore'
+      - '.cruft/**'
   # Manual escape hatch — force a release for docs-only commits, or rerun
   # a release that was skipped by paths-ignore.
   workflow_dispatch:
@@ -51,6 +53,11 @@ jobs:
           else
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           fi
+
+  verify:
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    uses: ./.github/workflows/primary-tests.yml
 
   # ---------------------------------------------------------------------------
   # version — compute the next version once, share with every downstream job.
@@ -213,6 +220,36 @@ jobs:
           npm install
           node test.js
 
+      - name: Test isolated npm bindings
+        shell: bash
+        run: bash tests/runners/npm_coexistence.sh
+
+      - name: Test packed install (Node 22)
+        shell: bash
+        env:
+          KESSEL_PACKAGE_VERSION: ${{ needs.version.outputs.version }}
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test packed install (Node 18)
+        shell: bash
+        env:
+          KESSEL_PACKAGE_VERSION: ${{ needs.version.outputs.version }}
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test packed install (Node 24)
+        shell: bash
+        env:
+          KESSEL_PACKAGE_VERSION: ${{ needs.version.outputs.version }}
+        run: bash tests/runners/npm_pack_smoke.sh
+
       - uses: actions/upload-artifact@v4
         with:
           name: libkessel-${{ matrix.target }}
@@ -232,7 +269,7 @@ jobs:
   # registry are dead weight but harmless.
   # ---------------------------------------------------------------------------
   publish-platforms:
-    needs: [check, version, build]
+    needs: [check, verify, version, build]
     if: needs.check.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -331,6 +368,10 @@ jobs:
           '
           cat package.json
 
+      - name: Refresh npm lockfile
+        working-directory: npm/kessel
+        run: npm install --package-lock-only --ignore-scripts
+
       - name: Generate CHANGELOG entry
         run: |
           set -euo pipefail
@@ -373,7 +414,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add npm/kessel/package.json npm/kessel/CHANGELOG.md CHANGELOG.md
+          git add npm/kessel/package.json npm/kessel/package-lock.json npm/kessel/CHANGELOG.md CHANGELOG.md
           git commit -m "release: v${{ needs.version.outputs.version }}"
           git tag -a "v${{ needs.version.outputs.version }}" -m "v${{ needs.version.outputs.version }}"
           git push

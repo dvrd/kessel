@@ -1,0 +1,44 @@
+name: Primary tests
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Odin
+        uses: laytan/setup-odin@v2
+        with:
+          token: ${{ github.token }}
+          release: dev-2026-11
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: '3.x'
+          repo-token: ${{ github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install GNU timeout if needed
+        run: |
+          if ! command -v timeout >/dev/null; then
+            brew install coreutils
+            printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Fetch conformance corpora
+        run: bash tests/runners/oxc_corpus_fetch.sh
+
+      - name: Check conformance and fixtures
+        run: task test

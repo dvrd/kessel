@@ -4,6 +4,11 @@
  */
 
 'use strict';
+const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const { createRequire } = require('node:module');
+const { compileFunction } = require('node:vm');
 const { parseSync, parseAsync } = require('./index');
 const { lintSync } = require('./index');
 
@@ -374,6 +379,54 @@ try {
     if (!d.diagnostics.some((x) => x.code === 'L2001')) { passed++; }
     else { console.error('FAIL: lintSync rules no-debugger:off', JSON.stringify(d.diagnostics)); failed++; }
   } catch (e) { console.error('CRASH: lintSync rules no-debugger:off:', e.message); failed++; }
+
+  // Evaluate a second copy of the binding with the same Koffi installation.
+  // Both copies must be able to register and use their own FFI structures.
+  try {
+    const filename = require.resolve('./index');
+    const secondModule = { exports: {} };
+    const loadBinding = compileFunction(
+      readFileSync(filename, 'utf8'),
+      ['require', 'module', '__dirname'],
+      { filename },
+    );
+    loadBinding(createRequire(filename), secondModule, __dirname);
+    const source = 'const value: number = 1;';
+    const { program, errors } = await secondModule.exports.parseAsync('coexist.ts', source);
+    assert.deepEqual(errors, []);
+    assert.equal(program.body[0].type, 'VariableDeclaration');
+    const generated = secondModule.exports.codegen(source, { filename: 'coexist.ts' });
+    assert.deepEqual(generated.errors, []);
+    assert.ok(generated.code.includes('value'));
+    const linted = secondModule.exports.lintSync('coexist.js', 'debugger;');
+    assert.ok(linted.diagnostics.some(diagnostic => diagnostic.code === 'L2001'));
+    assert.deepEqual(parseSync('coexist.ts', source).errors, []);
+    passed++;
+  } catch (e) { console.error('FAIL: multiple Kessel bindings:', e.message); failed++; }
+
+  // A child process turns a foreign stack overflow into a failed smoke test
+  // and tests the path where another package loaded Koffi first.
+  for (const preload of [false, true]) {
+    try {
+      const script = `
+        const assert = require('node:assert/strict');
+        const koffi = require('koffi');
+        if (${preload}) koffi.load(null);
+        const {parseAsync, parseSync} = require('./index');
+        const source = 'const nested = ' + '['.repeat(64) + '1' + ']'.repeat(64) + ';';
+        const expected = parseSync('nested.js', source);
+        assert.deepEqual(expected.errors, []);
+        Promise.all([parseAsync('nested.js', source), parseAsync('nested.js', source)])
+          .then(results => results.forEach(result => assert.deepEqual(result, expected)))
+          .catch(error => { console.error(error); process.exitCode = 1; });
+      `;
+      const result = spawnSync(process.execPath, ['-e', script], {
+        cwd: __dirname, encoding: 'utf8', timeout: 15000,
+      });
+      assert.equal(result.status, 0, result.stderr || String(result.error || result.signal));
+      passed++;
+    } catch (e) { console.error('FAIL: async native stack, preloaded=' + preload, e.message); failed++; }
+  }
 
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

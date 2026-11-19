@@ -51,14 +51,32 @@ function findLib() {
 // Load the library and define FFI signatures
 // ---------------------------------------------------------------------------
 
+const ASYNC_STACK_MIN_BYTES = 2 * 1024 * 1024;
+const nativeAsyncStackReady = prepareNativeAsyncStack();
 const lib = koffi.load(findLib());
+
+function prepareNativeAsyncStack() {
+  if (koffi.config().async_stack_size >= ASYNC_STACK_MIN_BYTES) return true;
+  try {
+    // Match Koffi's default synchronous stack. The parser can need much
+    // more than the 128 KiB reserved for a default asynchronous call.
+    koffi.config({ async_stack_size: ASYNC_STACK_MIN_BYTES });
+    return true;
+  } catch (error) {
+    // Other consumers can lock the shared config by loading a library first.
+    if (error.message !== 'Cannot change Koffi configuration once a library has been loaded') throw error;
+    return false;
+  }
+}
 
 // Handle-based ParseResult. The `handle` field is an opaque owning pointer
 // returned by kessel_parse_binary; the caller MUST pass it back to
 // kessel_free_result once the buffer has been copied into JS-owned memory.
 // Moving the free off a thread-local slot lets parseAsync hand the parse
 // to a libuv worker thread and free from the main thread without leaking.
-const ParseResult = koffi.struct('KesselParseResult', {
+// Koffi registers named types across modules. Anonymous structs allow
+// separate installations to bind their own ABI in the same process.
+const ParseResult = koffi.struct({
   handle:  'void *',
   buf_ptr: 'void *',
   buf_len: 'int32',
@@ -182,21 +200,9 @@ function parseSync(filename, source, opts) {
 }
 
 /**
- * Parse source code asynchronously on a libuv worker thread.
- *
- * Same signature and return shape as {@link parseSync}, but the native
- * parse runs off the Node main thread via koffi's `.async()`. The Node
- * event loop stays responsive during the parse and concurrent calls fan
- * out across libuv's worker pool (default 4 threads, raise with
- * `UV_THREADPOOL_SIZE` env var if you need more parallelism).
- *
- * Throughput characteristics:
- *   - For one-shot parses, parseAsync is marginally slower than parseSync
- *     because the FFI call has a small thread-handoff overhead (~10-50µs).
- *   - For N concurrent parses on M-core hosts, parseAsync scales close to
- *     min(N, UV_THREADPOOL_SIZE) until the pool saturates.
- *   - The post-parse JS work (binary decode + enrichErrors) still runs on
- *     the awaiting thread; only the native parse itself is offloaded.
+ * Asynchronously parse source off the calling thread and return an
+ * ESTree-compatible AST. Uses libuv or a dedicated Node worker depending
+ * on Koffi's stack configuration.
  *
  * @param {string} filename  File path or synthetic name (drives language detection).
  * @param {string} source    Source code to parse.
@@ -205,6 +211,10 @@ function parseSync(filename, source, opts) {
  */
 function parseAsync(filename, source, opts) {
   const sourceBuf = Buffer.from(source, 'utf8');
+  if (!nativeAsyncStackReady) {
+    const { parseOnWorker } = require('./async-fallback');
+    return parseOnWorker(filename, source, opts, koffi.config().max_async_calls);
+  }
   // koffi.func.async runs the FFI call on a libuv worker thread and
   // delivers the result via a Node-style callback. We wrap it as a
   // Promise so the public API matches OXC's parseAsync shape. The
@@ -289,12 +299,22 @@ function finishParse(result, source, filename) {
     };
   }
 
-  const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
-  _free_result(result.handle);
+  let buf;
+  try {
+    buf = copyNativeBytes(result.buf_ptr, result.buf_len);
+  } finally {
+    _free_result(result.handle);
+  }
 
   const decoded = decode(buf, source);
   enrichErrors(decoded.errors, source, filename);
   return decoded;
+}
+
+function copyNativeBytes(pointer, length) {
+  // Copy before freeing the native result. Koffi's typed-array decoder can
+  // crash when a different Koffi version has already been loaded.
+  return Buffer.from(new Uint8Array(koffi.view(pointer, length)));
 }
 
 // ---------------------------------------------------------------------------
@@ -363,7 +383,7 @@ function offsetToLineColumn(offset, lineStarts) {
 // (not a string — the JSON has already been round-tripped through
 // JSON.parse for the caller's convenience). `errors` is non-empty when
 // the parse failed, in which case `code` is the empty string.
-const CodegenResult = koffi.struct('KesselCodegenResult', {
+const CodegenResult = koffi.struct({
   handle:   'void *',
   code_ptr: 'void *',
   code_len: 'int32',
@@ -437,11 +457,11 @@ function codegen(source, options) {
       return { code: '', map: null, errors: [{ message: 'parse failed' }] };
     }
     const code = r.code_len > 0
-      ? Buffer.from(koffi.decode(r.code_ptr, 'uint8_t', r.code_len)).toString('utf8')
+      ? copyNativeBytes(r.code_ptr, r.code_len).toString('utf8')
       : '';
     let map = null;
     if (wantMap && r.map_len > 0) {
-      const mapBytes = Buffer.from(koffi.decode(r.map_ptr, 'uint8_t', r.map_len)).toString('utf8');
+      const mapBytes = copyNativeBytes(r.map_ptr, r.map_len).toString('utf8');
       map = JSON.parse(mapBytes);
     }
     return { code, map, errors: [] };
@@ -537,8 +557,12 @@ function lintSync(filename, source, opts) {
     if (result.handle) _free_result(result.handle);
     return { diagnostics: [] };
   }
-  const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
-  _free_result(result.handle);
+  let buf;
+  try {
+    buf = copyNativeBytes(result.buf_ptr, result.buf_len);
+  } finally {
+    _free_result(result.handle);
+  }
   const diagnostics = decodeLintBuffer(buf);
   enrichErrors(diagnostics, source, filename);
   return { diagnostics };

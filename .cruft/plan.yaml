@@ -1,0 +1,136 @@
+project: Kessel
+objective: Release the CLI and npm parser SDK for production use, then work toward OXC feature parity.
+estimates:
+  production_sdk: 1–3 engineer-weeks, subject to native crash triage and CI provisioning.
+  oxc_parity: Many months of work. Estimate each component after defining its compatibility targets.
+scope:
+  - The SDK milestone covers parsing, early errors, ESTree output, and native package distribution.
+  - Lint, codegen, and TypeScript transforms keep their documented guarantees. Expanding those guarantees is a separate milestone.
+  - Use the tracked README roadmap and the detailed local HANDOFF.md to refine each parity component.
+verification: Gates for new surfaces name the Taskfile entries to add with those milestones.
+phases:
+  - id: production-sdk
+    tasks:
+      - id: ffi-type-registration
+        status: implemented
+        work: Use anonymous FFI structs for parse, lint, and codegen. Cover two binding instances sharing one Koffi installation.
+        files: [npm/kessel/index.js, npm/kessel/test.js]
+        depends_on: []
+        done_when: npm --prefix npm/kessel test
+      - id: native-coexistence
+        status: in_progress
+        evidence: >-
+          A libc call reproduced the crash inside Koffi's typed-array decoder when 3.0.1 loaded before 3.3.8.
+          The candidate now copies native byte views and uses Koffi 3.3.8 or newer. The isolated candidate-plus-published
+          and candidate-plus-candidate tests passed in both orders on macOS arm64 and x64. Hosted verification is pending.
+        work: >-
+          Reproduce the order-dependent native crash with separate Koffi copies and distinct Kessel libraries.
+          Isolate the dependency or ABI responsible. Verify published-plus-candidate and candidate-plus-candidate loading
+          in both orders for sync parsing, async parsing, lint, and codegen. Capture the supported Node and platform scope.
+        depends_on: [ffi-type-registration]
+        done_when: task test:npm:coexistence
+      - id: typescript-json-fixtures
+        status: complete
+        evidence: The new test failed before the change. All 25 coverage checks pass with unchanged snapshots on the pinned Odin release and the local compiler.
+        work: >-
+          Match TypeScript/OXC classification for the embedded JSON trailing-comma fixture with current Odin.
+          Preserve rejection of malformed JSON cases and keep the TypeScript snapshot gate meaningful.
+        files: [tests/coverage/src/runner.odin, tests/coverage/src/coverage_test.odin]
+        depends_on: []
+        done_when: task test:coverage
+      - id: reproducible-test-inputs
+        status: in_progress
+        evidence: All 25 conformance checks passed on freshly fetched corpora with pinned Odin. The locked OXC build and benchmark npm install passed. A restored 467-file archive matched the tracked checksum manifest in the isolated candidate. Distribution of that archive to the release host is pending.
+        work: >-
+          Make the pinned Odin build, the four conformance corpora, the OXC oracle, and the benchmark dependencies
+          reproducible from a fresh checkout. Verify corpus SHAs and the oracle pin.
+        files: [OXC_ORACLE.json, tests/README.md]
+        depends_on: []
+        done_when: task bench:oxc:verify && task test:coverage
+      - id: check-only-ci
+        status: in_progress
+        evidence: CI and release share a check-only primary gate. All 291 golden checks pass in both checkouts after normalizing diagnostic paths and equivalent JSON numbers. The prior full run passed corpus codegen and failed the absolute performance gate. Hosted verification is pending.
+        work: >-
+          Run the primary fixture gate in CI without updating goldens. Require successful checks for the candidate
+          revision before publishing. Keep the machine-sensitive performance gate on a comparable host.
+        files: [.github/workflows/ci.yml, .github/workflows/release.yml, Taskfile.yml]
+        depends_on: [typescript-json-fixtures, reproducible-test-inputs]
+        done_when: task test && task test:release
+      - id: package-install-matrix
+        status: in_progress
+        evidence: Packed consumer tests passed on macOS arm64 with Node 18, 22, 24, and 25 and on macOS x64 with Node 22. CI and release are configured to exercise the five platforms on Node 18, 22, and 24.
+        work: >-
+          Stage candidate tarballs and install them in clean projects for both macOS architectures, both Linux
+          architectures, and Windows x64. Exercise the supported Node range, CJS/ESM imports, type declarations,
+          native dependency selection, and the coexistence regression.
+        files: [.github/workflows/ci.yml, .github/workflows/release.yml]
+        depends_on: [native-coexistence, check-only-ci]
+        done_when: task test:npm:pack
+      - id: release-candidate
+        status: in_progress
+        evidence: >-
+          An isolated candidate includes upstream release commit a9ba383 and leaves the user's lint changes intact.
+          The npm candidate passed both async paths over all 467 real-world files after fixing the Monaco stack overflow.
+          The release performance gate failed at 27.9% over its stored baseline. A matched build measured the candidate
+          6.6% slower than the historical revision, which itself was 19.6% slower than its stored measurements on this host.
+        work: >-
+          Reconcile local main with upstream's release commit while preserving uncommitted lint work.
+          Document the supported API, platform and Node limits, experimental tools, and rollback to a pinned npm version.
+          Run the full release gate and a representative downstream corpus. Publish only after candidate approval.
+        files: [README.md, npm/kessel/README.md]
+        depends_on: [package-install-matrix]
+        done_when: task test && task test:release
+  - id: oxc-toolchain
+    tasks:
+      - id: shared-semantics-and-cfg
+        status: in_progress
+        evidence: Reachability and switch fallthrough share structured flow analysis. The indexed semantic model now resolves parameter writes for no-param-reassign, including destructuring, loop targets, and JSX callbacks. Lint and model regressions pass locally.
+        work: Integrate symbols, scopes, references, and control flow into lint and transformation; verify behavior and performance against the existing consumers.
+        depends_on: [release-candidate]
+        done_when: task test:lint
+      - id: regex-ast-and-module-resolution
+        work: >-
+          Build a regexp AST for analysis and downleveling. Implement Node package exports, imports, and conditions,
+          plus TypeScript path resolution and module lexing. Give each component reference fixtures and a public API.
+        depends_on: [release-candidate]
+        done_when: task test:regexp && task test:resolve && task test:module-lexer
+      - id: lint-parity
+        work: >-
+          Inventory rules and plugins against a pinned oxlint revision. Expand from the 162-rule baseline, complete
+          config and directives, implement conflict-safe autofix, and compare diagnostics and edits with reference fixtures.
+        depends_on: [shared-semantics-and-cfg, regex-ast-and-module-resolution]
+        done_when: task test:lint
+      - id: transform-parity
+        work: >-
+          Finish runtime TypeScript lowering and add JSX runtimes, decorators, React Refresh, target lowering,
+          regexp and module transforms, helper injection, and define/replace. Compare output behavior and source maps.
+        depends_on: [shared-semantics-and-cfg, regex-ast-and-module-resolution]
+        done_when: task test:strip-types && task test:codegen:full && task test:sourcemap
+      - id: codegen-parity
+        work: Triage the 68 baseline divergences and expand comment and source-map coverage before treating the printer as a general-purpose output stage.
+        depends_on: [release-candidate]
+        done_when: task test:codegen:full && task test:sourcemap
+      - id: formatter
+        work: Add a document printer, comment attachment, ignore directives, and options. Compare output against pinned Prettier fixtures and check idempotence.
+        depends_on: [release-candidate]
+        done_when: task test:format
+      - id: isolated-declarations
+        work: Emit declarations for the supported isolatedDeclarations subset and compare output and diagnostics with TypeScript.
+        depends_on: [shared-semantics-and-cfg]
+        done_when: task test:dts
+      - id: optimizer
+        work: Implement compression and binding-safe mangling. Validate runtime behavior, size, and source maps against reference fixtures.
+        depends_on: [shared-semantics-and-cfg, regex-ast-and-module-resolution, codegen-parity]
+        done_when: task test:minify
+      - id: language-server-and-bindings
+        work: >-
+          Expose completed tools through CLI and Node APIs, then add WASM, watch mode, and language-server diagnostics,
+          code actions, and formatting. Verify public entry points and publish each tool with explicit compatibility claims.
+        depends_on: [lint-parity, formatter, transform-parity, isolated-declarations, optimizer]
+        done_when: task test:lsp && task test:npm:pack && task test:wasm
+      - id: bundler
+        work: >-
+          Build the module graph, linking, tree shaking, chunking, and output stages atop the resolver and transformer.
+          Compare fixtures for ESM/CJS interop, dynamic imports, package conditions, and source maps.
+        depends_on: [regex-ast-and-module-resolution, transform-parity, optimizer]
+        done_when: task test:bundle

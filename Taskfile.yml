@@ -75,6 +75,22 @@ tasks:
     cmds:
       - bash tests/strip-types/run.sh
 
+  test:npm:coexistence:
+    desc: Test separately installed Kessel bindings against each other and the previous release.
+    cmds:
+      - bash tests/runners/npm_coexistence.sh
+
+  test:npm:pack:
+    desc: Pack and install the npm parser and native package in a clean project.
+    cmds:
+      - bash tests/runners/npm_pack_smoke.sh
+
+  test:npm:real:
+    desc: Parse the pinned release corpus through the npm asynchronous API.
+    deps: [build:lib, test:real:verify-inputs]
+    cmds:
+      - node tests/verifiers/verify_npm_real_world.js {{.CLI_ARGS}}
+
   test:coverage:
     desc: "OXC-style conformance harness — 10 snap files (parser + semantic for test262/babel/typescript/estree/misc). The parser_test262.snap / semantic_test262.snap files are the canonical conformance proof."
     deps: [build]
@@ -158,27 +174,36 @@ tasks:
     silent: true
     cmds:
       - |
-        set +e
+        set -eu
         outdir=$(mktemp -d)
         trap 'rm -rf "$outdir"' EXIT
-        find {{.BENCH_FILES}} -type f \( -name '*.js' -o -name '*.mjs' \) -print0 \
-          | xargs -0 -P "$(sysctl -n hw.ncpu 2>/dev/null || nproc || echo 4)" -I{} bash -c '
+        find {{.BENCH_FILES}} -type f \( -name '*.js' -o -name '*.mjs' \) -print0 > "$outdir/inputs"
+        total=$(tr -cd '\000' < "$outdir/inputs" | wc -c | tr -d ' ')
+        if [ "$total" -eq 0 ]; then
+          echo "No real-world inputs found in {{.BENCH_FILES}}" >&2
+          exit 1
+        fi
+        xargs -0 -P "$(sysctl -n hw.ncpu 2>/dev/null || nproc || echo 4)" -I{} bash -c '
               f="$1"; outdir="$2"; bin="$3"
-              base=$(echo "$f" | tr / _)
-              err="$outdir/$base.err"
+              err=$(mktemp "$outdir/stderr.XXXXXX") || exit 1
               timeout 30 "$bin" parse "$f" >/dev/null 2>"$err"
               rc=$?
               if [ "$rc" -ne 0 ]; then
                 echo "FAIL: $f: exit=$rc (crash or timeout)"
-              else
-                n=$(grep "Parse errors:" "$err" | awk "{print \$3}")
-                if [ "${n:-0}" -gt 0 ]; then echo "FAIL: $f: $n errors"; fi
+                touch "$err.fail"
+              elif grep -q "Parse errors: [1-9]" "$err"; then
+                echo "FAIL: $f: parse errors"
+                touch "$err.fail"
               fi
-            ' _ {} "$outdir" ./{{.BIN}}
-        fails=$(find "$outdir" -name '*.err' -exec grep -l "Parse errors: [1-9]" {} \; 2>/dev/null | wc -l | tr -d ' ')
-        total=$(find {{.BENCH_FILES}} -type f \( -name '*.js' -o -name '*.mjs' \) | wc -l | tr -d ' ')
+            ' _ {} "$outdir" ./{{.BIN}} < "$outdir/inputs"
+        fails=$(find "$outdir" -name '*.fail' | wc -l | tr -d ' ')
         echo "$total files parsed, $fails failures"
         [ "$fails" -eq 0 ] || exit 1
+
+  test:real:verify-inputs:
+    desc: Verify the real-world release corpus against its tracked checksums.
+    cmds:
+      - node tests/verifiers/verify_real_world_inputs.js "{{.BENCH_FILES}}"
 
   test:estree:
     desc: "String-escape decoding parity vs reference parser on key real-world files."
@@ -226,6 +251,7 @@ tasks:
       - task: test:coverage
       - task: test:unit
       - task: test:regression
+      - task: test:real:verify-inputs
       - task: test:real
       - task: test:estree
       - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
@@ -246,11 +272,7 @@ tasks:
     deps: [bench:oxc:verify]
     dir: bench/oxc_compare
     cmds:
-      - cargo build --release -q
-    status:
-      - test -f ../../{{.OXC_BENCH}}
-      - test -f ../../bench/oxc_compare/target/release/oxc_cli_equiv
-      - test -f ../../bench/oxc_compare/target/release/oxc_codegen_microbench
+      - cargo build --release --locked -q
 
   bench:codegen:compare:
     desc: "Codegen latency — kessel vs oxc-codegen on real-world files."

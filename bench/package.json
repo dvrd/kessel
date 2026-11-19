@@ -1,0 +1,1 @@
+{"private":true,"dependencies":{"@babel/parser":"^7.29.2","acorn":"^8.16.0","oxc-parser":"0.127.0","source-map-js":"1.2.1"}}

@@ -56,6 +56,18 @@ test_parser_typescript :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_typescript_json_trailing_commas :: proc(t: ^testing.T) {
+	valid := Fixture{rel = "fixture.ts::input.json", code = `{"text": ",}", "nested": [{"item": true,},],}`}
+	testing.expect_value(t, run_parser_one(valid, .Parser, context.temp_allocator).tag, .Passed)
+
+	invalid_cases := [?]string{`{,}`, `[1,,]`, `{"key":,}`, `{'key': 1,}`, `{"key": 0x1,}`}
+	for code in invalid_cases {
+		invalid := Fixture{rel = "fixture.ts::input.json", code = code, should_fail = true}
+		testing.expect_value(t, run_parser_one(invalid, .Parser, context.temp_allocator).tag, .CorrectError)
+	}
+}
+
+@(test)
 test_parser_test262 :: proc(t: ^testing.T) {
 	run_snap_test(t, .Parser, .Test262)
 }
