@@ -45,11 +45,11 @@ binary that parses your code can round-trip it through `bin/kessel codegen`
 |---|---:|---:|
 | Spec (in-tree) | 253 / 253 | 0 |
 | ESTree | 39 / 39 | 0 |
-| Babel | 2 620 / 2 636 | 16 (baselined) |
-| test262 | 44 181 / 44 186 | 5 (baselined) |
-| TypeScript | 16 957 / 17 004 | 47 (baselined) |
+| Babel | 2 621 / 2 636 | 15 (baselined) |
+| test262 | 44 183 / 44 186 | 3 (baselined) |
+| TypeScript | 16 967 / 17 004 | 37 (baselined) |
 
-Remaining 68 divergences across the three vendored corpora are tracked in
+The 55 remaining divergences across the three vendored corpora are tracked in
 `tests/baselines/codegen_known_failures.txt` and surface in
 `task test:codegen:full`; the gate fails on any NEW divergence.
 
