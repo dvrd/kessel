@@ -107,7 +107,7 @@ const VT_NODE = 0xFD, VT_NULL_NODE = 0xFE;
  * @param {string} source - Original source text (for string resolution)
  * @returns {{ program: object, errors: Array }}
  */
-function decode(buffer, source) {
+function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) {
   const dv = new DataView(buffer.buffer || buffer, buffer.byteOffset || 0, buffer.byteLength || buffer.length);
   let off = 0;
 
@@ -129,7 +129,7 @@ function decode(buffer, source) {
   off = 24;
 
   // Build string table
-  const strings = buildStringTable(dv, strTableOff, buffer, source);
+  const strings = buildStringTable(dv, strTableOff, source, sourceBytes);
 
   // Read node stream
   let depth = 0;
@@ -629,30 +629,33 @@ function decode(buffer, source) {
   }
 }
 
-function buildStringTable(dv, tableOff, buffer, source) {
-  const buf = buffer.buffer ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) : buffer;
+function buildStringTable(dv, tableOff, source, sourceBytes) {
+  const buf = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+  // Both offsets and lengths on the wire count UTF-8 bytes. Only ASCII
+  // sources can be sliced by those offsets directly as JavaScript strings.
+  const ascii = sourceBytes.length === source.length;
+  const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
   const strings = [];
   let off = tableOff;
+  let tableEnd = buf.length;
 
-  while (off + 8 <= buf.length) {
+  while (off + 8 <= tableEnd) {
     const rawOff = dv.getUint32(off, true);
     const len = dv.getUint32(off + 4, true);
     off += 8;
-
-    if (len === 0) {
-      strings.push('');
-      continue;
-    }
 
     const isCooked = (rawOff & 0x80000000) !== 0;
     const cleanOff = rawOff & 0x7FFFFFFF;
 
     if (isCooked) {
-      // Read from buffer
-      strings.push(new TextDecoder().decode(buf.slice(cleanOff, cleanOff + len)));
-    } else {
-      // Slice from source
+      // Cooked payloads follow the entries. The first payload marks the
+      // end of the table, even when that payload is an empty string.
+      tableEnd = Math.min(tableEnd, cleanOff);
+      strings.push(decoder.decode(buf.subarray(cleanOff, cleanOff + len)));
+    } else if (ascii) {
       strings.push(source.slice(cleanOff, cleanOff + len));
+    } else {
+      strings.push(decoder.decode(sourceBytes.subarray(cleanOff, cleanOff + len)));
     }
   }
   return strings;

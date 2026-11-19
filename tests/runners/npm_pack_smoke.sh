@@ -48,9 +48,10 @@ assert.equal(digest(native), digest(`../native/${binary}`));
 const installed = fs.readdirSync('node_modules/@dvrdlibs').sort();
 assert.deepEqual(installed, ['kessel', platform.split('/')[1]]);
 const kessel = require('@dvrdlibs/kessel');
-const parsed = kessel.parseSync('test.ts', 'const value: number = 1;');
+const parsed = kessel.parseSync('test.ts', '/*🚀*/ const café: number = 1;');
 assert.deepEqual(parsed.errors, []);
 assert.equal(parsed.program.body[0].type, 'VariableDeclaration');
+assert.equal(parsed.program.body[0].declarations[0].id.name, 'café');
 const fields = kessel.parseSync('fields.ts', 'class C { declare static x: number; declare = 2; }');
 assert.deepEqual(fields.errors, []);
 assert.deepEqual(fields.program.body[0].body.body.map(m => [m.type, m.static, m.declare]), [
@@ -63,7 +64,7 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 createRequire(require.resolve('@dvrdlibs/kessel'))('koffi').load(null);
 const { parseAsync } = await import('@dvrdlibs/kessel');
-const source = 'const element = ' + '['.repeat(64) + '<main />' + ']'.repeat(64) + ';';
+const source = '/*🚀*/ const element = ' + '['.repeat(64) + '<main />' + ']'.repeat(64) + ';';
 const parsed = await parseAsync('test.tsx', source);
 assert.deepEqual(parsed.errors, []);
 let expression = parsed.program.body[0].declarations[0].init;
@@ -72,6 +73,7 @@ for (let depth = 0; depth < 64; depth++) {
   expression = expression.elements[0];
 }
 assert.equal(expression.type, 'JSXElement');
+assert.equal(expression.openingElement.name.name, 'main');
 NODE
 cat > smoke.mts <<'TS'
 import { codegen, lintSync, parseAsync, parseSync, type ParseResult } from '@dvrdlibs/kessel';

@@ -307,6 +307,28 @@ try {
 // synchronous tests above keep their straightforward control flow; the
 // final tally + exit code waits for the IIFE to settle.
 (async () => {
+  try {
+    const source = '/*🚀e\u0301*/\r\nconst café = <View title="東京">hé🚀</View>;\n' +
+      'const text = "\\uFEFFvalue";';
+    for (const parse of [parseSync, parseAsync]) {
+      const { program, errors } = await parse('unicode.tsx', source);
+      assert.deepEqual(errors, []);
+      const { id, init } = program.body[0].declarations[0];
+      assert.equal(id.name, 'café');
+      assert.equal(id.start, Buffer.byteLength(source.slice(0, source.indexOf('café'))));
+      assert.equal(id.end - id.start, Buffer.byteLength('café'));
+      assert.equal(init.openingElement.name.name, 'View');
+      assert.equal(init.closingElement.name.name, 'View');
+      const [attribute] = init.openingElement.attributes;
+      assert.equal(attribute.name.name, 'title');
+      assert.equal(attribute.value.value, '東京');
+      assert.equal(attribute.value.raw, '"東京"');
+      assert.equal(init.children[0].value, 'hé🚀');
+      assert.equal(program.body[1].declarations[0].init.value, '\uFEFFvalue');
+    }
+    passed++;
+  } catch (error) { console.error('FAIL: Unicode AST strings:', error); failed++; }
+
   // 1) Single-call correctness — parseAsync must return the same AST
   //    shape and the same number of errors as parseSync for the same
   //    input. Same FFI, just dispatched onto a libuv worker thread.

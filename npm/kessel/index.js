@@ -196,7 +196,7 @@ function resolveNativeOptions(opts) {
 function parseSync(filename, source, opts) {
   const sourceBuf = Buffer.from(source, 'utf8');
   const result = callParseBinary(sourceBuf, filename, opts);
-  return finishParse(result, source, filename);
+  return finishParse(result, source, sourceBuf, filename);
 }
 
 /**
@@ -225,7 +225,7 @@ function parseAsync(filename, source, opts) {
   return new Promise(function (resolve, reject) {
     callParseBinaryAsync(sourceBuf, filename, opts, function (err, result) {
       if (err) { reject(err); return; }
-      try { resolve(finishParse(result, source, filename)); }
+      try { resolve(finishParse(result, source, sourceBuf, filename)); }
       catch (e) { reject(e); }
     });
   });
@@ -287,7 +287,7 @@ function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
 // enrich. Centralised so parseSync and parseAsync surface identical
 // errors and identical AST shapes — the only difference between the two
 // is which thread runs `_parse_binary`.
-function finishParse(result, source, filename) {
+function finishParse(result, source, sourceBytes, filename) {
   if (!result.buf_ptr || result.buf_len <= 0) {
     // Handle may still be non-null even when the parse couldn't produce a
     // buffer (e.g. parse_job_open_inline failed); free defensively before
@@ -306,7 +306,7 @@ function finishParse(result, source, filename) {
     _free_result(result.handle);
   }
 
-  const decoded = decode(buf, source);
+  const decoded = decode(buf, source, sourceBytes);
   enrichErrors(decoded.errors, source, filename);
   return decoded;
 }
