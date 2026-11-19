@@ -1394,9 +1394,10 @@ gen_class_like :: proc(
 }
 
 // A class member that type-stripping erases entirely because it carries no
-// runtime: an abstract member, or a bodyless method / constructor (a TS
+// runtime: a declared field, an abstract member, or a bodyless method / constructor (a TS
 // overload signature or ambient method declaration).
 class_element_erased :: proc(el: ClassElement) -> bool {
+	if el.declare { return true }
 	if el.abstract { return true }
 	#partial switch el.kind {
 	case .Method, .Constructor:
@@ -1414,6 +1415,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		gen_decorator(cg, d)
 		cg_break_or_space(cg)
 	}
+	if el.declare { cg_str(cg, "declare ") }
 	switch el.accessibility {
 	case .None:      // nothing
 	case .Public:    if !cg.cfg.strip_types { cg_str(cg, "public ") }
@@ -1426,27 +1428,12 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	if el.readonly  && !cg.cfg.strip_types { cg_str(cg, "readonly ") }
 	if el.is_accessor { cg_str(cg, "accessor ") }
 	switch el.kind {
-	case .Method:
-		// ClassElementKind.Method covers both MethodDefinition AND
-		// PropertyDefinition: if the value is a FunctionExpression it's
-		// a method; otherwise it's a field initializer (`x = 1;` or `x;`).
-		// Mirrors the emitter's class-element dispatch.
-		//
-		// Disambiguation for `name = function id() {}`: a real method's
-		// FunctionExpression value is anonymous (no `.id`). A non-nil
-		// `.id` proves the source had `=` + a named function expression,
-		// so this slot is a PropertyDefinition, not a MethodDefinition.
+	case .Method, .Field:
 		raw_val, val_ok := el.value.?
 		fn: ^FunctionExpression
 		is_method := false
-		if val_ok {
-			if f, ok := raw_val.(^FunctionExpression); ok {
-				_, has_id := f.id.?
-				if !has_id {
-					fn = f
-					is_method = true
-				}
-			}
+		if val_ok && el.kind == .Method {
+			fn, is_method = raw_val.(^FunctionExpression)
 		}
 		if is_method {
 			if fn.async { cg_str(cg, "async ") }

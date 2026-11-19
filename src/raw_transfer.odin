@@ -1155,6 +1155,8 @@ rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base
 	rewrite_ts_interface_heritage_array(&c.implements, base, source_base)
 	for i in 0..<len(c.body.body) {
 		elem := &c.body.body[i]
+		// The version-one arena format represents fields with the method tag.
+		if elem.kind == .Field { elem.kind = .Method }
 		rewrite_expr_field(elem.key, &elem.key, base, source_base)
 		rewrite_maybe_expr(&elem.value, base, source_base)
 		rewrite_maybe_ts_type_annotation(&elem.type_annotation, base, source_base)

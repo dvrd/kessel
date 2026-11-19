@@ -161,7 +161,10 @@ BinValType :: enum u8 {
 //   v3: same on-wire shape; explicit `end` per error (was implicit start+1)
 //   v4: [header 24B] [nodes] [errors{start,end,code:u16,sev:u8,_pad:u8,msg_len,msg}] [strings]
 //       errors gained a stable K-code and severity for FFI consumers.
-BINARY_FORMAT_VERSION :: u32(4)
+//   v5: PropertyDefinition encodes static (bit 0) and declare (bit 1) in the
+//       former static byte. Emit v4 for trees that only use the original flags.
+BINARY_VERSION_DIAGNOSTICS     :: u32(4)
+BINARY_VERSION_DECLARED_FIELDS :: u32(5)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
@@ -171,6 +174,7 @@ BinaryEmitter :: struct {
 	string_map:   map[string]u32,    // dedup: string → index in strings
 	source:       string,            // borrowed source text
 	node_count:   u32,
+	version:      u32,               // lowest compatible wire version for this tree
 	errors_off:   u32,               // start of errors section (0 = no errors written)
 	error_count:  u32,               // count of errors written
 }
@@ -183,6 +187,7 @@ binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc: mem.Alloc
 	be.string_map = make(map[string]u32, 4096, alloc)
 	be.source = source
 	be.node_count = 0
+	be.version = BINARY_VERSION_DIAGNOSTICS
 }
 
 binary_emitter_destroy :: proc(be: ^BinaryEmitter, alloc: mem.Allocator) {
@@ -1113,7 +1118,7 @@ bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 }
 
 bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
-	#partial switch elem.kind {
+	switch elem.kind {
 	case .StaticBlock:
 		bin_node_header(be, .StaticBlock, elem.loc)
 		if v, ok := elem.value.?; ok && v != nil {
@@ -1138,10 +1143,15 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-	case: // Property (field definition)
+	case .Field:
 		bin_node_header(be, .PropertyDefinition, elem.loc)
 		bw_bool(be, elem.computed)
-		bw_bool(be, elem.static)
+		flags := u8(elem.static)
+		if elem.declare {
+			flags |= 2
+			be.version = BINARY_VERSION_DECLARED_FIELDS
+		}
+		bw_u8(be, flags)
 		if elem.key != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, elem.key)
@@ -1237,7 +1247,7 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 	// Write 24-byte header at offset 0.
 	// Layout (all little-endian u32):
 	//   0  magic            0x4B455354 ('KEST')
-	//   4  version          BINARY_FORMAT_VERSION
+	//   4  version          minimum compatible decoder version
 	//   8  node_count
 	//  12  string_table_off
 	//  16  errors_off       (0 if bin_emit_errors was never called)
@@ -1249,7 +1259,7 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 		buf[off + 3] = u8(v >> 24)
 	}
 	write_u32(be.buf[:], 0,  u32(0x4B455354))     // magic 'KEST'
-	write_u32(be.buf[:], 4,  BINARY_FORMAT_VERSION)
+	write_u32(be.buf[:], 4,  be.version)
 	write_u32(be.buf[:], 8,  be.node_count)
 	write_u32(be.buf[:], 12, string_table_off)
 	write_u32(be.buf[:], 16, be.errors_off)

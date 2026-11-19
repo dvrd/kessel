@@ -72,6 +72,11 @@ offsets. The package also exposes `codegen` and `lintSync`. Codegen has known
 round-trip differences in the broader conformance corpora, and the linter
 uses Kessel's built-in rule set.
 
+TypeScript class fields with a `declare` modifier carry `declare: true` in
+the AST. If you use the exported `./binary-reader` directly, this reader
+accepts wire versions 3 through 5. The emitter uses version 5 for trees
+that contain declared fields and version 4 for all other trees.
+
 ```ts
 type ParseOptions = {
   lang?: 'js' | 'jsx' | 'ts' | 'tsx';

@@ -50,6 +50,11 @@ assert.deepEqual(installed, ['kessel', platform.split('/')[1]]);
 const parsed = require('@dvrdlibs/kessel').parseSync('test.ts', 'const value: number = 1;');
 assert.deepEqual(parsed.errors, []);
 assert.equal(parsed.program.body[0].type, 'VariableDeclaration');
+const fields = kessel.parseSync('fields.ts', 'class C { declare static x: number; declare = 2; }');
+assert.deepEqual(fields.errors, []);
+assert.deepEqual(fields.program.body[0].body.body.map(m => [m.type, m.static, m.declare]), [
+  ['PropertyDefinition', true, true], ['PropertyDefinition', false, undefined],
+]);
 NODE
 node --input-type=module - <<'NODE'
 import assert from 'node:assert/strict';

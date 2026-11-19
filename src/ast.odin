@@ -1142,6 +1142,7 @@ ClassElementKind :: enum {
 	Set,
 	Constructor,
 	StaticBlock,  // ES2022 static { ... }
+	Field,
 }
 
 // TS class-member visibility modifier. .None means no modifier was written
@@ -1171,6 +1172,7 @@ ClassElement :: struct {
 	accessibility:   ClassAccessibility,          // TS: public/private/protected
 	readonly:        bool,                        // TS: readonly
 	override_:       bool,                        // TS: override
+	declare:         bool,                        // TS: type-only field. Fits in raw transfer v1 tail padding.
 }
 
 ClassExpression :: struct {

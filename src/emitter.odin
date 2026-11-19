@@ -1596,25 +1596,6 @@ print_class_body_inline :: proc(e: ^Emitter, body: ^ClassBody, indent: int) {
 	emit_raw(e, "]\n")
 }
 
-// print_class_element_fields emits the fields of a single class element
-// inside an already-opened `{`. The ESTree node type depends on the
-// element's kind and the shape of its value:
-//
-//   * .StaticBlock                                 → "StaticBlock" (body only)
-//   * .Constructor / .Get / .Set                   → "MethodDefinition"
-//   * .Method with a FunctionExpression value      → "MethodDefinition"
-//   * .Method with a non-function (or nil) value   → "PropertyDefinition"
-//     (class field; `value` may be null)
-//
-// Disambiguation for `field = function name() {}` (a class field whose
-// initializer is a non-arrow function expression): if the FunctionExpression
-// carries an `id`, it cannot be a class method (methods are anonymous),
-// so it must be a PropertyDefinition with an initializer. Anonymous
-// `field = function() {}` is still indistinguishable from a method by
-// AST shape alone — we accept that rare misclassification rather than
-// bolt a parser-side kind flag on in this pass. Arrow-valued fields
-// (`field = () => ...`) are ArrowFunctionExpression, not
-// FunctionExpression, so they take the PropertyDefinition path correctly.
 // print_class_element_decorators emits the `"decorators": [...]` array for a
 // class element, omitting the field entirely when there are no decorators
 // (OXC parity).
@@ -1697,6 +1678,11 @@ print_class_element_kind :: proc(e: ^Emitter, elem: ^ClassElement, is_method: bo
 // byte-identical. Every field prepends `,\n` because it follows the always-
 // emitted `static` field in the caller.
 print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_method: bool, indent: int) {
+	if elem.declare {
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"declare\": true")
+	}
 	// class-element abstract: emit only when true (OXC parity).
 	if elem.abstract {
 		emit_raw(e, ",\n")
@@ -1761,17 +1747,7 @@ print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_me
 print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int) {
 	// Unwrap Maybe(^Expression) once. value_expr is nil if the element has
 	// no initializer (bare `x;` field) or if disambiguation failed.
-	value_expr: ^Expression = nil
-	value_is_function := false
-	value_fn_has_id := false
-	if v, ok := elem.value.(^Expression); ok && v != nil {
-		value_expr = v
-		#partial switch fn in v^ {
-		case ^FunctionExpression:
-			value_is_function = true
-			if _, has := fn.id.?; has { value_fn_has_id = true }
-		}
-	}
+	value_expr, _ := elem.value.?
 
 	// StaticBlock has a dedicated shape: only `body: [Statement]`. The
 	// parser stashes its statements inside a FunctionExpression.body.body
@@ -1781,16 +1757,7 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 		return
 	}
 
-	// A class method's FunctionExpression value cannot carry an `id`
-	// (methods are anonymous). A non-nil `id` therefore proves the source
-	// wrote `name = function id() {}` — a PropertyDefinition, not a
-	// MethodDefinition.
-	is_method := value_is_function && !value_fn_has_id
-	#partial switch elem.kind {
-	case .Constructor, .Get, .Set:
-		is_method = true
-	}
-
+	is_method := elem.kind != .Field
 	type_name := is_method ? "MethodDefinition" : "PropertyDefinition"
 	if elem.is_accessor {
 		type_name = "AccessorProperty"

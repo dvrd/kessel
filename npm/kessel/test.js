@@ -40,6 +40,44 @@ for (const [source, expectedType] of tests) {
   }
 }
 
+// Class fields keep their identity even when initialized with a function.
+try {
+  const source = 'class Example { field = function() {}; method() {} get\n *iterate() {} }';
+  const { program, errors } = parseSync('fields.js', source);
+  assert.deepEqual(errors, []);
+  const members = program.body[0].body.body;
+  assert.deepEqual(members.map(member => [member.type, member.key.name]), [
+    ['PropertyDefinition', 'field'],
+    ['MethodDefinition', 'method'],
+    ['PropertyDefinition', 'get'],
+    ['MethodDefinition', 'iterate'],
+  ]);
+  assert.equal(members[0].value.type, 'FunctionExpression');
+  assert.equal(members[3].value.generator, true);
+  passed++;
+} catch (error) { console.error('FAIL: class fields:', error.message); failed++; }
+
+// A declared field and a runtime field named "declare" have different effects.
+try {
+  const source = 'class C { declare x: number; declare static y: number; declare = 9; static z; }';
+  const { codegen } = require('./index');
+  const outputs = [source];
+  for (const minified of [false, true]) {
+    const result = codegen(source, { filename: 'fields.ts', minified });
+    assert.deepEqual(result.errors, []);
+    outputs.push(result.code);
+  }
+  for (const output of outputs) {
+    const { program, errors } = parseSync('fields.ts', output);
+    assert.deepEqual(errors, []);
+    const members = program.body[0].body.body;
+    assert.deepEqual(members.map(member => [member.key.name, member.static, member.declare]), [
+      ['x', false, true], ['y', true, true], ['declare', false, undefined], ['z', true, undefined],
+    ]);
+  }
+  passed++;
+} catch (error) { console.error('FAIL: declared fields:', error.message); failed++; }
+
 // A TS or JSX left operand still starts the surrounding binary expression.
 try {
   for (const [filename, operand] of [['spans.ts', 'value!'], ['spans.tsx', '<Icon />']]) {

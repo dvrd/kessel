@@ -113,7 +113,7 @@ function decode(buffer, source) {
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          3 or 4
+  //   4  version          3, 4 or 5
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -121,7 +121,7 @@ function decode(buffer, source) {
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version !== 3 && version !== 4) throw new Error('Unsupported binary AST version: ' + version);
+  if (version < 3 || version > 5) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
@@ -137,7 +137,7 @@ function decode(buffer, source) {
 
   // Decode errors section, if present. Layout depends on `version`:
   //   v3: u32 start, u32 end, u32 msg_len, msg_len bytes (UTF-8). 12B fixed.
-  //   v4: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
+  //   v4 and v5: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
   //       msg_len bytes (UTF-8). 16B fixed.
   // `code` of 0 means 'no stable code' (legacy / un-migrated site).
   // Severity: 0 = 'error', 1 = 'warning'.
@@ -340,12 +340,15 @@ function decode(buffer, source) {
         node.key = readNodeOrNull();
         node.value = readNodeOrNull();
         break;
-      case T.PropertyDefinition:
+      case T.PropertyDefinition: {
         node.computed = readBool();
-        node.static = readBool();
+        const flags = readU8();
+        node.static = version < 5 ? flags !== 0 : Boolean(flags & 1);
+        if (version >= 5 && (flags & 2)) node.declare = true;
         node.key = readNodeOrNull();
         node.value = readNodeOrNull();
         break;
+      }
       case T.StaticBlock:
         node.body = readNodeOrNull(); // wrapping expression (FunctionExpression)
         break;

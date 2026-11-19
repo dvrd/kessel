@@ -3818,11 +3818,11 @@ class_member_is_constructor_impl :: proc(elem: ClassElement) -> bool {
 }
 
 // class_member_dup_should_skip reports whether a non-constructor element is
-// excluded from the duplicate map: TS overload signatures (body-less methods),
-// override methods (may legally repeat), and abstract members.
+// excluded from the duplicate map: TS overload signatures, override
+// fields or methods, and abstract members.
 class_member_dup_should_skip :: proc(elem: ClassElement) -> bool {
+	if elem.override_ && (elem.kind == .Field || elem.kind == .Method) { return true }
 	if elem.kind == .Method {
-		if elem.override_ { return true }
 		if val, have := elem.value.?; have && val != nil {
 			if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
 				if fn.body.loc.end <= fn.body.loc.start {
@@ -4117,7 +4117,7 @@ check_class_private_dup :: proc(p: ^Parser, elem: ClassElement, seen: ^map[strin
 		if prev.has_get && prev.get_static != elem.static { static_mismatch = true }
 		prev.has_set = true
 		prev.set_static = elem.static
-	case .Method, .Constructor, .StaticBlock:
+	case .Method, .Constructor, .StaticBlock, .Field:
 		if prev.has_get || prev.has_set || prev.has_other { dup = true }
 		prev.has_other = true
 	}
@@ -4392,6 +4392,8 @@ parse_class_get_set_keyword :: proc(p: ^Parser, is_async: bool) -> (ClassElement
 	if !is_token(p, .Get) && !is_token(p, .Set) { return .Method, false }
 	is_getter := is_token(p, .Get)
 	next := peek_token(p)
+	// A star after a line terminator starts a new generator method.
+	if next.type == .Mul && next.had_line_terminator { return .Method, false }
 	looks_like_accessor_name := next.type == .Identifier || next.type == .String ||
 		next.type == .Number || next.type == .BigInt || next.type == .LBracket ||
 		next.type == .Mul || next.type == .PrivateIdentifier ||
@@ -4746,7 +4748,6 @@ ClassFieldParts :: struct {
 	key:             ^Expression,
 	type_annotation: Maybe(^TSTypeAnnotation),
 	decorators:      [dynamic]Decorator,
-	kind:            ClassElementKind,
 	accessibility:   ClassAccessibility,
 	computed:        bool,
 	static_:         bool,
@@ -4807,7 +4808,7 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	elem.loc = parts.start
 	elem.key = parts.key
 	elem.value = value
-	elem.kind = parts.kind  // Still .Method but value is not a function
+	elem.kind = .Field
 	// Use the parsed `computed` flag so `static [propname]` fields
 	// emit with computed=true - the §15.7.1 "static prototype" check
 	// gates on !elem.computed, so the previous hardcoded `false` made
@@ -4826,6 +4827,7 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	elem.accessibility = parts.accessibility
 	elem.readonly = parts.is_readonly
 	elem.override_ = parts.is_override
+	elem.declare = parts.is_declare
 
 	elem.loc.end = prev_end_offset(p)
 	return elem
@@ -5392,7 +5394,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			key             = key,
 			type_annotation = field_type_ann,
 			decorators      = decorators,
-			kind            = kind,
 			accessibility   = accessibility,
 			computed        = computed,
 			static_         = static_,
