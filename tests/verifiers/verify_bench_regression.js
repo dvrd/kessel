@@ -281,6 +281,10 @@ if (geoMean > GEOMEAN_TOLERANCE) {
   failed = true;
 }
 
+if (failed && REFERENCE) {
+  console.error('\nFAILED against the same-host reference.');
+  process.exit(1);
+}
 if (failed) {
   console.log('\nFAILED. If this regression is intentional (e.g. a correctness fix\n' +
               'that trades off some speed), document the rationale and run with\n' +
