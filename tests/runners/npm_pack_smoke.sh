@@ -47,7 +47,8 @@ const binary = `libkessel.${{win32: 'dll', darwin: 'dylib', linux: 'so'}[process
 assert.equal(digest(native), digest(`../native/${binary}`));
 const installed = fs.readdirSync('node_modules/@dvrdlibs').sort();
 assert.deepEqual(installed, ['kessel', platform.split('/')[1]]);
-const parsed = require('@dvrdlibs/kessel').parseSync('test.ts', 'const value: number = 1;');
+const kessel = require('@dvrdlibs/kessel');
+const parsed = kessel.parseSync('test.ts', 'const value: number = 1;');
 assert.deepEqual(parsed.errors, []);
 assert.equal(parsed.program.body[0].type, 'VariableDeclaration');
 const fields = kessel.parseSync('fields.ts', 'class C { declare static x: number; declare = 2; }');
