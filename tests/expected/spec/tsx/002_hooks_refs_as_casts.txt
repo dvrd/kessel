@@ -1694,7 +1694,7 @@
                               "arguments": [
                                 {
                                   "type": "MemberExpression",
-                                  "start": 0,
+                                  "start": 2113,
                                   "end": 2149,
                                   "computed": false,
                                   "object": {

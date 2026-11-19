@@ -40,6 +40,19 @@ for (const [source, expectedType] of tests) {
   }
 }
 
+// A TS or JSX left operand still starts the surrounding binary expression.
+try {
+  for (const [filename, operand] of [['spans.ts', 'value!'], ['spans.tsx', '<Icon />']]) {
+    const expression = operand + ' === expected';
+    const source = 'const before = 0; const equal = ' + expression + ';';
+    const { program, errors } = parseSync(filename, source);
+    assert.deepEqual(errors, []);
+    const { start, end } = program.body[1].declarations[0].init;
+    assert.equal(source.slice(start, end), expression);
+  }
+  passed++;
+} catch (error) { console.error('FAIL: TS and JSX expression spans:', error.message); failed++; }
+
 // TypeScript
 try {
   const { program } = parseSync('test.ts', 'const x: number = 1;');

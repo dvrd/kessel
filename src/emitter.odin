@@ -1237,55 +1237,8 @@ expression_inner_nil :: proc(expr: ^Expression) -> bool {
 }
 
 get_expression_loc :: proc(expr: ^Expression) -> Loc {
-	if expression_inner_nil(expr) { return Loc{} }
-	#partial switch e in expr^ {
-	case ^NullLiteral:              return e.loc
-	case ^BooleanLiteral:           return e.loc
-	case ^NumericLiteral:           return e.loc
-	case ^StringLiteral:            return e.loc
-	case ^BigIntLiteral:            return e.loc
-	case ^RegExpLiteral:            return e.loc
-	case ^TemplateLiteral:          return e.loc
-	case ^TaggedTemplateExpression: return e.loc
-	case ^Identifier:                return e.loc
-	case ^ThisExpression:            return e.loc
-	case ^Super:                     return e.loc
-	case ^ArrayExpression:           return e.loc
-	case ^ObjectExpression:          return e.loc
-	case ^FunctionExpression:        return e.loc
-	case ^ArrowFunctionExpression:   return e.loc
-	case ^ClassExpression:           return e.loc
-	case ^MemberExpression:          return e.loc
-	case ^CallExpression:            return e.loc
-	case ^ChainExpression:           return e.loc
-	case ^NewExpression:             return e.loc
-	case ^ConditionalExpression:     return e.loc
-	case ^UpdateExpression:          return e.loc
-	case ^UnaryExpression:           return e.loc
-	case ^BinaryExpression:          return e.loc
-	case ^LogicalExpression:         return e.loc
-	case ^AssignmentExpression:      return e.loc
-	case ^SequenceExpression:        return e.loc
-	case ^SpreadElement:             return e.loc
-	case ^YieldExpression:           return e.loc
-	case ^AwaitExpression:           return e.loc
-	case ^ImportExpression:          return e.loc
-	case ^MetaProperty:              return e.loc
-	case ^PrivateIdentifier:         return e.loc
-	case ^JSXElement:               return e.loc
-	case ^JSXFragment:              return e.loc
-	case ^JSXText:                  return e.loc
-	case ^JSXExpressionContainer:   return e.loc
-	case ^JSXEmptyExpression:       return e.loc
-	case ^JSXSpreadChild:           return e.loc
-	case ^TSAsExpression:           return e.loc
-	case ^TSSatisfiesExpression:    return e.loc
-	case ^TSNonNullExpression:      return e.loc
-	case ^TSTypeAssertion:          return e.loc
-	case ^TSInstantiationExpression: return e.loc
-	case ^ParenthesizedExpression:  return e.loc
-	}
-	return Loc{}
+	if expression_inner_nil(expr) { return {} }
+	return loc_from_expr(expr)
 }
 
 get_declaration_loc :: proc(decl: ^Declaration) -> Loc {
