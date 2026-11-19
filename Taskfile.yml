@@ -86,6 +86,11 @@ tasks:
     cmds:
       - bash tests/runners/npm_pack_smoke.sh
 
+  test:npm:registry:
+    desc: Install an exact published version from npm and exercise the parser in a clean consumer.
+    cmds:
+      - bash tests/runners/npm_registry_smoke.sh {{.CLI_ARGS}}
+
   test:npm:real:
     desc: Parse the pinned release corpus through the npm asynchronous API.
     deps: [build:lib, test:real:verify-inputs]

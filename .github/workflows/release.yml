@@ -150,7 +150,7 @@ jobs:
     if: needs.check.outputs.should_release == 'true'
     strategy:
       fail-fast: true
-      matrix:
+      matrix: &native_targets
         include:
           - os: macos-15
             target: darwin-arm64
@@ -449,3 +449,29 @@ jobs:
           npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  verify-published:
+    needs: [version, publish-main]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: *native_targets
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: libkessel-${{ matrix.target }}
+          path: release-artifact
+      - name: Verify published SDK from a clean consumer
+        shell: bash
+        env:
+          KESSEL_RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          KESSEL_PACKAGE_BINARY: ${{ github.workspace }}/release-artifact/libkessel.${{ matrix.ext }}
+        run: bash tests/runners/npm_registry_smoke.sh "$KESSEL_RELEASE_VERSION"
