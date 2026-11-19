@@ -87,7 +87,12 @@ task test:real:verify-inputs
 task test:release
 ```
 
-Use a host comparable to the one used to record the performance baseline.
+The release gate builds the reference revision pinned in the Taskfile with the
+same Odin compiler and options as the candidate. It measures both binaries on
+the same host and applies the existing 10% per-file and 5% geometric-mean
+thresholds. Keep the pinned reference revision available in the checkout.
+Use `task test:bench:regression` to compare against the stored timings from the
+original benchmark host.
 
 ### Individual Checks
 

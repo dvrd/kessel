@@ -31,6 +31,7 @@
 //   node tests/verifiers/verify_bench_regression.js              # check vs baseline
 //   node tests/verifiers/verify_bench_regression.js --update     # rewrite baseline
 //   node tests/verifiers/verify_bench_regression.js --iterations 50
+//   node tests/verifiers/verify_bench_regression.js --reference /path/to/reference/kessel
 //   node tests/verifiers/verify_bench_regression.js --quick      # 3 files, 10 iters
 //
 // Exit 0 on pass; 1 on regression; 2 on setup error.
@@ -53,6 +54,12 @@ function arg(name, def) {
   return i >= 0 ? args[i + 1] : def;
 }
 const ITERATIONS = parseInt(arg('--iterations', QUICK ? '10' : '30'), 10);
+const referenceArg = arg('--reference', undefined);
+if (args.includes('--reference') && (!referenceArg || referenceArg.startsWith('--') || UPDATE)) {
+  console.error('bench_regression: --reference requires a binary path and cannot be used with --update');
+  process.exit(2);
+}
+const REFERENCE = referenceArg ? path.resolve(referenceArg) : null;
 
 // Per-file and geo-mean regression thresholds. Expressed as RATIO (current /
 // baseline); >1.0 = slower. Tuned so normal CI jitter (~5-7% on shared
@@ -89,6 +96,10 @@ if (!fs.existsSync(KESSEL)) {
   console.error('bench_regression: missing ' + KESSEL + ' \u2014 run `task build` first');
   process.exit(2);
 }
+if (REFERENCE && !fs.existsSync(REFERENCE)) {
+  console.error('bench_regression: missing reference binary at ' + REFERENCE);
+  process.exit(2);
+}
 for (const rel of FILES) {
   const abs = path.join(ROOT, rel);
   if (!fs.existsSync(abs)) {
@@ -102,14 +113,14 @@ for (const rel of FILES) {
 //   Min: <float> us
 // among several summary lines. We only read Min for noise-resistance.
 // -----------------------------------------------------------------------------
-function measureMinUs(absPath) {
-  const r = spawnSync(KESSEL, ['microbench', 'parse', absPath, '--iterations', String(ITERATIONS), '--ast-only'], {
+function measureMinUs(absPath, binary = KESSEL) {
+  const r = spawnSync(binary, ['microbench', 'parse', absPath, '--iterations', String(ITERATIONS), '--ast-only'], {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
     timeout: 120_000,
   });
   if (r.status !== 0 || r.error) {
-    throw new Error('kessel microbench failed on ' + absPath + ': ' +
+    throw new Error(binary + ' microbench failed on ' + absPath + ': ' +
                     (r.error ? r.error.message : 'exit ' + r.status) +
                     '\n' + (r.stderr || '').slice(0, 500));
   }
@@ -128,17 +139,26 @@ function measureMinUs(absPath) {
 // measurement isn't biased by cold caches / filesystem noise.
 // -----------------------------------------------------------------------------
 console.log('bench_regression: iterations=' + ITERATIONS + ' files=' + FILES.length +
-            (UPDATE ? ' mode=update' : ' mode=check') +
+            (UPDATE ? ' mode=update' : REFERENCE ? ' reference=' + REFERENCE : ' mode=check') +
             (QUICK ? ' (quick)' : ''));
 
-const measurements = {};  // rel -> min_us
+const measurements = {};
+const referenceMeasurements = {};
 for (const rel of FILES) {
   const abs = path.join(ROOT, rel);
-  // Warmup \u2014 discard.
-  try { measureMinUs(abs); } catch (e) { /* ignore \u2014 real pass below will surface it */ }
-  const t = measureMinUs(abs);
-  measurements[rel] = t;
-  if (VERBOSE) console.log('  measured ' + rel + ': ' + (t / 1000).toFixed(3) + ' ms');
+  if (REFERENCE) {
+    // Alternate which binary runs first to reduce sensitivity to warmup and load.
+    const referenceFirst = measureMinUs(abs, REFERENCE);
+    const currentFirst = measureMinUs(abs);
+    const currentSecond = measureMinUs(abs);
+    const referenceSecond = measureMinUs(abs, REFERENCE);
+    measurements[rel] = Math.min(currentFirst, currentSecond);
+    referenceMeasurements[rel] = Math.min(referenceFirst, referenceSecond);
+  } else {
+    try { measureMinUs(abs); } catch { /* The measured run reports persistent failures. */ }
+    measurements[rel] = measureMinUs(abs);
+  }
+  if (VERBOSE) console.log('  measured ' + rel + ': ' + (measurements[rel] / 1000).toFixed(3) + ' ms');
 }
 
 // -----------------------------------------------------------------------------
@@ -170,22 +190,25 @@ if (UPDATE) {
 // -----------------------------------------------------------------------------
 // Check mode \u2014 compare against baseline.
 // -----------------------------------------------------------------------------
-if (!fs.existsSync(BASELINE_PATH)) {
-  console.error('bench_regression: no baseline at ' + BASELINE_PATH +
-                '. Run `node tests/verifiers/verify_bench_regression.js --update` first.');
-  process.exit(2);
-}
-const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
-if (baseline.iterations !== ITERATIONS) {
-  console.error('bench_regression: iterations mismatch: baseline=' + baseline.iterations +
-                ' current=' + ITERATIONS + '. Either run with --iterations ' +
-                baseline.iterations + ' or recapture with --update.');
-  process.exit(2);
-}
-if (baseline.quick !== QUICK) {
-  console.error('bench_regression: quick-mode mismatch: baseline quick=' + baseline.quick +
-                ' current quick=' + QUICK + '. They measure different file sets.');
-  process.exit(2);
+let baseline = { files: referenceMeasurements };
+if (!REFERENCE) {
+  if (!fs.existsSync(BASELINE_PATH)) {
+    console.error('bench_regression: no baseline at ' + BASELINE_PATH +
+                  '. Run `node tests/verifiers/verify_bench_regression.js --update` first.');
+    process.exit(2);
+  }
+  baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+  if (baseline.iterations !== ITERATIONS) {
+    console.error('bench_regression: iterations mismatch: baseline=' + baseline.iterations +
+                  ' current=' + ITERATIONS + '. Either run with --iterations ' +
+                  baseline.iterations + ' or recapture with --update.');
+    process.exit(2);
+  }
+  if (baseline.quick !== QUICK) {
+    console.error('bench_regression: quick-mode mismatch: baseline quick=' + baseline.quick +
+                  ' current quick=' + QUICK + '. They measure different file sets.');
+    process.exit(2);
+  }
 }
 
 // Per-file comparison.
@@ -238,7 +261,7 @@ if (improvements.length > 0) {
     console.log('  ' + r.rel + ': ' + (r.base / 1000).toFixed(3) + ' \u2192 ' + (r.cur / 1000).toFixed(3) +
                 ' ms (' + (1/r.ratio).toFixed(2) + 'x faster)');
   }
-  console.log('  Run with --update to lock these wins in.');
+  if (!REFERENCE) console.log('  Run with --update to lock these wins in.');
 }
 
 let failed = false;
