@@ -178,6 +178,7 @@ jobs:
         uses: laytan/setup-odin@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          release: dev-2026-11
 
       - name: Set up MSVC (Windows)
         if: runner.os == 'Windows'
@@ -217,7 +218,7 @@ jobs:
         shell: bash
         run: |
           cd npm/kessel
-          npm install
+          npm ci
           node test.js
 
       - name: Test isolated npm bindings
