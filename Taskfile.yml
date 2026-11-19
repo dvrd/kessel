@@ -249,6 +249,7 @@ tasks:
     deps: [build, bench:oxc:build]
     silent: false
     cmds:
+      - node tests/verifiers/verify_oxc_pin.js --require-installed
       - task: test:coverage
       - task: test:unit
       - task: test:regression

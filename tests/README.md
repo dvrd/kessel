@@ -68,7 +68,7 @@ JavaScript verifiers use the locked dependencies under `bench/`.
 ```bash
 git clone --no-checkout https://github.com/oxc-project/oxc.git ../oxc
 git -C ../oxc checkout --detach "$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")"
-npm ci --prefix bench
+(cd bench && npm ci)
 task bench:oxc:verify
 ```
 
