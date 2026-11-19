@@ -12,6 +12,7 @@ bench/*
 !bench/oxc_compare/
 bench/oxc_compare/*
 !bench/oxc_compare/Cargo.lock
+!bench/oxc_compare/codegen_microbench/
 tests/vendor/
 
 *.dSYM/
