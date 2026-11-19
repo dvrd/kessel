@@ -22,6 +22,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Fixed
 - fix(lint): make every rule `--rule`/config-addressable by name — `lint_rule_by_name` was a hand-maintained switch that stopped at L2025, leaving ~90 already-implemented L40xx rules unreachable; it now scans the static rule-info table
 
+## [0.21.0] - 2026-07-22
+
+### Added
+- feat(lint): add no-negated-condition + operator-assignment; make all L40xx rules --rule-addressable
+- feat(lint): add compact and checkstyle output formatters (Phase 8e)
+- feat(lint): add unix and github output formatters (Phase 8e)
+- feat(lint): support targeted per-rule disable directives (eslint-disable* rule, ...)
+- feat(lint): add no-useless-else, prefer-object-literal, no-object-constructor, no-arrow-functions-in-class, no-class-assign-in-class (159 rules)
+- feat(lint): add no-useless-catch/constructor/rename, prefer-object-has-own, no-useless-unary (154 rules, 6 new enum entries)
+- feat(lint): add no-implicit-coercion, no-buffer-constructor, no-octal-escape, no-implicit-globals, no-restricted-globals/syntax, prefer-exponentiation-operator (154 rules)
+- feat(lint): add no-loop-func, no-magic-numbers, max-depth, max-lines, max-params, no-magic-strings, no-unsafe-declaration (147 rules)
+- feat(lint): add no-comparison-with-nan, no-new-symbol, no-multi-str, no-string-case, prefer-dot-notation (140 rules)
+- feat(lint): add no-await-in-loop, no-type-alias, no-useless-assignment, no-mixed-operators, no-undefined, no-instanceof, no-extra-label (135 rules)
+- feat(lint): add TS rules no-inferrable-types, no-duplicate-enum-values, prefer-ts-expect-error, no-empty-interface, no-require-imports (127 rules)
+- feat(lint): add no-this-before-super, accessor-pairs, grouped-accessor-pairs, prefer-rest-params, prefer-spread, no-param-reassign (122 rules, 93 fixtures)
+- feat(lint): add no-duplicate-imports, no-useless-computed-key, no-useless-return, prefer-arrow-callback, no-else-return (116 rules, 93 fixtures)
+- feat(lint): add no-void, no-bitwise, no-continue, no-plusplus, yoda (111 rules, 90 fixtures)
+- feat(lint): add no-nested-ternary, no-unneeded-ternary, no-lonely-if, prefer-numeric-literals, no-useless-call (106 rules, 90 fixtures)
+- feat(lint): add no-promise-executor-return, no-template-curly-in-string (101 rules, 88 fixtures)
+- feat(lint): add getter-return, no-global-assign, no-import-assign, no-class-assign, no-func-assign (99 rules, 86 fixtures)
+
+
 ## [0.20.0] - 2026-07-12
 
 ### Added
