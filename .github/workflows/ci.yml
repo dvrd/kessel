@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     uses: ./.github/workflows/primary-tests.yml
+    with:
+      release_checks: ${{ github.event_name == 'pull_request' }}
 
   # Portability matrix. Proves each release target compiles cleanly and the
   # FFI binding works end-to-end. Does NOT publish anything.
@@ -32,8 +34,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             target: darwin-arm64
+            # Preserve the deployment target of the published arm64 library.
+            deployment_flag: -minimum-os-version:14.0.0
             ext: dylib
             ldflags: '-extra-linker-flags:"-undefined dynamic_lookup"'
           - os: macos-15-intel
@@ -92,7 +96,7 @@ jobs:
           mkdir -p bin
           cd bin
           odin build ../src \
-            -build-mode:shared \
+            ${{ matrix.deployment_flag }} -build-mode:shared \
             -out:libkessel.${{ matrix.ext }} \
             -o:speed \
             -no-bounds-check \
@@ -107,7 +111,7 @@ jobs:
         run: |
           cli=kessel
           if [[ "$RUNNER_OS" == Windows ]]; then cli=kessel.exe; fi
-          (cd bin && odin build ../src -out:"$cli" -o:speed -no-bounds-check)
+          (cd bin && odin build ../src ${{ matrix.deployment_flag }} -out:"$cli" -o:speed -no-bounds-check)
           node tests/verifiers/verify_cli_smoke.js "bin/$cli"
 
       - name: Upload CLI artifact

@@ -3,14 +3,14 @@
 const { readFileSync } = require('node:fs');
 const { createRequire } = require('node:module');
 const path = require('node:path');
+const { readChecksums } = require('./verify_real_world_inputs');
 
 const root = path.resolve(__dirname, '../..');
 const binding = path.join(root, 'npm/kessel/index.js');
 if (process.argv.includes('--preload-koffi')) createRequire(binding)('koffi').load(null);
 const { parseAsync } = require(binding);
-const corpus = path.join(root, 'bench/real_world');
-const files = readFileSync(path.join(root, 'tests/baselines/real_world.sha256'), 'utf8')
-  .trimEnd().split('\n').map(line => line.slice(66));
+const corpus = path.resolve(root, process.env.KESSEL_REAL_WORLD_ROOT || 'bench/real_world');
+const files = [...readChecksums().keys()];
 
 async function verify() {
   for (const relative of files) {

@@ -72,19 +72,13 @@ git -C ../oxc checkout --detach "$(node -p "require('./OXC_ORACLE.json').oxc_git
 task bench:oxc:verify
 ```
 
-The release gate also reads the 467-file real-world bundle corpus. Transfer
-the fixture archive from an existing checkout or the release host, extract it
-under `bench/`, and verify it before running the performance comparison.
+The release gate reads 467 real-world JavaScript files. The fetch task downloads
+individual files from the npm package versions in `tests/baselines/real_world.sources`
+and checks each file against `tests/baselines/real_world.sha256`. It reuses
+verified local files and reports a checksum error if an existing file differs.
 
 ```bash
-# On a checkout that already has the corpus:
-task test:real:verify-inputs
-tar -czf kessel-real-world.tar.gz -C bench real_world
-
-# On the release host:
-tar -xzf kessel-real-world.tar.gz -C bench
-task test:real:verify-inputs
-task test:release
+task test:release        # Fetches any missing real-world fixtures
 ```
 
 The release gate builds the reference revision pinned in the Taskfile with the

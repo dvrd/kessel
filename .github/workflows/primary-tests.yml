@@ -2,16 +2,23 @@ name: Primary tests
 
 on:
   workflow_call:
+    inputs:
+      release_checks:
+        description: Run the complete release gate on the checked-out revision.
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
   test:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
+          # The matched benchmark builds its reference revision from this history.
+          fetch-depth: ${{ inputs.release_checks && '0' || '1' }}
           persist-credentials: false
 
       - name: Install Odin
@@ -42,3 +49,25 @@ jobs:
 
       - name: Check conformance and fixtures
         run: task test
+
+      - name: Prepare release inputs
+        if: inputs.release_checks
+        run: |
+          revision=$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")
+          git init --quiet ../oxc
+          git -C ../oxc fetch --no-tags --depth=1 https://github.com/oxc-project/oxc.git "$revision"
+          git -C ../oxc checkout --quiet --detach FETCH_HEAD
+          # Cargo runs inside the comparison workspace. Use the compiler pinned by its oracle.
+          cp ../oxc/rust-toolchain.toml bench/oxc_compare/rust-toolchain.toml
+          npm ci --prefix bench
+
+      - name: Run release gate
+        if: inputs.release_checks
+        run: task test:release
+
+      - name: Check both npm async paths on the release corpus
+        if: inputs.release_checks
+        run: |
+          npm ci --prefix npm/kessel
+          task test:npm:real
+          task test:npm:real -- --preload-koffi

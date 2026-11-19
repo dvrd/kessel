@@ -338,6 +338,12 @@ The npm package is published automatically on every push to `main` whose convent
 - `fix:` / `perf:` / `chore:` / etc. → patch bump
 - Docs-only and CI-only commits don't trigger a release
 
+Pull requests targeting `main` run the full local release gate on GitHub Actions.
+The release workflow repeats the gate on the revision it will publish. It
+downloads the 467 checksum-pinned real-world inputs and compares the candidate
+and reference parser on the same runner. The npm checks parse the same corpus
+through both asynchronous execution paths.
+
 The pipeline (`.github/workflows/release.yml`) builds all five platform binaries, publishes the five `@dvrdlibs/kessel-<target>` sub-packages with Sigstore provenance, then publishes the main `@dvrdlibs/kessel` package with `optionalDependencies` pinned to the same version. If any sub-package fails to publish, the main package stays at its previous version and users are unaffected.
 
 Manual override: `gh workflow run Release --repo dvrd/kessel`.

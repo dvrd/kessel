@@ -89,6 +89,8 @@ tasks:
   test:npm:real:
     desc: Parse the pinned release corpus through the npm asynchronous API.
     deps: [build:lib, test:real:verify-inputs]
+    env:
+      KESSEL_REAL_WORLD_ROOT: '{{.BENCH_FILES}}'
     cmds:
       - node tests/verifiers/verify_npm_real_world.js {{.CLI_ARGS}}
 
@@ -206,6 +208,11 @@ tasks:
     cmds:
       - node tests/verifiers/verify_real_world_inputs.js "{{.BENCH_FILES}}"
 
+  test:real:fetch:
+    desc: Fetch missing real-world fixtures from pinned npm package files and verify their checksums.
+    cmds:
+      - node tests/runners/fetch_real_world_inputs.js "{{.BENCH_FILES}}"
+
   test:estree:
     desc: "String-escape decoding parity vs reference parser on key real-world files."
     deps: [build, bench:oxc:build]
@@ -253,7 +260,7 @@ tasks:
       - task: test:coverage
       - task: test:unit
       - task: test:regression
-      - task: test:real:verify-inputs
+      - task: test:real:fetch
       - task: test:real
       - task: test:estree
       - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
