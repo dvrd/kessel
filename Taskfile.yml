@@ -300,6 +300,7 @@ tasks:
         trap 'rm -rf "$reference_dir"' EXIT
         git archive --output="$reference_dir/source.tar" {{.BENCH_REFERENCE}} src
         tar -xf "$reference_dir/source.tar" -C "$reference_dir"
+        cp src/qos_fallback.odin "$reference_dir/src/"
         odin build "$reference_dir/src" -out:"$reference_dir/kessel" -o:speed -no-bounds-check
         node tests/verifiers/verify_bench_regression.js --iterations 30 --reference "$reference_dir/kessel"
 

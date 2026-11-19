@@ -214,6 +214,21 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Build and smoke test CLI
+        shell: bash
+        run: |
+          cli=kessel
+          if [[ "$RUNNER_OS" == Windows ]]; then cli=kessel.exe; fi
+          (cd bin && odin build ../src -out:"$cli" -o:speed -no-bounds-check)
+          node tests/verifiers/verify_cli_smoke.js "bin/$cli"
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kessel-cli-${{ matrix.target }}
+          path: bin/kessel${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+
       - name: Smoke test (npm)
         shell: bash
         run: |
