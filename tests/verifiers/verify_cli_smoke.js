@@ -35,34 +35,42 @@ function checkClassIndexSignatures(file) {
   assert.equal(result.stdout.trim(), 'export class Table {\n  field = 1;\n}');
 }
 
+function parseBinary(file, source, expectedVersion) {
+  fs.writeFileSync(file, source);
+  const result = spawnSync(binary, ['parse', '--binary', file]);
+  assert.equal(result.status, 0, String(result.stderr || result.error));
+  assert.equal(result.stdout.readUInt32LE(4), expectedVersion, file);
+  const ast = decode(result.stdout, source);
+  assert.deepEqual(ast.errors, []);
+  return ast.program.body;
+}
+
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-cli-ast-'));
 try {
   const file = path.join(folder, 'input.ts');
   checkClassIndexSignatures(file);
+  const jsFile = path.join(folder, 'input.js');
+  const plain = 'export default function() {}';
+  const [jsDefault] = parseBinary(jsFile, plain, 4);
+  assert.equal(Object.hasOwn(jsDefault, 'exportKind'), false);
+  const [jsNamed] = parseBinary(jsFile, 'function f() {}', 6);
+  assert.equal(jsNamed.id.name, 'f');
+  const [tsDefault] = parseBinary(file, plain, 8);
+  assert.equal(tsDefault.exportKind, 'value');
+
   const field = 'export default class { declare x; }';
-  for (const [source, version] of [
-    ['export default function() {}', 4], [field, 5],
-    ['export default class { declare x: number; } function after() {}', 7],
-    ['function f() {}\n' + field, 6], [field + '\nfunction f() {}', 6],
-  ]) {
-    fs.writeFileSync(file, source);
-    const result = spawnSync(binary, ['parse', '--binary', file]);
-    assert.equal(result.status, 0, String(result.stderr || result.error));
-    assert.equal(result.stdout.readUInt32LE(4), version);
-    const ast = decode(result.stdout, source);
-    assert.deepEqual(ast.errors, []);
-    if (version >= 5) {
-      const cls = ast.program.body.find(node => node.type === 'ExportDefaultDeclaration').declaration;
-      assert.equal(cls.id, null);
-      assert.equal(cls.body.body[0].declare, true);
-    }
-    if (version === 7) {
-      const cls = ast.program.body[0].declaration;
-      assert.equal(cls.body.body[0].typeAnnotation.typeAnnotation.type, 'TSNumberKeyword');
-    }
-    if (version === 6) {
-      const id = ast.program.body.find(node => node.type === 'FunctionDeclaration').id;
-      assert.equal(source.slice(id.start, id.end), 'f');
+  const typed = 'export default class { declare x: number; } function after() {}';
+  for (const source of [field, typed, 'function f() {}\n' + field, field + '\nfunction f() {}']) {
+    const body = parseBinary(file, source, 8);
+    const exported = body.find(node => node.type === 'ExportDefaultDeclaration');
+    assert.equal(exported.exportKind, 'value');
+    assert.equal(exported.declaration.id, null);
+    const member = exported.declaration.body.body[0];
+    assert.equal(member.declare, true);
+    if (source === typed) assert.equal(member.typeAnnotation.typeAnnotation.type, 'TSNumberKeyword');
+    if (source !== field) {
+      const {id} = body.find(node => node.type === 'FunctionDeclaration');
+      assert.equal(source.slice(id.start, id.end), source === typed ? 'after' : 'f');
     }
   }
 

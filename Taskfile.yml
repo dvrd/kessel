@@ -268,6 +268,7 @@ tasks:
     silent: false
     cmds:
       - node tests/verifiers/verify_oxc_pin.js --require-installed
+      - node tests/verifiers/verify_cli_smoke.js {{.BIN}}
       - task: test:coverage
       - task: test:unit
       - task: test:regression

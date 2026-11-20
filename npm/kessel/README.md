@@ -84,9 +84,9 @@ The exported `./binary-reader` accepts wire versions 3 through 8. Version 8
 records whether to include TypeScript fields, so modules written entirely in
 JavaScript syntax still carry `importKind` and `exportKind` in TS mode. Version 7
 carries TypeScript declarations, annotations, type arguments and modifiers.
-The native emitter selects version 6 for child name and module source ranges,
-version 5 for declared class fields, and version 4 for other trees when they
-only use those features. Older buffers retain their original range behavior.
+JavaScript trees that only require child name and module source ranges use
+version 6. Simpler JavaScript trees can use version 4. The decoder still
+accepts archived version 5 buffers containing declared class fields.
 
 ```ts
 type ParseOptions = {
