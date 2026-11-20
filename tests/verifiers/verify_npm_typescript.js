@@ -129,7 +129,7 @@ async function verify(directory) {
     const file = path.join(directory, filename);
     if (checkCli) fs.writeFileSync(file, source);
     await verifyFile(filename, source, undefined, file);
-    if (checkCli && (filename === 'bindings.ts' || filename === 'import-types.ts')) {
+    if (checkCli && ['imports.ts', 'bindings.ts', 'import-types.ts'].includes(filename)) {
       verifyPrintedTypes(filename, file, source);
     }
   }

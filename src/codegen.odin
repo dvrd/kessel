@@ -827,6 +827,7 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 	// parser then reads as a single identifier.
 	if len(s.phase) > 0 { cg_str(cg, s.phase); cg_hard_space(cg) }
 	first := true
+	has_named_specifiers := false
 	// Default + namespace specifiers (each appears at most once).
 	for spec in s.specifiers {
 		switch v in spec^ {
@@ -840,33 +841,39 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 			cg_str(cg, v.local.name)
 			first = false
 		case ImportSpecifier:
-			// emitted in the `{...}` group below
+			has_named_specifiers = true
 		}
 	}
-	// Named specifiers.
-	any_named := false
+	named_open := false
 	for spec in s.specifiers {
-		if _, ok := spec^.(ImportSpecifier); ok { any_named = true; break }
-	}
-	if any_named {
-		if !first { cg_str(cg, ", ") }
-		cg_byte(cg, '{')
-		first_named := true
-		for spec in s.specifiers {
-			v, ok := spec^.(ImportSpecifier)
-			if !ok { continue }
-			if !first_named { cg_str(cg, ", ") } else { cg_space(cg) }
-			first_named = false
-			if v.imported.name != v.local.name {
-				cg_str(cg, v.imported.name)
-				cg_str(cg, " as ")
-				cg_str(cg, v.local.name)
-			} else {
-				cg_str(cg, v.local.name)
-			}
+		v, ok := spec^.(ImportSpecifier)
+		if !ok { continue }
+		// A per-specifier type modifier precedes the imported name.
+		type_only := v.loc.start < v.imported.loc.start
+		if cg.cfg.strip_types && type_only { continue }
+		if named_open {
+			cg_str(cg, ", ")
+		} else {
+			if !first { cg_str(cg, ", ") }
+			cg_byte(cg, '{')
+			cg_space(cg)
+			named_open = true
 		}
+		if type_only { cg_str(cg, "type ") }
+		cg_str(cg, v.imported.name)
+		if v.imported.name != v.local.name {
+			cg_str(cg, " as ")
+			cg_str(cg, v.local.name)
+		}
+	}
+	if named_open {
 		cg_space(cg)
 		cg_byte(cg, '}')
+		first = false
+	} else if has_named_specifiers || (first && s.import_kind == .Type) {
+		// Keep the module request when type stripping leaves an empty clause.
+		if !first { cg_str(cg, ", ") }
+		cg_str(cg, "{}")
 		first = false
 	}
 	if !first { cg_str(cg, " from ") }
@@ -963,9 +970,13 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 		return
 	}
 	cg_byte(cg, '{')
-	for i in 0..<len(s.specifiers) {
-		if i > 0 { cg_str(cg, ", ") } else { cg_space(cg) }
-		sp := s.specifiers[i]
+	first := true
+	for &sp in s.specifiers {
+		type_only := export_specifier_is_type(&sp)
+		if cg.cfg.strip_types && type_only { continue }
+		if !first { cg_str(cg, ", ") } else { cg_space(cg) }
+		first = false
+		if type_only { cg_str(cg, "type ") }
 		if export_name_eq(sp.local, sp.exported) {
 			gen_export_specifier_name(cg, sp.local)
 		} else {
