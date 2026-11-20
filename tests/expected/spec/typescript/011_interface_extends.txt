@@ -429,37 +429,37 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 75,
+      "end": 73,
       "value": " TS-D: `interface extends` — single-parent, multi-parent, and qualified"
     },
     {
       "type": "Line",
-      "start": 76,
-      "end": 144,
+      "start": 74,
+      "end": 142,
       "value": " (namespace.Member) parent forms. Each heritage entry parses as an"
     },
     {
       "type": "Line",
-      "start": 145,
-      "end": 213,
+      "start": 143,
+      "end": 211,
       "value": " `TSInterfaceHeritage` / `TSExpressionWithTypeArguments` node (OXC"
     },
     {
       "type": "Line",
-      "start": 214,
-      "end": 277,
+      "start": 212,
+      "end": 275,
       "value": " emits the latter) with a typeName/expression + optional type"
     },
     {
       "type": "Line",
-      "start": 278,
-      "end": 348,
+      "start": 276,
+      "end": 346,
       "value": " arguments. Kessel's shape must match OXC's deep structure, verified"
     },
     {
       "type": "Line",
-      "start": 349,
-      "end": 380,
+      "start": 347,
+      "end": 378,
       "value": " by the spec-fixtures runner."
     }
   ]

@@ -1798,73 +1798,73 @@
     {
       "type": "Line",
       "start": 108,
-      "end": 180,
+      "end": 178,
       "value": "   * `useRef<HTMLDivElement>(null)` — generic call inside a function"
     },
     {
       "type": "Line",
-      "start": 181,
-      "end": 224,
+      "start": 179,
+      "end": 222,
       "value": "     body, distinct from the JSX-tag form"
     },
     {
       "type": "Line",
-      "start": 225,
-      "end": 289,
+      "start": 223,
+      "end": 287,
       "value": "   * `e as KeyboardEvent` cast inside a JSX event-handler body"
     },
     {
       "type": "Line",
-      "start": 290,
-      "end": 359,
+      "start": 288,
+      "end": 357,
       "value": "   * Discriminated-union prop type with TSAsExpression in JSX child"
     },
     {
       "type": "Line",
-      "start": 360,
-      "end": 429,
+      "start": 358,
+      "end": 427,
       "value": "   * `<Icon as={MyIcon} />` polymorphic-component pattern (the prop"
     },
     {
       "type": "Line",
-      "start": 430,
-      "end": 495,
+      "start": 428,
+      "end": 493,
       "value": "     value is itself a component reference, common in mantine /"
     },
     {
       "type": "Line",
-      "start": 496,
-      "end": 513,
+      "start": 494,
+      "end": 511,
       "value": "     chakra-ui)"
     },
     {
       "type": "Line",
-      "start": 514,
-      "end": 586,
+      "start": 512,
+      "end": 584,
       "value": "   * Type parameter on a useReducer call: `useReducer<typeof reducer>`"
     },
     {
       "type": "Line",
-      "start": 587,
-      "end": 655,
+      "start": 585,
+      "end": 653,
       "value": "   * Hook return type asserted via `satisfies` in a separate const"
     },
     {
       "type": "Line",
-      "start": 656,
-      "end": 726,
+      "start": 654,
+      "end": 724,
       "value": "   * useState with explicit generic: `useState<string | null>(null)`"
     },
     {
       "type": "Line",
-      "start": 727,
-      "end": 729,
+      "start": 725,
+      "end": 727,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 730,
-      "end": 789,
+      "start": 728,
+      "end": 787,
       "value": " Parsed with --lang=tsx (auto-discovered from spec/tsx/)."
     }
   ]

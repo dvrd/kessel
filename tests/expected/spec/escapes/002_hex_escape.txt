@@ -76,7 +76,7 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 74,
+      "end": 71,
       "value": " ECMA-262 §12.9.4 — \\xHH hex escape. Exactly two hex digits required."
     }
   ]

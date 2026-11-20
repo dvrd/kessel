@@ -2622,9 +2622,6 @@ parse_function_param_rest :: proc(p: ^Parser, param: ^FunctionParameter) -> ^Fun
 			ann := parse_ts_type_annotation(p)
 			if ident, ok := arg_pattern.(^Identifier); ok {
 				ident.type_annotation = ann
-				if ann != nil && ann.loc.end > ident.loc.end {
-					ident.loc.end = ann.loc.end
-				}
 			}
 		}
 		rest.loc.end = prev_end_offset(p)
@@ -4294,6 +4291,7 @@ try_parse_class_index_signature :: proc(p: ^Parser, start: Loc, mods: ^ClassMemb
 	assert(is_token(p, .LBracket))
 	ensure_nxt(p)
 	if !allow_ts_mode(p) || !ts_index_parameter_name(p.lexer.nxt.kind) { return nil }
+	bracket := cur_loc(p)
 	saved := lexer_snapshot(p)
 	eat(p)
 	if !ts_index_parameter_ahead(p) {
@@ -4301,7 +4299,7 @@ try_parse_class_index_signature :: proc(p: ^Parser, start: Loc, mods: ^ClassMemb
 		return nil
 	}
 	if mods.accessibility != .None {
-		report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", mods.access_name))
+		report_error_coded_span(p, .K4032_ModifierMisplaced, bracket.start, bracket.end, fmt.tprintf("'%s' modifier cannot appear on an index signature", mods.access_name))
 	}
 	sig := parse_ts_index_signature(p, start, readonly = mods.is_readonly, static_ = mods.static_, in_class = true)
 	elem := new_node(p, ClassElement)

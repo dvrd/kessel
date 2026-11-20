@@ -98,43 +98,43 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 76,
+      "end": 73,
       "value": " ECMA-262 §12.9.4 — NonEscapeCharacter: any SourceCharacter that is not"
     },
     {
       "type": "Line",
-      "start": 77,
-      "end": 150,
+      "start": 74,
+      "end": 147,
       "value": " one of the recognised escapes, `0` followed by a digit, `x`, `u`, or a"
     },
     {
       "type": "Line",
-      "start": 151,
-      "end": 197,
+      "start": 148,
+      "end": 194,
       "value": " LineTerminator. Identity-escapes to itself."
     },
     {
       "type": "Line",
-      "start": 215,
-      "end": 221,
+      "start": 212,
+      "end": 218,
       "value": " \"h\""
     },
     {
       "type": "Line",
-      "start": 239,
-      "end": 245,
+      "start": 236,
+      "end": 242,
       "value": " \"z\""
     },
     {
       "type": "Line",
-      "start": 263,
-      "end": 269,
+      "start": 260,
+      "end": 266,
       "value": " \"$\""
     },
     {
       "type": "Line",
-      "start": 287,
-      "end": 293,
+      "start": 284,
+      "end": 290,
       "value": " \"@\""
     }
   ]

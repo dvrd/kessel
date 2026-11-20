@@ -31,32 +31,32 @@
   "comments": [
     {
       "type": "Line",
-      "start": 23,
-      "end": 91,
+      "start": 21,
+      "end": 89,
       "value": " Lexical: UTF-8 BOM (U+FEFF encoded as 0xEF 0xBB 0xBF) at the very"
     },
     {
       "type": "Line",
-      "start": 92,
-      "end": 162,
+      "start": 90,
+      "end": 160,
       "value": " start of the file, immediately followed by a hashbang line. The BOM"
     },
     {
       "type": "Line",
-      "start": 163,
-      "end": 234,
+      "start": 161,
+      "end": 232,
       "value": " must be skipped before tokenisation begins, AND the hashbang must be"
     },
     {
       "type": "Line",
-      "start": 235,
-      "end": 307,
+      "start": 233,
+      "end": 305,
       "value": " captured on `Program.hashbang` rather than as a comment or statement."
     },
     {
       "type": "Line",
-      "start": 308,
-      "end": 359,
+      "start": 306,
+      "end": 357,
       "value": " The subsequent source is plain ES script syntax."
     }
   ],

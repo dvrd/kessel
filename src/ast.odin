@@ -1437,6 +1437,15 @@ ExportSpecifier :: struct {
 	exported:  ExportSpecifierName,
 }
 
+// An inline type modifier precedes the local name in the source span.
+export_specifier_is_type :: proc(spec: ^ExportSpecifier) -> bool {
+	switch local in spec.local {
+	case IdentifierName: return spec.loc.start < local.loc.start
+	case ^StringLiteral: return local != nil && spec.loc.start < local.loc.start
+	}
+	return false
+}
+
 ExportNamedDeclaration :: struct {
 	loc:        Loc,
 	declaration: Maybe(^Declaration),

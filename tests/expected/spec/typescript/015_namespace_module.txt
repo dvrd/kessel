@@ -405,91 +405,91 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 70,
+      "end": 68,
       "value": " TS-D: `namespace` / `declare module` declarations — exercises the"
     },
     {
       "type": "Line",
-      "start": 71,
-      "end": 123,
+      "start": 69,
+      "end": 121,
       "value": " TSModuleDeclaration shape across its three forms:"
     },
     {
       "type": "Line",
-      "start": 124,
-      "end": 195,
+      "start": 122,
+      "end": 193,
       "value": "   1. plain `namespace` with a TSModuleBlock body (statements inside)"
     },
     {
       "type": "Line",
-      "start": 196,
-      "end": 268,
+      "start": 194,
+      "end": 266,
       "value": "   2. `declare module 'name'` ambient module (string id, declare=true)"
     },
     {
       "type": "Line",
-      "start": 269,
-      "end": 340,
+      "start": 267,
+      "end": 338,
       "value": "   3. dotted name `namespace A.B.C { ... }` which desugars to a chain"
     },
     {
       "type": "Line",
-      "start": 341,
-      "end": 405,
+      "start": 339,
+      "end": 403,
       "value": "      of nested TSModuleDeclaration nodes (body is a recursive"
     },
     {
       "type": "Line",
-      "start": 406,
-      "end": 457,
+      "start": 404,
+      "end": 455,
       "value": "      ^TSModuleDeclaration, not a ^TSModuleBlock)"
     },
     {
       "type": "Line",
-      "start": 458,
-      "end": 460,
+      "start": 456,
+      "end": 458,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 461,
-      "end": 525,
+      "start": 459,
+      "end": 523,
       "value": " Each form must produce a TSModuleDeclaration node whose `id`,"
     },
     {
       "type": "Line",
-      "start": 526,
-      "end": 591,
+      "start": 524,
+      "end": 589,
       "value": " `body`, `declare`, `global`, and `kind` slots match OXC's deep"
     },
     {
       "type": "Line",
-      "start": 592,
-      "end": 658,
+      "start": 590,
+      "end": 656,
       "value": " shape. The spec-fixtures runner pins the JSON output below; the"
     },
     {
       "type": "Line",
-      "start": 659,
-      "end": 727,
+      "start": 657,
+      "end": 725,
       "value": " new W3 binary-buffer gate (verify_ts_statements_jsx.js) walks the"
     },
     {
       "type": "Line",
-      "start": 728,
-      "end": 798,
+      "start": 726,
+      "end": 796,
       "value": " raw-transfer buffer and asserts that the same id/body slots resolve"
     },
     {
       "type": "Line",
-      "start": 799,
-      "end": 860,
+      "start": 797,
+      "end": 858,
       "value": " to in-buffer offsets, where before W3 they held bare arena"
     },
     {
       "type": "Line",
-      "start": 861,
-      "end": 893,
+      "start": 859,
+      "end": 891,
       "value": " addresses outside the buffer."
     }
   ]

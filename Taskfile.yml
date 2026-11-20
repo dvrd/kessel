@@ -92,10 +92,10 @@ tasks:
       - bash tests/runners/npm_registry_smoke.sh {{.CLI_ARGS}}
 
   test:npm:typed:
-    desc: Check typed ASTs against Oxc across the TypeScript standard library.
-    deps: [build:lib]
+    desc: Check CLI and npm ASTs against Oxc across the TypeScript standard library.
+    deps: [build, build:lib]
     cmds:
-      - node tests/verifiers/verify_npm_typescript.js {{.CLI_ARGS}}
+      - node tests/verifiers/verify_npm_typescript.js --cli {{.CLI_ARGS}}
 
   test:npm:real:
     desc: Parse the pinned release corpus through the npm asynchronous API.

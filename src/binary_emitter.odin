@@ -495,12 +495,8 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
 		bw_u32(be, u32(len(s.specifiers)))
-		for spec in s.specifiers {
-			type_only := false
-			switch local in spec.local {
-			case IdentifierName: type_only = spec.loc.start < local.loc.start
-			case ^StringLiteral: type_only = local != nil && spec.loc.start < local.loc.start
-			}
+		for &spec in s.specifiers {
+			type_only := export_specifier_is_type(&spec)
 			if type_only {
 				bin_extra(be)
 				bin_field_text(be, "exportKind", "type")

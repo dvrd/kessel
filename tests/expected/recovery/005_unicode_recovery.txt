@@ -236,8 +236,8 @@
     },
     {
       "type": "Line",
-      "start": 192,
-      "end": 238,
+      "start": 165,
+      "end": 211,
       "value": " Valid code continues after potential issues"
     }
   ]

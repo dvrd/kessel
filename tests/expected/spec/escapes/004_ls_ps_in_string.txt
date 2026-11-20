@@ -54,19 +54,19 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 70,
+      "end": 68,
       "value": " ES2019 — LINE SEPARATOR (U+2028) and PARAGRAPH SEPARATOR (U+2029)"
     },
     {
       "type": "Line",
-      "start": 71,
-      "end": 141,
+      "start": 69,
+      "end": 139,
       "value": " are now allowed as LITERAL characters inside string literals. Prior"
     },
     {
       "type": "Line",
-      "start": 142,
-      "end": 178,
+      "start": 140,
+      "end": 176,
       "value": " to ES2019 they were SyntaxErrors."
     }
   ]

@@ -230,49 +230,49 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 47,
+      "end": 46,
       "value": " All single-character escapes per §12.9.4.2."
     },
     {
       "type": "Line",
-      "start": 70,
-      "end": 89,
+      "start": 69,
+      "end": 88,
       "value": " U+0008 BACKSPACE"
     },
     {
       "type": "Line",
-      "start": 112,
-      "end": 121,
+      "start": 111,
+      "end": 120,
       "value": " U+0009"
     },
     {
       "type": "Line",
-      "start": 144,
-      "end": 153,
+      "start": 143,
+      "end": 152,
       "value": " U+000A"
     },
     {
       "type": "Line",
-      "start": 176,
-      "end": 185,
+      "start": 175,
+      "end": 184,
       "value": " U+000B"
     },
     {
       "type": "Line",
-      "start": 208,
-      "end": 217,
+      "start": 207,
+      "end": 216,
       "value": " U+000C"
     },
     {
       "type": "Line",
-      "start": 240,
-      "end": 249,
+      "start": 239,
+      "end": 248,
       "value": " U+000D"
     },
     {
       "type": "Line",
-      "start": 335,
-      "end": 361,
+      "start": 334,
+      "end": 360,
       "value": " U+0000 (no digit after)"
     }
   ]
