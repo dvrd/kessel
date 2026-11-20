@@ -17,9 +17,28 @@ assert.equal(program.type, 'Program');
 assert.equal(program.body[0].kind, 'const');
 assert.equal(program.body[0].declarations[0].id.name, 'x');
 assert.equal(program.body[0].declarations[0].init.value, 1);
+function checkClassIndexSignatures(file) {
+  const source = 'export class Table { readonly [key: string]: number; static [id: symbol]: string; field = 1; }';
+  fs.writeFileSync(file, source);
+  const json = spawnSync(binary, ['parse', file, '--json'], {encoding: 'utf8'});
+  assert.equal(json.status, 0, json.stderr);
+  const members = JSON.parse(json.stdout).body[0].declaration.body.body;
+  assert.deepEqual(members.map(m => m.type), ['TSIndexSignature', 'TSIndexSignature', 'PropertyDefinition']);
+  assert.deepEqual(members.slice(0, 2).map(m =>
+    [m.parameters[0].name, m.parameters[0].typeAnnotation.typeAnnotation.type,
+      m.typeAnnotation.typeAnnotation.type, m.readonly, m.static]), [
+    ['key', 'TSStringKeyword', 'TSNumberKeyword', true, false],
+    ['id', 'TSSymbolKeyword', 'TSStringKeyword', false, true],
+  ]);
+  const result = spawnSync(binary, ['strip-types', file], {encoding: 'utf8'});
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout.trim(), 'export class Table {\n  field = 1;\n}');
+}
+
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-cli-ast-'));
 try {
   const file = path.join(folder, 'input.ts');
+  checkClassIndexSignatures(file);
   const field = 'export default class { declare x; }';
   for (const [source, version] of [
     ['export default function() {}', 4], [field, 5],

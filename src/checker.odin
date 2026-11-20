@@ -4633,7 +4633,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 					ck_report_coded(c, u32(fn.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have a return type annotation")
 				}
 			}
-		case .StaticBlock, .Field:
+		case .StaticBlock, .Field, .IndexSignature:
 			unreachable() // handled outside this switch
 		}
 		return

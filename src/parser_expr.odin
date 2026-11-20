@@ -184,7 +184,7 @@ parse_expr_yield_lhs_restricted :: proc(p: ^Parser, left: ^Expression) -> bool {
 // TSSatisfiesExpression nodes. In a JS file the operator is reported as a
 // TS-only construct but still parsed for error recovery. Extracted from
 // parse_expr_with_prec; called #force_inline to preserve hot-path codegen.
-parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
+parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression, start: u32) -> ^Expression {
 	left := left
 	for is_token(p, .As) || is_token(p, .Satisfies) {
 		if !allow_ts_mode(p) {
@@ -198,7 +198,7 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression
 			eat(p)
 			ts_type := parse_ts_type(p)
 			as_expr, as_expr_e := new_expr(p, TSAsExpression)
-			as_expr.loc = loc_from_expr(left)
+			as_expr.loc.start = start
 			as_expr.expression = left
 			as_expr.type_annotation = ts_type
 			as_expr.loc.end = prev_end_offset(p)
@@ -207,7 +207,7 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression
 			eat(p)
 			ts_type := parse_ts_type(p)
 			sat_expr, sat_expr_e := new_expr(p, TSSatisfiesExpression)
-			sat_expr.loc = loc_from_expr(left)
+			sat_expr.loc.start = start
 			sat_expr.expression = left
 			sat_expr.type_annotation = ts_type
 			sat_expr.loc.end = prev_end_offset(p)
@@ -218,6 +218,8 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression
 }
 
 parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
+	// Outer type operators include grouping delimiters even when the AST elides parentheses.
+	start := cur_offset(p)
 	prev_private_in_allowed := p.ctx.private_in_allowed
 	p.ctx.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
 	left := parse_unary_expr(p)
@@ -234,7 +236,7 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 	}
 
 	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
-	left = #force_inline parse_expr_ts_type_postfix(p, left)
+	left = #force_inline parse_expr_ts_type_postfix(p, left, start)
 
 	for {
 		if left == nil {

@@ -5,48 +5,50 @@ BIN_MODULE_KIND := [TSModuleKind]string{.Namespace = "namespace", .Module = "mod
 
 bin_field_members :: proc(be: ^BinaryEmitter, key: string, members: []^TSSignature) {
 	bin_field_array(be, key, len(members))
-	for sig in members {
-		switch v in sig^ {
-		case TSPropertySignature:
-			bin_record(be, "TSPropertySignature", v.loc)
-			bin_field_expr(be, "key", v.key)
-			bin_field_bool(be, "computed", v.computed)
-			bin_field_bool(be, "optional", v.optional)
-			bin_field_bool(be, "readonly", v.readonly)
-			bin_field_annotation(be, "typeAnnotation", v.type_annotation)
-			bin_field(be, .Null, "accessibility")
-			bin_field_bool(be, "static", false)
-		case TSMethodSignature:
-			bin_record(be, "TSMethodSignature", v.loc)
-			bin_field_expr(be, "key", v.key)
-			bin_field_bool(be, "computed", v.computed)
-			bin_field_bool(be, "optional", v.optional)
-			bin_field_text(be, "kind", BIN_SIGNATURE_KIND[v.kind])
-			bin_field_generics(be, v.type_parameters)
-			bin_field_ts_params(be, "params", v.params[:])
-			bin_field_annotation(be, "returnType", v.return_type)
-			bin_field(be, .Null, "accessibility")
-			bin_field_bool(be, "readonly", false)
-			bin_field_bool(be, "static", false)
-		case TSCallSignatureDeclaration:
-			bin_record(be, "TSCallSignatureDeclaration", v.loc)
-			bin_field_generics(be, v.type_parameters)
-			bin_field_ts_params(be, "params", v.params[:])
-			bin_field_annotation(be, "returnType", v.return_type)
-		case TSConstructSignatureDeclaration:
-			bin_record(be, "TSConstructSignatureDeclaration", v.loc)
-			bin_field_generics(be, v.type_parameters)
-			bin_field_ts_params(be, "params", v.params[:])
-			bin_field_annotation(be, "returnType", v.return_type)
-		case TSIndexSignature:
-			bin_record(be, "TSIndexSignature", v.loc)
-			bin_field_ts_params(be, "parameters", v.parameters[:])
-			bin_field_annotation(be, "typeAnnotation", v.type_annotation)
-			bin_field_bool(be, "readonly", v.readonly)
-			bin_field_bool(be, "static", v.static_)
-		}
-		bin_fields_end(be)
+	for sig in members { bin_emit_signature(be, sig) }
+}
+
+bin_emit_signature :: proc(be: ^BinaryEmitter, sig: ^TSSignature) {
+	switch v in sig^ {
+	case TSPropertySignature:
+		bin_record(be, "TSPropertySignature", v.loc)
+		bin_field_expr(be, "key", v.key)
+		bin_field_bool(be, "computed", v.computed)
+		bin_field_bool(be, "optional", v.optional)
+		bin_field_bool(be, "readonly", v.readonly)
+		bin_field_annotation(be, "typeAnnotation", v.type_annotation)
+		bin_field(be, .Null, "accessibility")
+		bin_field_bool(be, "static", false)
+	case TSMethodSignature:
+		bin_record(be, "TSMethodSignature", v.loc)
+		bin_field_expr(be, "key", v.key)
+		bin_field_bool(be, "computed", v.computed)
+		bin_field_bool(be, "optional", v.optional)
+		bin_field_text(be, "kind", BIN_SIGNATURE_KIND[v.kind])
+		bin_field_generics(be, v.type_parameters)
+		bin_field_ts_params(be, "params", v.params[:])
+		bin_field_annotation(be, "returnType", v.return_type)
+		bin_field(be, .Null, "accessibility")
+		bin_field_bool(be, "readonly", false)
+		bin_field_bool(be, "static", false)
+	case TSCallSignatureDeclaration:
+		bin_record(be, "TSCallSignatureDeclaration", v.loc)
+		bin_field_generics(be, v.type_parameters)
+		bin_field_ts_params(be, "params", v.params[:])
+		bin_field_annotation(be, "returnType", v.return_type)
+	case TSConstructSignatureDeclaration:
+		bin_record(be, "TSConstructSignatureDeclaration", v.loc)
+		bin_field_generics(be, v.type_parameters)
+		bin_field_ts_params(be, "params", v.params[:])
+		bin_field_annotation(be, "returnType", v.return_type)
+	case TSIndexSignature:
+		bin_record(be, "TSIndexSignature", v.loc)
+		bin_field_ts_params(be, "parameters", v.parameters[:])
+		bin_field_annotation(be, "typeAnnotation", v.type_annotation)
+		bin_field_bool(be, "readonly", v.readonly)
+		bin_field_bool(be, "static", v.static_)
 	}
+	bin_fields_end(be)
 }
 
 bin_field_ts_params :: proc(be: ^BinaryEmitter, key: string, params: []TSFunctionParam) {
@@ -295,9 +297,9 @@ bin_type_class_element :: proc(be: ^BinaryEmitter, el: ClassElement) {
 		bin_field_bool(be, "readonly", el.readonly)
 		bin_field_bool(be, "declare", el.declare)
 		bin_field_bool(be, "definite", el.definite)
-		bin_field_annotation(be, "typeAnnotation", el.type_annotation)
+		bin_field_annotation(be, "typeAnnotation", el.typing.annotation)
 	} else {
-		kinds := [ClassElementKind]string{.Method="method", .Get="get", .Set="set", .Constructor="constructor", .Field="", .StaticBlock=""}
+		kinds := [ClassElementKind]string{.Method="method", .Get="get", .Set="set", .Constructor="constructor", .Field="", .StaticBlock="", .IndexSignature=""}
 		bin_field_text(be, "kind", kinds[el.kind])
 	}
 	bin_fields_end(be)

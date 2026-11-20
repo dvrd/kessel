@@ -1159,7 +1159,12 @@ rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base
 		if elem.kind == .Field { elem.kind = .Method }
 		rewrite_expr_field(elem.key, &elem.key, base, source_base)
 		rewrite_maybe_expr(&elem.value, base, source_base)
-		rewrite_maybe_ts_type_annotation(&elem.type_annotation, base, source_base)
+		if elem.kind == .IndexSignature {
+			rewrite_ts_signature(elem.typing.index_signature, base, source_base)
+			rewrite_ptr((^rawptr)(&elem.typing.index_signature), base)
+		} else {
+			rewrite_maybe_ts_type_annotation(&elem.typing.annotation, base, source_base)
+		}
 		// Per-element decorators (`@bound method() {}`, `@dec field;`).
 		rewrite_decorator_array(&elem.decorators, base, source_base)
 	}

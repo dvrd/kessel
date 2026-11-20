@@ -1391,6 +1391,7 @@ gen_class_like :: proc(
 // runtime: a declared field, an abstract member, or a bodyless method / constructor (a TS
 // overload signature or ambient method declaration).
 class_element_erased :: proc(el: ClassElement) -> bool {
+	if el.kind == .IndexSignature { return true }
 	if el.declare { return true }
 	if el.abstract { return true }
 	#partial switch el.kind {
@@ -1438,7 +1439,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		if el.computed { cg_byte(cg, ']') }
 		if el.optional && !cg.cfg.strip_types { cg_byte(cg, '?') }
 		if el.definite && !cg.cfg.strip_types { cg_byte(cg, '!') }
-		if ta, ok := el.type_annotation.?; ok && !cg.cfg.strip_types {
+		if ta, ok := el.typing.annotation.?; ok && !cg.cfg.strip_types {
 			cg_str(cg, ": ")
 			gen_ts_type(cg, ta.type_annotation)
 		}
@@ -1487,6 +1488,9 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 			}
 		}
 		cg_str(cg, "() {}")
+	case .IndexSignature:
+		gen_ts_signature(cg, el.typing.index_signature)
+		cg_byte(cg, ';')
 	case .StaticBlock:
 		// Parser stores the static block as a FunctionExpression with no
 		// params; body.body holds the statements. See parse_static_block.

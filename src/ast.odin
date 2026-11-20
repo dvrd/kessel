@@ -1143,6 +1143,7 @@ ClassElementKind :: enum {
 	Constructor,
 	StaticBlock,  // ES2022 static { ... }
 	Field,
+	IndexSignature,
 }
 
 // TS class-member visibility modifier. .None means no modifier was written
@@ -1156,6 +1157,15 @@ ClassAccessibility :: enum u8 {
 	Protected,
 }
 
+// The element kind selects the active type pointer. Both alternatives occupy the
+// existing field annotation slot in the raw arena format.
+ClassElementType :: struct #raw_union {
+	annotation:      Maybe(^TSTypeAnnotation),
+	index_signature: ^TSSignature,
+}
+#assert(size_of(ClassElementType) == size_of(Maybe(^TSTypeAnnotation)))
+#assert(align_of(ClassElementType) == align_of(Maybe(^TSTypeAnnotation)))
+
 ClassElement :: struct {
 	loc:             Loc,
 	key:             ^Expression,
@@ -1166,7 +1176,7 @@ ClassElement :: struct {
 	is_accessor:     bool, // `accessor` keyword — emits as "AccessorProperty"
 	decorators:      [dynamic]Decorator,
 	abstract:        bool,
-	type_annotation: Maybe(^TSTypeAnnotation),  // TS: `foo: T`
+	typing:          ClassElementType,
 	optional:        bool,                        // TS: `foo?:`
 	definite:        bool,                        // TS: `foo!:` (definite assignment)
 	accessibility:   ClassAccessibility,          // TS: public/private/protected

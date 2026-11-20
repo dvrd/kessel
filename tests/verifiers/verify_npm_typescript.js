@@ -62,10 +62,11 @@ function compareProgram(expected, actual, source, filename) {
   return nodes;
 }
 
-async function verifyFile(filename, source) {
-  const reference = oracle.parseSync(filename, source);
-  const sync = sdk.parseSync(filename, source);
-  const asyncResult = await sdk.parseAsync(filename, source);
+async function verifyFile(filename, source, preserveParens) {
+  const options = preserveParens === undefined ? undefined : { preserveParens };
+  const reference = oracle.parseSync(filename, source, options);
+  const sync = sdk.parseSync(filename, source, options);
+  const asyncResult = await sdk.parseAsync(filename, source, options);
   for (const result of [reference, sync, asyncResult]) assert.deepEqual(result.errors, [], filename);
   assert.deepEqual(asyncResult.program, sync.program, filename + ' async AST');
   return compareProgram(reference.program, sync.program, source, filename);
@@ -85,10 +86,19 @@ async function verify() {
       'export type Name = string; export const café: Item = {id:1};'],
     ['imports.ts', "import { type Item, make } from 'items'; export {type Item, make};"],
     ['component.tsx', 'export const view = <View<string> />;'],
+    ['class-index.ts', '/*🚀*/ type Entry = string; export class Table { readonly [key:string]: Entry; ' +
+      'static [readonly:symbol]: number; key = "value"; }'],
     ['empty.ts', '// 🚀\n'],
   ];
   for (const [filename, source] of examples) await verifyFile(filename, source);
-  console.log('Sync and async ASTs match for all libraries and ' + examples.length + ' focused cases');
+  const components = ['001_generic_component.js', '002_hooks_refs_as_casts.js'];
+  for (const file of components) {
+    const source = fs.readFileSync(path.join(root, 'tests/fixtures/spec/tsx', file), 'utf8');
+    const filename = file.replace(/\.js$/, '.tsx');
+    await verifyFile(filename, source, false);
+    await verifyFile(filename, source, true);
+  }
+  console.log('Both SDK APIs match Oxc for all libraries, ' + examples.length + ' focused files and both TSX components in both parentheses modes');
 }
 
 verify().catch(error => {

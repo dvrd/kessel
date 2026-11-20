@@ -1234,12 +1234,17 @@ bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 }
 
 bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
-	if elem.type_annotation != nil || elem.abstract || elem.optional || elem.definite || elem.readonly || elem.override_ ||
+	if elem.kind == .IndexSignature {
+		bin_emit_signature(be, elem.typing.index_signature)
+		return
+	}
+	if elem.typing.annotation != nil || elem.abstract || elem.optional || elem.definite || elem.readonly || elem.override_ ||
 	   elem.accessibility != .None || elem.is_accessor || len(elem.decorators) != 0 {
 		bin_type_class_element(be, elem)
 		return
 	}
 	switch elem.kind {
+	case .IndexSignature: unreachable()
 	case .StaticBlock:
 		bin_node_header(be, .StaticBlock, elem.loc)
 		if v, ok := elem.value.?; ok && v != nil {

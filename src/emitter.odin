@@ -1588,14 +1588,16 @@ print_class_body_inline :: proc(e: ^Emitter, body: ^ClassBody, indent: int) {
 	for i in 0 ..< len(body.body) {
 		elem := &body.body[i]
 		emit_indent(e, indent + 1)
-		emit_raw(e, "{\n")
-		print_class_element_fields(e, elem, indent + 2)
-		emit_indent(e, indent + 1)
-		if i < len(body.body) - 1 {
-			emit_raw(e, "},\n")
+		if elem.kind == .IndexSignature {
+			emit_ts_signature(e, elem.typing.index_signature, indent + 1)
 		} else {
-			emit_raw(e, "}\n")
+			emit_raw(e, "{\n")
+			print_class_element_fields(e, elem, indent + 2)
+			emit_indent(e, indent + 1)
+			emit_raw(e, "}")
 		}
+		if i + 1 < len(body.body) { emit_raw(e, ",") }
+		emit_raw(e, "\n")
 	}
 	emit_indent(e, indent)
 	emit_raw(e, "]\n")
@@ -1736,7 +1738,7 @@ print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_me
 	}
 	// typeAnnotation is a PropertyDefinition field only (not MethodDefinition).
 	if !is_method {
-		if ann, ok := elem.type_annotation.(^TSTypeAnnotation); ok {
+		if ann, ok := elem.typing.annotation.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
 			emit_raw(e, "\"typeAnnotation\": ")

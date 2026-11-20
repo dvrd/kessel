@@ -1414,7 +1414,7 @@
                   "end": 1914,
                   "expression": {
                     "type": "TSAsExpression",
-                    "start": 1888,
+                    "start": 1887,
                     "end": 1913,
                     "expression": {
                       "type": "LogicalExpression",

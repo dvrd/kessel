@@ -761,7 +761,7 @@
                                   "end": 1545,
                                   "expression": {
                                     "type": "TSAsExpression",
-                                    "start": 1491,
+                                    "start": 1490,
                                     "end": 1544,
                                     "expression": {
                                       "type": "ConditionalExpression",

@@ -4114,6 +4114,7 @@ check_class_private_dup :: proc(p: ^Parser, elem: ClassElement, seen: ^map[strin
 		if prev.has_get && prev.get_static != elem.static { static_mismatch = true }
 		prev.has_set = true
 		prev.set_static = elem.static
+	case .IndexSignature: unreachable() // Index signatures have no private name.
 	case .Method, .Constructor, .StaticBlock, .Field:
 		if prev.has_get || prev.has_set || prev.has_other { dup = true }
 		prev.has_other = true
@@ -4288,52 +4289,26 @@ parse_class_member_modifiers :: proc(p: ^Parser) -> ClassMemberModifiers {
 }
 
 
-// try_consume_ts_class_index_signature detects and consumes a TS index
-// signature in a class body (`[s: string]: number`) when the `[` clearly
-// opens one (`[ Identifier (: | ?:) ...`). Mirrors parse_ts_object_member's
-// index-signature arm. Returns true when an index signature was consumed —
-// the caller then drops the element (returns nil), matching the existing
-// pattern for parser-intentionally-dropped elements (TS overload signatures
-// don't materialize either). Returns false when the `[` is an ordinary
-// computed property key; the lexer cursor is left untouched in that case so
-// the caller can parse the computed key.
-try_consume_ts_class_index_signature :: proc(p: ^Parser, accessibility: ClassAccessibility, access_name: string) -> bool {
+// Probe the bracketed member without consuming a computed property key.
+try_parse_class_index_signature :: proc(p: ^Parser, start: Loc, mods: ^ClassMemberModifiers) -> ^ClassElement {
+	assert(is_token(p, .LBracket))
 	ensure_nxt(p)
-	if !(allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier) {
-		return false
+	if !allow_ts_mode(p) || !ts_index_parameter_name(p.lexer.nxt.kind) { return nil }
+	saved := lexer_snapshot(p)
+	eat(p)
+	if !ts_index_parameter_ahead(p) {
+		lexer_restore(p, saved)
+		return nil
 	}
-	// Two-token lookahead: nxt is the identifier, nxt.nxt would be `:`.
-	// We don't have a 2-tok-ahead helper, so snapshot+probe.
-	snap := lexer_snapshot(p)
-	eat(p)  // consume `[`
-	eat(p)  // consume identifier
-	ensure_nxt(p)
-	is_index_sig := is_token(p, .Colon) ||
-	                (is_token(p, .Question) && p.lexer.nxt.kind == .Colon)
-	lexer_restore(p, snap)
-	if !is_index_sig {
-		return false
+	if mods.accessibility != .None {
+		report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", mods.access_name))
 	}
-	// Confirmed: parse and discard the index signature. Same shape
-	// as parse_ts_object_member's index-signature arm.
-	if accessibility != .None {
-		report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", access_name))
-	}
-	eat(p)            // `[`
-	eat(p)            // identifier
-	if match_token(p, .Question) {
-		report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
-	}
-	expect_token(p, .Colon)
-	_ = parse_ts_type(p)
-	expect_token(p, .RBracket)
-	if is_token(p, .Colon) && allow_ts_mode(p) {
-		_ = parse_ts_type_annotation(p)
-	} else if allow_ts_mode(p) {
-		report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-	}
-	match_semicolon_or_asi(p)
-	return true
+	sig := parse_ts_index_signature(p, start, readonly = mods.is_readonly, static_ = mods.static_, in_class = true)
+	elem := new_node(p, ClassElement)
+	elem.kind = .IndexSignature
+	elem.loc = sig^.(TSIndexSignature).loc
+	elem.typing.index_signature = sig
+	return elem
 }
 
 // parse_class_accessor_keyword — `accessor` (Stage-3 decorators auto-accessor)
@@ -4524,8 +4499,7 @@ parse_class_field_initializer :: proc(p: ^Parser, is_declare, is_readonly, is_ab
 // ClassElementName carries the result of parsing a class member's key:
 // the key expression, the (possibly constructor-promoted) element kind, and
 // whether the key was computed. drop=true means the element should be swallowed
-// without materialising a node (a TS class index signature or a malformed
-// computed key) — the caller returns nil.
+// without materialising a node (for example, a malformed computed key) — the caller returns nil.
 ClassElementName :: struct {
 	key:      ^Expression,
 	kind:     ClassElementKind,
@@ -4543,7 +4517,6 @@ parse_class_element_name :: proc(
 	kind_in: ClassElementKind,
 	static_, is_async, is_generator: bool,
 	accessibility: ClassAccessibility,
-	access_name: string,
 ) -> ClassElementName {
 	if is_token(p, .PrivateIdentifier) {
 		return parse_class_name_private(p, kind_in, accessibility)
@@ -4556,7 +4529,7 @@ parse_class_element_name :: proc(
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		return parse_class_name_identifier(p, kind_in, is_async, is_generator, static_)
 	} else if is_token(p, .LBracket) {
-		return parse_class_name_computed(p, kind_in, accessibility, access_name)
+		return parse_class_name_computed(p, kind_in)
 	}
 	report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method or property name")
 	return ClassElementName{drop = true}
@@ -4697,25 +4670,9 @@ parse_class_name_identifier :: proc(p: ^Parser, kind_in: ClassElementKind, is_as
 	return ClassElementName{key = key, kind = kind, computed = false}
 }
 
-// parse_class_name_computed builds a computed `[expr]` class member name (or
-// drops a TS class index signature), rejecting an array-literal computed key.
-parse_class_name_computed :: proc(p: ^Parser, kind: ClassElementKind, accessibility: ClassAccessibility, access_name: string) -> ClassElementName {
+// Parse a computed class member after index signatures have been disambiguated.
+parse_class_name_computed :: proc(p: ^Parser, kind: ClassElementKind) -> ClassElementName {
 	key: ^Expression
-	// TS index signature in class body: `[s: string]: number`. Detect by
-	// peeking `[ Identifier : ...`. The interface-body parser
-	// (parse_ts_object_member) handles this; class bodies need the same
-	// detection. Without it, `[s: string]` is misparsed as a computed
-	// property key, choking on `:` while looking for `]`.
-	// cluster. Skipped at the AST level for
-	// now - the parser accepts the syntax, the corpus smoke gate passes,
-	// and a proper TSIndexSignature class-element node can come in W7+
-	// when the deep walker starts comparing class bodies.
-	// Return nil so the class-body loop swallows the element without
-	// erroring - mirrors the existing pattern for elements that the parser
-	// intentionally drops (TS overload signatures don't materialize either).
-	if try_consume_ts_class_index_signature(p, accessibility, access_name) {
-		return ClassElementName{drop = true}
-	}
 	// Computed property: [expr]
 	eat(p)
 	// `[` opens a fresh expression context - the enclosing for-head
@@ -4815,7 +4772,7 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	elem.is_accessor = parts.is_accessor
 	elem.abstract = parts.is_abstract
 	elem.decorators = parts.decorators
-	elem.type_annotation = parts.type_annotation
+	elem.typing.annotation = parts.type_annotation
 	elem.optional = parts.optional
 	if parts.is_accessor && parts.optional {
 		report_error_coded(p, .K4032_ModifierMisplaced, "An 'accessor' property cannot be declared optional")
@@ -5309,7 +5266,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	static_       := mods.static_
 	is_abstract   := mods.is_abstract
 	accessibility := mods.accessibility
-	access_name   := mods.access_name
 	is_readonly   := mods.is_readonly
 	is_override   := mods.is_override
 	is_declare    := mods.is_declare
@@ -5339,7 +5295,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// Parse method/property name (private / literal / identifier / computed).
-	name_res := parse_class_element_name(p, kind, static_, is_async, is_generator, accessibility, access_name)
+	if is_token(p, .LBracket) {
+		if elem := try_parse_class_index_signature(p, start, &mods); elem != nil { return elem }
+	}
+	name_res := parse_class_element_name(p, kind, static_, is_async, is_generator, accessibility)
 	if name_res.drop {
 		return nil
 	}
