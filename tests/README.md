@@ -88,6 +88,14 @@ thresholds. Keep the pinned reference revision available in the checkout.
 Use `task test:bench:regression` to compare against the stored timings from the
 original benchmark host.
 
+After npm publishes a release, the release workflow checks the public package
+on all five target platforms and compares each installed binary's SHA-256 with
+the corresponding build artifact. Run `task test:npm:registry -- MAJOR.MINOR.PATCH`
+with the exact version to repeat the install locally. Set `KESSEL_PACKAGE_BINARY`
+to the release library's path to include the digest check. The task uses a fresh
+npm cache, verifies all five native package versions, and parses TSX through the
+CommonJS and ESM entry points on the host's installed binary.
+
 ### Individual Checks
 
 ```bash
