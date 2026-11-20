@@ -315,6 +315,7 @@ tasks:
     desc: Compare against the baseline source revision using the same Odin compiler and host.
     cmds:
       - task --force build
+      - node tests/verifiers/verify_bench_sampling.js
       - |
         set -eu
         reference_dir=$(mktemp -d)

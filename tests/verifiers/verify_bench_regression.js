@@ -17,10 +17,9 @@
 //   files span size decades (snabbdom 4KB \u2192 typescript 10MB) and syntax
 //   bucketing (JSX-heavy react, deeply-nested monaco, uniform lodash).
 //
-// Why min, not mean or median?
-//   Min is the floor \u2014 machine could only be so fast, and noise can only
-//   make runs SLOWER. Min minimises false alarms from a noisy CI host. If
-//   min regresses, something real changed.
+// Each process reports its fastest iteration. For same-host comparisons,
+// alternate the order of candidate and reference and keep their timings
+// paired. CPU speed can shift between processes even for identical binaries.
 //
 // Why geo-mean across files, not arithmetic mean?
 //   File sizes span 4 orders of magnitude; an arithmetic mean over raw ns
@@ -128,16 +127,37 @@ function measureMinUs(absPath, binary = KESSEL) {
   const lines = (r.stdout + r.stderr).split(/\r?\n/);
   for (const line of lines) {
     const m = line.match(/^\s*Min:\s*([0-9]+(?:\.[0-9]+)?)/);
-    if (m) return parseFloat(m[1]);
+    if (m) {
+      const us = Number(m[1]);
+      if (Number.isFinite(us) && us > 0) return us;
+      throw new Error(binary + ' returned an invalid minimum time on ' + absPath + ': ' + m[1]);
+    }
   }
   throw new Error('kessel microbench produced no "Min:" line on ' + absPath +
                   '\nstdout tail: ' + r.stdout.slice(-500));
 }
 
-// -----------------------------------------------------------------------------
-// Measure. Warm up with one throw-away run per file so the first
-// measurement isn't biased by cold caches / filesystem noise.
-// -----------------------------------------------------------------------------
+function measureMatchedFile(file) {
+  // Three pairs in each order give each binary equal exposure to running first.
+  const pairs = [];
+  for (let round = 0; round < 6; round++) {
+    const referenceFirst = round % 2 === 0;
+    const first = measureMinUs(file, referenceFirst ? REFERENCE : KESSEL);
+    const second = measureMinUs(file, referenceFirst ? KESSEL : REFERENCE);
+    const current = referenceFirst ? second : first;
+    const reference = referenceFirst ? first : second;
+    pairs.push({ current, reference, ratio: current / reference });
+  }
+  pairs.sort((a, b) => a.ratio - b.ratio);
+  const middle = pairs.length / 2;
+  const lower = pairs[middle - 1], upper = pairs[middle];
+  // The displayed times yield the median log ratio of the six measured pairs.
+  return {
+    current: Math.sqrt(lower.current * upper.current),
+    reference: Math.sqrt(lower.reference * upper.reference),
+  };
+}
+
 console.log('bench_regression: iterations=' + ITERATIONS + ' files=' + FILES.length +
             (UPDATE ? ' mode=update' : REFERENCE ? ' reference=' + REFERENCE : ' mode=check') +
             (QUICK ? ' (quick)' : ''));
@@ -147,13 +167,9 @@ const referenceMeasurements = {};
 for (const rel of FILES) {
   const abs = path.join(ROOT, rel);
   if (REFERENCE) {
-    // Alternate which binary runs first to reduce sensitivity to warmup and load.
-    const referenceFirst = measureMinUs(abs, REFERENCE);
-    const currentFirst = measureMinUs(abs);
-    const currentSecond = measureMinUs(abs);
-    const referenceSecond = measureMinUs(abs, REFERENCE);
-    measurements[rel] = Math.min(currentFirst, currentSecond);
-    referenceMeasurements[rel] = Math.min(referenceFirst, referenceSecond);
+    const pair = measureMatchedFile(abs);
+    measurements[rel] = pair.current;
+    referenceMeasurements[rel] = pair.reference;
   } else {
     try { measureMinUs(abs); } catch { /* The measured run reports persistent failures. */ }
     measurements[rel] = measureMinUs(abs);
