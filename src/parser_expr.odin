@@ -5419,8 +5419,12 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 
 	eat(p)
 
+	errors_before_rhs := len(p.errors)
 	right := parse_expr_with_prec(p, .Assignment)
 	if right == nil {
+		if len(p.errors) == errors_before_rhs {
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after assignment operator")
+		}
 		return nil
 	}
 

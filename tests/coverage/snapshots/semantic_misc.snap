@@ -1,7 +1,7 @@
 semantic_misc Summary:
 AST Parsed     : 91/91 (100.00%)
 Positive Passed: 91/91 (100.00%)
-Negative Passed: 274/274 (100.00%)
+Negative Passed: 275/275 (100.00%)
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-export-statement.cjs:2:1: 'export' is only valid in module code
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
@@ -80,6 +80,7 @@ tests/coverage/misc/fail/kessel-ts2393-class-method-dup.ts:7:3: Duplicate identi
 tests/coverage/misc/fail/kessel-ts2393-fn-impl-dup.ts:5:1: Duplicate function implementation
 tests/coverage/misc/fail/let-member-expression.js:4:1: 'let' is a reserved identifier in strict mode
 tests/coverage/misc/fail/minus-yield-100.js:1:37: 'yield' expression cannot be the operand of a unary operator
+tests/coverage/misc/fail/missing-assignment-operand.js:2:12: Expected expression after assignment operator
 tests/coverage/misc/fail/missing-conditional-alternative-type.ts:2:1: Expected ':', got end of input
 tests/coverage/misc/fail/missing-conditional-alternative.js:2:1: Expected ':', got end of input
 tests/coverage/misc/fail/negative/001_unterminated_string.js:2:11: Unterminated string literal
