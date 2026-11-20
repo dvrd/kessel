@@ -2559,23 +2559,6 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 	return decl_union, export_kind, true
 }
 
-// report_export_default_function_tail flags an LHS-tail token that would
-// extend the `export default [async] function() {}` declaration into an
-// expression. Per §16.2.3 the FunctionDeclaration ends at `}`; a SAME-line
-// `(`/`[`/`.`/`` `tag` ``/`=>`/postfix `++`/`--` makes the production fail,
-// while a token on the NEXT line is a fresh statement (ASI applies at the
-// declaration boundary). Only same-line continuations are errors. Test262:
-// language/module-code/parse-err-invoke-anon-{fun,gen}-decl.js.
-report_export_default_function_tail :: proc(p: ^Parser) {
-	if cur_has_newline(p) { return }
-	#partial switch p.cur_type {
-	case .LParen, .LBracket, .Dot, .OptionalChain,
-	     .Template, .TemplateHead, .Arrow,
-	     .PlusPlus, .MinusMinus:
-		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after 'export default function' declaration")
-	}
-}
-
 // A default function declaration may be anonymous. A named declaration
 // introduces a module binding, unlike a parenthesized function expression.
 parse_export_default_function :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
@@ -2587,7 +2570,7 @@ parse_export_default_function :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
 			def = decl
 		}
 	}
-	report_export_default_function_tail(p)
+	// The body closes the declaration. Parse the next statement even on the same line.
 	return
 }
 

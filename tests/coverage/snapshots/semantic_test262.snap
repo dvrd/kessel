@@ -3021,8 +3021,8 @@ test262/test/language/module-code/parse-err-export-dflt-let.js:15:16: 'export de
 test262/test/language/module-code/parse-err-export-dflt-var.js:15:16: 'export default' cannot be followed by a variable declaration
 test262/test/language/module-code/parse-err-hoist-lex-fun.js:25:10: Identifier 'f' has already been declared
 test262/test/language/module-code/parse-err-hoist-lex-gen.js:27:11: Identifier 'g' has already been declared
-test262/test/language/module-code/parse-err-invoke-anon-fun-decl.js:26:29: Unexpected token after 'export default function' declaration
-test262/test/language/module-code/parse-err-invoke-anon-gen-decl.js:28:31: Unexpected token after 'export default function' declaration
+test262/test/language/module-code/parse-err-invoke-anon-fun-decl.js:26:31: Empty parenthesized expression
+test262/test/language/module-code/parse-err-invoke-anon-gen-decl.js:28:33: Empty parenthesized expression
 test262/test/language/module-code/parse-err-return.js:32:7: 'return' outside of function
 test262/test/language/module-code/parse-err-semi-dflt-expr.js:27:21: Unexpected token following export default expression
 test262/test/language/module-code/parse-err-semi-export-star.js:27:49: Expected semicolon after export declaration
