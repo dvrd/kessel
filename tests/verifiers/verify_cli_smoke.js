@@ -41,5 +41,39 @@ try {
       assert.equal(source.slice(id.start, id.end), 'f');
     }
   }
+
+  for (const [mode, suffix] of [[[], '.json'], [['--raw'], '.bin']]) {
+    const output = path.join(folder, 'nested', suffix.slice(1));
+    const args = ['parse', ...mode, '--workers', '2', '--out-dir', output];
+    const parse = (...files) => spawnSync(binary, [...args, ...files], { encoding: 'utf8' });
+    const target = path.join(output, path.basename(file) + suffix);
+    const other = path.join(output, path.basename(fixture) + suffix);
+
+    const success = parse(file, fixture);
+    assert.equal(success.status, 0, success.stderr);
+    assert.ok(fs.statSync(target).size > 0);
+    assert.ok(fs.statSync(other).size > 0);
+
+    fs.unlinkSync(target);
+    fs.mkdirSync(target);
+    const failedWrite = parse(file, fixture);
+    assert.equal(failedWrite.status, 1);
+    assert.ok(failedWrite.stderr.includes(target), failedWrite.stderr);
+    assert.match(failedWrite.stdout, /Files: 1\b/);
+    assert.ok(fs.statSync(other).size > 0);
+
+    const missing = path.join(folder, 'missing.js');
+    const failedRead = parse(missing, fixture);
+    assert.equal(failedRead.status, 1);
+    assert.ok(failedRead.stderr.includes(missing), failedRead.stderr);
+    assert.match(failedRead.stdout, /Files: 1\b/);
+  }
+
+  const blocked = spawnSync(binary, ['parse', file, fixture, '--out-dir', file], { encoding: 'utf8' });
+  assert.equal(blocked.status, 1);
+  assert.ok(blocked.stderr.includes(file), blocked.stderr);
+  const singleRaw = spawnSync(binary, ['parse', file, '--raw', '--out-dir', file], { encoding: 'utf8' });
+  assert.equal(singleRaw.status, 1);
+  assert.ok(singleRaw.stderr.includes(file), singleRaw.stderr);
 } finally { fs.rmSync(folder, { recursive: true, force: true }); }
 console.log('CLI parsed the smoke fixture on ' + process.platform + '-' + process.arch);

@@ -1266,17 +1266,14 @@ produce_raw_buffer_from_job :: proc(job: ^ParseJob) -> RawTransferResult {
 
 
 // Write raw transfer buffer to a file: [header][arena bytes]
-write_raw_buffer :: proc(result: RawTransferResult, path: string) -> bool {
+write_raw_buffer :: proc(result: RawTransferResult, path: string) -> (ok: bool) {
 	fd, err := os.open(path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
 	if err != nil { return false }
-	defer os.close(fd)
+	defer if os.close(fd) != nil { ok = false }
 
-	// Write header
-	header_bytes := transmute([size_of(RawTransferHeader)]u8)result.header
-	os.write(fd, header_bytes[:])
-
-	// Write arena buffer
-	os.write(fd, result.buffer)
-
-	return true
+	header := transmute([size_of(RawTransferHeader)]u8)result.header
+	header_size, header_err := os.write(fd, header[:])
+	if header_err != nil || header_size != len(header) { return false }
+	data_size, data_err := os.write(fd, result.buffer)
+	return data_err == nil && data_size == len(result.buffer)
 }

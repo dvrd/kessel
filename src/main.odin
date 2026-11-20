@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:io"
 import mvirtual "core:mem/virtual"
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 import "core:time"
@@ -148,8 +149,10 @@ main :: proc() {
 			} else if parse_raw {
 				if parse_out_dir != "" {
 					base := filepath_base(parse_files[0])
-					out_path := strings.concatenate({parse_out_dir, "/", base, ".bin"})
-					parse_file_raw_to_disk(parse_files[0], out_path, cli)
+					out_path := strings.concatenate({parse_out_dir, filepath.SEPARATOR_STRING, base, ".bin"})
+					if !parse_output_directory(parse_out_dir) { os.exit(1) }
+					ok, _, _ := parse_file_raw_to_disk(parse_files[0], out_path, cli)
+					if !ok { os.exit(1) }
 				} else {
 					raw_transfer_file(parse_files[0], "", cli)
 				}
@@ -162,7 +165,10 @@ main :: proc() {
 				if parse_workers < 1 { parse_workers = 1 }
 			}
 			if parse_out_dir == "" { parse_out_dir = parse_raw ? "tmp/raw" : "tmp/ast" }
-			parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli)
+			if !parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli) {
+				flush_stdout_writer()
+				os.exit(1)
+			}
 		}
 		delete(parse_files)
 
@@ -1097,7 +1103,10 @@ raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
 
 parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		return false, 0, 0
+	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
@@ -1122,7 +1131,10 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	}
 	emit_raw(&e, "}\n")
 
-	_ = os.write_entire_file(out_path, e.buf[:e.pos])
+	if err := os.write_entire_file(out_path, e.buf[:e.pos]); err != nil {
+		fmt.eprintf("Error: Could not write %s: %v\n", out_path, err)
+		return false, 0, 0
+	}
 
 	return true, len(job.source.data), len(job.parser.errors)
 }
@@ -1133,13 +1145,17 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 
 parse_file_raw_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		return false, 0, 0
+	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	result := produce_raw_buffer_from_job(&job)
 	if !write_raw_buffer(result, out_path) {
+		fmt.eprintf("Error: Could not write %s\n", out_path)
 		return false, 0, 0
 	}
 	return true, len(job.source.data), result.error_count
@@ -1171,7 +1187,8 @@ worker_proc :: proc(data: rawptr) {
 		base := filepath_base(ctx.files[i])
 		ext := ".json"
 		if ctx.write_raw { ext = ".bin" }
-		out_path := strings.concatenate({ctx.out_dir, "/", base, ext})
+		out_path := strings.concatenate({ctx.out_dir, filepath.SEPARATOR_STRING, base, ext})
+		defer delete(out_path)
 		success: bool
 		bytes: int
 		errs: int
@@ -1235,22 +1252,17 @@ filepath_base :: proc(path: string) -> string {
 	return path
 }
 
-mkdir_p :: proc(path: string) {
-	for i in 0..<len(path) {
-		if path[i] == '/' && i > 0 {
-			os.make_directory(path[:i])
-		}
-	}
-	os.make_directory(path)
+parse_output_directory :: proc(path: string) -> bool {
+	err := os.make_directory_all(path, os.Permissions_Default_Directory)
+	if err == nil { return true }
+	if err == .Exist && os.is_directory(path) { return true }
+	fmt.eprintf("Error: Could not create output directory %s: %v\n", path, err)
+	return false
 }
 
-parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) {
-	if len(files) == 0 {
-		out_println("No files to parse.")
-		return
-	}
-
-	mkdir_p(out_dir)
+parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) -> bool {
+	assert(len(files) > 1)
+	if !parse_output_directory(out_dir) { return false }
 
 	// Pre-initialize thread-unsafe global tables before spawning workers.
 	init_char_class_table()
@@ -1311,7 +1323,7 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: 
 	}
 	out_printf("  Workers: %d\n", actual_workers)
 	out_printf("  Output:  %s/\n", out_dir)
-	os.flush(os.stdout)
+	return total_parsed == len(files)
 }
 // Microbench Command (in-process parse measurements)
 // ============================================================================
