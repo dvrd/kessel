@@ -816,33 +816,28 @@ bin_template_element :: proc(be: ^BinaryEmitter, q: TemplateElement) {
 	bw_string_ref(be, q.raw)
 }
 
-bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
+bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern, param: ^TSFunctionParam = nil) {
 	#partial switch p in pat {
 	case ^Identifier:
-		if p.type_annotation != nil || p.optional {
-			bin_type_identifier(be, p.loc, p.name, p.type_annotation, p.optional)
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, p.optional, param)
+		if annotation != nil || optional {
+			bin_type_identifier(be, loc, p.name, annotation, optional)
 			return
 		}
-		bin_node_header(be, .Identifier, p.loc)
+		bin_node_header(be, .Identifier, loc)
 		bw_string_ref(be, p.name)
 	case ^ObjectPattern:
-		if p.type_annotation != nil {
-			bin_extra(be)
-			bin_field_annotation(be, "typeAnnotation", p.type_annotation)
-			bin_fields_end(be)
-		}
-		bin_node_header(be, .ObjectPattern, p.loc)
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
+		bin_pattern_typing(be, annotation, optional)
+		bin_node_header(be, .ObjectPattern, loc)
 		bw_u32(be, u32(len(p.properties)))
 		for prop in p.properties {
 			bin_emit_obj_pat_prop(be, prop)
 		}
 	case ^ArrayPattern:
-		if p.type_annotation != nil {
-			bin_extra(be)
-			bin_field_annotation(be, "typeAnnotation", p.type_annotation)
-			bin_fields_end(be)
-		}
-		bin_node_header(be, .ArrayPattern, p.loc)
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
+		bin_pattern_typing(be, annotation, optional)
+		bin_node_header(be, .ArrayPattern, loc)
 		bw_u32(be, u32(len(p.elements)))
 		for elem in p.elements {
 			if e, ok := elem.?; ok {
@@ -854,9 +849,13 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 		}
 	case ^AssignmentPattern:
 		bin_node_header(be, .AssignmentPattern, p.loc)
-		bin_emit_pattern(be, p.left)
+		bin_emit_pattern(be, p.left, param)
 		bin_emit_expression(be, p.right)
 	case ^RestElement:
+		if param != nil {
+			bin_type_rest(be, p, param.type_annotation, param.loc)
+			return
+		}
 		if id, plain := p.argument.(^Identifier); plain && id.type_annotation != nil {
 			bin_type_rest(be, p, id.type_annotation, p.loc)
 			return
@@ -872,6 +871,14 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 	case:
 		bw_u8(be, u8(BinValType.NullNode))
 	}
+}
+
+bin_pattern_typing :: proc(be: ^BinaryEmitter, annotation: Maybe(^TSTypeAnnotation), optional: bool) {
+	if annotation == nil && !optional { return }
+	bin_extra(be)
+	if annotation != nil { bin_field_annotation(be, "typeAnnotation", annotation) }
+	if optional { bin_field_bool(be, "optional", true) }
+	bin_fields_end(be)
 }
 
 // ============================================================================

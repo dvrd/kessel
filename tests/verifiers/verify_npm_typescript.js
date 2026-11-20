@@ -87,6 +87,19 @@ async function verifyFile(filename, source, preserveParens, cliPath) {
   return nodes;
 }
 
+// Printing can change whitespace and literal spelling. Reparse with Oxc to
+// verify that types, options, and default initializers still have the same owners.
+function verifyPrintedTypes(filename, file, source) {
+  const output = execFileSync(binary, ['codegen', file], {encoding: 'utf8'});
+  const tree = text => {
+    const result = oracle.parseSync(filename, text);
+    assert.deepEqual(result.errors, [], filename + ' codegen');
+    return JSON.stringify(result.program, (key, value) =>
+      key === 'start' || key === 'end' || key === 'raw' ? undefined : value);
+  };
+  assert.equal(tree(output), tree(source), filename + ' codegen AST');
+}
+
 async function verify(directory) {
   assert.equal(bench('typescript/package.json').version, '5.9.3');
   const files = fs.readdirSync(library).filter(name => /^lib(?:\..+)?\.d\.ts$/.test(name)).sort();
@@ -102,6 +115,11 @@ async function verify(directory) {
       'export type Name = string; export const café: Item = {id:1};'],
     ['imports.ts', "import { type Item, make } from 'items'; export {type Item, make}; " +
       "export type Imported = import('items').Box<number>;"],
+    ['bindings.ts', 'type F = ({x}?: {x: number}, [v]?: [string]) => void; ' +
+      'interface I { run({x}: {x: string}, [v]: [number], n: number = 1): void }'],
+    ['import-types.ts', '/*🚀*/ export type M = import("pkg", {with: {"resolution-mode": "import"}}).A.B<number>; ' +
+      'type Q = typeof import("mod", {assert: {type: "json"}}).item<string>[]; ' +
+      'type Element = typeof import("pkg").object["key"]; type S = import("p", {with: super().config}).S;'],
     ['component.tsx', 'export const view = <View<string> />;'],
     ['class-index.ts', '/*🚀*/ type Entry = string; export class Table { readonly [key:string]: Entry; ' +
       'static [readonly:symbol]: number; key = "value"; }'],
@@ -111,6 +129,9 @@ async function verify(directory) {
     const file = path.join(directory, filename);
     if (checkCli) fs.writeFileSync(file, source);
     await verifyFile(filename, source, undefined, file);
+    if (checkCli && (filename === 'bindings.ts' || filename === 'import-types.ts')) {
+      verifyPrintedTypes(filename, file, source);
+    }
   }
   const components = ['001_generic_component.js', '002_hooks_refs_as_casts.js'];
   for (const file of components) {

@@ -180,6 +180,7 @@ ParseContext :: struct {
 	in_static_block:          bool,
 	in_field_init:            bool,
 	in_ts_namespace:          bool,
+	in_ts_import_options:     bool,
 	in_ts_module_block:       bool,
 	in_case_clause:           bool,
 	in_method:                bool,

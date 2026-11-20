@@ -83,6 +83,16 @@ const { parseAsync } = await import('@dvrdlibs/kessel');
 const typed = await parseAsync('element.tsx', 'const element = <View<string> />;');
 assert.deepEqual(typed.errors, []);
 assert.equal(typed.program.body[0].declarations[0].init.openingElement.typeArguments.params[0].type, 'TSStringKeyword');
+const signature = await parseAsync('api.ts',
+  'export type Read = ([entry]?: [typeof import("pkg", {with: {type: "json"}}).A.B]) => void;');
+assert.deepEqual(signature.errors, []);
+const [param] = signature.program.body[0].declaration.typeAnnotation.params;
+assert.equal(param.optional, true);
+assert.equal(param.elements[0].name, 'entry');
+const [query] = param.typeAnnotation.typeAnnotation.elementTypes;
+assert.equal(query.type, 'TSTypeQuery');
+assert.equal(query.exprName.qualifier.right.name, 'B');
+assert.equal(query.exprName.options.properties[0].value.properties[0].value.value, 'json');
 const source = '/*🚀*/ const element = ' + '['.repeat(64) + '<main />' + ']'.repeat(64) + ';';
 const parsed = await parseAsync('test.tsx', source);
 assert.deepEqual(parsed.errors, []);

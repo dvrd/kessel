@@ -1253,7 +1253,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// §15.7.6 SuperCall: `super(...)` is only legal inside the
 			// constructor of a derived class.
 			if _, is_super := expr^.(^Super); is_super {
-				if !p.ctx.in_derived_constructor {
+				if !p.ctx.in_derived_constructor && !p.ctx.in_ts_import_options {
 					report_error_coded(p, .K3033_SuperInvalidContext, "'super' call is only allowed in the constructor of a derived class")
 				}
 			}
@@ -2311,7 +2311,7 @@ parse_primary_super :: proc(p: ^Parser) -> ^Expression {
 	// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
 	// `super.x` / `super[x]` outside a method body is a SyntaxError.
   ensure_nxt(p)
-	if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method {
+	if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method && !p.ctx.in_ts_import_options {
 		report_error_coded(p, .K3033_SuperInvalidContext, "'super' property access is only valid inside a method")
 	}
 	eat(p)
@@ -2630,7 +2630,7 @@ property_is_literal_proto_init :: proc(prop: ^Property) -> bool {
 	return false
 }
 
-parse_object_expr :: proc(p: ^Parser) -> ^Expression {
+parse_object_expr :: proc(p: ^Parser, ts_attributes := false) -> ^Expression {
 	start := cur_loc(p)
 
 	if !expect_token(p, .LBrace) {
@@ -2667,7 +2667,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 			break
 		}
 
-		prop := parse_property(p)
+		prop := parse_ts_import_attribute(p) if ts_attributes else parse_property(p)
 		if prop != nil {
 			// §13.2.5.1 duplicate `__proto__` is now enforced post-parse by
 			// the semantic checker (ck_check_object_proto_dups), which can

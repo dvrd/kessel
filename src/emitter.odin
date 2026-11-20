@@ -3188,21 +3188,22 @@ emit_rest_fields :: proc(e: ^Emitter, rest: ^RestElement, loc: Loc, annotation: 
 	}
 }
 
-print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
+print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int, param: ^TSFunctionParam = nil) {
 	// MemberExpression delegates to print_expression_ast which has its own
 	// span emission; every other pattern variant emits type + span here.
 	#partial switch p in pattern {
 	case ^Identifier:
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, p.optional, param)
 		emit_indent(e, indent)
 		emit_raw(e, "\"type\": \"Identifier\",\n")
 		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
+		emit_span_leading(e, loc, indent)
 		emit_raw(e, "\"name\": ")
 		emit_str(e, p.name)
 		// TypeScript type annotation on binding identifier. In TS-shape mode
 		// always emit the field (null when absent) so the AST matches OXC's
 		// TS-ESTree shape; in JS mode omit the field when null.
-		if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
+		if ann, ok := annotation.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
 			emit_raw(e, "\"typeAnnotation\": ")
@@ -3212,14 +3213,15 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 			emit_indent(e, indent)
 			emit_raw(e, "\"typeAnnotation\": null")
 		}
-		if e.cfg.ts_shape || p.optional {
+		if e.cfg.ts_shape || optional {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
 			emit_raw(e, "\"optional\": ")
-			emit_bool(e, p.optional)
+			emit_bool(e, optional)
 		}
 	case ^RestElement:
-		emit_rest_fields(e, p, p.loc, nil, indent)
+		loc, annotation, _ := ts_param_binding_fields(p.loc, nil, false, param)
+		emit_rest_fields(e, p, loc, annotation, indent)
 	case ^AssignmentPattern:
 		// ESTree `AssignmentPattern { left: Pattern, right: Expression }` -
 		// the `x = 1` inside `{ x = 1 }` or `[x = 1]`. Same JSON-validity
@@ -3229,7 +3231,7 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 		emit_indent(e, indent)
 		emit_span_leading(e, p.loc, indent)
 		emit_raw(e, "\"left\": {\n")
-		print_pattern_ast(e, p.left, indent + 1)
+		print_pattern_ast(e, p.left, indent + 1, param)
 		emit_raw(e, "\n")
 		emit_indent(e, indent)
 		emit_raw(e, "},\n")
@@ -3259,10 +3261,11 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 		expr: Expression = p
 		print_expression_ast(e, &expr, indent)
 	case ^ArrayPattern:
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
 		emit_indent(e, indent)
 		emit_raw(e, "\"type\": \"ArrayPattern\",\n")
 		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
+		emit_span_leading(e, loc, indent)
 		emit_raw(e, "\"elements\": [")
 		if len(p.elements) == 0 {
 			emit_raw(e, "]")
@@ -3285,30 +3288,13 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 			emit_indent(e, indent)
 			emit_raw(e, "]")
 		}
-		// S26 W4: TS-ESTree always emits `optional: false` and a
-		// `typeAnnotation` field on every Pattern node, regardless of
-		// whether the source has a `?` marker or `:T` annotation.
-		// S26 W4b: ArrayPattern.type_annotation is now a real AST slot
-		// populated by parse_function_param when the source has
-		// `function f([a, b]: T)`; emit the actual annotation when set,
-		// `null` otherwise.
-		if e.cfg.ts_shape {
-			emit_raw(e, ",\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": false,\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"typeAnnotation\": ")
-			if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
-				emit_ts_type_annotation_node(e, ann, indent)
-			} else {
-				emit_raw(e, "null")
-			}
-		}
+		if e.cfg.ts_shape { emit_pattern_typing(e, annotation, optional, indent) }
 	case ^ObjectPattern:
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
 		emit_indent(e, indent)
 		emit_raw(e, "\"type\": \"ObjectPattern\",\n")
 		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
+		emit_span_leading(e, loc, indent)
 		emit_raw(e, "\"properties\": [")
 		if len(p.properties) == 0 {
 			emit_raw(e, "]")
@@ -3433,26 +3419,22 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 			emit_indent(e, indent)
 			emit_raw(e, "]")
 		}
-		// S26 W4 / W4b: same TS-shape footer as ArrayPattern — OXC always
-		// emits `optional: false` and a `typeAnnotation` field, with the
-		// real annotation when `function f({a, b}: T)` puts one on the
-		// ObjectPattern.
-		if e.cfg.ts_shape {
-			emit_raw(e, ",\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": false,\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"typeAnnotation\": ")
-			if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
-				emit_ts_type_annotation_node(e, ann, indent)
-			} else {
-				emit_raw(e, "null")
-			}
-		}
+		if e.cfg.ts_shape { emit_pattern_typing(e, annotation, optional, indent) }
 	case:
 		emit_indent(e, indent)
 		emit_raw(e, "null")
 	}
+}
+
+emit_pattern_typing :: proc(e: ^Emitter, annotation: Maybe(^TSTypeAnnotation), optional: bool, indent: int) {
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"optional\": ")
+	emit_bool(e, optional)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"typeAnnotation\": ")
+	if ann, typed := annotation.?; typed { emit_ts_type_annotation_node(e, ann, indent) } else { emit_raw(e, "null") }
 }
 
 // print_expression_as_pattern emits an ^Expression as ESTree pattern JSON.
@@ -4211,38 +4193,17 @@ emit_ts_type_argument_list :: proc(e: ^Emitter, targs_opt: Maybe(^TSTypeParamete
 
 emit_ts_parameters :: proc(e: ^Emitter, params: []TSFunctionParam, indent: int) {
 	emit_raw(e, "[")
-	for param, i in params {
+	for &param, i in params {
 		emit_raw(e, "\n" if i == 0 else ",\n")
 		emit_indent(e, indent + 1)
-		emit_ts_function_param(e, param, indent + 1)
+		emit_raw(e, "{\n")
+		print_pattern_ast(e, param.pattern, indent + 2, &param)
+		emit_raw(e, "\n")
+		emit_indent(e, indent + 1)
+		emit_raw(e, "}")
 	}
 	if len(params) > 0 { emit_raw(e, "\n"); emit_indent(e, indent) }
 	emit_raw(e, "]")
-}
-
-emit_ts_function_param :: proc(e: ^Emitter, fp: TSFunctionParam, indent: int) {
-	emit_raw(e, "{\n")
-	#partial switch p in fp.pattern {
-	case ^Identifier:
-		binding := p^
-		binding.loc = fp.loc
-		binding.optional = p.optional || fp.optional
-		if fp.type_annotation != nil { binding.type_annotation = fp.type_annotation }
-		print_pattern_ast(e, &binding, indent + 1)
-	case ^RestElement:
-		emit_rest_fields(e, p, fp.loc, fp.type_annotation, indent + 1)
-	case:
-		print_pattern_ast(e, fp.pattern, indent + 1)
-		if ann, ok := fp.type_annotation.?; ok {
-			emit_raw(e, ",\n")
-			emit_indent(e, indent + 1)
-			emit_raw(e, "\"typeAnnotation\": ")
-			emit_ts_type_annotation_node(e, ann, indent + 1)
-		}
-	}
-	emit_raw(e, "\n")
-	emit_indent(e, indent)
-	emit_raw(e, "}")
 }
 
 // emit_ts_type_parameter_declaration writes a TSTypeParameterDeclaration or null.
@@ -4404,6 +4365,44 @@ emit_template_quasis :: proc(e: ^Emitter, quasis: []TemplateElement, indent: int
 	}
 }
 
+emit_ts_import_fields :: proc(e: ^Emitter, v: ^TSImportType, indent: int) {
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"TSImportType\"")
+	emit_span_fields(e, ts_import_type_loc(v), indent)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"source\": ")
+	if v.argument == nil {
+		emit_raw(e, "null")
+	} else if literal, ok := v.argument^.(^TSLiteralType); ok {
+		emit_raw(e, "{\n")
+		print_expression_ast(e, literal.literal, indent + 1)
+		emit_raw(e, "\n")
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	} else {
+		emit_ts_type(e, v.argument, indent)
+	}
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"options\": ")
+	if options := ts_import_type_options(v); options != nil {
+		emit_raw(e, "{\n")
+		print_expression_ast(e, options, indent + 1)
+		emit_raw(e, "\n")
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	} else { emit_raw(e, "null") }
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"qualifier\": ")
+	if qualifier, ok := v.qualifier.?; ok { emit_ts_type_name(e, qualifier, indent) } else { emit_raw(e, "null") }
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"typeArguments\": ")
+	emit_ts_type_argument_list(e, v.type_parameters, indent)
+}
+
 // emit_ts_type emits a TSType union variant as JSON.
 emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 	if t == nil {
@@ -4490,19 +4489,8 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_ts_type_parameter_declaration(e, v.type_parameters, indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_ts_function_param(e, fp, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"returnType\": ")
@@ -4530,19 +4518,8 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_ts_type_parameter_declaration(e, v.type_parameters, indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_ts_function_param(e, fp, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"returnType\": ")
@@ -4845,31 +4822,22 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		if len(v.types) > 0 { emit_raw(e, "\n"); emit_indent(e, indent + 1) }
 		emit_raw(e, "]")
 	case ^TSImportType:
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSImportType\"")
-		emit_span_fields(e, v.loc, indent + 1)
-		emit_raw(e, ",\n")
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"source\": ")
-		if v.argument == nil {
-			emit_raw(e, "null")
-		} else if literal, ok := v.argument^.(^TSLiteralType); ok {
-			emit_raw(e, "{\n")
-			print_expression_ast(e, literal.literal, indent + 2)
+		if v.is_typeof {
+			emit_indent(e, indent + 1)
+			emit_raw(e, "\"type\": \"TSTypeQuery\"")
+			emit_span_fields(e, v.loc, indent + 1)
+			emit_raw(e, ",\n")
+			emit_indent(e, indent + 1)
+			emit_raw(e, "\"exprName\": {\n")
+			emit_ts_import_fields(e, v, indent + 2)
 			emit_raw(e, "\n")
 			emit_indent(e, indent + 1)
-			emit_raw(e, "}")
+			emit_raw(e, "},\n")
+			emit_indent(e, indent + 1)
+			emit_raw(e, "\"typeArguments\": null")
 		} else {
-			emit_ts_type(e, v.argument, indent + 1)
+			emit_ts_import_fields(e, v, indent + 1)
 		}
-		emit_raw(e, ",\n")
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"qualifier\": ")
-		if qualifier, ok := v.qualifier.?; ok { emit_ts_type_name(e, qualifier, indent + 1) } else { emit_raw(e, "null") }
-		emit_raw(e, ",\n")
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"typeArguments\": ")
-		emit_ts_type_argument_list(e, v.type_parameters, indent + 1)
 	case ^TSTypePredicate:
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"type\": \"TSTypePredicate\"")

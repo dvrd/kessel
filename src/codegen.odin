@@ -2275,11 +2275,18 @@ gen_ts_function_params :: proc(cg: ^Codegen, params: []TSFunctionParam) {
 }
 
 gen_ts_function_param :: proc(cg: ^Codegen, p: TSFunctionParam) {
-	gen_pattern(cg, p.pattern)
+	pattern := p.pattern
+	assignment, has_default := pattern.(^AssignmentPattern)
+	if has_default && assignment != nil { pattern = assignment.left }
+	gen_pattern(cg, pattern)
 	if p.optional { cg_byte(cg, '?') }
 	if ta, ok := p.type_annotation.?; ok {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, ta.type_annotation)
+	}
+	if has_default && assignment != nil {
+		cg_str(cg, " = ")
+		gen_expression(cg, assignment.right, PREC_ASSIGN)
 	}
 }
 
@@ -2772,6 +2779,11 @@ gen_ts_import_type_full :: proc(cg: ^Codegen, t: ^TSImportType) {
 	if t.is_typeof { cg_str(cg, "typeof ") }
 	cg_str(cg, "import(")
 	gen_ts_type(cg, t.argument)
+	if options := ts_import_type_options(t); options != nil {
+		cg_byte(cg, ',')
+		cg_space(cg)
+		gen_expression(cg, options, PREC_ASSIGN)
+	}
 	cg_byte(cg, ')')
 	if q, ok := t.qualifier.?; ok {
 		cg_byte(cg, '.')

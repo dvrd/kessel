@@ -351,6 +351,22 @@ TSFunctionParam :: struct {
 	optional:        bool,
 }
 
+// Signature parameters keep their annotation separately from the binding pattern.
+// A default value belongs to the assignment wrapper, after the typed binding.
+ts_param_binding_fields :: proc(
+	loc: Loc, annotation: Maybe(^TSTypeAnnotation), optional: bool, param: ^TSFunctionParam,
+) -> (Loc, Maybe(^TSTypeAnnotation), bool) {
+	if param == nil { return loc, annotation, optional }
+	binding := loc
+	if _, assignment := param.pattern.(^AssignmentPattern); !assignment {
+		binding = param.loc
+	} else if ann, typed := param.type_annotation.?; typed {
+		binding.end = ann.loc.end
+	}
+	ann := param.type_annotation if param.type_annotation != nil else annotation
+	return binding, ann, optional || param.optional
+}
+
 // Type literal / object type: `{ x: number; y: string }`
 TSTypeLiteral :: struct {
 	loc:     Loc,
@@ -464,6 +480,27 @@ TSImportType :: struct {
 	qualifier:       Maybe(^Expression),
 	type_parameters: Maybe(^TSTypeParameterInstantiation),
 	is_typeof:       bool,
+	has_options:     bool,
+	import_start:    u32,
+}
+
+// The raw v1 prefix retains the existing offsets. Only imports with an options
+// object allocate the additional pointer.
+TSImportTypeWithOptions :: struct {
+	base:    TSImportType,
+	options: ^Expression,
+}
+
+#assert(offset_of(TSImportType, import_start) == offset_of(TSImportType, is_typeof) + 4)
+#assert(offset_of(TSImportTypeWithOptions, options) == size_of(TSImportType))
+
+ts_import_type_options :: proc(node: ^TSImportType) -> ^Expression {
+	if !node.has_options { return nil }
+	return (cast(^TSImportTypeWithOptions)node).options
+}
+
+ts_import_type_loc :: proc(node: ^TSImportType) -> Loc {
+	return {max(node.loc.start, node.import_start), node.loc.end}
 }
 
 // `as` expression: `expr as Type`

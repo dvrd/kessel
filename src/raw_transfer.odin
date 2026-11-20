@@ -893,6 +893,10 @@ rewrite_ts_type :: proc(t: ^TSType, base: uintptr, source_base: uintptr) {
 		rewrite_expr_field(v.parameter_name, &v.parameter_name, base, source_base)
 		rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
 	case ^TSImportType:
+		if v.has_options {
+			full := cast(^TSImportTypeWithOptions)v
+			rewrite_expr_field(full.options, &full.options, base, source_base)
+		}
 		rewrite_ts_type_field(v.argument, &v.argument, base, source_base)
 		rewrite_maybe_expr(&v.qualifier, base, source_base)
 		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)

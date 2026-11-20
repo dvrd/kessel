@@ -53,14 +53,7 @@ bin_emit_signature :: proc(be: ^BinaryEmitter, sig: ^TSSignature) {
 
 bin_field_ts_params :: proc(be: ^BinaryEmitter, key: string, params: []TSFunctionParam) {
 	bin_field_array(be, key, len(params))
-	for p in params {
-		if id, simple := p.pattern.(^Identifier); simple {
-			annotation := p.type_annotation if p.type_annotation != nil else id.type_annotation
-			bin_type_identifier(be, p.loc, id.name, annotation, p.optional || id.optional)
-		} else if rest, spread := p.pattern.(^RestElement); spread {
-			bin_type_rest(be, rest, p.type_annotation, p.loc)
-		} else { bin_emit_pattern(be, p.pattern) }
-	}
+	for &param in params { bin_emit_pattern(be, param.pattern, &param) }
 }
 
 bin_type_interface :: proc(be: ^BinaryEmitter, decl: ^TSInterfaceDeclaration) {

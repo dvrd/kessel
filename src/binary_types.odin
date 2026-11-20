@@ -228,13 +228,23 @@ bin_type_other :: proc(be: ^BinaryEmitter, node: ^TSType) {
 		bin_field_annotation(be, "typeAnnotation", t.type_annotation)
 		bin_field_bool(be, "asserts", t.asserts)
 	case ^TSImportType:
-		bin_record(be, "TSImportType", t.loc)
-		if arg, literal := t.argument^.(^TSLiteralType); literal {
+		if t.is_typeof {
+			bin_record(be, "TSTypeQuery", t.loc)
+			bin_field(be, .Node, "exprName")
+		}
+		bin_record(be, "TSImportType", ts_import_type_loc(t))
+		if t.argument == nil {
+			bin_field(be, .Null, "source")
+		} else if arg, literal := t.argument^.(^TSLiteralType); literal {
 			bin_field_expr(be, "source", arg.literal)
 		} else { bin_field_type(be, "source", t.argument) }
-		bin_field(be, .Null, "options")
+		bin_field_expr(be, "options", ts_import_type_options(t))
 		bin_field_type_name(be, "qualifier", t.qualifier.? or_else nil)
 		bin_field_type_args(be, t.type_parameters)
+		if t.is_typeof {
+			bin_fields_end(be)
+			bin_field(be, .Null, "typeArguments")
+		}
 	case: unreachable()
 	}
 }

@@ -747,15 +747,49 @@ parse_ts_tuple_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	return parse_ts_postfix(p, r, start)
 }
 
-parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
-	// TS import type: `import("module").Member<TArgs>`
-	// Grammar (TS 4.6+):
-	//   ImportType: typeof? import ( StringLiteral ImportTypeAttributes? )
-	//                 ( . QualifiedName )? TypeArguments?
-	// Used to reference types from other modules without a top-level
-	// `import` statement - the canonical form in `.d.ts` libraries
-	// (oxc-parser/src-js/index.d.ts: `get program(): import("@oxc-
-	// project/types").Program`).
+// The options object permits one unescaped with/assert key. Its value can be
+// an expression. An object value has the restricted import-attribute grammar.
+parse_ts_import_options :: proc(p: ^Parser) -> ^Expression {
+	obj, expr := new_expr(p, ObjectExpression)
+	obj.loc = cur_loc(p)
+	eat(p) // Opening brace.
+	start := cur_loc(p)
+	if !(cur_value_eq(p, "with") || cur_value_eq(p, "assert")) || cur_has_escape(p) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
+	}
+	key, computed, key_ok := parse_property_key(p)
+	if !key_ok || !expect_token(p, .Colon) { return nil }
+	// An import type is erased. Its options expression has no runtime super binding.
+	prior_context := p.ctx
+	defer p.ctx = prior_context
+	p.ctx.no_in = false
+	p.ctx.in_ts_import_options = true
+	value := parse_object_expr(p, ts_attributes = true) if is_token(p, .LBrace) else parse_assignment_expression(p)
+	if value == nil { return nil }
+	obj.properties = make([dynamic]Property, 0, 1, p.allocator)
+	bump_append(&obj.properties, Property{loc = {start.start, prev_end_offset(p)}, key = key, value = value, computed = computed})
+	match_token(p, .Comma)
+	if !expect_token(p, .RBrace) { return nil }
+	obj.loc.end = prev_end_offset(p)
+	return expr
+}
+
+parse_ts_import_attribute :: proc(p: ^Parser) -> ^Property {
+	start := cur_loc(p)
+	#partial switch p.cur_type {
+	case .Dot3: report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
+	case .LBracket: report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
+	case .Number, .BigInt: report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
+	}
+	prop := parse_property(p)
+	if prop != nil && (prop.shorthand || prop.kind != .Init) {
+		report_error_coded_span(p, .K2023_ExpectedKeywordOrPunct, start.start, start.end, "Expected ':' after import attribute key")
+	}
+	return prop
+}
+
+parse_ts_import_type :: proc(p: ^Parser, start: Loc, is_typeof := false) -> ^TSType {
+	import_start := cur_loc(p).start
 	eat(p) // consume `import`
 	if !expect_token(p, .LParen) { return nil }
 	arg_type := parse_ts_type(p)
@@ -766,99 +800,28 @@ parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 			report_error_coded(p, .K2070_RequiredFormOrBinding, "String literal expected in import type")
 		}
 	}
-	// `with { ... }` import-type attributes - stage-3 since TS 5.3.
-	// Eat permissively without strict shape validation; the type
-	// checker handles semantics.
-	if is_token(p, .Comma) {
-		eat(p)
-		// After the comma, `{` must follow (import-type attributes).
-		// `import("foo", )` with trailing comma is a SyntaxError.
-		if is_token(p, .RParen) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
-		}
-		// Parse import-type options object: `{ with: { key: "value" } }`.
-		// Validate structural constraints that OXC/TSC enforce:
-		//   - The key must be the bare identifier `with` (no escapes,
-		//     not a string literal, not computed).
-		//   - Inner attribute keys must be plain identifiers or string
-		//     literals (no computed properties).
-		//   - No spread elements in the inner object.
+	options: ^Expression
+	if match_token(p, .Comma) {
 		if is_token(p, .LBrace) {
-			eat(p) // consume outer {
-			// Validate the `with` key.
-			if is_token(p, .With) {
-				// Good: bare `with` keyword.
-			} else if is_token(p, .Identifier) && cur_value_eq(p, "with") {
-				// `w\u0069th` — escaped form of `with`.
-				if cur_has_escape(p) {
-					report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
-				}
-			} else if is_token(p, .String) {
-				// `"with"` as string literal key.
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
-			}
-			eat(p) // consume key (with / identifier / string)
-			if is_token(p, .Colon) { eat(p) } // consume :
-			// Inner value: `{ type: "json" }`. Validate contents.
-			if is_token(p, .LBrace) {
-				eat(p) // consume inner {
-				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-					if is_token(p, .Dot3) {
-						report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
-					}
-					if is_token(p, .LBracket) {
-						report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
-					}
-					// Validate the key: must be Identifier, String, or keyword-as-name.
-					// Numeric / BigInt literals as keys are invalid here.
-					if is_token(p, .Number) || is_token(p, .BigInt) {
-						report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
-					}
-					eat(p) // consume key
-					if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
-						report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ':' after import attribute key")
-					}
-					if is_token(p, .Colon) {
-						eat(p) // consume :
-						// Skip value tokens until comma or closing brace.
-						inner_depth := 0
-						for !is_token(p, .EOF) {
-							if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
-							else if is_token(p, .RBrace) || is_token(p, .RBracket) {
-								if inner_depth == 0 { break }
-								inner_depth -= 1
-							}
-							else if is_token(p, .Comma) && inner_depth == 0 {
-								break
-							}
-							eat(p)
-						}
-					}
-					if is_token(p, .Comma) { eat(p) } // consume comma
-				}
-				if is_token(p, .RBrace) { eat(p) } // consume inner }
-			} else {
-				// Non-object value — skip balanced.
-				depth := 0
-				for !is_token(p, .EOF) {
-					if is_token(p, .LBrace) { depth += 1 }
-					else if is_token(p, .RBrace) {
-						if depth == 0 { break }
-						depth -= 1
-					}
-					eat(p)
-				}
-			}
-			// Trailing comma before outer `}`.
-			match_token(p, .Comma)
-			if is_token(p, .RBrace) { eat(p) } // consume outer }
+			options = parse_ts_import_options(p)
+		} else if is_token(p, .RParen) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
 		}
 	}
 	if !expect_token(p, .RParen) { return nil }
-	it := new_node(p, TSImportType)
+	it: ^TSImportType
+	if options != nil {
+		with_options := new_node(p, TSImportTypeWithOptions)
+		with_options.options = options
+		it = &with_options.base
+		it.has_options = true
+	} else {
+		it = new_node(p, TSImportType)
+	}
 	it.loc = start
+	it.import_start = import_start
 	it.argument = arg_type
-	it.is_typeof = false
+	it.is_typeof = is_typeof
 	// Optional `.QualifiedName` (one or more `.`-separated identifiers).
 	if is_token(p, .Dot) {
 		eat(p)
@@ -872,7 +835,7 @@ parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 			prop_node, prop_node_e := new_expr(p, Identifier)
 			prop_node^ = prop_id
 			mem := new_node(p, MemberExpression)
-			mem.loc = it.loc
+			mem.loc = get_expression_loc(cur_qual)
 			mem.object = cur_qual
 			mem.property = prop_node_e
 			mem.computed = false
@@ -915,14 +878,7 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	// also in is_keyword_usable_as_property_name's whitelist (so an
 	// `obj.import` member access works in expression position).
 	if is_token(p, .Import) {
-		imp_ts := parse_ts_primary_type(p)
-		if imp_ts != nil {
-			#partial switch v in imp_ts^ {
-			case ^TSImportType:
-				if v != nil { v.is_typeof = true }
-			}
-		}
-		return imp_ts
+		return parse_ts_import_type(p, start, is_typeof = true)
 	}
 	// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
 	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||

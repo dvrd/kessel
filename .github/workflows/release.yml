@@ -240,6 +240,13 @@ jobs:
           npm ci
           node test.js
 
+      - name: Compare CLI and npm TypeScript ASTs with Oxc
+        shell: bash
+        run: |
+          npm ci --prefix bench --ignore-scripts --no-audit --no-fund
+          node tests/verifiers/verify_npm_typescript.js --cli
+          node tests/verifiers/verify_npm_typescript.js --preload-koffi
+
       - name: Test isolated npm bindings
         shell: bash
         run: bash tests/runners/npm_coexistence.sh
