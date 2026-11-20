@@ -3427,7 +3427,7 @@ parse_ts_declare_dispatch :: proc(p: ^Parser) -> ^Statement {
 	stmt: ^Statement
 	#partial switch p.cur_type {
 	case .Function:
-		stmt = parse_function_declaration(p, false, true) // allow_no_body=true for declare
+		stmt = parse_function_declaration(p, allow_no_body = true) // allow_no_body=true for declare
 		if stmt != nil {
 			if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
 		}
@@ -3438,7 +3438,7 @@ parse_ts_declare_dispatch :: proc(p: ^Parser) -> ^Statement {
 		// no-body ambient form. allow_no_body=true.
   ensure_nxt(p)
 		if p.lexer.nxt.kind == .Function && !cur_has_newline(p) {
-			stmt = parse_function_declaration(p, false, true)
+			stmt = parse_function_declaration(p, allow_no_body = true)
 			if stmt != nil {
 				if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
 			}

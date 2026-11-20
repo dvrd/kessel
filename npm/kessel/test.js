@@ -40,6 +40,131 @@ for (const [source, expectedType] of tests) {
   }
 }
 
+// A default function declaration binds its name in the module. Parenthesized
+// function and class expressions keep their names private after printing.
+try {
+  const { codegen } = require('./index');
+  for (const [form, type] of [
+    ['function named() { return named; }', 'FunctionDeclaration'],
+    ['async function* named() { yield named; }', 'FunctionDeclaration'],
+    ['function() {}', 'FunctionDeclaration'],
+    ['(function named() {});', 'FunctionExpression'],
+    ['(class Named {});', 'ClassExpression'],
+    ['(function named() {}) || null;', 'LogicalExpression'],
+  ]) {
+    const source = 'export default ' + form;
+    const outputs = [source];
+    for (const minified of [false, true]) {
+      const result = codegen(source, { filename: 'default.mjs', minified });
+      assert.deepEqual(result.errors, []);
+      outputs.push(result.code);
+    }
+    for (const output of outputs) {
+      const { program, errors } = parseSync('default.mjs', output);
+      assert.deepEqual(errors, []);
+      assert.equal(program.body.length, 1);
+      assert.equal(program.body[0].declaration.type, type, output);
+    }
+  }
+  passed++;
+} catch (error) { console.error('FAIL: default export declarations and expressions', error); failed++; }
+
+// Every span in the SDK measures bytes in the original source, including
+// names whose decoded spelling differs from their source token.
+try {
+  const text = [
+    '/*🚀*/ import main, { "α-β" as café } from "./a";',
+    'import * as ns from "./b";',
+    'export { café as "public" };',
+    'export { "a" as "b" } from "x";',
+    'export * as "c-\\u0064" from "y";',
+    'export default function /* run */ run() {',
+    '  outer: while (true) { if (run) continue outer; break outer; }',
+    '  return [import.meta, new.target, function self(){}, class Inner {}];',
+    '}',
+    'class Example { method() {} }',
+  ].join('\n');
+  const { program, errors } = parseSync('spans.mjs', text);
+  assert.deepEqual(errors, []);
+  const [named, namespace, local, remote, all, exported, declaration] = program.body;
+  const fn = exported.declaration;
+  const [loop, returned] = fn.body.body;
+  const [condition, stop] = loop.body.body.body;
+  const [meta, target, expression, cls] = returned.argument.elements;
+  const check = (node, phrase, token = phrase) => {
+    const at = text.indexOf(phrase) + phrase.lastIndexOf(token);
+    assert.ok(text.includes(phrase) && phrase.includes(token));
+    const start = Buffer.byteLength(text.slice(0, at));
+    assert.deepEqual([node.start, node.end], [start, start + Buffer.byteLength(token)], phrase);
+    if (node.type === 'Literal') {
+      assert.equal(node.raw, token);
+      assert.equal(node.value, JSON.parse(token));
+    } else {
+      assert.equal(node.type, 'Identifier');
+      assert.equal(node.name, token);
+    }
+  };
+  check(named.specifiers[0].local, 'main');
+  check(named.specifiers[1].imported, '"α-β"');
+  check(named.specifiers[1].local, 'as café', 'café');
+  check(named.source, '"./a"');
+  check(namespace.specifiers[0].local, 'as ns', 'ns');
+  check(local.specifiers[0].local, '{ café', 'café');
+  check(local.specifiers[0].exported, '"public"');
+  check(remote.specifiers[0].local, '"a"');
+  check(remote.specifiers[0].exported, '"b"');
+  check(remote.source, '"x"');
+  check(all.exported, '"c-\\u0064"');
+  check(all.source, '"y"');
+  check(fn.id, '*/ run()', 'run');
+  check(loop.label, 'outer:', 'outer');
+  check(condition.consequent.label, 'continue outer', 'outer');
+  check(stop.label, 'break outer', 'outer');
+  check(meta.meta, 'import.meta', 'import');
+  check(meta.property, 'import.meta', 'meta');
+  check(target.meta, 'new.target', 'new');
+  check(target.property, 'new.target', 'target');
+  check(expression.id, 'self');
+  check(cls.id, 'Inner');
+  check(declaration.id, 'Example');
+  assert.equal(declaration.body.body[0].value.id, null);
+  passed++;
+} catch (error) { console.error('FAIL: AST child spans', error); failed++; }
+
+// Frozen output from the older native emitter keeps archived ASTs readable.
+try {
+  const { decode } = require('./binary-reader');
+  const source = 'import {a as b} from "q"; export default function f(){L: while(1) break L; return import.meta;}';
+  const bytes = Buffer.from(
+  'VFNFSwQAAAAMAAAAzQAAAAAAAAAAAAAAAAAAAABfAAAAAAAAAAIAAABGAAAAABkAAAABAAAA' +
+  'RwgAAAAOAAAAAQAAAAIAAAADAAAASxoAAABfAAAAPikAAABfAAAABAQAAAAAAAAAAAArNQAA' +
+  'AF8AAAACAAAAMTYAAABKAAAABQAAADU5AAAASgAAAAM/AAAAQAAAAAAAAAAAAPA/BgAAAC9C' +
+  'AAAASgAAAAQFAAAALksAAABeAAAA/SZSAAAAXQAAAAcAAAAIAAAAAAAAABUBAIAGAAAACAAA' +
+  'AAEAAAANAAAAAQAAABYAAAABAAAAMgAAAAEAAAA2AAAAAQAAAD8AAAABAAAAGwEAgAYAAABZ' +
+  'AAAABAAAAG1vZHVsZWltcG9ydA==', 'base64');
+  // Without diagnostics the v3 and v4 layouts are identical.
+  for (const version of [3, 4]) {
+    const buffer = Buffer.from(bytes);
+    buffer.writeUInt32LE(version, 4);
+    const { program, errors } = decode(buffer, source);
+    assert.deepEqual(errors, []);
+    const [im, ex] = program.body;
+    assert.deepEqual(im.specifiers[0].local, { type: 'Identifier', name: 'b', start: 8, end: 14 });
+    assert.equal(im.source.value, 'q');
+    assert.equal(ex.declaration.id.name, 'f');
+    assert.equal(ex.declaration.body.body[0].body.body.label.name, 'L');
+    assert.equal(ex.declaration.body.body[1].argument.property.name, 'meta');
+  }
+  const fields = Buffer.from(
+  'VFNFSwUAAAAFAAAAYwAAAAAAAAAAAAAAAAAAAAAeAAAAAAAAAAEAAABBAAAAAB4AAAAEAQAA' +
+  'AP4VCAAAAB4AAAABAAAAFwoAAAAcAAAAAAL9ARIAAAATAAAAAgAAAP4AAAAAewAAgAYAAAAG' +
+  'AAAAAQAAABIAAAABAAAAc2NyaXB0', 'base64');
+  const cls = decode(fields, 'class C { declare x: number; }').program.body[0];
+  assert.equal(cls.id.name, 'C');
+  assert.equal(cls.body.body[0].declare, true);
+  passed++;
+} catch (error) { console.error('FAIL: archived binary ASTs', error); failed++; }
+
 // Class fields keep their identity even when initialized with a function.
 try {
   const source = 'class Example { field = function() {}; method() {} get\n *iterate() {} }';

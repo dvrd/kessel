@@ -1890,7 +1890,9 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 // Declarations
 // ============================================================================
 
-parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body := false) -> ^Statement {
+FunctionParseForm :: enum { Declaration, Expression, Default_Export }
+
+parse_function_declaration :: proc(p: ^Parser, form := FunctionParseForm.Declaration, allow_no_body := false) -> ^Statement {
 	start := cur_loc(p)
 	// Handle async prefix
 	async := false
@@ -1908,7 +1910,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	generator := match_token(p, .Mul)
 
-	id := parse_function_decl_name(p, is_expr, async, generator)
+	id := parse_function_decl_name(p, form, async, generator)
 
 	// TypeScript generic type parameters: `function foo<T, U>(...)`
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
@@ -1926,11 +1928,11 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		return_type = parse_ts_return_type_annotation(p)
 	}
 
-	body, body_strict, is_ts_no_body := parse_function_decl_body(p, is_expr, allow_no_body, async, generator)
+	body, body_strict, is_ts_no_body := parse_function_decl_body(p, form == .Expression, allow_no_body, async, generator)
 
 	check_function_decl_retro(p, start, id, params[:], body, body_strict, async, is_ts_no_body)
 
-	return build_function_decl(p, start, id, params, body, generator, async, type_parameters, return_type, is_ts_no_body, is_expr)
+	return build_function_decl(p, start, id, params, body, generator, async, type_parameters, return_type, is_ts_no_body, form == .Expression)
 }
 
 // parse_function_decl_params parses the parenthesised FormalParameters of a
@@ -2046,10 +2048,7 @@ parse_function_decl_body :: proc(p: ^Parser, is_expr, allow_no_body, async, gene
 	// Function EXPRESSIONS always require a body (TS overload signatures only
 	// apply to function DECLARATIONS / class methods). `const x = function();`
 	// is invalid even in TS mode.
-	// Exception: `export default function foo(): T;` is parsed with is_expr=true
-	// (expression form) but is semantically a declaration with overload signatures.
-	// Allow no-body when in_export_default so TS overload sigs work.
-	allow_no_body_here := (!is_expr || p.in_export_default) && (allow_no_body || p.ctx.in_ambient || allow_ts_mode(p))
+	allow_no_body_here := !is_expr && (allow_no_body || p.ctx.in_ambient || allow_ts_mode(p))
 	// Ambient function: `declare function f(): T;` (with or without
 	// semicolon - ASI applies in .d.ts files where `export declare
 	// function parse(...): Promise<R>` is followed by a newline and the
@@ -2296,25 +2295,23 @@ check_ts_function_signature_params :: proc(p: ^Parser, params: []FunctionParamet
 // reservation early errors (await / yield / enum / strict-reserved). Returns
 // the parsed name, or nil for an anonymous function expression. Pure leaf:
 // control flow stays in parse_function_declaration.
-parse_function_decl_name :: proc(p: ^Parser, is_expr, async, generator: bool) -> Maybe(BindingIdentifier) {
+parse_function_decl_name :: proc(p: ^Parser, form: FunctionParseForm, async, generator: bool) -> Maybe(BindingIdentifier) {
 	id: Maybe(BindingIdentifier)
 
 	// For function names, only binding-identifier-capable tokens qualify.
 	// Property-name keywords (null, true, false, if, enum, class, etc.)
 	// are NOT valid as FunctionDeclaration / FunctionExpression names.
 	has_name := is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type)
-	if !is_expr || has_name {
-		if has_name {
-			current := snap_current(p)
-			id = BindingIdentifier{
-				loc  = loc_from_token(&current),
-				name = current.value,
-			}
-			check_function_name_reservations(p, &current, is_expr, async, generator)
-			eat(p)
-		} else if !is_expr {
-			report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
+	if has_name {
+		current := snap_current(p)
+		id = BindingIdentifier{
+			loc = loc_from_token(&current),
+			name = current.value,
 		}
+		check_function_name_reservations(p, &current, form, async, generator)
+		eat(p)
+	} else if form == .Declaration {
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
 	}
 	return id
 }
@@ -2323,14 +2320,14 @@ parse_function_decl_name :: proc(p: ^Parser, is_expr, async, generator: bool) ->
 // reservation early errors for a function name token (await / yield / enum /
 // strict-reserved). Emit-only leaf; the name value + node are built by the
 // caller. `current` is the snapped name token.
-check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_expr, async, generator: bool) {
+check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, form: FunctionParseForm, async, generator: bool) {
 	// §15.8.1 / §15.5.1 / §15.9.1 - the BindingIdentifier of an
 	// AsyncFunctionExpression / GeneratorExpression /
 	// AsyncGeneratorExpression is parsed under [+Await] / [+Yield],
 	// so `await` / `yield` cannot be used as the function name in
 	// expression position. The Declaration form's binding is in the
 	// enclosing context.
-	if is_expr && async && current.value == "await" {
+	if form != .Declaration && async && current.value == "await" {
 		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
 			"'await' cannot be used as the name of an async function expression")
 	}
@@ -2341,7 +2338,7 @@ check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_exp
 	// default context (where the strict-mode reservation kicks in
 	// at the semantic checker via
 	// ck_check_binding_identifier_strict on the function name).
-	if is_expr && generator && current.value == "yield" && !p.in_export_default {
+	if form == .Expression && generator && current.value == "yield" {
 		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
 			"'yield' cannot be used as the name of a generator function expression")
 	}
@@ -2373,7 +2370,7 @@ check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_exp
 	if current.value == "enum" {
 		report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word and cannot be used as a function name")
 	}
-	if !is_expr {
+	if form == .Declaration {
 		check_function_decl_name_context(p, current)
 	}
 	// Strict-mode FutureReservedWords as function name.

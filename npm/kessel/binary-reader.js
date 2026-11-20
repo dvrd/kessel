@@ -98,7 +98,7 @@ const RESOURCE_BUDGET = Object.freeze({
 // Value type tags — must match BinValType in binary_emitter.odin.
 // VT_NODE and VT_NULL_NODE are above the BinNodeType range (0..99)
 // to avoid collisions when peeking at the first byte of a field.
-const VT_NULL = 0, VT_STR = 4;
+const VT_STR = 4;
 const VT_NODE = 0xFD, VT_NULL_NODE = 0xFE;
 
 /**
@@ -113,7 +113,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          3, 4 or 5
+  //   4  version          3 through 6
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -121,7 +121,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version < 3 || version > 5) throw new Error('Unsupported binary AST version: ' + version);
+  if (version < 3 || version > 6) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
@@ -137,7 +137,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
 
   // Decode errors section, if present. Layout depends on `version`:
   //   v3: u32 start, u32 end, u32 msg_len, msg_len bytes (UTF-8). 12B fixed.
-  //   v4 and v5: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
+  //   v4 through v6: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
   //       msg_len bytes (UTF-8). 16B fixed.
   // `code` of 0 means 'no stable code' (legacy / un-migrated site).
   // Severity: 0 = 'error', 1 = 'warning'.
@@ -179,6 +179,15 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
   function readF64() { if (off + 8 > dv.byteLength) return 0; const v = dv.getFloat64(off, true); off += 8; return v; }
   function readBool() { if (off >= dv.byteLength) return false; return dv.getUint8(off++) !== 0; }
   function readStr() { const idx = readU32(); return idx < strings.length ? strings[idx] : ''; }
+
+  // Older streams stored these children as string indexes without individual
+  // spans. Preserve the historic shape when reading an existing buffer.
+  function readChild(legacyType, start, end, optional = false) {
+    if (optional && readU8() !== (version >= 6 ? VT_NODE : VT_STR)) return null;
+    if (version >= 6) return readNode();
+    if (legacyType === 'Literal') return { type: 'Literal', value: readStr(), start, end };
+    return { type: 'Identifier', name: readStr(), start, end };
+  }
 
   function readNodeOrNull() {
     if (off >= strTableOff) return null;
@@ -308,8 +317,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         break;
       case T.FunctionExpression:
       case T.FunctionDeclaration: {
-        const idTag = readU8();
-        node.id = idTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null;
+        node.id = readChild('Identifier', start, end, true);
         node.async = readBool();
         node.generator = readBool();
         node.params = readFunctionParams();
@@ -324,8 +332,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         break;
       case T.ClassExpression:
       case T.ClassDeclaration: {
-        const idTag = readU8();
-        node.id = idTag === 4 ? { type: 'Identifier', name: readStr(), start, end } : null;
+        node.id = readChild('Identifier', start, end, true);
         node.superClass = readNodeOrNull();
         node.body = readNode(); // ClassBody
         break;
@@ -403,8 +410,8 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.source = readNode();
         break;
       case T.MetaProperty:
-        node.meta = { type: 'Identifier', name: readStr(), start, end };
-        node.property = { type: 'Identifier', name: readStr(), start, end };
+        node.meta = readChild('Identifier', start, end);
+        node.property = readChild('Identifier', start, end);
         break;
       case T.ChainExpression:
       case T.ParenthesizedExpression:
@@ -425,12 +432,11 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         break;
       case T.BreakStatement:
       case T.ContinueStatement: {
-        const labelTag = readU8();
-        node.label = labelTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null;
+        node.label = readChild('Identifier', start, end, true);
         break;
       }
       case T.LabeledStatement:
-        node.label = { type: 'Identifier', name: readStr(), start, end };
+        node.label = readChild('Identifier', start, end);
         node.body = readNode();
         break;
       case T.IfStatement:
@@ -510,33 +516,31 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         break;
       case T.ImportDeclaration:
         node.specifiers = readNodeArray();
-        node.source = { type: 'Literal', value: readStr(), start, end };
+        node.source = readChild('Literal', start, end);
         break;
       case T.ImportSpecifier:
-        node.imported = { type: 'Identifier', name: readStr(), start, end };
-        node.local = { type: 'Identifier', name: readStr(), start, end };
+        node.imported = readChild('Identifier', start, end);
+        node.local = readChild('Identifier', start, end);
         break;
       case T.ImportDefaultSpecifier:
       case T.ImportNamespaceSpecifier:
-        node.local = { type: 'Identifier', name: readStr(), start, end };
+        node.local = readChild('Identifier', start, end);
         break;
       case T.ExportNamedDeclaration:
         node.declaration = readNodeOrNull();
         node.specifiers = readNodeArray();
-        { const srcTag = readU8();
-          node.source = srcTag === VT_STR ? { type: 'Literal', value: readStr(), start, end } : null; }
+        node.source = readChild('Literal', start, end, true);
         break;
       case T.ExportDefaultDeclaration:
         node.declaration = readNode();
         break;
       case T.ExportAllDeclaration:
-        node.source = { type: 'Literal', value: readStr(), start, end };
-        { const expTag = readU8();
-          node.exported = expTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null; }
+        node.source = readChild('Literal', start, end);
+        node.exported = readChild('Identifier', start, end, true);
         break;
       case T.ExportSpecifier:
-        node.local = { type: 'Identifier', name: readStr(), start, end };
-        node.exported = { type: 'Identifier', name: readStr(), start, end };
+        node.local = readChild('Identifier', start, end);
+        node.exported = readChild('Identifier', start, end);
         break;
       // ===================== JSX =====================
       case T.JSXElement:

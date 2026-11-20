@@ -73,9 +73,14 @@ round-trip differences in the broader conformance corpora, and the linter
 uses Kessel's built-in rule set.
 
 TypeScript class fields with a `declare` modifier carry `declare: true` in
-the AST. If you use the exported `./binary-reader` directly, this reader
-accepts wire versions 3 through 5. The emitter uses version 5 for trees
-that contain declared fields and version 4 for all other trees.
+the AST. Function and class names, labels, the two parts of `import.meta`
+and `new.target`, and module names and sources carry their own UTF-8 byte
+ranges. Quoted module names are string literals with their original `raw` text.
+
+The exported `./binary-reader` accepts wire versions 3 through 6. The native
+emitter uses version 6 when one of those child ranges is present. Other trees
+use version 5 if they contain declared class fields and version 4 otherwise.
+When reading older buffers, the reader retains their original range behavior.
 
 ```ts
 type ParseOptions = {

@@ -392,12 +392,6 @@ Parser :: struct {
 	// initializer parse time so it does NOT depend on this walker.
 	private_id_count: u32,
 
-	// True while parsing the declaration of `export default function ...`
-	// or `export default class ...`. Used to suppress OXC-parity checks
-	// that OXC doesn't enforce in the default-export position (e.g.
-	// `export default function *yield() {}` is accepted by OXC).
-	in_export_default: bool,
-
 	// True for `.d.ts` declaration files. They parse as TS, but ambient
 	// declaration-file relaxations (for example `const x;`) must not leak
 	// into normal `.ts` / `.tsx` source.

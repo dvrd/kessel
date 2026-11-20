@@ -3372,7 +3372,7 @@ parse_function_expression :: proc(p: ^Parser) -> ^Expression {
 	// FunctionExpression (now boxed via expression_from). Extract it safely
 	// via the union cast - the old transmute(^FunctionDeclaration)stmt was
 	// undefined behavior that read the wrong struct layout.
-	stmt := parse_function_declaration(p, true)
+	stmt := parse_function_declaration(p, .Expression)
 	if stmt == nil {
 		return nil
 	}

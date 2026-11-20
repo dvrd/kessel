@@ -2576,17 +2576,15 @@ report_export_default_function_tail :: proc(p: ^Parser) {
 	}
 }
 
-// parse_export_default_function handles `export default [async] function`,
-// the §16.2.3 HoistableDeclaration form. parse_function_declaration(is_expr
-// = true) returns a ^Statement wrapping an ExpressionStatement whose
-// .expression is the FunctionExpression, so unwrap that as the default def.
+// A default function declaration may be anonymous. A named declaration
+// introduces a module binding, unlike a parenthesized function expression.
 parse_export_default_function :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
-	p.in_export_default = true
-	fn_stmt := parse_function_declaration(p, true)
-	p.in_export_default = false
+	fn_stmt := parse_function_declaration(p, .Default_Export)
 	if fn_stmt != nil {
-		if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
-			def = expr_stmt.expression
+		if fn, ok := fn_stmt^.(^FunctionDeclaration); ok {
+			decl := new_node(p, Declaration)
+			decl^ = fn
+			def = decl
 		}
 	}
 	report_export_default_function_tail(p)

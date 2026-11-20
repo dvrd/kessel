@@ -501,7 +501,7 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 	// or `{` is ambiguous with FunctionDeclaration / ClassDeclaration /
 	// BlockStatement. Wrap in parens so the re-parse picks the
 	// Expression production.
-	if expression_needs_statement_paren(s.expression) {
+	if expression_needs_statement_paren(s.expression, allow_leading_object = false) {
 		cg_byte(cg, '(')
 		gen_expression(cg, s.expression, PREC_LOWEST)
 		cg_byte(cg, ')')
@@ -516,13 +516,13 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 // Walks leftmost descendants — the ambiguity propagates through call /
 // member / binary / sequence / etc. since those keep `function`/`class`/`{`
 // as the first token of the whole statement.
-expression_needs_statement_paren :: proc(expr: ^Expression) -> bool {
+expression_needs_statement_paren :: proc(expr: ^Expression, allow_leading_object: bool) -> bool {
 	cur := expr
 	for cur != nil {
 		#partial switch e in cur^ {
 		case ^FunctionExpression:        return true
 		case ^ClassExpression:           return true
-		case ^ObjectExpression:          return true
+		case ^ObjectExpression:          return !allow_leading_object
 		case ^CallExpression:            cur = e.callee
 		case ^MemberExpression:          cur = e.object
 		case ^TaggedTemplateExpression:  cur = e.tag
@@ -990,18 +990,12 @@ gen_export_default_declaration :: proc(cg: ^Codegen, s: ^ExportDefaultDeclaratio
 	case ^Declaration:
 		gen_statement(cg, decl_to_stmt(v^))
 	case ^Expression:
+		// Group expressions whose first token would declare a function or class.
+		group := expression_needs_statement_paren(v, allow_leading_object = true)
+		if group { cg_byte(cg, '(') }
 		gen_expression(cg, v, PREC_ASSIGN)
-		// Function and class *expressions* in default-export position are
-		// declaration-shaped at the source level (closing `}` ends the
-		// statement). Emitting `;` after them produces two statements on
-		// re-parse — the declaration plus a stray EmptyStatement — which
-		// breaks AST round-trip. Only assign-expression forms need `;`.
-		needs_semi := true
-		#partial switch _ in v^ {
-		case ^FunctionExpression: needs_semi = false
-		case ^ClassExpression:    needs_semi = false
-		}
-		if needs_semi { cg_byte(cg, ';') }
+		if group { cg_byte(cg, ')') }
+		cg_byte(cg, ';')
 	}
 }
 

@@ -163,8 +163,11 @@ BinValType :: enum u8 {
 //       errors gained a stable K-code and severity for FFI consumers.
 //   v5: PropertyDefinition encodes static (bit 0) and declare (bit 1) in the
 //       former static byte. Emit v4 for trees that only use the original flags.
+//   v6: Names and module sources formerly stored as string indexes are child
+//       nodes with their original spans. Absent optional fields keep their null tag.
 BINARY_VERSION_DIAGNOSTICS     :: u32(4)
 BINARY_VERSION_DECLARED_FIELDS :: u32(5)
+BINARY_VERSION_CHILD_SPANS     :: u32(6)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
@@ -320,20 +323,10 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		}
 	case ^BreakStatement:
 		bin_node_header(be, .BreakStatement, s.loc)
-		if label, ok := s.label.(LabelIdentifier); ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, label.name)
-		} else {
-			bw_u8(be, u8(BinValType.Null))
-		}
+		bin_emit_optional_identifier(be, s.label)
 	case ^ContinueStatement:
 		bin_node_header(be, .ContinueStatement, s.loc)
-		if label, ok := s.label.(LabelIdentifier); ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, label.name)
-		} else {
-			bw_u8(be, u8(BinValType.Null))
-		}
+		bin_emit_optional_identifier(be, s.label)
 	case ^IfStatement:
 		bin_node_header(be, .IfStatement, s.loc)
 		bin_emit_expression(be, s.test)
@@ -441,7 +434,7 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		}
 	case ^LabeledStatement:
 		bin_node_header(be, .LabeledStatement, s.loc)
-		bw_string_ref(be, s.label.name)
+		bin_emit_identifier_child(be, s.label.loc, s.label.name)
 		bin_emit_statement(be, s.body)
 	case ^WithStatement:
 		bin_node_header(be, .WithStatement, s.loc)
@@ -461,17 +454,17 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 			switch ss in spec^ {
 			case ImportSpecifier:
 				bin_node_header(be, .ImportSpecifier, ss.loc)
-				bw_string_ref(be, ss.imported.name)
-				bw_string_ref(be, ss.local.name)
+				bin_emit_module_name_child(be, ss.imported)
+				bin_emit_identifier_child(be, ss.local.loc, ss.local.name)
 			case ImportDefaultSpecifier:
 				bin_node_header(be, .ImportDefaultSpecifier, ss.loc)
-				bw_string_ref(be, ss.local.name)
+				bin_emit_identifier_child(be, ss.local.loc, ss.local.name)
 			case ImportNamespaceSpecifier:
 				bin_node_header(be, .ImportNamespaceSpecifier, ss.loc)
-				bw_string_ref(be, ss.local.name)
+				bin_emit_identifier_child(be, ss.local.loc, ss.local.name)
 			}
 		}
-		bw_string_ref(be, s.source.value)
+		bin_emit_string_child(be, s.source.loc, s.source.value, s.source.raw)
 	case ^ExportNamedDeclaration:
 		bin_node_header(be, .ExportNamedDeclaration, s.loc)
 		if decl, ok := s.declaration.?; ok && decl != nil {
@@ -487,8 +480,8 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 			bin_emit_export_spec_name(be, spec.exported)
 		}
 		if src, ok := s.source.?; ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, src.value)
+			bw_u8(be, u8(BinValType.Node))
+			bin_emit_string_child(be, src.loc, src.value, src.raw)
 		} else {
 			bw_u8(be, u8(BinValType.Null))
 		}
@@ -497,10 +490,10 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bin_emit_export_default_def(be, s.declaration)
 	case ^ExportAllDeclaration:
 		bin_node_header(be, .ExportAllDeclaration, s.loc)
-		bw_string_ref(be, s.source.value)
+		bin_emit_string_child(be, s.source.loc, s.source.value, s.source.raw)
 		if exported, ok := s.exported.?; ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, exported.name)
+			bw_u8(be, u8(BinValType.Node))
+			bin_emit_module_name_child(be, exported)
 		} else {
 			bw_u8(be, u8(BinValType.Null))
 		}
@@ -704,8 +697,8 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bin_emit_expression(be, e.source)
 	case ^MetaProperty:
 		bin_node_header(be, .MetaProperty, e.loc)
-		bw_string_ref(be, e.meta.name)
-		bw_string_ref(be, e.property.name)
+		bin_emit_identifier_child(be, e.meta.loc, e.meta.name)
+		bin_emit_identifier_child(be, e.property.loc, e.property.name)
 	case ^ChainExpression:
 		bin_node_header(be, .ChainExpression, e.loc)
 		bin_emit_expression(be, e.expression)
@@ -1045,14 +1038,51 @@ bin_emit_var_decl :: proc(be: ^BinaryEmitter, s: ^VariableDeclaration) {
 bin_emit_export_spec_name :: proc(be: ^BinaryEmitter, name: ExportSpecifierName) {
 	switch n in name {
 	case IdentifierName:
-		bw_string_ref(be, n.name)
+		bin_emit_identifier_child(be, n.loc, n.name)
 	case ^StringLiteral:
 		if n != nil {
-			bw_string_ref(be, n.value)
+			bin_emit_string_child(be, n.loc, n.value, n.raw)
 		} else {
-			bw_string_ref(be, "")
+			be.version = BINARY_VERSION_CHILD_SPANS
+			bw_u8(be, u8(BinValType.NullNode))
 		}
 	}
+}
+
+bin_emit_identifier_child :: proc(be: ^BinaryEmitter, loc: Loc, name: string) {
+	be.version = BINARY_VERSION_CHILD_SPANS
+	bin_node_header(be, .Identifier, loc)
+	bw_string_ref(be, name)
+}
+
+bin_emit_string_child :: proc(be: ^BinaryEmitter, loc: Loc, value, raw: string) {
+	be.version = BINARY_VERSION_CHILD_SPANS
+	bin_node_header(be, .StringLiteral, loc)
+	bw_string_ref(be, value)
+	bw_string_ref(be, raw)
+}
+
+bin_emit_optional_identifier :: proc(be: ^BinaryEmitter, child: Maybe($T)) {
+	if id, present := child.?; present {
+		bw_u8(be, u8(BinValType.Node))
+		bin_emit_identifier_child(be, id.loc, id.name)
+	} else {
+		bw_u8(be, u8(BinValType.Null))
+	}
+}
+
+// Import names and namespace export aliases retain their decoded name and
+// original source span for both identifier and quoted spellings.
+bin_emit_module_name_child :: proc(be: ^BinaryEmitter, name: IdentifierName) {
+	loc := name.loc
+	if loc.start < loc.end && loc.end <= u32(len(be.source)) {
+		raw := be.source[loc.start:loc.end]
+		if raw[0] == '\'' || raw[0] == '"' {
+			bin_emit_string_child(be, loc, name.name, raw)
+			return
+		}
+	}
+	bin_emit_identifier_child(be, loc, name.name)
 }
 
 // ============================================================================
@@ -1073,12 +1103,7 @@ bin_emit_function_body :: proc(be: ^BinaryEmitter, body: FunctionBody) {
 
 bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^FunctionExpression) {
 	bin_node_header(be, type_id, fn.loc)
-	if bid, ok := fn.id.(BindingIdentifier); ok {
-		bw_u8(be, u8(BinValType.StringRef))
-		bw_string_ref(be, bid.name)
-	} else {
-		bw_u8(be, u8(BinValType.Null))
-	}
+	bin_emit_optional_identifier(be, fn.id)
 	bw_bool(be, fn.async)
 	bw_bool(be, fn.generator)
 	bw_u32(be, u32(len(fn.params)))
@@ -1098,12 +1123,7 @@ bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
 
 bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 	bin_node_header(be, type_id, class.loc)
-	if bid, ok := class.id.(BindingIdentifier); ok {
-		bw_u8(be, u8(BinValType.StringRef))
-		bw_string_ref(be, bid.name)
-	} else {
-		bw_u8(be, u8(BinValType.Null))
-	}
+	bin_emit_optional_identifier(be, class.id)
 	if sc, ok := class.super_class.?; ok && sc != nil {
 		bw_u8(be, u8(BinValType.Node))
 		bin_emit_expression(be, sc)
@@ -1149,7 +1169,7 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 		flags := u8(elem.static)
 		if elem.declare {
 			flags |= 2
-			be.version = BINARY_VERSION_DECLARED_FIELDS
+			be.version = max(be.version, BINARY_VERSION_DECLARED_FIELDS)
 		}
 		bw_u8(be, flags)
 		if elem.key != nil {
