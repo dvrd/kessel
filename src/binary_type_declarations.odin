@@ -149,6 +149,7 @@ bin_type_import_equals :: proc(be: ^BinaryEmitter, decl: ^TSImportEqualsDeclarat
 	bin_field(be, .Node, "id")
 	bin_type_identifier(be, decl.id.loc, decl.id.name)
 	bin_field_text(be, "importKind", "type" if decl.import_kind == .Type else "value")
+	if decl.module_reference == nil { bin_field(be, .Null, "moduleReference") }
 	switch ref in decl.module_reference {
 	case ^Expression: bin_field_type_name(be, "moduleReference", ref)
 	case ^TSExternalModuleReference:
@@ -226,7 +227,9 @@ bin_type_function_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
 		bin_field(be, .Node, "parameter")
 	}
 	if def, ok := param.default_val.?; ok && def != nil {
-		bin_node_header(be, .AssignmentPattern, {get_pattern_loc(param.pattern).start, get_expression_loc(def).end})
+		start := param.loc.start
+		if param.pattern != nil { start = get_pattern_loc(param.pattern).start }
+		bin_node_header(be, .AssignmentPattern, {start, get_expression_loc(def).end})
 		bin_emit_pattern(be, param.pattern)
 		bin_emit_expression(be, def)
 	} else { bin_emit_pattern(be, param.pattern) }

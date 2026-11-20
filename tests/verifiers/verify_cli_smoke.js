@@ -45,10 +45,47 @@ function parseBinary(file, source, expectedVersion) {
   return ast.program.body;
 }
 
+function checkRecoveredPrograms(folder) {
+  const cases = [
+    ['js', 'function f(...) {}', node => node.params[0].argument],
+    ['js', 'function f(,) {}', node => node.params[0]],
+    ['js', '({ 5 }) => {}', node => node.expression.params[0].properties[0].value],
+    ['js', 'for ({ p: void } of []);', node => node.left.properties[0].value],
+    ['ts', 'import Alias = module("x");', node => node.moduleReference],
+    ['ts', 'function f(= 1) {}', node => node.params[0].left],
+    ['js', 'function f([...[x]=[]]) {}', node => node.params[0].left],
+  ];
+  for (const [extension, source, missingChild] of cases) {
+    const file = path.join(folder, 'recovery.' + extension);
+    fs.writeFileSync(file, source);
+    const read = flags => {
+      const result = spawnSync(binary, ['parse', file, ...flags]);
+      assert.equal(result.status, 0, String(result.stderr || result.error));
+      return result.stdout;
+    };
+    const json = JSON.parse(read(['--json']));
+    assert.deepEqual(JSON.parse(read(['--json', '--compact'])), json, source);
+    const sdk = decode(read(['--binary']), source);
+    assert.ok(json.errors.length > 0, source);
+    assert.equal(sdk.errors.length, json.errors.length, source);
+    for (const program of [json, sdk.program]) {
+      assert.equal(program.type, 'Program');
+      const [node] = program.body;
+      assert.equal(missingChild(node), null, source);
+      if (node.params?.[0]?.type === 'AssignmentPattern') {
+        const param = node.params[0];
+        assert.equal(param.start, source.indexOf('(') + 1, source);
+        assert.equal(param.end, param.right.end, source);
+      }
+    }
+  }
+}
+
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-cli-ast-'));
 try {
   const file = path.join(folder, 'input.ts');
   checkClassIndexSignatures(file);
+  checkRecoveredPrograms(folder);
   const jsFile = path.join(folder, 'input.js');
   const plain = 'export default function() {}';
   const [jsDefault] = parseBinary(jsFile, plain, 4);

@@ -1210,7 +1210,7 @@ bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^Fu
 }
 
 bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
-	if param.readonly || param.override_ || param.accessibility != .None {
+	if param.readonly || param.override_ || param.accessibility != .None || (param.pattern == nil && param.default_val != nil) {
 		bin_type_function_param(be, param)
 		bw_u8(be, u8(BinValType.NullNode))
 		return

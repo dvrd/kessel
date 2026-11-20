@@ -200,7 +200,8 @@ function parseToAst(filePath, dialect) {
   // in default-export position, `(await x) ** y` for the **-precedence
   // exception) survive the round-trip. The codegen call below uses the
   // same flag so emit and re-parse stay symmetric.
-  const args = ['parse', filePath, '--json', '--preserve-parens'];
+  // The comparison reads structure. Indentation can dwarf the AST on deep inputs.
+  const args = ['parse', filePath, '--json', '--compact', '--preserve-parens'];
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
   try {
     const out = execFileSync(KESSEL, args, {

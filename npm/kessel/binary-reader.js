@@ -670,7 +670,9 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
       if (defTag === VT_NODE) {
         // AssignmentPattern wrapping
         const def = readNode();
-        params[i] = { type: 'AssignmentPattern', start: pat.start, end: def.end, left: pat, right: def };
+        // Older libraries could omit either side during parser recovery.
+        const start = pat?.start ?? def?.start ?? 0;
+        params[i] = { type: 'AssignmentPattern', start, end: def?.end ?? pat?.end ?? start, left: pat, right: def };
       } else {
         params[i] = pat;
       }
