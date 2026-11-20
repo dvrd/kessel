@@ -7,44 +7,10 @@ on:
     branches: [main]
 
 jobs:
-  # Canonical full-test job. POSIX-only because tests/runners/run_tests.sh
-  # and the coverage harness assume bash + GNU tools. Runs on Apple Silicon
-  # to exercise the NEON SIMD path.
   test:
-    name: test (darwin-arm64, full)
-    runs-on: macos-14
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Odin
-        uses: laytan/setup-odin@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Task
-        uses: arduino/setup-task@v2
-        with:
-          version: '3.x'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Build
-        run: task build
-
-      - name: Build shared library
-        run: task build:lib
-
-      - name: Test (unit)
-        run: tests/runners/run_tests.sh --update
-
-      - name: Test npm package
-        run: |
-          cd npm/kessel
-          npm install
-          node test.js
+    uses: ./.github/workflows/primary-tests.yml
+    with:
+      release_checks: ${{ github.event_name == 'pull_request' }}
 
   # Portability matrix. Proves each release target compiles cleanly and the
   # FFI binding works end-to-end. Does NOT publish anything.
@@ -68,8 +34,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             target: darwin-arm64
+            # Preserve the deployment target of the published arm64 library.
+            deployment_flag: -minimum-os-version:14.0.0
             ext: dylib
             ldflags: '-extra-linker-flags:"-undefined dynamic_lookup"'
           - os: macos-15-intel
@@ -96,6 +64,7 @@ jobs:
         uses: laytan/setup-odin@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          release: dev-2026-11
 
       # Activate MSVC build environment on Windows so link.exe can find
       # Windows SDK libraries (kernel32.lib, msvcrt.lib, ...). Without
@@ -127,7 +96,7 @@ jobs:
           mkdir -p bin
           cd bin
           odin build ../src \
-            -build-mode:shared \
+            ${{ matrix.deployment_flag }} -build-mode:shared \
             -out:libkessel.${{ matrix.ext }} \
             -o:speed \
             -no-bounds-check \
@@ -137,12 +106,58 @@ jobs:
       # npm/kessel/index.js findLib() searches ../../bin/libkessel.<ext> first
       # (the repo-root build), so the build output above is picked up without
       # any staging step.
+      - name: Build and smoke test CLI
+        shell: bash
+        run: |
+          cli=kessel
+          if [[ "$RUNNER_OS" == Windows ]]; then cli=kessel.exe; fi
+          (cd bin && odin build ../src ${{ matrix.deployment_flag }} -out:"$cli" -o:speed -no-bounds-check)
+          node tests/verifiers/verify_cli_smoke.js "bin/$cli"
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kessel-cli-${{ matrix.target }}
+          path: bin/kessel${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+
       - name: Smoke test (npm)
         shell: bash
         run: |
           cd npm/kessel
-          npm install
+          npm ci
           node test.js
+
+      - name: Compare CLI and npm TypeScript ASTs with Oxc
+        shell: bash
+        run: |
+          npm ci --prefix bench --ignore-scripts --no-audit --no-fund
+          node tests/verifiers/verify_npm_typescript.js --cli
+          node tests/verifiers/verify_npm_typescript.js --preload-koffi
+
+      - name: Test isolated npm bindings
+        shell: bash
+        run: bash tests/runners/npm_coexistence.sh
+
+      - name: Test packed install (Node 22)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test packed install (Node 18)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test packed install (Node 24)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

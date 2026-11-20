@@ -6,7 +6,13 @@ docs/
 src.bin
 src.bin.dSYM/
 _archive/
-bench/
+bench/*
+!bench/package.json
+!bench/package-lock.json
+!bench/oxc_compare/
+bench/oxc_compare/*
+!bench/oxc_compare/Cargo.lock
+!bench/oxc_compare/codegen_microbench/
 tests/vendor/
 
 *.dSYM/

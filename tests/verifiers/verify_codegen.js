@@ -200,13 +200,23 @@ function parseToAst(filePath, dialect) {
   // in default-export position, `(await x) ** y` for the **-precedence
   // exception) survive the round-trip. The codegen call below uses the
   // same flag so emit and re-parse stay symmetric.
-  const args = ['parse', filePath, '--json', '--preserve-parens'];
+  // The comparison reads structure. Indentation can dwarf the AST on deep inputs.
+  const args = ['parse', filePath, '--json', '--compact', '--preserve-parens'];
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
-  const out = execFileSync(KESSEL, args, {
-    maxBuffer: 256 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  return JSON.parse(out.toString('utf8'));
+  try {
+    const out = execFileSync(KESSEL, args, {
+      maxBuffer: 256 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const program = JSON.parse(out.toString('utf8'));
+    if (program?.type !== 'Program' || !Array.isArray(program.body) ||
+        (program.errors !== undefined && !Array.isArray(program.errors))) {
+      throw new Error('Expected an ESTree Program with a statement list and optional diagnostics array');
+    }
+    return program;
+  } catch (error) {
+    throw new Error(`Parser invocation failed for ${filePath}: ${error.message}`, { cause: error });
+  }
 }
 
 function codegen(filePath, dialect) {
@@ -295,12 +305,9 @@ function firstDiff(a, b, p = '$') {
 function roundtrip(fixturePath, tmpRoot) {
   const dialect = detectDialect(fixturePath);
   // Step 1: parse original.
-  let astA;
-  try {
-    astA = parseToAst(fixturePath, dialect);
-  } catch (e) {
-    return { kind: 'skip', reason: 'parse_invoke_failed: ' + (e.message || e) };
-  }
+  // A source rejection is an explicit CLI diagnostic. Starting the process
+  // and decoding its response must succeed even for a known printer failure.
+  const astA = parseToAst(fixturePath, dialect);
   if (astA.errors && astA.errors.length > 0) {
     return { kind: 'skip', reason: 'parse_errors_in_source' };
   }
@@ -311,6 +318,7 @@ function roundtrip(fixturePath, tmpRoot) {
   try {
     src = codegen(fixturePath, dialect);
   } catch (e) {
+    if (!Number.isInteger(e.status) || e.signal) throw e;
     return { kind: 'fail', stage: 'codegen', detail: (e.stderr || '').toString().trim() || (e.message || String(e)) };
   }
 
@@ -322,12 +330,7 @@ function roundtrip(fixturePath, tmpRoot) {
   const base = path.basename(fixturePath, path.extname(fixturePath));
   const tmp = path.join(tmpRoot, `${base}.regen${ext}`);
   fs.writeFileSync(tmp, src);
-  let astB;
-  try {
-    astB = parseToAst(tmp, dialect);
-  } catch (e) {
-    return { kind: 'fail', stage: 'reparse_invoke', detail: (e.message || String(e)) };
-  }
+  const astB = parseToAst(tmp, dialect);
   if (astB.errors && astB.errors.length > 0) {
     return {
       kind: 'fail',

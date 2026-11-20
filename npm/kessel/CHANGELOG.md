@@ -4,6 +4,24 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [Unreleased]
+
+### Added
+- feat(lint): add no-labels, no-multi-assign, no-ternary, no-new, no-return-await rules (162 rules total)
+- feat(lint): support `kessel.lint.json` `ignorePatterns` (glob file-exclusion) (Phase 8d)
+- feat(lint): support `kessel.lint.json` per-glob `overrides` (file-scoped rule severities) (Phase 8d)
+- feat(lint): support `kessel.lint.json` `extends` (config inheritance, string or array) (Phase 8d)
+- feat(lint): add `gitlab` (GitLab Code Quality JSON) and `junit` (JUnit XML) output formatters, and `--deny`/`--warn`/`--allow` severity-alias flags (completes Phase 8e)
+- feat(lint): add `--quiet` (report errors only) and `--max-warnings <N>` (CI warning-count gate) flags
+- feat(lint): add `unix`, `github`, `compact`, and `checkstyle` output formatters via `--format=` (Phase 8e; joins existing `default`/`json`)
+- feat(lint): support targeted per-rule disable directives (`// eslint-disable-next-line no-console` suppresses only the named rule; bare directive suppresses all)
+- feat(lint): add no-negated-condition (L4098) and operator-assignment (L4099) rules
+- feat(lint): add no-implicit-coercion, no-buffer-constructor, no-octal-escape, no-implicit-globals, no-restricted-globals, no-restricted-syntax, prefer-exponentiation-operator
+- feat(lint): add no-useless-else, prefer-object-literal, no-object-constructor, no-arrow-functions-in-class, no-class-assign-in-class, prefer-object-has-own, no-useless-unary (157 rules total)
+
+### Fixed
+- fix(lint): make every rule `--rule`/config-addressable by name — `lint_rule_by_name` was a hand-maintained switch that stopped at L2025, leaving ~90 already-implemented L40xx rules unreachable; it now scans the static rule-info table
+
 ## [0.21.0] - 2026-07-22
 
 ### Added

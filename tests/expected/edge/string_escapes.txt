@@ -352,13 +352,13 @@
     {
       "type": "Line",
       "start": 692,
-      "end": 733,
+      "end": 731,
       "value": " \\c → c fallback for non-escape chars"
     },
     {
       "type": "Line",
-      "start": 842,
-      "end": 911,
+      "start": 840,
+      "end": 907,
       "value": " Line continuation — the `\\` followed by LF must produce nothing."
     }
   ]

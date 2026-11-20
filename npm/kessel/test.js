@@ -4,6 +4,11 @@
  */
 
 'use strict';
+const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
+const { readFileSync } = require('node:fs');
+const { createRequire } = require('node:module');
+const { compileFunction } = require('node:vm');
 const { parseSync, parseAsync } = require('./index');
 const { lintSync } = require('./index');
 
@@ -34,6 +39,193 @@ for (const [source, expectedType] of tests) {
     failed++;
   }
 }
+
+// A default function declaration binds its name in the module. Parenthesized
+// function and class expressions keep their names private after printing.
+try {
+  const { codegen } = require('./index');
+  for (const [form, type] of [
+    ['function named() { return named; }', 'FunctionDeclaration'],
+    ['async function* named() { yield named; }', 'FunctionDeclaration'],
+    ['function() {}', 'FunctionDeclaration'],
+    ['(function named() {});', 'FunctionExpression'],
+    ['(class Named {});', 'ClassExpression'],
+    ['(function named() {}) || null;', 'LogicalExpression'],
+  ]) {
+    const source = 'export default ' + form;
+    const outputs = [source];
+    for (const minified of [false, true]) {
+      const result = codegen(source, { filename: 'default.mjs', minified });
+      assert.deepEqual(result.errors, []);
+      outputs.push(result.code);
+    }
+    for (const output of outputs) {
+      const { program, errors } = parseSync('default.mjs', output);
+      assert.deepEqual(errors, []);
+      assert.equal(program.body.length, 1);
+      assert.equal(program.body[0].declaration.type, type, output);
+    }
+  }
+  passed++;
+} catch (error) { console.error('FAIL: default export declarations and expressions', error); failed++; }
+
+// Every span in the SDK measures bytes in the original source, including
+// names whose decoded spelling differs from their source token.
+try {
+  const text = [
+    '/*🚀*/ import main, { "α-β" as café } from "./a";',
+    'import * as ns from "./b";',
+    'export { café as "public" };',
+    'export { "a" as "b" } from "x";',
+    'export * as "c-\\u0064" from "y";',
+    'export default function /* run */ run() {',
+    '  outer: while (true) { if (run) continue outer; break outer; }',
+    '  return [import.meta, new.target, function self(){}, class Inner {}];',
+    '}',
+    'class Example { method() {} }',
+  ].join('\n');
+  const { program, errors } = parseSync('spans.mjs', text);
+  assert.deepEqual(errors, []);
+  const [named, namespace, local, remote, all, exported, declaration] = program.body;
+  const fn = exported.declaration;
+  const [loop, returned] = fn.body.body;
+  const [condition, stop] = loop.body.body.body;
+  const [meta, target, expression, cls] = returned.argument.elements;
+  const check = (node, phrase, token = phrase) => {
+    const at = text.indexOf(phrase) + phrase.lastIndexOf(token);
+    assert.ok(text.includes(phrase) && phrase.includes(token));
+    const start = Buffer.byteLength(text.slice(0, at));
+    assert.deepEqual([node.start, node.end], [start, start + Buffer.byteLength(token)], phrase);
+    if (node.type === 'Literal') {
+      assert.equal(node.raw, token);
+      assert.equal(node.value, JSON.parse(token));
+    } else {
+      assert.equal(node.type, 'Identifier');
+      assert.equal(node.name, token);
+    }
+  };
+  check(named.specifiers[0].local, 'main');
+  check(named.specifiers[1].imported, '"α-β"');
+  check(named.specifiers[1].local, 'as café', 'café');
+  check(named.source, '"./a"');
+  check(namespace.specifiers[0].local, 'as ns', 'ns');
+  check(local.specifiers[0].local, '{ café', 'café');
+  check(local.specifiers[0].exported, '"public"');
+  check(remote.specifiers[0].local, '"a"');
+  check(remote.specifiers[0].exported, '"b"');
+  check(remote.source, '"x"');
+  check(all.exported, '"c-\\u0064"');
+  check(all.source, '"y"');
+  check(fn.id, '*/ run()', 'run');
+  check(loop.label, 'outer:', 'outer');
+  check(condition.consequent.label, 'continue outer', 'outer');
+  check(stop.label, 'break outer', 'outer');
+  check(meta.meta, 'import.meta', 'import');
+  check(meta.property, 'import.meta', 'meta');
+  check(target.meta, 'new.target', 'new');
+  check(target.property, 'new.target', 'target');
+  check(expression.id, 'self');
+  check(cls.id, 'Inner');
+  check(declaration.id, 'Example');
+  assert.equal(declaration.body.body[0].value.id, null);
+  passed++;
+} catch (error) { console.error('FAIL: AST child spans', error); failed++; }
+
+// Frozen output from the older native emitter keeps archived ASTs readable.
+try {
+  const { decode } = require('./binary-reader');
+  const source = 'import {a as b} from "q"; export default function f(){L: while(1) break L; return import.meta;}';
+  const bytes = Buffer.from(
+  'VFNFSwQAAAAMAAAAzQAAAAAAAAAAAAAAAAAAAABfAAAAAAAAAAIAAABGAAAAABkAAAABAAAA' +
+  'RwgAAAAOAAAAAQAAAAIAAAADAAAASxoAAABfAAAAPikAAABfAAAABAQAAAAAAAAAAAArNQAA' +
+  'AF8AAAACAAAAMTYAAABKAAAABQAAADU5AAAASgAAAAM/AAAAQAAAAAAAAAAAAPA/BgAAAC9C' +
+  'AAAASgAAAAQFAAAALksAAABeAAAA/SZSAAAAXQAAAAcAAAAIAAAAAAAAABUBAIAGAAAACAAA' +
+  'AAEAAAANAAAAAQAAABYAAAABAAAAMgAAAAEAAAA2AAAAAQAAAD8AAAABAAAAGwEAgAYAAABZ' +
+  'AAAABAAAAG1vZHVsZWltcG9ydA==', 'base64');
+  // Without diagnostics the v3 and v4 layouts are identical.
+  for (const version of [3, 4]) {
+    const buffer = Buffer.from(bytes);
+    buffer.writeUInt32LE(version, 4);
+    const { program, errors } = decode(buffer, source);
+    assert.deepEqual(errors, []);
+    const [im, ex] = program.body;
+    assert.deepEqual(im.specifiers[0].local, { type: 'Identifier', name: 'b', start: 8, end: 14 });
+    assert.equal(im.source.value, 'q');
+    assert.equal(ex.declaration.id.name, 'f');
+    assert.equal(ex.declaration.body.body[0].body.body.label.name, 'L');
+    assert.equal(ex.declaration.body.body[1].argument.property.name, 'meta');
+  }
+  const fields = Buffer.from(
+  'VFNFSwUAAAAFAAAAYwAAAAAAAAAAAAAAAAAAAAAeAAAAAAAAAAEAAABBAAAAAB4AAAAEAQAA' +
+  'AP4VCAAAAB4AAAABAAAAFwoAAAAcAAAAAAL9ARIAAAATAAAAAgAAAP4AAAAAewAAgAYAAAAG' +
+  'AAAAAQAAABIAAAABAAAAc2NyaXB0', 'base64');
+  const cls = decode(fields, 'class C { declare x: number; }').program.body[0];
+  assert.equal(cls.id.name, 'C');
+  assert.equal(cls.body.body[0].declare, true);
+  const ambient = Buffer.from(
+    'VFNFSwcAAAAHAAAAqAAAAAAAAAAAAAAAAAAAAAAdAAAAAAAAAAEAAABKAAAAAB0AAAD9ZQQB' +
+    'AAAAAQA/BwAAAB0AAAABAQAAAEATAAAAHAAAAGQTAAAAHAAAAAIAAAADAwAAAAQAAAAEBQAA' +
+    'AAACBgAAAAAAAAABBwAAAGQUAAAAHAAAAAgAAAABBwAAAGQWAAAAHAAAAAkAAAAAAAD+AAAA' +
+    'AAAAAAAA+AAAgAYAAAD+AACABwAAAAUBAIAKAAAADwEAgAQAAAATAAAAAQAAABMBAIAIAAAA' +
+    'GwEAgAoAAAAlAQCADgAAADMBAIAQAAAAQwEAgA8AAABtb2R1bGVkZWNsYXJlSWRlbnRpZmll' +
+    'cm5hbWVvcHRpb25hbGRlY29yYXRvcnN0eXBlQW5ub3RhdGlvblRTVHlwZUFubm90YXRpb25U' +
+    'U051bWJlcktleXdvcmQ=', 'base64');
+  const exported = decode(ambient, 'export declare let v: number;').program.body[0];
+  assert.equal(exported.exportKind, 'type');
+  assert.equal(exported.declaration.declare, true);
+  passed++;
+} catch (error) { console.error('FAIL: archived binary ASTs', error); failed++; }
+
+// Class fields keep their identity even when initialized with a function.
+try {
+  const source = 'class Example { field = function() {}; method() {} get\n *iterate() {} }';
+  const { program, errors } = parseSync('fields.js', source);
+  assert.deepEqual(errors, []);
+  const members = program.body[0].body.body;
+  assert.deepEqual(members.map(member => [member.type, member.key.name]), [
+    ['PropertyDefinition', 'field'],
+    ['MethodDefinition', 'method'],
+    ['PropertyDefinition', 'get'],
+    ['MethodDefinition', 'iterate'],
+  ]);
+  assert.equal(members[0].value.type, 'FunctionExpression');
+  assert.equal(members[3].value.generator, true);
+  passed++;
+} catch (error) { console.error('FAIL: class fields:', error.message); failed++; }
+
+// A declared field and a runtime field named "declare" have different effects.
+try {
+  const source = 'class C { declare x: number; declare static y: number; declare = 9; static z; }';
+  const { codegen } = require('./index');
+  const outputs = [source];
+  for (const minified of [false, true]) {
+    const result = codegen(source, { filename: 'fields.ts', minified });
+    assert.deepEqual(result.errors, []);
+    outputs.push(result.code);
+  }
+  for (const output of outputs) {
+    const { program, errors } = parseSync('fields.ts', output);
+    assert.deepEqual(errors, []);
+    const members = program.body[0].body.body;
+    assert.deepEqual(members.map(member => [member.key.name, member.static, member.declare]), [
+      ['x', false, true], ['y', true, true], ['declare', false, undefined], ['z', true, undefined],
+    ]);
+  }
+  passed++;
+} catch (error) { console.error('FAIL: declared fields:', error.message); failed++; }
+
+// A TS or JSX left operand still starts the surrounding binary expression.
+try {
+  for (const [filename, operand] of [['spans.ts', 'value!'], ['spans.tsx', '<Icon />']]) {
+    const expression = operand + ' === expected';
+    const source = 'const before = 0; const equal = ' + expression + ';';
+    const { program, errors } = parseSync(filename, source);
+    assert.deepEqual(errors, []);
+    const { start, end } = program.body[1].declarations[0].init;
+    assert.equal(source.slice(start, end), expression);
+  }
+  passed++;
+} catch (error) { console.error('FAIL: TS and JSX expression spans:', error.message); failed++; }
 
 // TypeScript
 try {
@@ -251,6 +443,47 @@ try {
 // synchronous tests above keep their straightforward control flow; the
 // final tally + exit code waits for the IIFE to settle.
 (async () => {
+  try {
+    const cases = [
+      ['if (x) { return 1; } else if (y) log();', 0],
+      ['if (x) log(); else if (y) return 2; else log();', 0],
+      ['if (x) { return 1; } else log();', 1],
+      ['if (x) return 1; else if (y) { return 2; } else log();', 1],
+      ['if (x) { if (y) return 1; else return 2; } else { log(); }', 2],
+      ['while (x) if (y) return 1; else log();', 0],
+    ];
+    for (const [body, count] of cases) {
+      const source = 'function f(x, y) { ' + body + ' }';
+      const { diagnostics } = lintSync('else.js', source, { rules: { 'no-else-return': 'warn' } });
+      const warnings = diagnostics.filter(d => d.code === 'L4053');
+      assert.equal(warnings.length, count, body);
+      for (const d of warnings) assert.equal(source.slice(d.start, d.end).trim(), 'else');
+    }
+    passed++;
+  } catch (error) { console.error('FAIL: no-else-return alternatives', error); failed++; }
+
+  try {
+    const source = '/*🚀e\u0301*/\r\nconst café = <View title="東京">hé🚀</View>;\n' +
+      'const text = "\\uFEFFvalue";';
+    for (const parse of [parseSync, parseAsync]) {
+      const { program, errors } = await parse('unicode.tsx', source);
+      assert.deepEqual(errors, []);
+      const { id, init } = program.body[0].declarations[0];
+      assert.equal(id.name, 'café');
+      assert.equal(id.start, Buffer.byteLength(source.slice(0, source.indexOf('café'))));
+      assert.equal(id.end - id.start, Buffer.byteLength('café'));
+      assert.equal(init.openingElement.name.name, 'View');
+      assert.equal(init.closingElement.name.name, 'View');
+      const [attribute] = init.openingElement.attributes;
+      assert.equal(attribute.name.name, 'title');
+      assert.equal(attribute.value.value, '東京');
+      assert.equal(attribute.value.raw, '"東京"');
+      assert.equal(init.children[0].value, 'hé🚀');
+      assert.equal(program.body[1].declarations[0].init.value, '\uFEFFvalue');
+    }
+    passed++;
+  } catch (error) { console.error('FAIL: Unicode AST strings:', error); failed++; }
+
   // 1) Single-call correctness — parseAsync must return the same AST
   //    shape and the same number of errors as parseSync for the same
   //    input. Same FFI, just dispatched onto a libuv worker thread.
@@ -374,6 +607,54 @@ try {
     if (!d.diagnostics.some((x) => x.code === 'L2001')) { passed++; }
     else { console.error('FAIL: lintSync rules no-debugger:off', JSON.stringify(d.diagnostics)); failed++; }
   } catch (e) { console.error('CRASH: lintSync rules no-debugger:off:', e.message); failed++; }
+
+  // Evaluate a second copy of the binding with the same Koffi installation.
+  // Both copies must be able to register and use their own FFI structures.
+  try {
+    const filename = require.resolve('./index');
+    const secondModule = { exports: {} };
+    const loadBinding = compileFunction(
+      readFileSync(filename, 'utf8'),
+      ['require', 'module', '__dirname'],
+      { filename },
+    );
+    loadBinding(createRequire(filename), secondModule, __dirname);
+    const source = 'const value: number = 1;';
+    const { program, errors } = await secondModule.exports.parseAsync('coexist.ts', source);
+    assert.deepEqual(errors, []);
+    assert.equal(program.body[0].type, 'VariableDeclaration');
+    const generated = secondModule.exports.codegen(source, { filename: 'coexist.ts' });
+    assert.deepEqual(generated.errors, []);
+    assert.ok(generated.code.includes('value'));
+    const linted = secondModule.exports.lintSync('coexist.js', 'debugger;');
+    assert.ok(linted.diagnostics.some(diagnostic => diagnostic.code === 'L2001'));
+    assert.deepEqual(parseSync('coexist.ts', source).errors, []);
+    passed++;
+  } catch (e) { console.error('FAIL: multiple Kessel bindings:', e.message); failed++; }
+
+  // A child process turns a foreign stack overflow into a failed smoke test
+  // and tests the path where another package loaded Koffi first.
+  for (const preload of [false, true]) {
+    try {
+      const script = `
+        const assert = require('node:assert/strict');
+        const koffi = require('koffi');
+        if (${preload}) koffi.load(null);
+        const {parseAsync, parseSync} = require('./index');
+        const source = 'const nested = ' + '['.repeat(64) + '1' + ']'.repeat(64) + ';';
+        const expected = parseSync('nested.js', source);
+        assert.deepEqual(expected.errors, []);
+        Promise.all([parseAsync('nested.js', source), parseAsync('nested.js', source)])
+          .then(results => results.forEach(result => assert.deepEqual(result, expected)))
+          .catch(error => { console.error(error); process.exitCode = 1; });
+      `;
+      const result = spawnSync(process.execPath, ['-e', script], {
+        cwd: __dirname, encoding: 'utf8', timeout: 15000,
+      });
+      assert.equal(result.status, 0, result.stderr || String(result.error || result.signal));
+      passed++;
+    } catch (e) { console.error('FAIL: async native stack, preloaded=' + preload, e.message); failed++; }
+  }
 
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

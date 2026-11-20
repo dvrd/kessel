@@ -42,6 +42,14 @@ task test:release      # Zero-tolerance pre-release gate
 
 ### Primary Gate (`task test`)
 
+CI uses Odin's `dev-2026-11` release for this gate. Fetch the four pinned
+corpora from a fresh checkout before running it. The fetcher reuses existing
+checkouts at the expected revisions.
+
+```bash
+bash tests/runners/oxc_corpus_fetch.sh
+```
+
 Runs the coverage harness across 50K+ fixtures from test262, Babel, TypeScript,
 and ESTree corpora, plus 430 hand-authored unit fixtures. The gate passes when
 the current run matches the committed snapshot files.
@@ -51,6 +59,42 @@ task test                      # Run the gate
 task test:coverage:update      # Regenerate snaps after a deliberate fix
 task test:conformance:report   # Human-readable summary
 ```
+
+### Release Gate (`task test:release`)
+
+The Rust comparison binaries use the pinned sibling OXC checkout, and the
+JavaScript verifiers use the locked dependencies under `bench/`.
+
+```bash
+git clone --no-checkout https://github.com/oxc-project/oxc.git ../oxc
+git -C ../oxc checkout --detach "$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")"
+(cd bench && npm ci)
+task bench:oxc:verify
+```
+
+The release gate reads 467 real-world JavaScript files. The fetch task downloads
+individual files from the npm package versions in `tests/baselines/real_world.sources`
+and checks each file against `tests/baselines/real_world.sha256`. It reuses
+verified local files and reports a checksum error if an existing file differs.
+
+```bash
+task test:release        # Fetches any missing real-world fixtures
+```
+
+The release gate builds the reference revision pinned in the Taskfile with the
+same Odin compiler and options as the candidate. It measures both binaries on
+the same host and applies the existing 10% per-file and 5% geometric-mean
+thresholds. Keep the pinned reference revision available in the checkout.
+Use `task test:bench:regression` to compare against the stored timings from the
+original benchmark host.
+
+After npm publishes a release, the release workflow checks the public package
+on all five target platforms and compares each installed binary's SHA-256 with
+the corresponding build artifact. Run `task test:npm:registry -- MAJOR.MINOR.PATCH`
+with the exact version to repeat the install locally. Set `KESSEL_PACKAGE_BINARY`
+to the release library's path to include the digest check. The task uses a fresh
+npm cache, verifies all five native package versions, and parses TSX through the
+CommonJS and ESM entry points on the host's installed binary.
 
 ### Individual Checks
 

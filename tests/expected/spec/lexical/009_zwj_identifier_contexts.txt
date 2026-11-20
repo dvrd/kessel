@@ -82,37 +82,37 @@
     {
       "type": "Line",
       "start": 74,
-      "end": 148,
+      "end": 147,
       "value": " explicitly permitted in IdentifierContinue (ECMA-262 §11.6). They must"
     },
     {
       "type": "Line",
-      "start": 149,
-      "end": 223,
+      "start": 148,
+      "end": 222,
       "value": " NOT be permitted in IdentifierStart. Below, each identifier starts with"
     },
     {
       "type": "Line",
-      "start": 224,
-      "end": 289,
+      "start": 223,
+      "end": 288,
       "value": " a regular letter and then carries a ZWJ/ZWNJ as a continuation"
     },
     {
       "type": "Line",
-      "start": 290,
-      "end": 347,
+      "start": 289,
+      "end": 346,
       "value": " character, which is the only position the spec allows."
     },
     {
       "type": "Line",
-      "start": 372,
-      "end": 391,
+      "start": 371,
+      "end": 390,
       "value": " ZWJ  at continue"
     },
     {
       "type": "Line",
-      "start": 416,
-      "end": 435,
+      "start": 415,
+      "end": 434,
       "value": " ZWNJ at continue"
     }
   ]

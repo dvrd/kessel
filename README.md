@@ -96,6 +96,15 @@ bin/kessel lex app.js
 bin/kessel codegen app.js
 bin/kessel codegen app.js --minified
 
+# Lint — walk the AST and report lint diagnostics (162 built-in rules)
+bin/kessel lint app.js
+bin/kessel lint src/*.ts --rule no-console:error --rule eqeqeq:warn
+bin/kessel lint app.js --format=json          # also: unix, github, compact, checkstyle
+bin/kessel lint app.js --config kessel.lint.json
+
+# Strip TypeScript types — re-emit plain JavaScript (erasable-only)
+bin/kessel strip-types app.ts
+
 # Benchmark
 bin/kessel microbench parse app.js --iterations 500
 bin/kessel microbench parse app.js --iterations 500 --ast-only
@@ -143,6 +152,62 @@ programmatic handling. Full API and visitor helpers documented in
 | `--module-record` | Emit static import/export module record |
 | `--json` | Emit errors as JSON instead of the pretty renderer |
 | `--color=<bool>` | Force color on/off (overrides `KESSEL_COLOR` env) |
+
+### Linting (`kessel lint`)
+
+162 built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
+rules are default-on; style/restriction rules are default-off and enabled
+explicitly. Every rule is addressable by its ESLint-style kebab-case name.
+
+| Flag | Description |
+|---|---|
+| `--rule <name>:off\|warn\|error` | Override a rule's severity (repeatable) |
+| `--config <file>` | Load a `kessel.lint.json` (auto-discovered upward from cwd if omitted) |
+| `--format=<fmt>` | Output format: `default`, `json`, `unix`, `github`, `compact`, `checkstyle`, `gitlab`, `junit` |
+| `--quiet` | Report errors only — warnings are neither printed nor counted toward the exit code |
+| `--max-warnings <N>` | Return non-zero only if the warning total exceeds `N` (CI gate) |
+| `--deny\|--warn\|--allow <name>` | Shorthand for `--rule name:error\|warn\|off` |
+
+By default kessel is stricter than ESLint: **any** diagnostic (error or
+warning) yields a non-zero exit. `--quiet` and `--max-warnings` opt into the
+looser ESLint-style policy where warnings are tolerated.
+
+The `kessel.lint.json` config file sets per-rule severities and file globs to
+skip:
+
+```json
+{
+  "ignorePatterns": ["dist", "*.min.js"],
+  "rules": { "eqeqeq": "error", "no-console": "warn", "no-debugger": "off" },
+  "overrides": [
+    { "files": ["*.test.js"], "rules": { "no-debugger": "error" } }
+  ]
+}
+```
+
+Glob patterns in `ignorePatterns` support `*` (any run, including `/`) and `?`
+(one character), matched against the full path and the basename; a literal name
+like `dist` matches an exact path, basename, prefix, or interior segment. Each
+`overrides` block layers its `rules` on top of the base rules for files matching
+one of its `files` globs (more specific wins). An `"extends": "./base.json"`
+key (string or array) inherits one or more parent configs first, resolved
+relative to the config file, so the child's own settings override them.
+
+Inline suppression uses ESLint-compatible disable directives, including
+targeted per-rule suppression:
+
+```js
+// eslint-disable-next-line no-console
+console.log(x);
+
+/* eslint-disable no-debugger */
+debugger;
+/* eslint-enable no-debugger */
+```
+
+A bare `// eslint-disable-next-line` (no rule names) suppresses every rule on
+the next line; naming rules suppresses only those.
+
 
 ## Tests
 
@@ -240,7 +305,7 @@ downstream consumers of the finished ESTree AST.
 | 2 | Pratt parser (ES2015–ES2025, TS, JSX/TSX) | ✅ Complete |
 | 3 | Semantic checker (ECMA-262 early errors) | ✅ Complete |
 | — | Codegen + source maps + binary/raw-transfer emitters | ✅ Complete |
-| 4 | **Linter (`kessel lint`)** | 🚧 29 rules (targeting oxlint's ~500) |
+| 4 | **Linter (`kessel lint`)** | 🚧 162 rules (targeting oxlint's ~500) |
 | 5 | Transformer — TS type-stripping (`kessel strip-types`) | 🚧 In progress (M1 shipped) |
 | 6 | Semantic model · CFG · resolver · regexp AST (enablers) | Planned |
 | 7 | Formatter (`kessel fmt`, Prettier-compatible) | Planned |
@@ -272,6 +337,12 @@ The npm package is published automatically on every push to `main` whose convent
 - `feat!:` / `refactor!:` / `BREAKING CHANGE` → major bump
 - `fix:` / `perf:` / `chore:` / etc. → patch bump
 - Docs-only and CI-only commits don't trigger a release
+
+Pull requests targeting `main` run the full local release gate on GitHub Actions.
+The release workflow repeats the gate on the revision it will publish. It
+downloads the 467 checksum-pinned real-world inputs and compares the candidate
+and reference parser on the same runner. The npm checks parse the same corpus
+through both asynchronous execution paths.
 
 The pipeline (`.github/workflows/release.yml`) builds all five platform binaries, publishes the five `@dvrdlibs/kessel-<target>` sub-packages with Sigstore provenance, then publishes the main `@dvrdlibs/kessel` package with `optionalDependencies` pinned to the same version. If any sub-package fails to publish, the main package stays at its previous version and users are unaffected.
 

@@ -1660,13 +1660,13 @@
     {
       "type": "Line",
       "start": 628,
-      "end": 700,
+      "end": 696,
       "value": " hits — beyond the single-feature primitives 001-008 — without any"
     },
     {
       "type": "Line",
-      "start": 701,
-      "end": 776,
+      "start": 697,
+      "end": 772,
       "value": " TS-specific syntax (kept .jsx-clean so the gate parses with --lang=jsx)."
     }
   ]

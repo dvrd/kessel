@@ -893,6 +893,10 @@ rewrite_ts_type :: proc(t: ^TSType, base: uintptr, source_base: uintptr) {
 		rewrite_expr_field(v.parameter_name, &v.parameter_name, base, source_base)
 		rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
 	case ^TSImportType:
+		if v.has_options {
+			full := cast(^TSImportTypeWithOptions)v
+			rewrite_expr_field(full.options, &full.options, base, source_base)
+		}
 		rewrite_ts_type_field(v.argument, &v.argument, base, source_base)
 		rewrite_maybe_expr(&v.qualifier, base, source_base)
 		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)
@@ -1155,9 +1159,16 @@ rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base
 	rewrite_ts_interface_heritage_array(&c.implements, base, source_base)
 	for i in 0..<len(c.body.body) {
 		elem := &c.body.body[i]
+		// The version-one arena format represents fields with the method tag.
+		if elem.kind == .Field { elem.kind = .Method }
 		rewrite_expr_field(elem.key, &elem.key, base, source_base)
 		rewrite_maybe_expr(&elem.value, base, source_base)
-		rewrite_maybe_ts_type_annotation(&elem.type_annotation, base, source_base)
+		if elem.kind == .IndexSignature {
+			rewrite_ts_signature(elem.typing.index_signature, base, source_base)
+			rewrite_ptr((^rawptr)(&elem.typing.index_signature), base)
+		} else {
+			rewrite_maybe_ts_type_annotation(&elem.typing.annotation, base, source_base)
+		}
 		// Per-element decorators (`@bound method() {}`, `@dec field;`).
 		rewrite_decorator_array(&elem.decorators, base, source_base)
 	}
@@ -1264,17 +1275,14 @@ produce_raw_buffer_from_job :: proc(job: ^ParseJob) -> RawTransferResult {
 
 
 // Write raw transfer buffer to a file: [header][arena bytes]
-write_raw_buffer :: proc(result: RawTransferResult, path: string) -> bool {
+write_raw_buffer :: proc(result: RawTransferResult, path: string) -> (ok: bool) {
 	fd, err := os.open(path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
 	if err != nil { return false }
-	defer os.close(fd)
+	defer if os.close(fd) != nil { ok = false }
 
-	// Write header
-	header_bytes := transmute([size_of(RawTransferHeader)]u8)result.header
-	os.write(fd, header_bytes[:])
-
-	// Write arena buffer
-	os.write(fd, result.buffer)
-
-	return true
+	header := transmute([size_of(RawTransferHeader)]u8)result.header
+	header_size, header_err := os.write(fd, header[:])
+	if header_err != nil || header_size != len(header) { return false }
+	data_size, data_err := os.write(fd, result.buffer)
+	return data_err == nil && data_size == len(result.buffer)
 }

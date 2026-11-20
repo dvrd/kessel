@@ -501,7 +501,7 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 	// or `{` is ambiguous with FunctionDeclaration / ClassDeclaration /
 	// BlockStatement. Wrap in parens so the re-parse picks the
 	// Expression production.
-	if expression_needs_statement_paren(s.expression) {
+	if expression_needs_statement_paren(s.expression, allow_leading_object = false) {
 		cg_byte(cg, '(')
 		gen_expression(cg, s.expression, PREC_LOWEST)
 		cg_byte(cg, ')')
@@ -516,13 +516,13 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 // Walks leftmost descendants — the ambiguity propagates through call /
 // member / binary / sequence / etc. since those keep `function`/`class`/`{`
 // as the first token of the whole statement.
-expression_needs_statement_paren :: proc(expr: ^Expression) -> bool {
+expression_needs_statement_paren :: proc(expr: ^Expression, allow_leading_object: bool) -> bool {
 	cur := expr
 	for cur != nil {
 		#partial switch e in cur^ {
 		case ^FunctionExpression:        return true
 		case ^ClassExpression:           return true
-		case ^ObjectExpression:          return true
+		case ^ObjectExpression:          return !allow_leading_object
 		case ^CallExpression:            cur = e.callee
 		case ^MemberExpression:          cur = e.object
 		case ^TaggedTemplateExpression:  cur = e.tag
@@ -827,6 +827,7 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 	// parser then reads as a single identifier.
 	if len(s.phase) > 0 { cg_str(cg, s.phase); cg_hard_space(cg) }
 	first := true
+	has_named_specifiers := false
 	// Default + namespace specifiers (each appears at most once).
 	for spec in s.specifiers {
 		switch v in spec^ {
@@ -840,33 +841,39 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 			cg_str(cg, v.local.name)
 			first = false
 		case ImportSpecifier:
-			// emitted in the `{...}` group below
+			has_named_specifiers = true
 		}
 	}
-	// Named specifiers.
-	any_named := false
+	named_open := false
 	for spec in s.specifiers {
-		if _, ok := spec^.(ImportSpecifier); ok { any_named = true; break }
-	}
-	if any_named {
-		if !first { cg_str(cg, ", ") }
-		cg_byte(cg, '{')
-		first_named := true
-		for spec in s.specifiers {
-			v, ok := spec^.(ImportSpecifier)
-			if !ok { continue }
-			if !first_named { cg_str(cg, ", ") } else { cg_space(cg) }
-			first_named = false
-			if v.imported.name != v.local.name {
-				cg_str(cg, v.imported.name)
-				cg_str(cg, " as ")
-				cg_str(cg, v.local.name)
-			} else {
-				cg_str(cg, v.local.name)
-			}
+		v, ok := spec^.(ImportSpecifier)
+		if !ok { continue }
+		// A per-specifier type modifier precedes the imported name.
+		type_only := v.loc.start < v.imported.loc.start
+		if cg.cfg.strip_types && type_only { continue }
+		if named_open {
+			cg_str(cg, ", ")
+		} else {
+			if !first { cg_str(cg, ", ") }
+			cg_byte(cg, '{')
+			cg_space(cg)
+			named_open = true
 		}
+		if type_only { cg_str(cg, "type ") }
+		cg_str(cg, v.imported.name)
+		if v.imported.name != v.local.name {
+			cg_str(cg, " as ")
+			cg_str(cg, v.local.name)
+		}
+	}
+	if named_open {
 		cg_space(cg)
 		cg_byte(cg, '}')
+		first = false
+	} else if has_named_specifiers || (first && s.import_kind == .Type) {
+		// Keep the module request when type stripping leaves an empty clause.
+		if !first { cg_str(cg, ", ") }
+		cg_str(cg, "{}")
 		first = false
 	}
 	if !first { cg_str(cg, " from ") }
@@ -963,9 +970,13 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 		return
 	}
 	cg_byte(cg, '{')
-	for i in 0..<len(s.specifiers) {
-		if i > 0 { cg_str(cg, ", ") } else { cg_space(cg) }
-		sp := s.specifiers[i]
+	first := true
+	for &sp in s.specifiers {
+		type_only := export_specifier_is_type(&sp)
+		if cg.cfg.strip_types && type_only { continue }
+		if !first { cg_str(cg, ", ") } else { cg_space(cg) }
+		first = false
+		if type_only { cg_str(cg, "type ") }
 		if export_name_eq(sp.local, sp.exported) {
 			gen_export_specifier_name(cg, sp.local)
 		} else {
@@ -990,18 +1001,12 @@ gen_export_default_declaration :: proc(cg: ^Codegen, s: ^ExportDefaultDeclaratio
 	case ^Declaration:
 		gen_statement(cg, decl_to_stmt(v^))
 	case ^Expression:
+		// Group expressions whose first token would declare a function or class.
+		group := expression_needs_statement_paren(v, allow_leading_object = true)
+		if group { cg_byte(cg, '(') }
 		gen_expression(cg, v, PREC_ASSIGN)
-		// Function and class *expressions* in default-export position are
-		// declaration-shaped at the source level (closing `}` ends the
-		// statement). Emitting `;` after them produces two statements on
-		// re-parse — the declaration plus a stray EmptyStatement — which
-		// breaks AST round-trip. Only assign-expression forms need `;`.
-		needs_semi := true
-		#partial switch _ in v^ {
-		case ^FunctionExpression: needs_semi = false
-		case ^ClassExpression:    needs_semi = false
-		}
-		if needs_semi { cg_byte(cg, ';') }
+		if group { cg_byte(cg, ')') }
+		cg_byte(cg, ';')
 	}
 }
 
@@ -1394,9 +1399,11 @@ gen_class_like :: proc(
 }
 
 // A class member that type-stripping erases entirely because it carries no
-// runtime: an abstract member, or a bodyless method / constructor (a TS
+// runtime: a declared field, an abstract member, or a bodyless method / constructor (a TS
 // overload signature or ambient method declaration).
 class_element_erased :: proc(el: ClassElement) -> bool {
+	if el.kind == .IndexSignature { return true }
+	if el.declare { return true }
 	if el.abstract { return true }
 	#partial switch el.kind {
 	case .Method, .Constructor:
@@ -1414,6 +1421,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		gen_decorator(cg, d)
 		cg_break_or_space(cg)
 	}
+	if el.declare { cg_str(cg, "declare ") }
 	switch el.accessibility {
 	case .None:      // nothing
 	case .Public:    if !cg.cfg.strip_types { cg_str(cg, "public ") }
@@ -1426,27 +1434,12 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	if el.readonly  && !cg.cfg.strip_types { cg_str(cg, "readonly ") }
 	if el.is_accessor { cg_str(cg, "accessor ") }
 	switch el.kind {
-	case .Method:
-		// ClassElementKind.Method covers both MethodDefinition AND
-		// PropertyDefinition: if the value is a FunctionExpression it's
-		// a method; otherwise it's a field initializer (`x = 1;` or `x;`).
-		// Mirrors the emitter's class-element dispatch.
-		//
-		// Disambiguation for `name = function id() {}`: a real method's
-		// FunctionExpression value is anonymous (no `.id`). A non-nil
-		// `.id` proves the source had `=` + a named function expression,
-		// so this slot is a PropertyDefinition, not a MethodDefinition.
+	case .Method, .Field:
 		raw_val, val_ok := el.value.?
 		fn: ^FunctionExpression
 		is_method := false
-		if val_ok {
-			if f, ok := raw_val.(^FunctionExpression); ok {
-				_, has_id := f.id.?
-				if !has_id {
-					fn = f
-					is_method = true
-				}
-			}
+		if val_ok && el.kind == .Method {
+			fn, is_method = raw_val.(^FunctionExpression)
 		}
 		if is_method {
 			if fn.async { cg_str(cg, "async ") }
@@ -1457,7 +1450,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		if el.computed { cg_byte(cg, ']') }
 		if el.optional && !cg.cfg.strip_types { cg_byte(cg, '?') }
 		if el.definite && !cg.cfg.strip_types { cg_byte(cg, '!') }
-		if ta, ok := el.type_annotation.?; ok && !cg.cfg.strip_types {
+		if ta, ok := el.typing.annotation.?; ok && !cg.cfg.strip_types {
 			cg_str(cg, ": ")
 			gen_ts_type(cg, ta.type_annotation)
 		}
@@ -1506,6 +1499,9 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 			}
 		}
 		cg_str(cg, "() {}")
+	case .IndexSignature:
+		gen_ts_signature(cg, el.typing.index_signature)
+		cg_byte(cg, ';')
 	case .StaticBlock:
 		// Parser stores the static block as a FunctionExpression with no
 		// params; body.body holds the statements. See parse_static_block.
@@ -2290,11 +2286,18 @@ gen_ts_function_params :: proc(cg: ^Codegen, params: []TSFunctionParam) {
 }
 
 gen_ts_function_param :: proc(cg: ^Codegen, p: TSFunctionParam) {
-	gen_pattern(cg, p.pattern)
+	pattern := p.pattern
+	assignment, has_default := pattern.(^AssignmentPattern)
+	if has_default && assignment != nil { pattern = assignment.left }
+	gen_pattern(cg, pattern)
 	if p.optional { cg_byte(cg, '?') }
 	if ta, ok := p.type_annotation.?; ok {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, ta.type_annotation)
+	}
+	if has_default && assignment != nil {
+		cg_str(cg, " = ")
+		gen_expression(cg, assignment.right, PREC_ASSIGN)
 	}
 }
 
@@ -2787,6 +2790,11 @@ gen_ts_import_type_full :: proc(cg: ^Codegen, t: ^TSImportType) {
 	if t.is_typeof { cg_str(cg, "typeof ") }
 	cg_str(cg, "import(")
 	gen_ts_type(cg, t.argument)
+	if options := ts_import_type_options(t); options != nil {
+		cg_byte(cg, ',')
+		cg_space(cg)
+		gen_expression(cg, options, PREC_ASSIGN)
+	}
 	cg_byte(cg, ')')
 	if q, ok := t.qualifier.?; ok {
 		cg_byte(cg, '.')

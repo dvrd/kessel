@@ -37,6 +37,16 @@ for f in "$ST_DIR"/pass/*.ts "$ST_DIR"/pass/*.tsx; do
   fi
 done
 
+# Execute the upstream TypeScript behavior for inherited and computed fields.
+for flags in "" "--minified"; do
+  if "$BIN" strip-types "$ST_DIR/pass/declared-class-fields.ts" ${flags:+"$flags"} > "$tmp" &&
+     node --input-type=module < "$tmp"; then
+    pass=$((pass + 1))
+  else
+    fail=$((fail + 1)); echo "FAIL: runtime behavior of declared class fields ($flags)" >&2
+  fi
+done
+
 # fail/: non-erasable TS must be rejected (exit 1).
 for f in "$ST_DIR"/fail/*.ts "$ST_DIR"/fail/*.tsx; do
   "$BIN" strip-types "$f" >/dev/null 2>&1

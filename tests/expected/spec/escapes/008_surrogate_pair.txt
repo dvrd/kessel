@@ -38,25 +38,25 @@
     {
       "type": "Line",
       "start": 74,
-      "end": 144,
+      "end": 142,
       "value": " one supplementary-plane code point. U+D834 U+DF06 = U+1D306 (𝌆)."
     },
     {
       "type": "Line",
-      "start": 174,
-      "end": 244,
+      "start": 172,
+      "end": 242,
       "value": " Lone surrogates (high without low, low without high) are allowed as"
     },
     {
       "type": "Line",
-      "start": 245,
-      "end": 318,
+      "start": 243,
+      "end": 313,
       "value": " LITERAL values by ECMA-262 §12.9.4 — round-trip must preserve them."
     },
     {
       "type": "Line",
-      "start": 319,
-      "end": 386,
+      "start": 314,
+      "end": 381,
       "value": " Covered by tests/fixtures/regression/011_lone_surrogate_emit.js."
     }
   ]

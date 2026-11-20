@@ -131,6 +131,8 @@ BinNodeType :: enum u8 {
 	TSNonNullExpression,
 	TSTypeAssertion,
 	TSInstantiationExpression,
+	TypedRecord,
+	TypedPrefix,
 	// Sentinel
 	_Count,
 }
@@ -161,21 +163,36 @@ BinValType :: enum u8 {
 //   v3: same on-wire shape; explicit `end` per error (was implicit start+1)
 //   v4: [header 24B] [nodes] [errors{start,end,code:u16,sev:u8,_pad:u8,msg_len,msg}] [strings]
 //       errors gained a stable K-code and severity for FFI consumers.
-BINARY_FORMAT_VERSION :: u32(4)
+//   v5: PropertyDefinition encodes static (bit 0) and declare (bit 1) in the
+//       former static byte. Emit v4 for trees that only use the original flags.
+//   v6: Names and module sources formerly stored as string indexes are child
+//       nodes with their original spans. Absent optional fields keep their null tag.
+//   v7: Typed records and field prefixes share the string table with fixed-layout nodes.
+//   v8: A byte immediately before the string table identifies the TypeScript ESTree shape.
+//       JavaScript decorators can use typed records, and plain TypeScript may use none.
+BINARY_VERSION_DIAGNOSTICS     :: u32(4)
+BINARY_VERSION_DECLARED_FIELDS :: u32(5)
+BINARY_VERSION_CHILD_SPANS     :: u32(6)
+BINARY_VERSION_TYPES           :: u32(7)
+BINARY_VERSION_SOURCE_SHAPE    :: u32(8)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
+	scratch:      mem.Allocator, // Borrowed parser arena for temporary token data.
 	buf:          [dynamic]u8,       // output buffer
 	pos:          int,               // write cursor
 	strings:      [dynamic]string,   // string table (ordered by first occurrence)
 	string_map:   map[string]u32,    // dedup: string → index in strings
 	source:       string,            // borrowed source text
+	ts_shape:     bool,
 	node_count:   u32,
+	version:      u32,               // lowest compatible wire version for this tree
 	errors_off:   u32,               // start of errors section (0 = no errors written)
 	error_count:  u32,               // count of errors written
 }
 
-binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc: mem.Allocator) {
+binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc, scratch: mem.Allocator, ts_shape: bool) {
+	be.scratch = scratch
 	cap := max(len(source), 64 * 1024)
 	be.buf = make([dynamic]u8, cap, alloc)
 	be.pos = BINARY_HEADER_SIZE  // skip header (filled at the end)
@@ -183,6 +200,8 @@ binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc: mem.Alloc
 	be.string_map = make(map[string]u32, 4096, alloc)
 	be.source = source
 	be.node_count = 0
+	be.ts_shape = ts_shape
+	be.version = BINARY_VERSION_SOURCE_SHAPE if ts_shape else BINARY_VERSION_DIAGNOSTICS
 }
 
 binary_emitter_destroy :: proc(be: ^BinaryEmitter, alloc: mem.Allocator) {
@@ -315,20 +334,10 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		}
 	case ^BreakStatement:
 		bin_node_header(be, .BreakStatement, s.loc)
-		if label, ok := s.label.(LabelIdentifier); ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, label.name)
-		} else {
-			bw_u8(be, u8(BinValType.Null))
-		}
+		bin_emit_optional_identifier(be, s.label)
 	case ^ContinueStatement:
 		bin_node_header(be, .ContinueStatement, s.loc)
-		if label, ok := s.label.(LabelIdentifier); ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, label.name)
-		} else {
-			bw_u8(be, u8(BinValType.Null))
-		}
+		bin_emit_optional_identifier(be, s.label)
 	case ^IfStatement:
 		bin_node_header(be, .IfStatement, s.loc)
 		bin_emit_expression(be, s.test)
@@ -436,7 +445,7 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		}
 	case ^LabeledStatement:
 		bin_node_header(be, .LabeledStatement, s.loc)
-		bw_string_ref(be, s.label.name)
+		bin_emit_identifier_child(be, s.label.loc, s.label.name)
 		bin_emit_statement(be, s.body)
 	case ^WithStatement:
 		bin_node_header(be, .WithStatement, s.loc)
@@ -449,25 +458,40 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 	case ^ClassDeclaration:
 		bin_emit_class(be, .ClassDeclaration, s)
 	case ^ImportDeclaration:
+		if s.import_kind == .Type {
+			bin_extra(be)
+			bin_field_text(be, "importKind", "type")
+			bin_fields_end(be)
+		}
 		bin_node_header(be, .ImportDeclaration, s.loc)
 		bw_u32(be, u32(len(s.specifiers)))
 		for spec in s.specifiers {
 			if spec == nil { bw_u8(be, u8(BinValType.NullNode)); continue }
 			switch ss in spec^ {
 			case ImportSpecifier:
+				if ss.loc.start < ss.imported.loc.start {
+					bin_extra(be)
+					bin_field_text(be, "importKind", "type")
+					bin_fields_end(be)
+				}
 				bin_node_header(be, .ImportSpecifier, ss.loc)
-				bw_string_ref(be, ss.imported.name)
-				bw_string_ref(be, ss.local.name)
+				bin_emit_module_name_child(be, ss.imported)
+				bin_emit_identifier_child(be, ss.local.loc, ss.local.name)
 			case ImportDefaultSpecifier:
 				bin_node_header(be, .ImportDefaultSpecifier, ss.loc)
-				bw_string_ref(be, ss.local.name)
+				bin_emit_identifier_child(be, ss.local.loc, ss.local.name)
 			case ImportNamespaceSpecifier:
 				bin_node_header(be, .ImportNamespaceSpecifier, ss.loc)
-				bw_string_ref(be, ss.local.name)
+				bin_emit_identifier_child(be, ss.local.loc, ss.local.name)
 			}
 		}
-		bw_string_ref(be, s.source.value)
+		bin_emit_string_child(be, s.source.loc, s.source.value, s.source.raw)
 	case ^ExportNamedDeclaration:
+		if s.export_kind == .Type {
+			bin_extra(be)
+			bin_field_text(be, "exportKind", "type")
+			bin_fields_end(be)
+		}
 		bin_node_header(be, .ExportNamedDeclaration, s.loc)
 		if decl, ok := s.declaration.?; ok && decl != nil {
 			bw_u8(be, u8(BinValType.Node))
@@ -476,14 +500,20 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
 		bw_u32(be, u32(len(s.specifiers)))
-		for spec in s.specifiers {
+		for &spec in s.specifiers {
+			type_only := export_specifier_is_type(&spec)
+			if type_only {
+				bin_extra(be)
+				bin_field_text(be, "exportKind", "type")
+				bin_fields_end(be)
+			}
 			bin_node_header(be, .ExportSpecifier, spec.loc)
 			bin_emit_export_spec_name(be, spec.local)
 			bin_emit_export_spec_name(be, spec.exported)
 		}
 		if src, ok := s.source.?; ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, src.value)
+			bw_u8(be, u8(BinValType.Node))
+			bin_emit_string_child(be, src.loc, src.value, src.raw)
 		} else {
 			bw_u8(be, u8(BinValType.Null))
 		}
@@ -491,25 +521,33 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bin_node_header(be, .ExportDefaultDeclaration, s.loc)
 		bin_emit_export_default_def(be, s.declaration)
 	case ^ExportAllDeclaration:
+		if s.export_kind == .Type {
+			bin_extra(be)
+			bin_field_text(be, "exportKind", "type")
+			bin_fields_end(be)
+		}
 		bin_node_header(be, .ExportAllDeclaration, s.loc)
-		bw_string_ref(be, s.source.value)
+		bin_emit_string_child(be, s.source.loc, s.source.value, s.source.raw)
 		if exported, ok := s.exported.?; ok {
-			bw_u8(be, u8(BinValType.StringRef))
-			bw_string_ref(be, exported.name)
+			bw_u8(be, u8(BinValType.Node))
+			bin_emit_module_name_child(be, exported)
 		} else {
 			bw_u8(be, u8(BinValType.Null))
 		}
-	// TS declaration statements are not emitted into the binary buffer: the npm
-	// reader has no decoder for them, so they are written as NullNode. Listed
-	// explicitly (rather than via a default) so a newly-added Statement variant
-	// fails the build instead of being silently dropped here.
-	case ^TSInterfaceDeclaration:       bw_u8(be, u8(BinValType.NullNode))
-	case ^TSTypeAliasDeclaration:       bw_u8(be, u8(BinValType.NullNode))
-	case ^TSEnumDeclaration:            bw_u8(be, u8(BinValType.NullNode))
-	case ^TSModuleDeclaration:          bw_u8(be, u8(BinValType.NullNode))
-	case ^TSImportEqualsDeclaration:    bw_u8(be, u8(BinValType.NullNode))
-	case ^TSExportAssignment:           bw_u8(be, u8(BinValType.NullNode))
-	case ^TSNamespaceExportDeclaration: bw_u8(be, u8(BinValType.NullNode))
+	case ^TSInterfaceDeclaration: bin_type_interface(be, s)
+	case ^TSTypeAliasDeclaration: bin_type_alias(be, s)
+	case ^TSEnumDeclaration: bin_type_enum(be, s)
+	case ^TSModuleDeclaration: bin_type_module(be, s)
+	case ^TSImportEqualsDeclaration: bin_type_import_equals(be, s)
+	case ^TSExportAssignment:
+		bin_record(be, "TSExportAssignment", s.loc)
+		bin_field_expr(be, "expression", s.expression)
+		bin_fields_end(be)
+	case ^TSNamespaceExportDeclaration:
+		bin_record(be, "TSNamespaceExportDeclaration", s.loc)
+		bin_field(be, .Node, "id")
+		bin_type_identifier(be, s.id.loc, s.id.name)
+		bin_fields_end(be)
 	}
 }
 
@@ -552,17 +590,7 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	case ^TemplateLiteral:
 		bin_node_header(be, .TemplateLiteral, e.loc)
 		bw_u32(be, u32(len(e.quasis)))
-		for q in e.quasis {
-			bin_node_header(be, .TemplateElement, q.loc)
-			bw_bool(be, q.tail)
-			if cooked, ok := q.cooked.?; ok {
-				bw_u8(be, 1) // has cooked
-				bw_string_ref(be, cooked)
-			} else {
-				bw_u8(be, 0) // no cooked
-			}
-			bw_string_ref(be, q.raw)
-		}
+		for q in e.quasis { bin_template_element(be, q) }
 		bw_u32(be, u32(len(e.expressions)))
 		for child in e.expressions { bin_emit_expression(be, child) }
 	case ^TaggedTemplateExpression:
@@ -595,6 +623,12 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	case ^FunctionExpression:
 		bin_emit_function_node(be, .FunctionExpression, e)
 	case ^ArrowFunctionExpression:
+		if e.type_parameters != nil || e.return_type != nil {
+			bin_extra(be)
+			bin_field_generics(be, e.type_parameters)
+			bin_field_annotation(be, "returnType", e.return_type)
+			bin_fields_end(be)
+		}
 		bin_node_header(be, .ArrowFunctionExpression, e.loc)
 		bw_bool(be, e.async)
 		bw_bool(be, e.expression)
@@ -627,12 +661,22 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bin_emit_expression(be, e.object)
 		bin_emit_expression(be, e.property)
 	case ^CallExpression:
+		if e.type_parameters != nil {
+			bin_extra(be)
+			bin_field_type_args(be, e.type_parameters)
+			bin_fields_end(be)
+		}
 		bin_node_header(be, .CallExpression, e.loc)
 		bw_bool(be, e.optional)
 		bin_emit_expression(be, e.callee)
 		bw_u32(be, u32(len(e.arguments)))
 		for arg in e.arguments { bin_emit_expression(be, arg) }
 	case ^NewExpression:
+		if e.type_parameters != nil {
+			bin_extra(be)
+			bin_field_type_args(be, e.type_parameters)
+			bin_fields_end(be)
+		}
 		bin_node_header(be, .NewExpression, e.loc)
 		bin_emit_expression(be, e.callee)
 		bw_u32(be, u32(len(e.arguments)))
@@ -699,8 +743,8 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bin_emit_expression(be, e.source)
 	case ^MetaProperty:
 		bin_node_header(be, .MetaProperty, e.loc)
-		bw_string_ref(be, e.meta.name)
-		bw_string_ref(be, e.property.name)
+		bin_emit_identifier_child(be, e.meta.loc, e.meta.name)
+		bin_emit_identifier_child(be, e.property.loc, e.property.name)
 	case ^ChainExpression:
 		bin_node_header(be, .ChainExpression, e.loc)
 		bin_emit_expression(be, e.expression)
@@ -740,37 +784,65 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bin_emit_expression(be, e.expression)
 	// ===================== TypeScript =====================
 	case ^TSAsExpression:
-		bin_node_header(be, .TSAsExpression, e.loc)
-		bin_emit_expression(be, e.expression)
-		// type_annotation skipped — JS consumer doesn't need it
+		bin_record(be, "TSAsExpression", e.loc)
+		bin_field_expr(be, "expression", e.expression)
+		bin_field_type(be, "typeAnnotation", e.type_annotation)
+		bin_fields_end(be)
 	case ^TSSatisfiesExpression:
-		bin_node_header(be, .TSSatisfiesExpression, e.loc)
-		bin_emit_expression(be, e.expression)
+		bin_record(be, "TSSatisfiesExpression", e.loc)
+		bin_field_expr(be, "expression", e.expression)
+		bin_field_type(be, "typeAnnotation", e.type_annotation)
+		bin_fields_end(be)
 	case ^TSNonNullExpression:
 		bin_node_header(be, .TSNonNullExpression, e.loc)
 		bin_emit_expression(be, e.expression)
 	case ^TSTypeAssertion:
-		bin_node_header(be, .TSTypeAssertion, e.loc)
-		bin_emit_expression(be, e.expression)
+		bin_record(be, "TSTypeAssertion", e.loc)
+		bin_field_expr(be, "expression", e.expression)
+		bin_field_type(be, "typeAnnotation", e.type_annotation)
+		bin_fields_end(be)
 	case ^TSInstantiationExpression:
-		bin_node_header(be, .TSInstantiationExpression, e.loc)
-		bin_emit_expression(be, e.expression)
+		bin_record(be, "TSInstantiationExpression", e.loc)
+		bin_field_expr(be, "expression", e.expression)
+		bin_field_type_args(be, e.type_arguments)
+		bin_fields_end(be)
 	}
 }
 
-bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
+bin_template_element :: proc(be: ^BinaryEmitter, q: TemplateElement) {
+	bin_node_header(be, .TemplateElement, q.loc)
+	bw_bool(be, q.tail)
+	if cooked, ok := q.cooked.?; ok {
+		bw_u8(be, 1) // has cooked
+		bw_string_ref(be, cooked)
+	} else {
+		bw_u8(be, 0) // no cooked
+	}
+	bw_string_ref(be, q.raw)
+}
+
+bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern, param: ^TSFunctionParam = nil) {
 	#partial switch p in pat {
 	case ^Identifier:
-		bin_node_header(be, .Identifier, p.loc)
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, p.optional, param)
+		if annotation != nil || optional {
+			bin_type_identifier(be, loc, p.name, annotation, optional)
+			return
+		}
+		bin_node_header(be, .Identifier, loc)
 		bw_string_ref(be, p.name)
 	case ^ObjectPattern:
-		bin_node_header(be, .ObjectPattern, p.loc)
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
+		bin_pattern_typing(be, annotation, optional)
+		bin_node_header(be, .ObjectPattern, loc)
 		bw_u32(be, u32(len(p.properties)))
 		for prop in p.properties {
 			bin_emit_obj_pat_prop(be, prop)
 		}
 	case ^ArrayPattern:
-		bin_node_header(be, .ArrayPattern, p.loc)
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
+		bin_pattern_typing(be, annotation, optional)
+		bin_node_header(be, .ArrayPattern, loc)
 		bw_u32(be, u32(len(p.elements)))
 		for elem in p.elements {
 			if e, ok := elem.?; ok {
@@ -782,9 +854,17 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 		}
 	case ^AssignmentPattern:
 		bin_node_header(be, .AssignmentPattern, p.loc)
-		bin_emit_pattern(be, p.left)
+		bin_emit_pattern(be, p.left, param)
 		bin_emit_expression(be, p.right)
 	case ^RestElement:
+		if param != nil {
+			bin_type_rest(be, p, param.type_annotation, param.loc)
+			return
+		}
+		if id, plain := p.argument.(^Identifier); plain && id.type_annotation != nil {
+			bin_type_rest(be, p, id.type_annotation, p.loc)
+			return
+		}
 		bin_node_header(be, .RestElement, p.loc)
 		bin_emit_pattern(be, p.argument)
 	case ^MemberExpression:
@@ -796,6 +876,14 @@ bin_emit_pattern :: proc(be: ^BinaryEmitter, pat: Pattern) {
 	case:
 		bw_u8(be, u8(BinValType.NullNode))
 	}
+}
+
+bin_pattern_typing :: proc(be: ^BinaryEmitter, annotation: Maybe(^TSTypeAnnotation), optional: bool) {
+	if annotation == nil && !optional { return }
+	bin_extra(be)
+	if annotation != nil { bin_field_annotation(be, "typeAnnotation", annotation) }
+	if optional { bin_field_bool(be, "optional", true) }
+	bin_fields_end(be)
 }
 
 // ============================================================================
@@ -849,6 +937,11 @@ bin_emit_jsx_attr_name :: proc(be: ^BinaryEmitter, name: JSXAttributeName) {
 }
 
 bin_emit_jsx_opening :: proc(be: ^BinaryEmitter, oe: ^JSXOpeningElement) {
+	if oe.type_arguments != nil {
+		bin_extra(be)
+		bin_field_type_args(be, oe.type_arguments)
+		bin_fields_end(be)
+	}
 	bin_node_header(be, .JSXOpeningElement, oe.loc)
 	bw_bool(be, oe.self_closing)
 	bin_emit_jsx_elem_name(be, oe.name)
@@ -999,16 +1092,8 @@ bin_emit_obj_pat_prop :: proc(be: ^BinaryEmitter, prop: ObjectPatternProperty) {
 
 bin_emit_declaration :: proc(be: ^BinaryEmitter, decl: ^Declaration) {
 	if decl == nil { bw_u8(be, u8(BinValType.NullNode)); return }
-	#partial switch d in decl^ {
-	case ^FunctionDeclaration:
-		bin_emit_function_node(be, .FunctionDeclaration, d)
-	case ^VariableDeclaration:
-		bin_emit_var_decl(be, d)
-	case ^ClassDeclaration:
-		bin_emit_class(be, .ClassDeclaration, d)
-	case:
-		bw_u8(be, u8(BinValType.NullNode))
-	}
+	statement := decl_to_stmt(decl^)
+	bin_emit_statement(be, &statement)
 }
 
 bin_emit_export_default_def :: proc(be: ^BinaryEmitter, def: ^ExportDefaultDef) {
@@ -1022,6 +1107,11 @@ bin_emit_export_default_def :: proc(be: ^BinaryEmitter, def: ^ExportDefaultDef) 
 }
 
 bin_emit_var_decl :: proc(be: ^BinaryEmitter, s: ^VariableDeclaration) {
+	if s.declare {
+		bin_extra(be)
+		bin_field_bool(be, "declare", true)
+		bin_fields_end(be)
+	}
 	bin_node_header(be, .VariableDeclaration, s.loc)
 	bw_u8(be, u8(s.kind))
 	bw_u32(be, u32(len(s.declarations)))
@@ -1040,14 +1130,51 @@ bin_emit_var_decl :: proc(be: ^BinaryEmitter, s: ^VariableDeclaration) {
 bin_emit_export_spec_name :: proc(be: ^BinaryEmitter, name: ExportSpecifierName) {
 	switch n in name {
 	case IdentifierName:
-		bw_string_ref(be, n.name)
+		bin_emit_identifier_child(be, n.loc, n.name)
 	case ^StringLiteral:
 		if n != nil {
-			bw_string_ref(be, n.value)
+			bin_emit_string_child(be, n.loc, n.value, n.raw)
 		} else {
-			bw_string_ref(be, "")
+			be.version = max(be.version, BINARY_VERSION_CHILD_SPANS)
+			bw_u8(be, u8(BinValType.NullNode))
 		}
 	}
+}
+
+bin_emit_identifier_child :: proc(be: ^BinaryEmitter, loc: Loc, name: string) {
+	be.version = max(be.version, BINARY_VERSION_CHILD_SPANS)
+	bin_node_header(be, .Identifier, loc)
+	bw_string_ref(be, name)
+}
+
+bin_emit_string_child :: proc(be: ^BinaryEmitter, loc: Loc, value, raw: string) {
+	be.version = max(be.version, BINARY_VERSION_CHILD_SPANS)
+	bin_node_header(be, .StringLiteral, loc)
+	bw_string_ref(be, value)
+	bw_string_ref(be, raw)
+}
+
+bin_emit_optional_identifier :: proc(be: ^BinaryEmitter, child: Maybe($T)) {
+	if id, present := child.?; present {
+		bw_u8(be, u8(BinValType.Node))
+		bin_emit_identifier_child(be, id.loc, id.name)
+	} else {
+		bw_u8(be, u8(BinValType.Null))
+	}
+}
+
+// Import names and namespace export aliases retain their decoded name and
+// original source span for both identifier and quoted spellings.
+bin_emit_module_name_child :: proc(be: ^BinaryEmitter, name: IdentifierName) {
+	loc := name.loc
+	if loc.start < loc.end && loc.end <= u32(len(be.source)) {
+		raw := be.source[loc.start:loc.end]
+		if raw[0] == '\'' || raw[0] == '"' {
+			bin_emit_string_child(be, loc, name.name, raw)
+			return
+		}
+	}
+	bin_emit_identifier_child(be, loc, name.name)
 }
 
 // ============================================================================
@@ -1067,13 +1194,14 @@ bin_emit_function_body :: proc(be: ^BinaryEmitter, body: FunctionBody) {
 }
 
 bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^FunctionExpression) {
-	bin_node_header(be, type_id, fn.loc)
-	if bid, ok := fn.id.(BindingIdentifier); ok {
-		bw_u8(be, u8(BinValType.StringRef))
-		bw_string_ref(be, bid.name)
-	} else {
-		bw_u8(be, u8(BinValType.Null))
+	if fn.no_body || fn.declare || fn.type_parameters != nil || fn.return_type != nil {
+		name := "FunctionDeclaration" if type_id == .FunctionDeclaration else "FunctionExpression"
+		if fn.no_body { name = "TSDeclareFunction" if type_id == .FunctionDeclaration else "TSEmptyBodyFunctionExpression" }
+		bin_type_function(be, name, fn)
+		return
 	}
+	bin_node_header(be, type_id, fn.loc)
+	bin_emit_optional_identifier(be, fn.id)
 	bw_bool(be, fn.async)
 	bw_bool(be, fn.generator)
 	bw_u32(be, u32(len(fn.params)))
@@ -1082,6 +1210,11 @@ bin_emit_function_node :: proc(be: ^BinaryEmitter, type_id: BinNodeType, fn: ^Fu
 }
 
 bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
+	if param.readonly || param.override_ || param.accessibility != .None || (param.pattern == nil && param.default_val != nil) {
+		bin_type_function_param(be, param)
+		bw_u8(be, u8(BinValType.NullNode))
+		return
+	}
 	bin_emit_pattern(be, param.pattern)
 	if def, ok := param.default_val.(^Expression); ok && def != nil {
 		bw_u8(be, u8(BinValType.Node))
@@ -1092,13 +1225,9 @@ bin_emit_param :: proc(be: ^BinaryEmitter, param: FunctionParameter) {
 }
 
 bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
+	bin_type_class_fields(be, class)
 	bin_node_header(be, type_id, class.loc)
-	if bid, ok := class.id.(BindingIdentifier); ok {
-		bw_u8(be, u8(BinValType.StringRef))
-		bw_string_ref(be, bid.name)
-	} else {
-		bw_u8(be, u8(BinValType.Null))
-	}
+	bin_emit_optional_identifier(be, class.id)
 	if sc, ok := class.super_class.?; ok && sc != nil {
 		bw_u8(be, u8(BinValType.Node))
 		bin_emit_expression(be, sc)
@@ -1113,7 +1242,17 @@ bin_emit_class :: proc(be: ^BinaryEmitter, type_id: BinNodeType, class: ^$T) {
 }
 
 bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
-	#partial switch elem.kind {
+	if elem.kind == .IndexSignature {
+		bin_emit_signature(be, elem.typing.index_signature)
+		return
+	}
+	if elem.typing.annotation != nil || elem.abstract || elem.optional || elem.definite || elem.readonly || elem.override_ ||
+	   elem.accessibility != .None || elem.is_accessor || len(elem.decorators) != 0 {
+		bin_type_class_element(be, elem)
+		return
+	}
+	switch elem.kind {
+	case .IndexSignature: unreachable()
 	case .StaticBlock:
 		bin_node_header(be, .StaticBlock, elem.loc)
 		if v, ok := elem.value.?; ok && v != nil {
@@ -1138,10 +1277,15 @@ bin_emit_class_element :: proc(be: ^BinaryEmitter, elem: ClassElement) {
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
 		}
-	case: // Property (field definition)
+	case .Field:
 		bin_node_header(be, .PropertyDefinition, elem.loc)
 		bw_bool(be, elem.computed)
-		bw_bool(be, elem.static)
+		flags := u8(elem.static)
+		if elem.declare {
+			flags |= 2
+			be.version = max(be.version, BINARY_VERSION_DECLARED_FIELDS)
+		}
+		bw_u8(be, flags)
 		if elem.key != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, elem.key)
@@ -1200,6 +1344,11 @@ bin_emit_errors :: proc(be: ^BinaryEmitter, errors: []ParseError) {
 }
 
 bin_emit_finalize :: proc(be: ^BinaryEmitter) {
+	if be.version >= BINARY_VERSION_TYPES {
+		// Keeping the mode next to the table preserves every node and diagnostic offset.
+		bw_bool(be, be.ts_shape)
+		be.version = BINARY_VERSION_SOURCE_SHAPE
+	}
 	string_table_off := u32(be.pos)
 
 	source_ptr := uintptr(raw_data(be.source))
@@ -1237,7 +1386,7 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 	// Write 24-byte header at offset 0.
 	// Layout (all little-endian u32):
 	//   0  magic            0x4B455354 ('KEST')
-	//   4  version          BINARY_FORMAT_VERSION
+	//   4  version          minimum compatible decoder version
 	//   8  node_count
 	//  12  string_table_off
 	//  16  errors_off       (0 if bin_emit_errors was never called)
@@ -1249,7 +1398,7 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 		buf[off + 3] = u8(v >> 24)
 	}
 	write_u32(be.buf[:], 0,  u32(0x4B455354))     // magic 'KEST'
-	write_u32(be.buf[:], 4,  BINARY_FORMAT_VERSION)
+	write_u32(be.buf[:], 4,  be.version)
 	write_u32(be.buf[:], 8,  be.node_count)
 	write_u32(be.buf[:], 12, string_table_off)
 	write_u32(be.buf[:], 16, be.errors_off)

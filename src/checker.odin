@@ -1720,8 +1720,7 @@ method_fn_has_body :: #force_inline proc(fn: ^FunctionExpression) -> bool {
 //   - getters / setters (kind .Get / .Set) — always have body, can't
 //     overload
 //   - static blocks
-//   - PropertyDefinition (kind == .Method but value is a non-function
-//     expression — a class field with an initialiser)
+//   - fields, even when initialized with a function expression
 //   - abstract methods (no impl needed; abstract is the suppressor)
 elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression, bool) {
 	if elem.kind != .Method && elem.kind != .Constructor { return nil, false }
@@ -4583,15 +4582,9 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 //   * .Get / .Set: value is a FunctionExpression. Walk as `.Method`.
 //   * .Constructor: value is a FunctionExpression. Walk as `.Constructor`
 //     and pass `derived_ctor = has_extends` so super-call is permitted.
-//   * .Method WITH FunctionExpression value: an actual method (regular
-//     or shorthand). Walk as `.Method`.
-//   * .Method WITHOUT a FunctionExpression value: a class field with an
-//     initialiser expression (parser stores fields with kind=.Method and
-//     the expression in elem.value — see parser.odin line 5342). Walk
-//     the initialiser with in_field_init + in_method lifted, no function
-//     entry (the field init runs in a synthetic non-async non-generator
-//     function, but `new.target` and break/continue do not propagate so
-//     we don't need a function_depth bump).
+//   * .Method: the value is a FunctionExpression with a method context.
+//   * .Field: walk its initializer with the field context, even when the
+//     initializer is a FunctionExpression.
 ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: ClassElement, has_extends: bool, extends_null := false) {
 	val, have := elem.value.(^Expression)
 	if !have || val == nil { return }
@@ -4603,7 +4596,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 		return
 	}
 
-	if fn, ok := val^.(^FunctionExpression); ok && fn != nil {
+	if fn, ok := val^.(^FunctionExpression); ok && fn != nil && elem.kind != .Field {
 		switch elem.kind {
 		case .Constructor:
 			prev_extends_null := ctx.extends_null
@@ -4640,8 +4633,8 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 					ck_report_coded(c, u32(fn.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have a return type annotation")
 				}
 			}
-		case .StaticBlock:
-			unreachable() // handled above
+		case .StaticBlock, .Field, .IndexSignature:
+			unreachable() // handled outside this switch
 		}
 		return
 	}
@@ -6687,15 +6680,8 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is
 		name := pid.name
 		prev, _ := seen[name]
 
-		is_field := false
-		if elem.kind == .Method {
-			if _, has_value := elem.value.(^Expression); !has_value {
-				is_field = true
-			}
-		}
-
 		switch {
-		case is_field:
+		case elem.kind == .Field:
 			prev.n_field += 1
 		case elem.kind == .Method:
 			prev.n_meth += 1

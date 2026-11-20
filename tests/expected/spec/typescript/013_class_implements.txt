@@ -566,31 +566,31 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 69,
+      "end": 67,
       "value": " TS-D: `class implements` — single and multi-interface implements"
     },
     {
       "type": "Line",
-      "start": 70,
-      "end": 137,
+      "start": 68,
+      "end": 135,
       "value": " clauses, with and without generic type arguments on each parent."
     },
     {
       "type": "Line",
-      "start": 138,
-      "end": 211,
+      "start": 136,
+      "end": 209,
       "value": " OXC emits `implements: [TSClassImplements{expression, typeArguments}]`"
     },
     {
       "type": "Line",
-      "start": 212,
-      "end": 280,
+      "start": 210,
+      "end": 278,
       "value": " (or `TSExpressionWithTypeArguments`); Kessel must match that deep"
     },
     {
       "type": "Line",
-      "start": 281,
-      "end": 294,
+      "start": 279,
+      "end": 292,
       "value": " structure."
     }
   ]

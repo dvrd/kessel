@@ -1965,61 +1965,61 @@
     {
       "type": "Line",
       "start": 264,
-      "end": 302,
+      "end": 296,
       "value": "     (JSX → expr → cond → JSX)"
     },
     {
       "type": "Line",
-      "start": 303,
-      "end": 372,
+      "start": 297,
+      "end": 366,
       "value": "   * a tag whose name is itself a member expression (`Form.Input`),"
     },
     {
       "type": "Line",
-      "start": 373,
-      "end": 443,
+      "start": 367,
+      "end": 437,
       "value": "     covering JSXMemberExpression in *both* opening and closing tags"
     },
     {
       "type": "Line",
-      "start": 444,
-      "end": 515,
+      "start": 438,
+      "end": 509,
       "value": "   * mixed text + interpolation children with whitespace at the seams"
     },
     {
       "type": "Line",
-      "start": 516,
-      "end": 590,
+      "start": 510,
+      "end": 582,
       "value": "   * a fragment used as the *value* of a JSXAttribute — legal but rare"
     },
     {
       "type": "Line",
-      "start": 591,
-      "end": 663,
+      "start": 583,
+      "end": 655,
       "value": "   * JSX child that is a function call returning JSX (HOC-style render"
     },
     {
       "type": "Line",
-      "start": 664,
-      "end": 676,
+      "start": 656,
+      "end": 668,
       "value": "     prop)"
     },
     {
       "type": "Line",
-      "start": 677,
-      "end": 679,
+      "start": 669,
+      "end": 671,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 680,
-      "end": 756,
+      "start": 672,
+      "end": 748,
       "value": " Pure JSX, no TS. Parsed with --lang=jsx like the other spec/jsx fixtures."
     },
     {
       "type": "Block",
-      "start": 2047,
-      "end": 2084,
+      "start": 2039,
+      "end": 2076,
       "value": " render-prop child returning JSX "
     }
   ]

@@ -54,8 +54,4 @@ when ODIN_OS == .Darwin {
 		// truly oversubscribed.
 		_ = pthread_set_qos_class_self_np(QOS_CLASS_USER_INTERACTIVE, 0)
 	}
-} else {
-	// On non-Darwin, P/E asymmetry isn't a thing on the platforms we
-	// target (Linux x86-64, Linux ARM64 server). No-op.
-	pin_to_p_core :: proc() {}
 }

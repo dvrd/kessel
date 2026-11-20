@@ -24,6 +24,8 @@
   },
   "files": [
     "index.js",
+    "async-fallback.js",
+    "parse-worker.js",
     "binary-reader.js",
     "visitor.js",
     "format.js",
@@ -36,7 +38,7 @@
   },
   "dependencies": {
     "@types/estree": "^1.0.0",
-    "koffi": "^3.0.1"
+    "koffi": "^3.3.8"
   },
   "optionalDependencies": {
     "@dvrdlibs/kessel-darwin-arm64": "0.21.0",

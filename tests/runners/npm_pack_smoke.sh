@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+root=$(cd "$(dirname "$0")/../.." && pwd)
+stage=$(mktemp -d "${TMPDIR:-/tmp}/kessel-pack.XXXXXX")
+trap 'rm -rf -- "$stage"' EXIT
+target=$(node -p 'process.platform + "-" + process.arch')
+case "$target" in
+  darwin-*) extension=dylib ;;
+  linux-*) extension=so ;;
+  win32-*) extension=dll ;;
+  *) echo "Unsupported native package platform: $target" >&2; exit 1 ;;
+esac
+
+mkdir -p "$stage/main" "$stage/native" "$stage/consumer"
+cp -R "$root/npm/kessel/types" "$stage/main/"
+cp "$root/npm/kessel/"{package.json,index.js,async-fallback.js,parse-worker.js,binary-reader.js,visitor.js,format.js,README.md,CHANGELOG.md} "$stage/main/"
+cp "$root/npm/platforms/$target/"{index.js,package.json} "$stage/native/"
+cp "${KESSEL_PACKAGE_BINARY:-$root/bin/libkessel.$extension}" "$stage/native/libkessel.$extension"
+
+cd "$stage"
+node - <<'NODE'
+const fs = require('node:fs');
+const main = require('./main/package.json');
+const native = require('./native/package.json');
+const version = process.env.KESSEL_PACKAGE_VERSION || main.version;
+main.version = native.version = version;
+for (const dependency of Object.keys(main.optionalDependencies)) {
+  main.optionalDependencies[dependency] = version;
+}
+fs.writeFileSync('main/package.json', JSON.stringify(main, null, 2));
+fs.writeFileSync('native/package.json', JSON.stringify(native, null, 2));
+NODE
+main_tarball=$(npm pack --silent ./main)
+native_tarball=$(npm pack --silent ./native)
+
+cd consumer
+npm install --no-audit --no-fund "../$main_tarball" "../$native_tarball" typescript@5.9.3
+node - <<'NODE'
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const crypto = require('node:crypto');
+const platform = `@dvrdlibs/kessel-${process.platform}-${process.arch}`;
+const digest = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+const native = require(platform);
+const binary = `libkessel.${{win32: 'dll', darwin: 'dylib', linux: 'so'}[process.platform]}`;
+assert.equal(digest(native), digest(`../native/${binary}`));
+const installed = fs.readdirSync('node_modules/@dvrdlibs').sort();
+assert.deepEqual(installed, ['kessel', platform.split('/')[1]]);
+const kessel = require('@dvrdlibs/kessel');
+const parsed = kessel.parseSync('test.ts', '/*🚀*/ const café: number = 1;');
+assert.deepEqual(parsed.errors, []);
+assert.equal(parsed.program.body[0].type, 'VariableDeclaration');
+assert.equal(parsed.program.body[0].declarations[0].id.name, 'café');
+assert.equal(parsed.program.body[0].declarations[0].id.typeAnnotation.typeAnnotation.type, 'TSNumberKeyword');
+const declarations = kessel.parseSync('exports.ts', 'export interface Item {} export type Name = string;');
+assert.deepEqual(declarations.errors, []);
+assert.deepEqual(declarations.program.body.map(s => s.declaration.type),
+  ['TSInterfaceDeclaration', 'TSTypeAliasDeclaration']);
+const boundary = kessel.parseSync('boundary.mjs', 'export default function () {}(value);');
+assert.deepEqual(boundary.errors, []);
+assert.deepEqual(boundary.program.body.map(node => node.type), ['ExportDefaultDeclaration', 'ExpressionStatement']);
+assert.equal(boundary.program.body[1].expression.name, 'value');
+const moduleSource = '/*🚀*/ export default function café() {}';
+const exported = kessel.parseSync('name.mjs', moduleSource).program.body[0].declaration;
+assert.equal(exported.type, 'FunctionDeclaration');
+assert.equal(Buffer.from(moduleSource).subarray(exported.id.start, exported.id.end).toString(), 'café');
+const branches = 'function f(x, y) { if (x) { return 1; } else if (y) return 2; else log(); }';
+const warnings = kessel.lintSync('branches.js', branches, { rules: { 'no-else-return': 'error' } }).diagnostics;
+assert.deepEqual(warnings.filter(d => d.code === 'L4053').map(d => branches.slice(d.start, d.end).trim()), ['else']);
+const fields = kessel.parseSync('fields.ts', 'class C { declare static x: number; declare = 2; }');
+assert.deepEqual(fields.errors, []);
+assert.deepEqual(fields.program.body[0].body.body.map(m => [m.type, m.static, m.declare]), [
+  ['PropertyDefinition', true, true], ['PropertyDefinition', false, undefined],
+]);
+NODE
+node --input-type=module - <<'NODE'
+import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
+createRequire(require.resolve('@dvrdlibs/kessel'))('koffi').load(null);
+const { parseAsync } = await import('@dvrdlibs/kessel');
+const typed = await parseAsync('element.tsx', 'const element = <View<string> />;');
+assert.deepEqual(typed.errors, []);
+assert.equal(typed.program.body[0].declarations[0].init.openingElement.typeArguments.params[0].type, 'TSStringKeyword');
+const signature = await parseAsync('api.ts',
+  'export type Read = ([entry]?: [typeof import("pkg", {with: {type: "json"}}).A.B]) => void;');
+assert.deepEqual(signature.errors, []);
+const [param] = signature.program.body[0].declaration.typeAnnotation.params;
+assert.equal(param.optional, true);
+assert.equal(param.elements[0].name, 'entry');
+const [query] = param.typeAnnotation.typeAnnotation.elementTypes;
+assert.equal(query.type, 'TSTypeQuery');
+assert.equal(query.exprName.qualifier.right.name, 'B');
+assert.equal(query.exprName.options.properties[0].value.properties[0].value.value, 'json');
+const source = '/*🚀*/ const element = ' + '['.repeat(64) + '<main />' + ']'.repeat(64) + ';';
+const parsed = await parseAsync('test.tsx', source);
+assert.deepEqual(parsed.errors, []);
+let expression = parsed.program.body[0].declarations[0].init;
+for (let depth = 0; depth < 64; depth++) {
+  assert.equal(expression.type, 'ArrayExpression');
+  expression = expression.elements[0];
+}
+assert.equal(expression.type, 'JSXElement');
+assert.equal(expression.openingElement.name.name, 'main');
+NODE
+cat > smoke.mts <<'TS'
+import { codegen, lintSync, parseAsync, parseSync, type ParseResult } from '@dvrdlibs/kessel';
+const result: ParseResult = parseSync('test.ts', 'const value: number = 1;');
+await parseAsync('test.js', 'const value = 1;');
+codegen('const value = 1;', { filename: 'test.js', sourceMap: true });
+lintSync('test.js', 'debugger;');
+result.program.body;
+TS
+node node_modules/typescript/bin/tsc --noEmit --strict --module nodenext smoke.mts
+echo "Packed install passed for $target on $(node --version)"

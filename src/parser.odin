@@ -180,6 +180,7 @@ ParseContext :: struct {
 	in_static_block:          bool,
 	in_field_init:            bool,
 	in_ts_namespace:          bool,
+	in_ts_import_options:     bool,
 	in_ts_module_block:       bool,
 	in_case_clause:           bool,
 	in_method:                bool,
@@ -391,12 +392,6 @@ Parser :: struct {
 	// inside a class field initializer) is checked inline at field-
 	// initializer parse time so it does NOT depend on this walker.
 	private_id_count: u32,
-
-	// True while parsing the declaration of `export default function ...`
-	// or `export default class ...`. Used to suppress OXC-parity checks
-	// that OXC doesn't enforce in the default-export position (e.g.
-	// `export default function *yield() {}` is accepted by OXC).
-	in_export_default: bool,
 
 	// True for `.d.ts` declaration files. They parse as TS, but ambient
 	// declaration-file relaxations (for example `const x;`) must not leak
@@ -1601,7 +1596,9 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// (skipping leading comments/whitespace), while still ending at source.length.
 	// Mirror that behaviour here so the deep-compare against OXC matches; no
 	// effect on .js / .jsx where program.start stays 0.
-	if (p.lang == .TS || p.lang == .TSX) && len(program.body) > 0 {
+	if (p.lang == .TS || p.lang == .TSX) && len(program.body) == 0 {
+		program.loc.start = program.loc.end
+	} else if (p.lang == .TS || p.lang == .TSX) && len(program.body) > 0 {
 		first_loc := get_statement_loc(program.body[0])
 		if first_loc.start != 0 || first_loc.end != 0 {
 			program.loc.start = first_loc.start
@@ -2619,49 +2616,58 @@ loc_from_token_impl :: #force_inline proc(t: ^Token) -> Loc {
 	return Loc{start = u32(t.loc), end = end}
 }
 
-// Extract loc from any Expression variant. All variants have `loc` as first field.
-loc_from_expr :: #force_inline proc(e: ^Expression) -> Loc {
-	if e == nil { return {} }
-	#partial switch v in e {
-	case ^Identifier:             return v.loc
-	case ^NumericLiteral:          return v.loc
-	case ^StringLiteral:           return v.loc
-	case ^BooleanLiteral:          return v.loc
-	case ^NullLiteral:             return v.loc
-	case ^ThisExpression:           return v.loc
-	case ^Super:                    return v.loc
-	case ^ArrayExpression:          return v.loc
-	case ^ObjectExpression:         return v.loc
-	case ^FunctionExpression:       return v.loc
-	case ^ArrowFunctionExpression:  return v.loc
-	case ^MemberExpression:         return v.loc
-	case ^CallExpression:           return v.loc
-	case ^ChainExpression:          return v.loc
-	case ^NewExpression:            return v.loc
-	case ^ConditionalExpression:    return v.loc
-	case ^UnaryExpression:          return v.loc
-	case ^BinaryExpression:         return v.loc
-	case ^LogicalExpression:        return v.loc
-	case ^AssignmentExpression:     return v.loc
-	case ^UpdateExpression:         return v.loc
-	case ^SpreadElement:            return v.loc
-	case ^YieldExpression:          return v.loc
-	case ^AwaitExpression:          return v.loc
-	case ^ImportExpression:         return v.loc
-	case ^MetaProperty:             return v.loc
-	case ^BigIntLiteral:            return v.loc
-	case ^RegExpLiteral:            return v.loc
-	case ^TemplateLiteral:          return v.loc
-	case ^TaggedTemplateExpression: return v.loc
-	case ^SequenceExpression:       return v.loc
-	case ^ClassExpression:          return v.loc
-	case ^PrivateIdentifier:        return v.loc
-	case ^ParenthesizedExpression:  return v.loc
+// Every expression variant carries a source span, including TS and JSX wrappers.
+loc_from_expr :: #force_inline proc(expr: ^Expression) -> Loc {
+	if expr == nil { return {} }
+	switch e in expr^ {
+	case ^NullLiteral:              return e.loc
+	case ^BooleanLiteral:           return e.loc
+	case ^NumericLiteral:           return e.loc
+	case ^StringLiteral:            return e.loc
+	case ^BigIntLiteral:            return e.loc
+	case ^RegExpLiteral:            return e.loc
+	case ^TemplateLiteral:          return e.loc
+	case ^TaggedTemplateExpression: return e.loc
+	case ^Identifier:                return e.loc
+	case ^ThisExpression:            return e.loc
+	case ^Super:                     return e.loc
+	case ^ArrayExpression:           return e.loc
+	case ^ObjectExpression:          return e.loc
+	case ^FunctionExpression:        return e.loc
+	case ^ArrowFunctionExpression:   return e.loc
+	case ^ClassExpression:           return e.loc
+	case ^MemberExpression:          return e.loc
+	case ^CallExpression:            return e.loc
+	case ^ChainExpression:           return e.loc
+	case ^NewExpression:             return e.loc
+	case ^ConditionalExpression:     return e.loc
+	case ^UpdateExpression:          return e.loc
+	case ^UnaryExpression:           return e.loc
+	case ^BinaryExpression:          return e.loc
+	case ^LogicalExpression:         return e.loc
+	case ^AssignmentExpression:      return e.loc
+	case ^SequenceExpression:        return e.loc
+	case ^SpreadElement:             return e.loc
+	case ^YieldExpression:           return e.loc
+	case ^AwaitExpression:           return e.loc
+	case ^ImportExpression:          return e.loc
+	case ^MetaProperty:              return e.loc
+	case ^PrivateIdentifier:         return e.loc
+	case ^JSXElement:               return e.loc
+	case ^JSXFragment:              return e.loc
+	case ^JSXText:                  return e.loc
+	case ^JSXExpressionContainer:   return e.loc
+	case ^JSXEmptyExpression:       return e.loc
+	case ^JSXSpreadChild:           return e.loc
+	case ^TSAsExpression:           return e.loc
+	case ^TSSatisfiesExpression:    return e.loc
+	case ^TSNonNullExpression:      return e.loc
+	case ^TSTypeAssertion:          return e.loc
+	case ^TSInstantiationExpression: return e.loc
+	case ^ParenthesizedExpression:  return e.loc
 	}
-	return {}
+	return Loc{}
 }
-
-// Set the start offset of an expression's span. Matches loc_from_expr variants.
 
 token_to_unary_op :: proc(t: TokenType) -> UnaryOperator {
 	#partial switch t {

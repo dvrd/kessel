@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:io"
 import mvirtual "core:mem/virtual"
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 import "core:time"
@@ -148,8 +149,10 @@ main :: proc() {
 			} else if parse_raw {
 				if parse_out_dir != "" {
 					base := filepath_base(parse_files[0])
-					out_path := strings.concatenate({parse_out_dir, "/", base, ".bin"})
-					parse_file_raw_to_disk(parse_files[0], out_path, cli)
+					out_path := strings.concatenate({parse_out_dir, filepath.SEPARATOR_STRING, base, ".bin"})
+					if !parse_output_directory(parse_out_dir) { os.exit(1) }
+					ok, _, _ := parse_file_raw_to_disk(parse_files[0], out_path, cli)
+					if !ok { os.exit(1) }
 				} else {
 					raw_transfer_file(parse_files[0], "", cli)
 				}
@@ -162,7 +165,10 @@ main :: proc() {
 				if parse_workers < 1 { parse_workers = 1 }
 			}
 			if parse_out_dir == "" { parse_out_dir = parse_raw ? "tmp/raw" : "tmp/ast" }
-			parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli)
+			if !parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli) {
+				flush_stdout_writer()
+				os.exit(1)
+			}
 		}
 		delete(parse_files)
 
@@ -308,6 +314,10 @@ main :: proc() {
 		lint_overrides := make([dynamic]LintOverride)
 		lint_config_path := ""
 		lint_format := "default"
+		lint_quiet := false
+		lint_max_warnings := -1
+		lint_ignores := make([dynamic]string)
+		lint_glob_overrides := make([dynamic]LintConfigOverride)
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
@@ -325,6 +335,25 @@ main :: proc() {
 			case len(arg) > 9 && arg[:9] == "--format=":
 				lint_format = arg[9:]
 				i += 1
+			case arg == "--quiet":
+				lint_quiet = true
+				i += 1
+			case arg == "--max-warnings" && i + 1 < len(os.args):
+				if n, ok := strconv.parse_int(os.args[i+1]); ok {
+					lint_max_warnings = n
+				} else {
+					fmt.eprintf("Error: invalid --max-warnings value '%s' (want an integer)\n", os.args[i+1])
+					os.exit(2)
+				}
+				i += 2
+			case len(arg) > 15 && arg[:15] == "--max-warnings=":
+				if n, ok := strconv.parse_int(arg[15:]); ok {
+					lint_max_warnings = n
+				} else {
+					fmt.eprintf("Error: invalid --max-warnings value '%s' (want an integer)\n", arg[15:])
+					os.exit(2)
+				}
+				i += 1
 			case arg == "--rule" && i + 1 < len(os.args):
 				if ov, ok := lint_parse_rule_flag(os.args[i+1]); ok {
 					append(&lint_overrides, ov)
@@ -341,6 +370,15 @@ main :: proc() {
 					os.exit(2)
 				}
 				i += 1
+			case arg == "--deny" && i + 1 < len(os.args):
+				if ov, ok := lint_severity_alias(os.args[i+1], "error"); ok { append(&lint_overrides, ov) }
+				i += 2
+			case arg == "--warn" && i + 1 < len(os.args):
+				if ov, ok := lint_severity_alias(os.args[i+1], "warn"); ok { append(&lint_overrides, ov) }
+				i += 2
+			case arg == "--allow" && i + 1 < len(os.args):
+				if ov, ok := lint_severity_alias(os.args[i+1], "off"); ok { append(&lint_overrides, ov) }
+				i += 2
 			case:
 				append(&lint_files, arg)
 				i += 1
@@ -359,7 +397,7 @@ main :: proc() {
 		// are appended after and lint_run_for_job applies overrides in order.
 		if lint_config_path != "" {
 			merged := make([dynamic]LintOverride)
-			if !lint_load_config(lint_config_path, &merged) {
+			if !lint_load_config(lint_config_path, &merged, &lint_ignores, &lint_glob_overrides) {
 				fmt.eprintf("Error: could not read lint config: %s\n", lint_config_path)
 				os.exit(2)
 			}
@@ -367,8 +405,36 @@ main :: proc() {
 			delete(lint_overrides)
 			lint_overrides = merged
 		}
+		lint_warn_count := 0
+		// Reused per-file buffer for base overrides + any matching per-glob
+		// `overrides` block. Config overrides are applied after base rules (more
+		// specific wins); lint_run_for_job applies the slice in order.
+		eff_buf := make([dynamic]LintOverride)
 		for f in lint_files {
-			if lint_file(f, cli, lint_overrides[:], lint_format) { had_errors = true }
+			if lint_path_ignored(lint_ignores[:], f) { continue }
+			eff := lint_overrides[:]
+			if len(lint_glob_overrides) > 0 {
+				clear(&eff_buf)
+				append(&eff_buf, ..lint_overrides[:])
+				for co in lint_glob_overrides {
+					if lint_path_ignored(co.globs, f) { append(&eff_buf, ..co.rules) }
+				}
+				eff = eff_buf[:]
+			}
+			if lint_file(f, cli, eff, lint_format, lint_quiet, &lint_warn_count) { had_errors = true }
+		}
+		delete(eff_buf)
+		// Warning-failure policy (kessel is stricter than ESLint by default):
+		//   --max-warnings N : fail iff the warning total exceeds N.
+		//   --quiet          : warnings neither print nor fail; only errors fail.
+		//   (neither)        : any warning fails the run, like any other diagnostic.
+		if lint_max_warnings >= 0 {
+			if lint_warn_count > lint_max_warnings {
+				fmt.eprintf("Error: too many warnings (%d, max allowed %d)\n", lint_warn_count, lint_max_warnings)
+				had_errors = true
+			}
+		} else if !lint_quiet && lint_warn_count > 0 {
+			had_errors = true
 		}
 		delete(lint_files)
 		delete(lint_overrides)
@@ -622,9 +688,9 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	// shape without ambient globals. See src/emitter.odin.
 	e: Emitter
 	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
-	defer emitter_destroy(&e, context.allocator)
+	defer emitter_destroy(&e)
 
-	emitter_build_utf16(&e, job.source.data, context.allocator)
+	emitter_build_utf16(&e, job.source.data)
 	if e.cfg.loc {
 		build_line_table(&job.lexer)
 		emitter_adopt_lines(&e, job.lexer.line_offsets)
@@ -712,7 +778,7 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 // renderer. Returns true if any diagnostic was reported so the caller can set
 // a non-zero process exit. Parse errors are surfaced first; the lint pass runs
 // regardless (a partial AST is still walkable and the visitor is nil-safe).
-lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil, format: string = "default") -> bool {
+lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil, format: string = "default", quiet: bool = false, warn_total: ^int = nil) -> bool {
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
@@ -739,35 +805,60 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 		had_output = true
 	}
 
-	// Run the lint pass and render its diagnostics.
+	// Run the lint pass. Count severities over the full set (before any --quiet
+	// filtering) so --max-warnings still sees suppressed warnings. Warnings fail
+	// the run by default (kessel is stricter than ESLint here); --quiet and
+	// --max-warnings relax that in the caller.
 	l := lint_run_for_job(&job, overrides)
-	if len(l.diagnostics) > 0 && job.parser.lexer != nil {
+	error_count := 0
+	warning_count := 0
+	for d in l.diagnostics {
+		if d.severity == .Warning { warning_count += 1 } else { error_count += 1 }
+	}
+	if warn_total != nil { warn_total^ += warning_count }
+	// Under --quiet, drop warning-severity diagnostics from the rendered output.
+	diags := l.diagnostics[:]
+	if quiet {
+		w := 0
+		for d in diags {
+			if d.severity != .Warning { diags[w] = d; w += 1 }
+		}
+		diags = diags[:w]
+	}
+
+	if len(diags) > 0 && job.parser.lexer != nil {
 		if had_output { fmt.eprintln() }
 		lofs := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
 		switch format {
 		case "json":
-			lint_render_json(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_json(job.parser.lexer.source, file_path, lofs, diags)
 		case "unix":
-			lint_render_unix(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_unix(job.parser.lexer.source, file_path, lofs, diags)
 		case "github":
-			lint_render_github(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_github(job.parser.lexer.source, file_path, lofs, diags)
 		case "compact":
-			lint_render_compact(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_compact(job.parser.lexer.source, file_path, lofs, diags)
 		case "checkstyle":
-			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, l.diagnostics[:])
+			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, diags)
+		case "gitlab":
+			lint_render_gitlab(job.parser.lexer.source, file_path, lofs, diags)
+		case "junit":
+			lint_render_junit(job.parser.lexer.source, file_path, lofs, diags)
 		case:
 			render_pretty_diagnostics(
 				job.parser.lexer.source,
 				file_path,
 				lofs,
-				l.diagnostics[:],
+				diags,
 				cli.color,
 			)
 		}
 		had_output = true
 	}
+	_ = had_output
 
-	return had_output
+	// Exit-1 conditions: a parse error, or an error-severity lint diagnostic.
+	return len(job.parser.errors) > 0 || error_count > 0
 }
 
 // ============================================================================
@@ -944,7 +1035,7 @@ parse_file_binary :: proc(file_path: string, cli: CliConfig) {
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	be: BinaryEmitter
-	binary_emitter_init(&be, string(job.source.data), context.allocator)
+	binary_emitter_init(&be, string(job.source.data), context.allocator, job.parser.allocator, allow_ts_mode(&job.parser))
 	defer binary_emitter_destroy(&be, context.allocator)
 
 	bin_emit_program(&be, job.program)
@@ -1012,7 +1103,10 @@ raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
 
 parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		return false, 0, 0
+	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
@@ -1022,9 +1116,9 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	// `direct_buf` is gone.
 	e: Emitter
 	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
-	defer emitter_destroy(&e, context.allocator)
+	defer emitter_destroy(&e)
 
-	emitter_build_utf16(&e, job.source.data, context.allocator)
+	emitter_build_utf16(&e, job.source.data)
 	if e.cfg.loc {
 		build_line_table(&job.lexer)
 		emitter_adopt_lines(&e, job.lexer.line_offsets)
@@ -1037,7 +1131,10 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	}
 	emit_raw(&e, "}\n")
 
-	_ = os.write_entire_file(out_path, e.buf[:e.pos])
+	if err := os.write_entire_file(out_path, e.buf[:e.pos]); err != nil {
+		fmt.eprintf("Error: Could not write %s: %v\n", out_path, err)
+		return false, 0, 0
+	}
 
 	return true, len(job.source.data), len(job.parser.errors)
 }
@@ -1048,13 +1145,17 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 
 parse_file_raw_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		return false, 0, 0
+	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	result := produce_raw_buffer_from_job(&job)
 	if !write_raw_buffer(result, out_path) {
+		fmt.eprintf("Error: Could not write %s\n", out_path)
 		return false, 0, 0
 	}
 	return true, len(job.source.data), result.error_count
@@ -1086,7 +1187,8 @@ worker_proc :: proc(data: rawptr) {
 		base := filepath_base(ctx.files[i])
 		ext := ".json"
 		if ctx.write_raw { ext = ".bin" }
-		out_path := strings.concatenate({ctx.out_dir, "/", base, ext})
+		out_path := strings.concatenate({ctx.out_dir, filepath.SEPARATOR_STRING, base, ext})
+		defer delete(out_path)
 		success: bool
 		bytes: int
 		errs: int
@@ -1150,22 +1252,17 @@ filepath_base :: proc(path: string) -> string {
 	return path
 }
 
-mkdir_p :: proc(path: string) {
-	for i in 0..<len(path) {
-		if path[i] == '/' && i > 0 {
-			os.make_directory(path[:i])
-		}
-	}
-	os.make_directory(path)
+parse_output_directory :: proc(path: string) -> bool {
+	err := os.make_directory_all(path, os.Permissions_Default_Directory)
+	if err == nil { return true }
+	if err == .Exist && os.is_directory(path) { return true }
+	fmt.eprintf("Error: Could not create output directory %s: %v\n", path, err)
+	return false
 }
 
-parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) {
-	if len(files) == 0 {
-		out_println("No files to parse.")
-		return
-	}
-
-	mkdir_p(out_dir)
+parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) -> bool {
+	assert(len(files) > 1)
+	if !parse_output_directory(out_dir) { return false }
 
 	// Pre-initialize thread-unsafe global tables before spawning workers.
 	init_char_class_table()
@@ -1226,7 +1323,7 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: 
 	}
 	out_printf("  Workers: %d\n", actual_workers)
 	out_printf("  Output:  %s/\n", out_dir)
-	os.flush(os.stdout)
+	return total_parsed == len(files)
 }
 // Microbench Command (in-process parse measurements)
 // ============================================================================

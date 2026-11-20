@@ -1,0 +1,6 @@
+{
+  "rules": { "no-debugger": "off" },
+  "overrides": [
+    { "files": ["*.test.js"], "rules": { "no-debugger": "error" } }
+  ]
+}

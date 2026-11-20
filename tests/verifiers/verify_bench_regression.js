@@ -17,10 +17,9 @@
 //   files span size decades (snabbdom 4KB \u2192 typescript 10MB) and syntax
 //   bucketing (JSX-heavy react, deeply-nested monaco, uniform lodash).
 //
-// Why min, not mean or median?
-//   Min is the floor \u2014 machine could only be so fast, and noise can only
-//   make runs SLOWER. Min minimises false alarms from a noisy CI host. If
-//   min regresses, something real changed.
+// Each process reports its fastest iteration. For same-host comparisons,
+// alternate the order of candidate and reference and keep their timings
+// paired. CPU speed can shift between processes even for identical binaries.
 //
 // Why geo-mean across files, not arithmetic mean?
 //   File sizes span 4 orders of magnitude; an arithmetic mean over raw ns
@@ -31,6 +30,7 @@
 //   node tests/verifiers/verify_bench_regression.js              # check vs baseline
 //   node tests/verifiers/verify_bench_regression.js --update     # rewrite baseline
 //   node tests/verifiers/verify_bench_regression.js --iterations 50
+//   node tests/verifiers/verify_bench_regression.js --reference /path/to/reference/kessel
 //   node tests/verifiers/verify_bench_regression.js --quick      # 3 files, 10 iters
 //
 // Exit 0 on pass; 1 on regression; 2 on setup error.
@@ -53,6 +53,12 @@ function arg(name, def) {
   return i >= 0 ? args[i + 1] : def;
 }
 const ITERATIONS = parseInt(arg('--iterations', QUICK ? '10' : '30'), 10);
+const referenceArg = arg('--reference', undefined);
+if (args.includes('--reference') && (!referenceArg || referenceArg.startsWith('--') || UPDATE)) {
+  console.error('bench_regression: --reference requires a binary path and cannot be used with --update');
+  process.exit(2);
+}
+const REFERENCE = referenceArg ? path.resolve(referenceArg) : null;
 
 // Per-file and geo-mean regression thresholds. Expressed as RATIO (current /
 // baseline); >1.0 = slower. Tuned so normal CI jitter (~5-7% on shared
@@ -89,6 +95,10 @@ if (!fs.existsSync(KESSEL)) {
   console.error('bench_regression: missing ' + KESSEL + ' \u2014 run `task build` first');
   process.exit(2);
 }
+if (REFERENCE && !fs.existsSync(REFERENCE)) {
+  console.error('bench_regression: missing reference binary at ' + REFERENCE);
+  process.exit(2);
+}
 for (const rel of FILES) {
   const abs = path.join(ROOT, rel);
   if (!fs.existsSync(abs)) {
@@ -102,14 +112,14 @@ for (const rel of FILES) {
 //   Min: <float> us
 // among several summary lines. We only read Min for noise-resistance.
 // -----------------------------------------------------------------------------
-function measureMinUs(absPath) {
-  const r = spawnSync(KESSEL, ['microbench', 'parse', absPath, '--iterations', String(ITERATIONS), '--ast-only'], {
+function measureMinUs(absPath, binary = KESSEL) {
+  const r = spawnSync(binary, ['microbench', 'parse', absPath, '--iterations', String(ITERATIONS), '--ast-only'], {
     encoding: 'utf8',
     maxBuffer: 16 * 1024 * 1024,
     timeout: 120_000,
   });
   if (r.status !== 0 || r.error) {
-    throw new Error('kessel microbench failed on ' + absPath + ': ' +
+    throw new Error(binary + ' microbench failed on ' + absPath + ': ' +
                     (r.error ? r.error.message : 'exit ' + r.status) +
                     '\n' + (r.stderr || '').slice(0, 500));
   }
@@ -117,28 +127,54 @@ function measureMinUs(absPath) {
   const lines = (r.stdout + r.stderr).split(/\r?\n/);
   for (const line of lines) {
     const m = line.match(/^\s*Min:\s*([0-9]+(?:\.[0-9]+)?)/);
-    if (m) return parseFloat(m[1]);
+    if (m) {
+      const us = Number(m[1]);
+      if (Number.isFinite(us) && us > 0) return us;
+      throw new Error(binary + ' returned an invalid minimum time on ' + absPath + ': ' + m[1]);
+    }
   }
   throw new Error('kessel microbench produced no "Min:" line on ' + absPath +
                   '\nstdout tail: ' + r.stdout.slice(-500));
 }
 
-// -----------------------------------------------------------------------------
-// Measure. Warm up with one throw-away run per file so the first
-// measurement isn't biased by cold caches / filesystem noise.
-// -----------------------------------------------------------------------------
+function measureMatchedFile(file) {
+  // Three pairs in each order give each binary equal exposure to running first.
+  const pairs = [];
+  for (let round = 0; round < 6; round++) {
+    const referenceFirst = round % 2 === 0;
+    const first = measureMinUs(file, referenceFirst ? REFERENCE : KESSEL);
+    const second = measureMinUs(file, referenceFirst ? KESSEL : REFERENCE);
+    const current = referenceFirst ? second : first;
+    const reference = referenceFirst ? first : second;
+    pairs.push({ current, reference, ratio: current / reference });
+  }
+  pairs.sort((a, b) => a.ratio - b.ratio);
+  const middle = pairs.length / 2;
+  const lower = pairs[middle - 1], upper = pairs[middle];
+  // The displayed times yield the median log ratio of the six measured pairs.
+  return {
+    current: Math.sqrt(lower.current * upper.current),
+    reference: Math.sqrt(lower.reference * upper.reference),
+  };
+}
+
 console.log('bench_regression: iterations=' + ITERATIONS + ' files=' + FILES.length +
-            (UPDATE ? ' mode=update' : ' mode=check') +
+            (UPDATE ? ' mode=update' : REFERENCE ? ' reference=' + REFERENCE : ' mode=check') +
             (QUICK ? ' (quick)' : ''));
 
-const measurements = {};  // rel -> min_us
+const measurements = {};
+const referenceMeasurements = {};
 for (const rel of FILES) {
   const abs = path.join(ROOT, rel);
-  // Warmup \u2014 discard.
-  try { measureMinUs(abs); } catch (e) { /* ignore \u2014 real pass below will surface it */ }
-  const t = measureMinUs(abs);
-  measurements[rel] = t;
-  if (VERBOSE) console.log('  measured ' + rel + ': ' + (t / 1000).toFixed(3) + ' ms');
+  if (REFERENCE) {
+    const pair = measureMatchedFile(abs);
+    measurements[rel] = pair.current;
+    referenceMeasurements[rel] = pair.reference;
+  } else {
+    try { measureMinUs(abs); } catch { /* The measured run reports persistent failures. */ }
+    measurements[rel] = measureMinUs(abs);
+  }
+  if (VERBOSE) console.log('  measured ' + rel + ': ' + (measurements[rel] / 1000).toFixed(3) + ' ms');
 }
 
 // -----------------------------------------------------------------------------
@@ -170,22 +206,25 @@ if (UPDATE) {
 // -----------------------------------------------------------------------------
 // Check mode \u2014 compare against baseline.
 // -----------------------------------------------------------------------------
-if (!fs.existsSync(BASELINE_PATH)) {
-  console.error('bench_regression: no baseline at ' + BASELINE_PATH +
-                '. Run `node tests/verifiers/verify_bench_regression.js --update` first.');
-  process.exit(2);
-}
-const baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
-if (baseline.iterations !== ITERATIONS) {
-  console.error('bench_regression: iterations mismatch: baseline=' + baseline.iterations +
-                ' current=' + ITERATIONS + '. Either run with --iterations ' +
-                baseline.iterations + ' or recapture with --update.');
-  process.exit(2);
-}
-if (baseline.quick !== QUICK) {
-  console.error('bench_regression: quick-mode mismatch: baseline quick=' + baseline.quick +
-                ' current quick=' + QUICK + '. They measure different file sets.');
-  process.exit(2);
+let baseline = { files: referenceMeasurements };
+if (!REFERENCE) {
+  if (!fs.existsSync(BASELINE_PATH)) {
+    console.error('bench_regression: no baseline at ' + BASELINE_PATH +
+                  '. Run `node tests/verifiers/verify_bench_regression.js --update` first.');
+    process.exit(2);
+  }
+  baseline = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
+  if (baseline.iterations !== ITERATIONS) {
+    console.error('bench_regression: iterations mismatch: baseline=' + baseline.iterations +
+                  ' current=' + ITERATIONS + '. Either run with --iterations ' +
+                  baseline.iterations + ' or recapture with --update.');
+    process.exit(2);
+  }
+  if (baseline.quick !== QUICK) {
+    console.error('bench_regression: quick-mode mismatch: baseline quick=' + baseline.quick +
+                  ' current quick=' + QUICK + '. They measure different file sets.');
+    process.exit(2);
+  }
 }
 
 // Per-file comparison.
@@ -238,7 +277,7 @@ if (improvements.length > 0) {
     console.log('  ' + r.rel + ': ' + (r.base / 1000).toFixed(3) + ' \u2192 ' + (r.cur / 1000).toFixed(3) +
                 ' ms (' + (1/r.ratio).toFixed(2) + 'x faster)');
   }
-  console.log('  Run with --update to lock these wins in.');
+  if (!REFERENCE) console.log('  Run with --update to lock these wins in.');
 }
 
 let failed = false;
@@ -258,6 +297,10 @@ if (geoMean > GEOMEAN_TOLERANCE) {
   failed = true;
 }
 
+if (failed && REFERENCE) {
+  console.error('\nFAILED against the same-host reference.');
+  process.exit(1);
+}
 if (failed) {
   console.log('\nFAILED. If this regression is intentional (e.g. a correctness fix\n' +
               'that trades off some speed), document the rationale and run with\n' +
