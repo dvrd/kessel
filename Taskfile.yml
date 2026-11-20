@@ -169,6 +169,7 @@ tasks:
     deps: [build]
     silent: false
     cmds:
+      - node tests/verifiers/verify_codegen_invocation.js
       - node tests/verifiers/verify_codegen.js --corpus spec
       - node tests/verifiers/verify_codegen.js --corpus estree
       - node tests/verifiers/verify_codegen.js --corpus babel
