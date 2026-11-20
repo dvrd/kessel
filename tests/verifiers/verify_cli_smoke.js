@@ -20,9 +20,10 @@ assert.equal(program.body[0].declarations[0].init.value, 1);
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-cli-ast-'));
 try {
   const file = path.join(folder, 'input.ts');
-  const field = 'export default class { declare x: number; }';
+  const field = 'export default class { declare x; }';
   for (const [source, version] of [
     ['export default function() {}', 4], [field, 5],
+    ['export default class { declare x: number; } function after() {}', 7],
     ['function f() {}\n' + field, 6], [field + '\nfunction f() {}', 6],
   ]) {
     fs.writeFileSync(file, source);
@@ -35,6 +36,10 @@ try {
       const cls = ast.program.body.find(node => node.type === 'ExportDefaultDeclaration').declaration;
       assert.equal(cls.id, null);
       assert.equal(cls.body.body[0].declare, true);
+    }
+    if (version === 7) {
+      const cls = ast.program.body[0].declaration;
+      assert.equal(cls.body.body[0].typeAnnotation.typeAnnotation.type, 'TSNumberKeyword');
     }
     if (version === 6) {
       const id = ast.program.body.find(node => node.type === 'FunctionDeclaration').id;

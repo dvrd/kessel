@@ -91,6 +91,12 @@ tasks:
     cmds:
       - bash tests/runners/npm_registry_smoke.sh {{.CLI_ARGS}}
 
+  test:npm:typed:
+    desc: Check typed ASTs against Oxc across the TypeScript standard library.
+    deps: [build:lib]
+    cmds:
+      - node tests/verifiers/verify_npm_typescript.js {{.CLI_ARGS}}
+
   test:npm:real:
     desc: Parse the pinned release corpus through the npm asynchronous API.
     deps: [build:lib, test:real:verify-inputs]
@@ -267,6 +273,7 @@ tasks:
       - task: test:regression
       - task: test:real:fetch
       - task: test:real
+      - task: test:npm:typed
       - task: test:estree
       - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
       - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --strict

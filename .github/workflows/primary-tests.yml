@@ -60,6 +60,7 @@ jobs:
           # Cargo runs inside the comparison workspace. Use the compiler pinned by its oracle.
           cp ../oxc/rust-toolchain.toml bench/oxc_compare/rust-toolchain.toml
           npm ci --prefix bench
+          npm ci --prefix npm/kessel
 
       - name: Run release gate
         if: inputs.release_checks
@@ -68,6 +69,6 @@ jobs:
       - name: Check both npm async paths on the release corpus
         if: inputs.release_checks
         run: |
-          npm ci --prefix npm/kessel
           task test:npm:real
           task test:npm:real -- --preload-koffi
+          task test:npm:typed -- --preload-koffi

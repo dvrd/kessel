@@ -77,10 +77,11 @@ the AST. Function and class names, labels, the two parts of `import.meta`
 and `new.target`, and module names and sources carry their own UTF-8 byte
 ranges. Quoted module names are string literals with their original `raw` text.
 
-The exported `./binary-reader` accepts wire versions 3 through 6. The native
-emitter uses version 6 when one of those child ranges is present. Other trees
-use version 5 if they contain declared class fields and version 4 otherwise.
-When reading older buffers, the reader retains their original range behavior.
+The exported `./binary-reader` accepts wire versions 3 through 7. Version 7
+carries TypeScript declarations, annotations, type arguments and modifiers.
+The native emitter selects version 6 for child name and module source ranges,
+version 5 for declared class fields, and version 4 for other trees when they
+only use those features. Older buffers retain their original range behavior.
 
 ```ts
 type ParseOptions = {

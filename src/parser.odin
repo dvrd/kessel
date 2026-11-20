@@ -1595,7 +1595,9 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// (skipping leading comments/whitespace), while still ending at source.length.
 	// Mirror that behaviour here so the deep-compare against OXC matches; no
 	// effect on .js / .jsx where program.start stays 0.
-	if (p.lang == .TS || p.lang == .TSX) && len(program.body) > 0 {
+	if (p.lang == .TS || p.lang == .TSX) && len(program.body) == 0 {
+		program.loc.start = program.loc.end
+	} else if (p.lang == .TS || p.lang == .TSX) && len(program.body) > 0 {
 		first_loc := get_statement_loc(program.body[0])
 		if first_loc.start != 0 || first_loc.end != 0 {
 			program.loc.start = first_loc.start

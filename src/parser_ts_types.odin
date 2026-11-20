@@ -93,6 +93,7 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann.loc = ann_start
 	ann.type_annotation = inner
 	ann.loc.end = prev_end_offset(p)
+	if child := get_ts_type_loc(inner); child != nil { ann.loc.end = max(ann.loc.end, child.end) }
 	return ann
 }
 
@@ -154,6 +155,7 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
 	ann.loc.end = prev_end_offset(p)
+	if child := get_ts_type_loc(ts_type); child != nil { ann.loc.end = max(ann.loc.end, child.end) }
 	return ann
 }
 
@@ -227,6 +229,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
 	ann.loc.end = prev_end_offset(p)
+	if child := get_ts_type_loc(ts_type); child != nil { ann.loc.end = max(ann.loc.end, child.end) }
 	return ann
 }
 
@@ -433,6 +436,7 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 		u.loc = loc^
 	}
 	u.loc.end = prev_end_offset(p)
+	if last := get_ts_type_loc(types[len(types) - 1]); last != nil { u.loc.end = max(u.loc.end, last.end) }
 	r := new_node(p, TSType); r^ = u; return r
 }
 
@@ -546,8 +550,9 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	node := new_node(p, TSTemplateLiteralType); node.loc = start
 	node.quasis = make([dynamic]TemplateElement, 0, 4, p.allocator)
 	node.types  = make([dynamic]^TSType, 0, 4, p.allocator)
-	head_elem := TemplateElement{loc = loc_from_token(&head), tail = false, raw = head.value}
+	head_elem := TemplateElement{loc = ts_template_quasi_loc(p.lexer.source, loc_from_token(&head), false), tail = false, raw = head.value}
 	if cooked, ok := head.literal.(string); ok { head_elem.cooked = cooked }
+	node.loc.start = head_elem.loc.start
 	bump_append(&node.quasis, head_elem)
 	eat(p) // consume TemplateHead
 	for {
@@ -573,14 +578,14 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		}
 		tok := snap_current(p)
 		if tok.type == .TemplateMiddle {
-			mid_elem := TemplateElement{loc = loc_from_token(&tok), tail = false, raw = tok.value}
+			mid_elem := TemplateElement{loc = ts_template_quasi_loc(p.lexer.source, loc_from_token(&tok), false), tail = false, raw = tok.value}
 			if cooked, ok := tok.literal.(string); ok { mid_elem.cooked = cooked }
 			bump_append(&node.quasis, mid_elem)
 			eat(p)
 			continue
 		}
 		if tok.type == .TemplateTail {
-			tail_elem := TemplateElement{loc = loc_from_token(&tok), tail = true, raw = tok.value}
+			tail_elem := TemplateElement{loc = ts_template_quasi_loc(p.lexer.source, loc_from_token(&tok), true), tail = true, raw = tok.value}
 			if cooked, ok := tok.literal.(string); ok { tail_elem.cooked = cooked }
 			bump_append(&node.quasis, tail_elem)
 			eat(p)
@@ -589,9 +594,21 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected template middle / tail token in template literal type")
 		break
 	}
-	node.loc.end = prev_end_offset(p) + 1 // include trailing backtick
+	node.loc.end = node.quasis[len(node.quasis) - 1].loc.end
 	r := new_node(p, TSType); r^ = node
-	return parse_ts_postfix(p, r, start)
+	return parse_ts_postfix(p, r, node.loc)
+}
+
+// The lexer gives template fragments content-only spans. TypeScript ESTree
+// includes their surrounding backtick, closing brace and interpolation opener.
+ts_template_quasi_loc :: proc(source: string, content: Loc, tail: bool) -> Loc {
+	result := content
+	if result.start > 0 { result.start -= 1 }
+	end := int(content.end)
+	if tail {
+		if end < len(source) && source[end] == '`' { result.end += 1 }
+	} else if end + 2 <= len(source) && source[end:end + 2] == "${" { result.end += 2 }
+	return result
 }
 
 parse_ts_tuple_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
@@ -923,7 +940,7 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 				break
 			}
 			tq_prop := parse_identifier_name(p)
-			tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
+			tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = get_expression_loc(tq_expr); tq_mem.object = tq_expr
 			tq_pid, tq_pid_e := new_expr(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
 			tq_mem.property = tq_pid_e; tq_mem.computed = false; tq_mem.optional = false
 			tq_mem.loc.end = prev_end_offset(p)
@@ -3197,7 +3214,7 @@ parse_ts_index_or_computed_member :: proc(p: ^Parser, start: Loc, readonly: bool
 
 	// Property signature with computed property.
 	sig := new_node(p, TSSignature)
-	prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly}
+	prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly || idx_readonly}
 	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
 	prop.loc.end = prev_end_offset(p)
 	sig^ = prop; return sig
@@ -3288,7 +3305,7 @@ parse_ts_accessor_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
 
 get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	if t == nil { return nil }
-	#partial switch v in t^ {
+	switch v in t^ {
 	case ^TSKeywordType: return &v.loc
 	case ^TSTypeReference: return &v.loc
 	case ^TSUnionType: return &v.loc
@@ -3306,6 +3323,12 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	case ^TSInferType: return &v.loc
 	case ^TSTypeQuery: return &v.loc
 	case ^TSTypePredicate: return &v.loc
+	case ^TSConstructorType: return &v.loc
+	case ^TSTemplateLiteralType: return &v.loc
+	case ^TSRestType: return &v.loc
+	case ^TSOptionalType: return &v.loc
+	case ^TSNamedTupleMember: return &v.loc
+	case ^TSImportType: return &v.loc
 	}
 	return nil
 }

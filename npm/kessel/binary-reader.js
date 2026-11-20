@@ -47,8 +47,10 @@ const T = {
   JSXMemberExpression: 90, JSXNamespacedName: 91, JSXSpreadChild: 92,
   TSTypeAnnotation: 93, TSTypeReference: 94, TSAsExpression: 95,
   TSSatisfiesExpression: 96, TSNonNullExpression: 97,
-  TSTypeAssertion: 98, TSInstantiationExpression: 99,
+  TSTypeAssertion: 98, TSInstantiationExpression: 99, TypedRecord: 100, TypedPrefix: 101,
 };
+
+const RESERVED_FIELDS = new Set(['type', 'start', 'end', '__proto__', 'prototype', 'constructor']);
 
 const TYPE_NAMES = [
   'Program', 'Identifier', 'PrivateIdentifier',
@@ -84,7 +86,7 @@ const TYPE_NAMES = [
   'JSXMemberExpression', 'JSXNamespacedName', 'JSXSpreadChild',
   'TSTypeAnnotation', 'TSTypeReference', 'TSAsExpression',
   'TSSatisfiesExpression', 'TSNonNullExpression',
-  'TSTypeAssertion', 'TSInstantiationExpression',
+  'TSTypeAssertion', 'TSInstantiationExpression', 'TypedRecord',
 ];
 
 const VAR_KINDS = ['var', 'let', 'const', 'using', 'await using'];
@@ -121,7 +123,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version < 3 || version > 6) throw new Error('Unsupported binary AST version: ' + version);
+  if (version < 3 || version > 7) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
@@ -221,6 +223,28 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
     return arr;
   }
 
+  // Version 7 adds named ESTree fields for native TypeScript nodes.
+  function readRecordFields(node) {
+    const limit = errorsOff || strTableOff;
+    for (let count = 0; count < 64 && off < limit; count++) {
+      const kind = readU8();
+      if (kind === 0) return;
+      const key = readStr();
+      if (!key || RESERVED_FIELDS.has(key)) {
+        throw new Error('Invalid binary AST field at ' + off);
+      }
+      switch (kind) {
+        case 1: node[key] = readNode(); break;
+        case 2: node[key] = readNodeArray(); break;
+        case 3: node[key] = readStr(); break;
+        case 4: node[key] = readU8() !== 0; break;
+        case 5: node[key] = null; break;
+        default: throw new Error('Invalid binary AST field kind ' + kind);
+      }
+    }
+    throw new Error('Unterminated binary AST fields at ' + off);
+  }
+
   function readNode() {
     if (off >= strTableOff) return null;
     if (++depth > RESOURCE_BUDGET.astDepth) throw new Error('readNode depth exceeded ' + RESOURCE_BUDGET.astDepth + ' at offset ' + off);
@@ -232,6 +256,12 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
       off++;
       --depth;
       return null;
+    }
+    let fields;
+    if (peek === T.TypedPrefix && version >= 7) {
+      off++;
+      fields = {};
+      readRecordFields(fields);
     }
     const { typeId, start, end } = readNodeHeader();
     const type = TYPE_NAMES[typeId];
@@ -264,9 +294,11 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         break;
       case T.BooleanLiteral:
         node.value = readBool();
+        if (version >= 7) node.raw = node.value ? 'true' : 'false';
         break;
       case T.NullLiteral:
         node.value = null;
+        if (version >= 7) node.raw = 'null';
         break;
       case T.BigIntLiteral:
         node.value = null; // BigInt can't be JSON'd
@@ -515,10 +547,12 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.argument = readNode();
         break;
       case T.ImportDeclaration:
+        if (version >= 7) node.importKind = 'value';
         node.specifiers = readNodeArray();
         node.source = readChild('Literal', start, end);
         break;
       case T.ImportSpecifier:
+        if (version >= 7) node.importKind = 'value';
         node.imported = readChild('Identifier', start, end);
         node.local = readChild('Identifier', start, end);
         break;
@@ -530,15 +564,18 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.declaration = readNodeOrNull();
         node.specifiers = readNodeArray();
         node.source = readChild('Literal', start, end, true);
+        if (version >= 7) node.exportKind = node.declaration?.declare ? 'type' : 'value';
         break;
       case T.ExportDefaultDeclaration:
         node.declaration = readNode();
         break;
       case T.ExportAllDeclaration:
+        if (version >= 7) node.exportKind = 'value';
         node.source = readChild('Literal', start, end);
         node.exported = readChild('Identifier', start, end, true);
         break;
       case T.ExportSpecifier:
+        if (version >= 7) node.exportKind = 'value';
         node.local = readChild('Identifier', start, end);
         node.exported = readChild('Identifier', start, end);
         break;
@@ -596,6 +633,11 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.expression = readNode();
         break;
       // ===================== TypeScript =====================
+      case T.TypedRecord:
+        if (version < 7) throw new Error('Typed AST record requires version 7');
+        node.type = readStr();
+        readRecordFields(node);
+        break;
       case T.TSTypeAnnotation:
       case T.TSTypeReference:
         // TS types — not decoded for JS consumers. Skip.
@@ -611,6 +653,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         // Unknown node type — skip
         break;
     }
+    if (fields) Object.assign(node, fields);
     --depth;
     return node;
   }
