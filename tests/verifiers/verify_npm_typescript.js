@@ -124,12 +124,13 @@ async function verify(directory) {
     ['class-index.ts', '/*🚀*/ type Entry = string; export class Table { readonly [key:string]: Entry; ' +
       'static [readonly:symbol]: number; key = "value"; }'],
     ['empty.ts', '// 🚀\n'],
+    ['readonly-computed.ts', fs.readFileSync(path.join(root, 'tests/coverage/misc/pass/readonly-computed-type-members.ts'), 'utf8')],
   ];
   for (const [filename, source] of examples) {
     const file = path.join(directory, filename);
     if (checkCli) fs.writeFileSync(file, source);
     await verifyFile(filename, source, undefined, file);
-    if (checkCli && ['imports.ts', 'bindings.ts', 'import-types.ts'].includes(filename)) {
+    if (checkCli && ['imports.ts', 'bindings.ts', 'import-types.ts', 'readonly-computed.ts'].includes(filename)) {
       verifyPrintedTypes(filename, file, source);
     }
   }
