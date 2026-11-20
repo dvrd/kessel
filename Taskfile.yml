@@ -267,6 +267,7 @@ tasks:
     deps: [build, bench:oxc:build]
     silent: false
     cmds:
+      - node tests/verifiers/verify_release_version.js
       - node tests/verifiers/verify_oxc_pin.js --require-installed
       - node tests/verifiers/verify_cli_smoke.js {{.BIN}}
       - task: test:coverage

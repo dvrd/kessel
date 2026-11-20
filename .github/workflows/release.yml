@@ -91,52 +91,7 @@ jobs:
           node-version: '22'
 
       - id: compute
-        run: |
-          set -euo pipefail
-
-          # 1. Current published version (or sentinel 0.1.0 if 404).
-          CURRENT=$(npm view @dvrdlibs/kessel version 2>/dev/null || echo "")
-          if [[ -z "$CURRENT" ]]; then
-            CURRENT="0.1.0"
-            echo "Package not yet on registry; starting from sentinel $CURRENT"
-          else
-            echo "Current published version: $CURRENT"
-          fi
-
-          # 2. Commits since the last v* tag (or whole history if none).
-          LAST_TAG=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "")
-          if [[ -z "$LAST_TAG" ]]; then
-            RANGE="HEAD"
-            echo "No v* tag found; scanning entire history"
-          else
-            RANGE="$LAST_TAG..HEAD"
-            echo "Scanning commits since $LAST_TAG"
-          fi
-          COMMITS=$(git log --format="%s" "$RANGE")
-
-          # Use here-strings (<<<) rather than pipes: `echo | grep -q` would
-          # SIGPIPE on early `-q` exit, which set -o pipefail propagates as a
-          # failure (exit 141), making every branch fall through to patch.
-          if grep -qE "^(feat|refactor)(\(.+\))?!:|BREAKING CHANGE" <<< "$COMMITS"; then
-            BUMP="major"
-          elif grep -qE "^(feat|refactor)(\(.+\))?:" <<< "$COMMITS"; then
-            BUMP="minor"
-          else
-            BUMP="patch"
-          fi
-
-          # 3. Apply the bump.
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-          case "$BUMP" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-          NEW="$MAJOR.$MINOR.$PATCH"
-
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
-          echo "=== Bump $CURRENT → $NEW ($BUMP) ==="
+        run: node scripts/next_release_version.js
 
   # ---------------------------------------------------------------------------
   # build — produce libkessel.{dylib,so,dll} for every target. One artifact
