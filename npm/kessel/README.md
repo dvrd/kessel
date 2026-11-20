@@ -53,6 +53,9 @@ The filename extension determines the grammar:
 | `.ts`, `.mts`, `.cts` | TypeScript |
 | `.tsx` | TypeScript + JSX |
 
+The AST uses the ESTree `Program.sourceType` values `script` and `module`
+for all extensions, including `.cjs` and `.cts`.
+
 Override with the `lang` option:
 
 ```js
@@ -77,7 +80,9 @@ the AST. Function and class names, labels, the two parts of `import.meta`
 and `new.target`, and module names and sources carry their own UTF-8 byte
 ranges. Quoted module names are string literals with their original `raw` text.
 
-The exported `./binary-reader` accepts wire versions 3 through 7. Version 7
+The exported `./binary-reader` accepts wire versions 3 through 8. Version 8
+records whether to include TypeScript fields, so modules written entirely in
+JavaScript syntax still carry `importKind` and `exportKind` in TS mode. Version 7
 carries TypeScript declarations, annotations, type arguments and modifiers.
 The native emitter selects version 6 for child name and module source ranges,
 version 5 for declared class fields, and version 4 for other trees when they

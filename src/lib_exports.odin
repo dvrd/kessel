@@ -107,7 +107,7 @@ kessel_parse_binary_with_config :: proc(source: string, label: string, config: P
 	// string table so the JS decoder can surface real parse diagnostics
 	// instead of always seeing an empty errors[] array.
 	be: BinaryEmitter
-	binary_emitter_init(&be, source, context.allocator, job.parser.allocator)
+	binary_emitter_init(&be, source, context.allocator, job.parser.allocator, allow_ts_mode(&job.parser))
 	bin_emit_program(&be, job.program)
 	bin_emit_errors(&be, job.parser.errors[:])
 	bin_emit_finalize(&be)

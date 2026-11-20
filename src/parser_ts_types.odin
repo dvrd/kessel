@@ -1405,45 +1405,9 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 
 parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	result := base
-	for is_token(p, .LBracket) {
-		// ASI-style guard: if the `[` is on a new line AND the contents
-		// look like an index signature (`[Ident :` ...), this `[` is not
-		// a postfix on the current type - it's the start of the next
-		// interface / type-literal member. Without this guard, code like
-		//   interface I {
-		//     thisIsNotATag(x: string): void
-		//     [x: number]: I;
-		//   }
-		// has `void` greedily extended to `void[x: number]` (TSIndexedAccessType)
-		// and the index signature is consumed mid-type, then everything
-		// downstream cascades. Closes most of the
-		// taggedTemplateStringsWithTypedTags / indexer2A /
-		// noPropertyAccessFromIndexSignature1 cluster.
-		if cur_has_newline(p) {
-   ensure_nxt(p)
-			nxt_kind := p.lexer.nxt.kind
-			// `T\n[]` — empty brackets on new line = new member, not array postfix.
-			if nxt_kind == .RBracket {
-				break
-			}
-			// `T\n[<T>` — generic on new line = new member start (call/construct sig).
-			if nxt_kind == .LAngle {
-				break
-			}
-			if nxt_kind == .Identifier || nxt_kind == .String || nxt_kind == .Number {
-				snap := lexer_snapshot(p)
-				eat(p) // `[`
-				eat(p) // identifier / string / number
-				after := p.cur_type
-				lexer_restore(p, snap)
-				// `[Ident :` → index signature, not postfix.
-				// `[Ident ]` → computed class/interface member.
-				// `["str" ]` → computed method overload.
-				if after == .Colon || after == .RBracket {
-					break
-				}
-			}
-		}
+	// A line terminator before the opening bracket ends a postfix type. In
+	// a member list the bracket can start a computed property or a method.
+	for is_token(p, .LBracket) && !cur_has_newline(p) {
 		if is_next_token(p, .RBracket) {
 			// Array type: `T[]`.
 			eat(p); eat(p)
@@ -2603,6 +2567,17 @@ set_ts_sig_end :: proc(sig: ^TSSignature, end: u32) {
 	}
 }
 
+// Words such as `get` and `readonly` can also name a property or a generic method.
+ts_member_modifier_ahead :: proc(p: ^Parser) -> bool {
+	ensure_nxt(p)
+	if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 { return false }
+	#partial switch p.lexer.nxt.kind {
+	case .LParen, .LAngle, .Question, .Colon, .Semi, .Comma, .RBrace:
+		return false
+	}
+	return true
+}
+
 // parse_ts_object_member_reject_modifiers consumes any invalid leading
 // class / parameter modifier prefix (static / override / const / default /
 // export / async / abstract / accessor / accessibility) on a TS type member.
@@ -2634,17 +2609,8 @@ parse_ts_object_member_reject_modifiers :: proc(p: ^Parser) {
 				modifier_name = cur_value(p)
 			}
 		}
-		if modifier_name == "" { break }
-  ensure_nxt(p)
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 { break }
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		if nxt == .Colon || nxt == .Question || nxt == .LParen || nxt == .Semi ||
-		   nxt == .Comma || nxt == .RBrace {
-			break
-		}
-		// Differentiate index signature messages
-		is_idx_sig := nxt == .LBracket
+		if modifier_name == "" || !ts_member_modifier_ahead(p) { break }
+		is_idx_sig := p.lexer.nxt.kind == .LBracket
 		if is_idx_sig {
 			report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", modifier_name))
 		} else {
@@ -2734,19 +2700,9 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// Parse contextual get/set accessor signatures. `get` / `set` are also
 	// valid property names, so only treat them as accessors when another
 	// property key follows on the same member.
-	nxt_allows_accessor := false
- ensure_nxt(p)
-	if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-		#partial switch p.lexer.nxt.kind {
-		case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
-			// `get()`, `get?: T`, `set;` are members named get/set.
-		case:
-			nxt_allows_accessor = true
-		}
-	}
 	if ((is_token(p, .Get) || is_token(p, .Set)) ||
 	    (is_token(p, .Identifier) && (cur_value_eq(p, "get") || cur_value_eq(p, "set")))) &&
-	   nxt_allows_accessor {
+	   ts_member_modifier_ahead(p) {
 		return parse_ts_accessor_signature(p, start)
 	}
 
@@ -2796,27 +2752,11 @@ parse_ts_construct_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
 // when it is a modifier (not a member literally named `readonly`), reporting
 // whether it applies to an index signature.
 parse_ts_member_readonly_modifier :: proc(p: ^Parser) -> (readonly: bool, idx_readonly: bool) {
-	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") {
-		readonly_is_modifier := false
-  ensure_nxt(p)
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-			#partial switch p.lexer.nxt.kind {
-			case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
-				// `readonly` IS the member name — leave it alone.
-			case:
-				readonly_is_modifier = true
-			}
-		}
-		if readonly_is_modifier {
-   ensure_nxt(p)
-			if p.lexer.nxt.kind == .LBracket {
-				idx_readonly = true   // signal to the index-sig branch below
-			} else {
-				readonly = true
-			}
-			eat(p) // consume `readonly`
-		}
-	}
+	if p.cur_type != .Identifier || !cur_value_eq(p, "readonly") { return }
+	if !ts_member_modifier_ahead(p) { return }
+	idx_readonly = p.lexer.nxt.kind == .LBracket
+	readonly = !idx_readonly
+	eat(p)
 	return
 }
 

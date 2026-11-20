@@ -2506,11 +2506,10 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 	#partial switch v in decl^ {
 	case ^FunctionDeclaration:
 		decl_union^ = v
-		// `declare` on the inner declaration marks it ambient (no body)
-		// but the export itself stays `"value"` per ESTree — only an
-		// explicit `export type X` modifier sets exportKind to "type".
+		if v.declare { export_kind = .Type }
 	case ^VariableDeclaration:
 		decl_union^ = v
+		if v != nil && v.declare { export_kind = .Type }
 		// §Explicit Resource Management - `export using x = ...` and
 		// `export await using x = ...` are SyntaxErrors. Using
 		// declarations must use the named-export form: `export { x }`.
@@ -2519,6 +2518,7 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 		}
 	case ^ClassDeclaration:
 		decl_union^ = v
+		if v != nil && v.declare { export_kind = .Type }
 		// §15.7.1 — named exports require a class name.
 		// `export class {}` is invalid; must use `export default class {}`.
 		if v != nil {
@@ -2542,11 +2542,10 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 		export_kind = .Type
 	case ^TSEnumDeclaration:
 		decl_union^ = v
-		// `declare` doesn't lift the export to `type`; only an explicit
-		// `export type` modifier does.
+		if v.declare { export_kind = .Type }
 	case ^TSModuleDeclaration:
 		decl_union^ = v
-		// Same: `export declare namespace N {}` is a value-kind export.
+		if v.declare { export_kind = .Type }
 	case ^TSImportEqualsDeclaration:  decl_union^ = v
 	case:
 		// After `export` (non-default), only declarations are valid.

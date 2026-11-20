@@ -115,7 +115,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          3 through 6
+  //   4  version          3 through 8
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -123,11 +123,13 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version < 3 || version > 7) throw new Error('Unsupported binary AST version: ' + version);
+  if (version < 3 || version > 8) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
   const errorCount = dv.getUint32(20, true);
+  // Version 7 inferred the output shape from the presence of typed records.
+  const tsShape = version === 7 || (version >= 8 && dv.getUint8(strTableOff - 1) === 1);
   off = 24;
 
   // Build string table
@@ -547,12 +549,12 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.argument = readNode();
         break;
       case T.ImportDeclaration:
-        if (version >= 7) node.importKind = 'value';
+        if (tsShape) node.importKind = 'value';
         node.specifiers = readNodeArray();
         node.source = readChild('Literal', start, end);
         break;
       case T.ImportSpecifier:
-        if (version >= 7) node.importKind = 'value';
+        if (tsShape) node.importKind = 'value';
         node.imported = readChild('Identifier', start, end);
         node.local = readChild('Identifier', start, end);
         break;
@@ -564,18 +566,19 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.declaration = readNodeOrNull();
         node.specifiers = readNodeArray();
         node.source = readChild('Literal', start, end, true);
-        if (version >= 7) node.exportKind = node.declaration?.declare ? 'type' : 'value';
+        if (tsShape) node.exportKind = version === 7 && node.declaration?.declare ? 'type' : 'value';
         break;
       case T.ExportDefaultDeclaration:
         node.declaration = readNode();
+        if (tsShape) node.exportKind = 'value';
         break;
       case T.ExportAllDeclaration:
-        if (version >= 7) node.exportKind = 'value';
+        if (tsShape) node.exportKind = 'value';
         node.source = readChild('Literal', start, end);
         node.exported = readChild('Identifier', start, end, true);
         break;
       case T.ExportSpecifier:
-        if (version >= 7) node.exportKind = 'value';
+        if (tsShape) node.exportKind = 'value';
         node.local = readChild('Identifier', start, end);
         node.exported = readChild('Identifier', start, end);
         break;

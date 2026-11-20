@@ -168,10 +168,13 @@ BinValType :: enum u8 {
 //   v6: Names and module sources formerly stored as string indexes are child
 //       nodes with their original spans. Absent optional fields keep their null tag.
 //   v7: Typed records and field prefixes share the string table with fixed-layout nodes.
+//   v8: A byte immediately before the string table identifies the TypeScript ESTree shape.
+//       JavaScript decorators can use typed records, and plain TypeScript may use none.
 BINARY_VERSION_DIAGNOSTICS     :: u32(4)
 BINARY_VERSION_DECLARED_FIELDS :: u32(5)
 BINARY_VERSION_CHILD_SPANS     :: u32(6)
 BINARY_VERSION_TYPES           :: u32(7)
+BINARY_VERSION_SOURCE_SHAPE    :: u32(8)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
@@ -181,13 +184,14 @@ BinaryEmitter :: struct {
 	strings:      [dynamic]string,   // string table (ordered by first occurrence)
 	string_map:   map[string]u32,    // dedup: string → index in strings
 	source:       string,            // borrowed source text
+	ts_shape:     bool,
 	node_count:   u32,
 	version:      u32,               // lowest compatible wire version for this tree
 	errors_off:   u32,               // start of errors section (0 = no errors written)
 	error_count:  u32,               // count of errors written
 }
 
-binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc, scratch: mem.Allocator) {
+binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc, scratch: mem.Allocator, ts_shape: bool) {
 	be.scratch = scratch
 	cap := max(len(source), 64 * 1024)
 	be.buf = make([dynamic]u8, cap, alloc)
@@ -196,7 +200,8 @@ binary_emitter_init :: proc(be: ^BinaryEmitter, source: string, alloc, scratch: 
 	be.string_map = make(map[string]u32, 4096, alloc)
 	be.source = source
 	be.node_count = 0
-	be.version = BINARY_VERSION_DIAGNOSTICS
+	be.ts_shape = ts_shape
+	be.version = BINARY_VERSION_SOURCE_SHAPE if ts_shape else BINARY_VERSION_DIAGNOSTICS
 }
 
 binary_emitter_destroy :: proc(be: ^BinaryEmitter, alloc: mem.Allocator) {
@@ -1339,6 +1344,11 @@ bin_emit_errors :: proc(be: ^BinaryEmitter, errors: []ParseError) {
 }
 
 bin_emit_finalize :: proc(be: ^BinaryEmitter) {
+	if be.version >= BINARY_VERSION_TYPES {
+		// Keeping the mode next to the table preserves every node and diagnostic offset.
+		bw_bool(be, be.ts_shape)
+		be.version = BINARY_VERSION_SOURCE_SHAPE
+	}
 	string_table_off := u32(be.pos)
 
 	source_ptr := uintptr(raw_data(be.source))

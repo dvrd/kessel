@@ -2372,6 +2372,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 		} else {
 			emit_raw(e, "null")
 		}
+		if e.cfg.ts_shape {
+			emit_println(e, ",")
+			emit_indent(e, indent)
+			emit_raw(e, "\"exportKind\": \"value\"")
+		}
 
 	case ^ExportAllDeclaration:
 		emit_println(e, ",")

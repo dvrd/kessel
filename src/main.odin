@@ -1035,7 +1035,7 @@ parse_file_binary :: proc(file_path: string, cli: CliConfig) {
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	be: BinaryEmitter
-	binary_emitter_init(&be, string(job.source.data), context.allocator, job.parser.allocator)
+	binary_emitter_init(&be, string(job.source.data), context.allocator, job.parser.allocator, allow_ts_mode(&job.parser))
 	defer binary_emitter_destroy(&be, context.allocator)
 
 	bin_emit_program(&be, job.program)

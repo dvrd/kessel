@@ -123,6 +123,12 @@ async function verify(directory) {
     ['component.tsx', 'export const view = <View<string> />;'],
     ['class-index.ts', '/*🚀*/ type Entry = string; export class Table { readonly [key:string]: Entry; ' +
       'static [readonly:symbol]: number; key = "value"; }'],
+    ['computed-signature.ts', fs.readFileSync(path.join(root, 'tests/coverage/misc/pass/computed-signature-after-return-type.ts'), 'utf8')],
+    ['ambient.ts', 'export declare const v: number; export declare class C {} ' +
+      'export declare enum E {} export declare namespace N {} export default interface Item {}'],
+    ['plain-reexports.d.ts', "import {A} from 'a'; export {A}; export * from 'b'; export default A;"],
+    ['plain-reexports.js', "import {A} from 'a'; export {A}; export * from 'b'; export default A;"],
+    ['decorated.js', '@dec class C {} export {C}; export default C;'],
     ['empty.ts', '// 🚀\n'],
     ['readonly-computed.ts', fs.readFileSync(path.join(root, 'tests/coverage/misc/pass/readonly-computed-type-members.ts'), 'utf8')],
   ];
@@ -130,8 +136,18 @@ async function verify(directory) {
     const file = path.join(directory, filename);
     if (checkCli) fs.writeFileSync(file, source);
     await verifyFile(filename, source, undefined, file);
-    if (checkCli && ['imports.ts', 'bindings.ts', 'import-types.ts', 'readonly-computed.ts'].includes(filename)) {
+    if (checkCli && ['imports.ts', 'bindings.ts', 'import-types.ts', 'readonly-computed.ts', 'computed-signature.ts'].includes(filename)) {
       verifyPrintedTypes(filename, file, source);
+    }
+  }
+  // The parsed language also controls module metadata when callers override the filename.
+  for (const [filename, lang] of [['module.js', 'ts'], ['module.ts', 'js']]) {
+    const source = "import {A} from 'a'; export {A}; export default A;";
+    const reference = oracle.parseSync(filename, source, {lang});
+    for (const parse of [sdk.parseSync, sdk.parseAsync]) {
+      const parsed = await parse(filename, source, {lang});
+      assert.deepEqual(parsed.errors, []);
+      compareProgram(reference.program, parsed.program, filename + ' as ' + lang, byteOffsets(source));
     }
   }
   const components = ['001_generic_component.js', '002_hooks_refs_as_casts.js'];

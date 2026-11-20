@@ -162,6 +162,17 @@ try {
   const cls = decode(fields, 'class C { declare x: number; }').program.body[0];
   assert.equal(cls.id.name, 'C');
   assert.equal(cls.body.body[0].declare, true);
+  const ambient = Buffer.from(
+    'VFNFSwcAAAAHAAAAqAAAAAAAAAAAAAAAAAAAAAAdAAAAAAAAAAEAAABKAAAAAB0AAAD9ZQQB' +
+    'AAAAAQA/BwAAAB0AAAABAQAAAEATAAAAHAAAAGQTAAAAHAAAAAIAAAADAwAAAAQAAAAEBQAA' +
+    'AAACBgAAAAAAAAABBwAAAGQUAAAAHAAAAAgAAAABBwAAAGQWAAAAHAAAAAkAAAAAAAD+AAAA' +
+    'AAAAAAAA+AAAgAYAAAD+AACABwAAAAUBAIAKAAAADwEAgAQAAAATAAAAAQAAABMBAIAIAAAA' +
+    'GwEAgAoAAAAlAQCADgAAADMBAIAQAAAAQwEAgA8AAABtb2R1bGVkZWNsYXJlSWRlbnRpZmll' +
+    'cm5hbWVvcHRpb25hbGRlY29yYXRvcnN0eXBlQW5ub3RhdGlvblRTVHlwZUFubm90YXRpb25U' +
+    'U051bWJlcktleXdvcmQ=', 'base64');
+  const exported = decode(ambient, 'export declare let v: number;').program.body[0];
+  assert.equal(exported.exportKind, 'type');
+  assert.equal(exported.declaration.declare, true);
   passed++;
 } catch (error) { console.error('FAIL: archived binary ASTs', error); failed++; }
 
