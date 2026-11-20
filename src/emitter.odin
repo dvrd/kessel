@@ -19,8 +19,8 @@
 //   cfg := emit_config_from_globals(job.lang)   // snapshot CLI flags
 //   e: Emitter
 //   emitter_init(&e, cfg, len(source), context.allocator)
-//   defer emitter_destroy(&e, context.allocator)
-//   emitter_build_utf16(&e, source, context.allocator)  // optional
+//   defer emitter_destroy(&e)
+//   emitter_build_utf16(&e, source)                      // optional
 //   emitter_adopt_lines(&e, lex.line_offsets)            // optional
 //   emit_program(&e, program, 1, lex.comments[:], hashbang)
 //   if cfg.module_record { emit_module_record(&e, &p, 1) }
@@ -138,6 +138,7 @@ Emitter :: struct {
 	// lexer (which built it lazily during parse); the emitter does not
 	// own this slice and does not free it.
 	line_offsets: []u32,
+	allocator: mem.Allocator,
 }
 
 // ============================================================================
@@ -155,28 +156,32 @@ Emitter :: struct {
 emitter_init :: proc(e: ^Emitter, cfg: EmitConfig, source_len_hint: int, alloc: mem.Allocator) {
 	est_size := max(source_len_hint * 20, 4096)
 	e.cfg           = cfg
+	e.allocator     = alloc
 	e.buf           = make([]byte, est_size, alloc)
 	e.pos           = 0
 	e.utf16_offsets = nil
 	e.line_offsets  = nil
 }
 
-// Release the emitter's output buffer. Idempotent on a zero-value emitter.
-emitter_destroy :: proc(e: ^Emitter, alloc: mem.Allocator) {
-	if e.buf != nil { delete(e.buf, alloc) }
-	e.buf = nil
-	e.pos = 0
+// The writer and its UTF-16 table use the same allocator throughout emission.
+// The line table belongs to the lexer and remains available to diagnostics.
+emitter_destroy :: proc(e: ^Emitter) {
+	if e.buf != nil { delete(e.buf, e.allocator) }
+	if e.utf16_offsets != nil { delete(e.utf16_offsets, e.allocator) }
+	e^ = {}
 }
 
 // Build the byte->UTF-16 offset table for `source`. Only allocates if the
 // source contains non-ASCII bytes; for pure-ASCII files utf16_offsets
 // stays nil and to_utf16 returns the byte offset directly.
-emitter_build_utf16 :: proc(e: ^Emitter, source: []byte, alloc: mem.Allocator) {
-	if !simd_has_multibyte(source) {
+emitter_build_utf16 :: proc(e: ^Emitter, source: []byte) {
+	if e.utf16_offsets != nil {
+		delete(e.utf16_offsets, e.allocator)
 		e.utf16_offsets = nil
-		return
 	}
-	e.utf16_offsets = simd_build_utf16_offsets(source, alloc)
+	if simd_has_multibyte(source) {
+		e.utf16_offsets = simd_build_utf16_offsets(source, e.allocator)
+	}
 }
 
 // Adopt the lexer's line_offsets table for `loc` emission. Borrowed -
@@ -216,9 +221,9 @@ to_utf16 :: #force_inline proc(e: ^Emitter, byte_off: u32) -> u32 {
 emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
 	if e.pos + need <= len(e.buf) { return }
 	new_cap := max(len(e.buf) * 2, e.pos + need)
-	new_buf := make([]byte, new_cap, context.allocator)
+	new_buf := make([]byte, new_cap, e.allocator)
 	mem.copy(raw_data(new_buf), raw_data(e.buf), e.pos)
-	delete(e.buf, context.allocator)
+	delete(e.buf, e.allocator)
 	e.buf = new_buf
 }
 

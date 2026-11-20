@@ -682,9 +682,9 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	// shape without ambient globals. See src/emitter.odin.
 	e: Emitter
 	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
-	defer emitter_destroy(&e, context.allocator)
+	defer emitter_destroy(&e)
 
-	emitter_build_utf16(&e, job.source.data, context.allocator)
+	emitter_build_utf16(&e, job.source.data)
 	if e.cfg.loc {
 		build_line_table(&job.lexer)
 		emitter_adopt_lines(&e, job.lexer.line_offsets)
@@ -1107,9 +1107,9 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	// `direct_buf` is gone.
 	e: Emitter
 	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
-	defer emitter_destroy(&e, context.allocator)
+	defer emitter_destroy(&e)
 
-	emitter_build_utf16(&e, job.source.data, context.allocator)
+	emitter_build_utf16(&e, job.source.data)
 	if e.cfg.loc {
 		build_line_table(&job.lexer)
 		emitter_adopt_lines(&e, job.lexer.line_offsets)
