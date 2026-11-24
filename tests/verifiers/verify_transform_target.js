@@ -69,6 +69,8 @@ function checkDiagnostics(binary, temp) {
     ['es2016', 'class C { async method() {} }', /async functions/],
     ['es2016', 'const o = { async method() {} };', /async functions/],
     ['es2015', 'const Math = {}; a ** 2;', /binding named Math/],
+    ['es2015', 'function f(a, ...[b]) {}', /rest parameter with a pattern/],
+    ['es2015', 'const f = (...{ length }) => length;', /rest parameter with a pattern/],
     ['es2015', '[a] **= 2;', /./],
   ];
   const file = path.join(temp, 'target-diagnostic.js');

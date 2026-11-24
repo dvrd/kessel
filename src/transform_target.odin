@@ -545,6 +545,7 @@ target_check_unsupported :: proc(cg: ^Codegen, expr: ^Expression) {
 	#partial switch node in expr^ {
 	case ^ArrowFunctionExpression:
 		if node.async { target_require(cg, node.loc, .ES2017, "async functions cannot be lowered") }
+		target_check_rest_param(cg, node.params[:])
 		for param in node.params { class_note_pattern_names(cg, param.pattern, param.default_val) }
 	case ^AwaitExpression:
 		target_require(cg, node.loc, .ES2017, "await cannot be lowered")
@@ -593,6 +594,7 @@ transform_function_check :: proc(
 	if cg.transform == nil { return }
 	if async { target_require(cg, loc, .ES2017, "async functions cannot be lowered") }
 	if async && generator { target_require(cg, loc, .ES2018, "async generators cannot be lowered") }
+	target_check_rest_param(cg, params)
 	for param in params {
 		target_check_pattern(cg, param.pattern)
 		class_note_pattern_names(cg, param.pattern, param.default_val)
@@ -613,6 +615,19 @@ transform_function_close :: proc(cg: ^Codegen) {
 	if state == nil { return }
 	assert(len(state.temp_scopes) > 1)
 	target_declare_temps(cg, pop(&state.temp_scopes)[:])
+}
+
+// ES2015 allows only a name after `...` in a parameter list; a pattern
+// there, as in `(...[first])`, came with ES2016.
+target_check_rest_param :: proc(cg: ^Codegen, params: []FunctionParameter) {
+	if cg.transform.target >= .ES2016 { return }
+	for param in params {
+		rest, is_rest := param.pattern.(^RestElement)
+		if !is_rest { continue }
+		if _, named := rest.argument.(^Identifier); !named {
+			cg_strip_unsupported(cg, rest.loc, "a rest parameter with a pattern cannot be lowered")
+		}
+	}
 }
 
 // Object rest in a binding pattern arrived with object spread in ES2018.
