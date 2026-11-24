@@ -66,7 +66,9 @@ source_positions_init :: proc(
 ) -> bool {
 	assert(positions != nil)
 	positions^ = {}
-	if len(source) > SOURCE_POSITIONS_SOURCE_SIZE_MAX { return false }
+	// Compared as u64: `int` is 32 bits on wasm32, where the limit itself
+	// does not fit.
+	if u64(len(source)) > SOURCE_POSITIONS_SOURCE_SIZE_MAX { return false }
 
 	line_offsets := source_line_offsets(source, allocator)
 	if len(line_offsets) == 0 { return false }
