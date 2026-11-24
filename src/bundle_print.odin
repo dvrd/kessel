@@ -194,12 +194,14 @@ bundle_print_records :: proc(g: ^BundleGraph, module: ^BundleModule, renamed: ^m
 			text = fmt.aprintf("%s(%s())", g.helpers.names[.ToCommonJS], target.wrapper_name,
 				allocator = g.alloc)
 		case target.wrap == .CJS:
-			g.helpers.used += {.ToESM, .CopyProps, .DefProp}
-			text = fmt.aprintf("Promise.resolve().then(() => %s(%s(), %d))",
-				g.helpers.names[.ToESM],
-				target.wrapper_name, 1 if module.node_mode else 0, allocator = g.alloc)
+			g.helpers.used += {.ToESM, .CopyProps, .DefProp, .Dynamic}
+			text = fmt.aprintf("%s(() => %s(%s(), %d))", g.helpers.names[.Dynamic],
+				g.helpers.names[.ToESM], target.wrapper_name, 1 if module.node_mode else 0,
+				allocator = g.alloc)
 		case:
-			text = fmt.aprintf("Promise.resolve().then(%s)", target.wrapper_name,
+			// The initializer returns the namespace, which is what import() yields.
+			g.helpers.used += {.Dynamic}
+			text = fmt.aprintf("%s(%s)", g.helpers.names[.Dynamic], target.wrapper_name,
 				allocator = g.alloc)
 		}
 		replacement := new(Identifier, g.alloc)

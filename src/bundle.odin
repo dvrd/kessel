@@ -49,9 +49,25 @@ package kessel
 //   • BUNDLE_MODULES_MAX modules and BUNDLE_SOURCE_BYTES_MAX input bytes.
 //   • BUNDLE_RESOLVE_DEPTH_MAX hops when following re-export chains.
 //   • BUNDLE_AST_DEPTH_MAX nested expressions in the bundler's own AST walk.
-// Not supported yet (reported as errors): code splitting, multiple entries,
-// top-level await outside the entry module, `export *` from a CommonJS
-// module, `import.meta` in non-ESM output, TypeScript `import x = require()`.
+//
+// Not supported yet. Each is reported as an error rather than bundled wrongly:
+// code splitting and multiple entries; top-level await outside the entry;
+// `export *` from a CommonJS module; a namespace object over a module that
+// uses `export *` from an external; direct eval in an ES module; `import.meta`
+// outside ESM output; TypeScript `import x = require()` and `export =`;
+// loaders other than JS, TS, JSX and JSON.
+//
+// Known differences from running the modules unbundled. These are inherent to
+// the design and shared with other scope-hoisting bundlers:
+//   • Every module runs in strict mode, including CommonJS written for sloppy
+//     mode. Syntax that strict mode forbids fails the final validation.
+//   • A binding renamed to resolve a collision, and an anonymous default
+//     export, report the new name through `Function.prototype.name`.
+//   • In ESM output external imports are hoisted, so externals evaluate before
+//     all bundled code. __filename and __dirname name the bundle.
+//   • The interop namespace of a CommonJS module lists every own property of
+//     module.exports in definition order; Node lists only the names it can
+//     detect statically, sorted.
 // ============================================================================
 
 import "core:fmt"
@@ -120,6 +136,7 @@ BundleRecord :: struct {
 	target:    i32,          // module index, BUNDLE_EXTERNAL or BUNDLE_UNRESOLVED
 	node:      ^Expression,
 	used:      bool,         // a kept statement reads a binding through this record
+	optional:  bool,         // require() inside a try block: failure is the caller's to handle
 }
 
 BundleImport :: struct {
@@ -325,9 +342,8 @@ bundle_report :: proc(
 // themselves.
 bundle_original_offset :: proc(
 	module: ^BundleModule,
-	offset: u32) -> (original: u32,
-	mapped: bool,
-) {
+	offset: u32,
+) -> (original: u32, mapped: bool) {
 	records := module.transform_records
 	if records == nil { return offset, true }
 	lo, hi := 0, len(records)

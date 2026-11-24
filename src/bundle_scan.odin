@@ -13,6 +13,7 @@ BundleScan :: struct {
 	// because an arrow keeps the enclosing `this`.
 	function_depth: int,
 	this_depth:     int,
+	try_depth:      int, // inside a try block, where a failing require() is caught
 	too_deep:       bool,
 }
 
@@ -51,6 +52,7 @@ bundle_scan_record :: proc(
 	append(&scan.module.records, BundleRecord{
 		kind = kind, specifier = specifier, loc = loc, statement = scan.statement,
 		target = BUNDLE_UNRESOLVED, node = node,
+		optional = kind == .Require && scan.try_depth > 0,
 	})
 	return i32(len(scan.module.records) - 1)
 }
@@ -258,7 +260,9 @@ bundle_walk_statement :: proc(scan: ^BundleScan, statement: ^Statement) {
 		if argument, ok := node.argument.?; ok { bundle_walk_expression(scan, argument) }
 	case ^ThrowStatement:   bundle_walk_expression(scan, node.argument)
 	case ^TryStatement:
+		scan.try_depth += 1
 		bundle_walk_statements(scan, node.block.body[:])
+		scan.try_depth -= 1
 		if handler, ok := node.handler.?; ok {
 			if param, has_param := handler.param.?; has_param { bundle_walk_pattern(scan, param) }
 			bundle_walk_statements(scan, handler.body.body[:])
@@ -328,12 +332,17 @@ bundle_walk_parameters :: proc(scan: ^BundleScan, parameters: []FunctionParamete
 
 @(private="file")
 bundle_walk_function :: proc(scan: ^BundleScan, function: ^FunctionExpression) {
+	// A call inside a function runs later, outside any try block that
+	// happens to enclose the function's definition.
+	try_depth := scan.try_depth
+	scan.try_depth = 0
 	scan.function_depth += 1
 	scan.this_depth += 1
 	bundle_walk_parameters(scan, function.params[:])
 	bundle_walk_statements(scan, function.body.body[:])
 	scan.this_depth -= 1
 	scan.function_depth -= 1
+	scan.try_depth = try_depth
 }
 
 @(private="file")
@@ -429,6 +438,8 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 	case ^FunctionExpression: bundle_walk_function(scan, node)
 	case ^ClassExpression:    bundle_walk_class(scan, node)
 	case ^ArrowFunctionExpression:
+		try_depth := scan.try_depth
+		scan.try_depth = 0
 		scan.function_depth += 1
 		bundle_walk_parameters(scan, node.params[:])
 		switch body in node.body {
@@ -436,6 +447,7 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 		case ^BlockStatement: if body != nil { bundle_walk_statements(scan, body.body[:]) }
 		}
 		scan.function_depth -= 1
+		scan.try_depth = try_depth
 	case:
 		bundle_walk_children(scan, slot)
 	}

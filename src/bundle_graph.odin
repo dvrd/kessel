@@ -211,14 +211,17 @@ bundle_module_parse :: proc(
 			config.is_commonjs_override = true
 		}
 	}
-	bundle_module_parse_once(g, module, config)
+	if !bundle_module_parse_once(g, module, config) { return false }
 	if _, known := forced.?; !known && len(module.job.parser.errors) != 0 {
 		// A top-level `return` is legal only in CommonJS. Retry before reporting.
 		parse_job_close(module.job)
 		config.is_commonjs_override = true
-		bundle_module_parse_once(g, module, config)
+		if !bundle_module_parse_once(g, module, config) { return false }
 	}
 	job := module.job
+	// Early errors (duplicate declarations, invalid break targets, ...) are
+	// the input's own. Report them against the input, not against the bundle.
+	if len(job.parser.errors) == 0 { checker_run_for_job(job) }
 	if len(job.parser.errors) != 0 {
 		for err in job.parser.errors { bundle_error(g, module, err.start, "%s", err.message) }
 		return false
@@ -232,11 +235,21 @@ bundle_module_parse :: proc(
 }
 
 @(private="file")
-bundle_module_parse_once :: proc(g: ^BundleGraph, module: ^BundleModule, config: ParseConfig) {
+bundle_module_parse_once :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	config: ParseConfig,
+) -> bool {
 	module.job = new(ParseJob, g.alloc)
-	opened := parse_job_open_inline(module.job, module.source, config, "bundle-module.js")
-	assert(opened, "the parse arena could not be reserved")
+	// Each job reserves address space for its arena; a very large graph can
+	// exhaust it. That is an operating error, not a programmer error.
+	if !parse_job_open_inline(module.job, module.source, config, "bundle-module.js") {
+		module.job = nil
+		bundle_error(g, module, nil, "out of memory while parsing")
+		return false
+	}
 	parse_job_run(module.job)
+	return true
 }
 
 @(private="file")
@@ -327,12 +340,24 @@ bundle_is_external :: proc(g: ^BundleGraph, specifier: string) -> bool {
 	return false
 }
 
+// Builtins the resolver does not classify yet. Everything under `node:` is a
+// builtin by definition; the bare names are the ones its table lacks.
+@(private="file")
+bundle_is_node_builtin :: proc(specifier: string) -> bool {
+	if strings.has_prefix(specifier, "node:") { return true }
+	return specifier == "inspector" || specifier == "inspector/promises"
+}
+
 BUNDLE_EXTENSIONS := []string{".js", ".json", ".ts", ".tsx", ".jsx", ".mjs", ".cjs", ".mts", ".cts"}
 
 @(private="file")
 bundle_record_resolve :: proc(g: ^BundleGraph, module: ^BundleModule, record: ^BundleRecord) {
 	record.target = BUNDLE_UNRESOLVED
 	if bundle_is_external(g, record.specifier) {
+		record.target = BUNDLE_EXTERNAL
+		return
+	}
+	if bundle_is_node_builtin(record.specifier) && g.options.platform == .Node {
 		record.target = BUNDLE_EXTERNAL
 		return
 	}
@@ -358,6 +383,16 @@ bundle_record_resolve :: proc(g: ^BundleGraph, module: ^BundleModule, record: ^B
 		// requires. Probe for it the way a CommonJS request would.
 		options.mode = .Require
 		result, err = module_resolve(record.specifier, module.path, options, g.alloc)
+	}
+	if err != .None && record.optional {
+		// `try { require("optional-dependency") } catch {}` is how CommonJS
+		// probes for a package. Node throws at run time and the code copes;
+		// leaving the call for the runtime does the same.
+		bundle_warning(g, module, record.loc.start,
+			"could not resolve '%s'; the require() is inside a try block and stays unbundled",
+			record.specifier)
+		record.target = BUNDLE_EXTERNAL
+		return
 	}
 	if err != .None {
 		bundle_error(g, module, record.loc.start, "could not resolve '%s' (%v)", record.specifier,

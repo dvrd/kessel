@@ -41,9 +41,9 @@ bundle_emit :: proc(g: ^BundleGraph) -> BundleOutput {
 	mappings: []BundleMapping
 	if g.options.source_map { mappings = bundle_map_collect(g, e.segments[:], shift) }
 	if g.options.minify {
-		output.code, mappings = bundle_emit_minify(g, output.code, mappings)
+		output.code, mappings = bundle_emit_minify(&e, output.code, shift, mappings)
 	} else {
-		bundle_emit_validate(g, output.code)
+		bundle_emit_validate(&e, output.code, shift)
 	}
 	if g.error_count == 0 && g.options.source_map {
 		output.map_json = bundle_map_json(g, mappings, output.code)
@@ -386,6 +386,7 @@ bundle_emit_interop_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 		// One namespace per CommonJS module and mode, so every importer sees
 		// the same object. A default export is module.exports unless the
 		// importer honours the __esModule convention and the module sets it.
+		// Node also exposes module.exports under that very name.
 		// An external loaded with require() may turn out to be an ES module;
 		// Node then hands back its namespace, which is used as it is.
 		bundle_template(header, `var @0 = [new WeakMap(), new WeakMap()];
@@ -397,6 +398,7 @@ var @1 = (value, nodeMode, external) => {
   if (result) return result;
   result = value != null ? Object.create(Object.getPrototypeOf(value)) : {};
   if (nodeMode || !value || !value.__esModule) @3(result, "default", { value, enumerable: true });
+  if (nodeMode) @3(result, "module.exports", { value, enumerable: true });
   @4(result, value);
   if (keyed) cache.set(value, result);
   return result;
@@ -422,6 +424,11 @@ var @1 = (namespace) => {
 };
 `, helpers.cjs_cache, n[.ToCommonJS], n[.DefProp], n[.Namespace], n[.CopyProps])
 	}
+	if .Dynamic in used {
+		// import() of a bundled module: asynchronous like the real thing, and
+		// defined here so that no module-local `Promise` can intercept it.
+		bundle_template(header, "var @0 = (load) => Promise.resolve().then(load);\n", n[.Dynamic])
+	}
 	if .Require in used {
 		if g.options.format == .ESM && g.options.platform == .Node {
 			bundle_template(header, `import { createRequire as @0 } from "node:module";
@@ -436,8 +443,11 @@ var @1 = @0(import.meta.url);
 	}
 }
 
+// Parse the finished bundle and run the early-error checker over it. An
+// error is located in the module whose printed text contains it.
 @(private="file")
-bundle_emit_reparse :: proc(g: ^BundleGraph, code: string, job: ^ParseJob) -> bool {
+bundle_emit_reparse :: proc(e: ^BundleEmit, code: string, shift: u32, job: ^ParseJob) -> bool {
+	g := e.g
 	config := ParseConfig{lang_override = .JS}
 	if g.options.format == .ESM { config.source_type_override = .Module }
 	if !parse_job_open_inline(job, code, config, "bundle.js") {
@@ -445,11 +455,19 @@ bundle_emit_reparse :: proc(g: ^BundleGraph, code: string, job: ^ParseJob) -> bo
 		return false
 	}
 	parse_job_run(job)
-	checker_run_for_job(job)
+	if len(job.parser.errors) == 0 { checker_run_for_job(job) }
 	for err in job.parser.errors {
-		bundle_error(g, nil, nil,
-			"internal error: the bundle is not valid JavaScript at offset %d: %s", err.start,
-			err.message)
+		owner: ^BundleModule
+		for segment in e.segments {
+			start := shift + segment.base
+			inside := start <= err.start && err.start < start + segment.size
+			if inside { owner = g.modules[segment.module] }
+		}
+		// Every input passed the same checks on its own, so this is either
+		// sloppy-mode syntax that strict bundle code cannot hold or a bundler bug.
+		bundle_error(g, owner, nil,
+			"the bundle is not valid JavaScript at output offset %d: %s (bundled code is strict)",
+			err.start, err.message)
 	}
 	return len(job.parser.errors) == 0
 }
@@ -457,9 +475,9 @@ bundle_emit_reparse :: proc(g: ^BundleGraph, code: string, job: ^ParseJob) -> bo
 // The last line of defence against a silently wrong bundle: what was printed
 // must parse and pass the early-error checker, or nothing is written.
 @(private="file")
-bundle_emit_validate :: proc(g: ^BundleGraph, code: string) {
+bundle_emit_validate :: proc(e: ^BundleEmit, code: string, shift: u32) {
 	job: ParseJob
-	bundle_emit_reparse(g, code, &job)
+	bundle_emit_reparse(e, code, shift, &job)
 	parse_job_close(&job)
 }
 
@@ -467,14 +485,15 @@ bundle_emit_validate :: proc(g: ^BundleGraph, code: string) {
 // carry each of its mappings through the bundle's own.
 @(private="file")
 bundle_emit_minify :: proc(
-	g: ^BundleGraph,
+	e: ^BundleEmit,
 	code: string,
-	mappings: []BundleMapping) -> (string,
-	[]BundleMapping,
-) {
+	shift: u32,
+	mappings: []BundleMapping,
+) -> (string, []BundleMapping) {
+	g := e.g
 	job: ParseJob
 	defer parse_job_close(&job)
-	if !bundle_emit_reparse(g, code, &job) { return code, mappings }
+	if !bundle_emit_reparse(e, code, shift, &job) { return code, mappings }
 	cg: Codegen
 	sm: SourceMap
 	codegen_print_job(&job, &cg, {minified = true, compress = true, mangle = true}, &sm)

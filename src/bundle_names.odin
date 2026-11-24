@@ -22,7 +22,7 @@ BundleNames :: struct {
 }
 
 BundleHelper :: enum u8 {
-	DefProp, CopyProps, Namespace, Export, CommonJS, ESM, ToESM, ToCommonJS, Require,
+	DefProp, CopyProps, Namespace, Export, CommonJS, ESM, ToESM, ToCommonJS, Require, Dynamic,
 }
 
 BundleHelpers :: struct {
@@ -71,7 +71,7 @@ bundle_names_assign :: proc(g: ^BundleGraph) {
 	helper_names := [BundleHelper]string{
 		.DefProp = "__defProp", .CopyProps = "__copyProps", .Namespace = "__namespace",
 		.Export = "__export", .CommonJS = "__commonJS", .ESM = "__esm", .ToESM = "__toESM",
-		.ToCommonJS = "__toCommonJS", .Require = "__require",
+		.ToCommonJS = "__toCommonJS", .Require = "__require", .Dynamic = "__dynamicImport",
 	}
 	for name, helper in helper_names { g.helpers.names[helper] = bundle_unique_name(g, name) }
 	g.helpers.esm_cache = bundle_unique_name(g, "__esmCache")
