@@ -3027,17 +3027,30 @@ lint_stmt_uses_this :: proc(s: ^Statement) -> (loc: Loc, found: bool) {
 }
 
 lint_expr_uses_this :: proc(e: ^Expression) -> (loc: Loc, found: bool) {
-	if e == nil { return {}, false }
-	#partial switch v in e^ {
-	case ^ThisExpression:    if v != nil { return v.loc, true }
-	case ^MemberExpression:  if v != nil { return lint_expr_uses_this(v.object) }
-	case ^CallExpression:    if v != nil { return lint_expr_uses_this(v.callee) }
-	case ^AssignmentExpression: if v != nil {
-		if l, f := lint_expr_uses_this(v.left); f { return l, f }
-		return lint_expr_uses_this(v.right)
+	// Member and call chains are unbounded in length; follow the receiver
+	// with a loop instead of recursing (see spine.odin).
+	e := e
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		if e == nil { return {}, false }
+		#partial switch v in e^ {
+		case ^ThisExpression:
+			if v != nil { return v.loc, true }
+			return {}, false
+		case ^MemberExpression:
+			if v == nil { return {}, false }
+			e = v.object
+		case ^CallExpression:
+			if v == nil { return {}, false }
+			e = v.callee
+		case ^AssignmentExpression:
+			if v == nil { return {}, false }
+			if l, f := lint_expr_uses_this(v.left); f { return l, f }
+			return lint_expr_uses_this(v.right)
+		case:
+			return {}, false
+		}
 	}
-	}
-	return {}, false
+	panic("expression chain exceeds EXPR_SPINE_COUNT_MAX: cyclic tree")
 }
 
 // lint_check_accessor_pairs (accessor-pairs, L4054): flags an object or class
@@ -3263,17 +3276,28 @@ lint_scan_await_in_loop :: proc(l: ^Linter, body: []^Statement) {
 }
 
 lint_expr_has_await :: proc(e: ^Expression) -> bool {
-	if e == nil { return false }
-	#partial switch v in e^ {
-	case ^AwaitExpression: return true
-	case ^BinaryExpression: return lint_expr_has_await(v.left) || lint_expr_has_await(v.right)
-	case ^CallExpression:
-		if lint_expr_has_await(v.callee) { return true }
-		for a in v.arguments { if lint_expr_has_await(a) { return true } }
-		return false
-	case ^MemberExpression: return lint_expr_has_await(v.object)
+	// Binary, call and member chains are unbounded in length; follow the
+	// chain operand with a loop instead of recursing (see spine.odin).
+	// The answer is a plain "any", so visiting order does not matter.
+	e := e
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		if e == nil { return false }
+		#partial switch v in e^ {
+		case ^AwaitExpression:
+			return true
+		case ^BinaryExpression:
+			if lint_expr_has_await(v.right) { return true }
+			e = v.left
+		case ^CallExpression:
+			for a in v.arguments { if lint_expr_has_await(a) { return true } }
+			e = v.callee
+		case ^MemberExpression:
+			e = v.object
+		case:
+			return false
+		}
 	}
-	return false
+	panic("expression chain exceeds EXPR_SPINE_COUNT_MAX: cyclic tree")
 }
 
 // lint_check_no_type_alias (no-type-alias, L3012): flags `type X = ...`.
@@ -3693,8 +3717,104 @@ lint_check_no_extra_boolean_cast :: proc(l: ^Linter, test: ^Expression, start, e
 	}
 }
 
+// lint_walk_chain is lint_walk_expr for member / call / binary / logical
+// chains. The parser builds these in a loop and does not bound their
+// length, so the chain operand is reached iteratively (see spine.odin).
+// Rule checks fire in the same order as the recursive walk: each link's
+// own checks outermost-first, then the innermost operand, then each
+// link's remaining operands innermost-first.
+lint_walk_chain :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	// Without the chain table the links cannot be visited; no rule
+	// fires on this chain and no recursion is attempted.
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+
+	for node in spine.nodes {
+		if len(l.suppression_marks) > 0 { lint_suppression_boundaries(l, get_expression_loc(node)) }
+		lint_walk_chain_enter(l, ctx, node)
+	}
+	lint_walk_expr(l, ctx, spine.leaf)
+	#reverse for node in spine.nodes { lint_walk_chain_leave(l, ctx, node) }
+}
+
+// lint_walk_chain_enter runs the checks a link performs before its chain
+// operand is walked.
+lint_walk_chain_enter :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		if ctx.dependencies != nil { lint_dependency_member(ctx.dependencies, e) }
+		lint_queue_console_member(l, e)
+		lint_check_no_proto(l, e)
+		lint_check_no_iterator(l, e)
+		lint_check_no_caller(l, e)
+		lint_check_prefer_dot_notation(l, e)
+	case ^CallExpression:
+		if lint_rule_enabled(l, .L2046_GetterReturn) { lint_queue_getter_descriptors(l, e) }
+		if ctx.dependencies != nil { lint_dependency_call(ctx.dependencies, e) }
+		if ctx.hooks != nil { lint_check_react_hook(l, ctx.hooks, e) }
+		lint_queue_regexp_call(l, e.loc, e.callee, e.arguments[:])
+		lint_check_obj_calls(l, e)
+		lint_check_prototype_builtins(l, e)
+		lint_check_no_eval(l, e)
+		lint_check_no_implied_eval(l, e)
+		lint_check_symbol_description(l, e)
+		lint_check_no_alert(l, e)
+		lint_check_no_unsafe_optional_chaining_call(l, e.callee)
+		lint_check_prefer_numeric_literals(l, e)
+		lint_check_no_useless_call(l, e)
+		lint_check_prefer_arrow_callback(l, e)
+		lint_check_prefer_spread(l, e)
+		lint_check_no_require_imports(l, e)
+		lint_check_no_buffer_constructor(l, e)
+		lint_check_prefer_exponentiation_operator(l, e)
+		lint_check_prefer_regex_literals(l, e.callee, e.arguments[:])
+	case ^BinaryExpression:
+		lint_check_eqeqeq(l, e)
+		lint_check_binary(l, e)
+		lint_check_valid_typeof(l, e)
+		lint_check_no_useless_concat(l, e)
+		lint_check_no_bitwise(l, e)
+		lint_check_yoda(l, e)
+		lint_check_no_instanceof(l, e)
+		lint_check_no_mixed_operators(l, e)
+		lint_check_no_comparison_with_nan(l, e)
+	case ^LogicalExpression:
+		// No checks before the left operand.
+	case:
+		unreachable()
+	}
+}
+
+// lint_walk_chain_leave walks a link's operands other than its chain
+// operand; these are bounded by the parser's nesting limit.
+lint_walk_chain_leave :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
+	case ^CallExpression:
+		lint_hook_arguments(l, ctx, e)
+		if .Suggestion in l.fix_kinds && .Dangerous in l.fix_kinds {
+			lint_fix_console_call(l, expr, e.loc, .Value)
+		}
+	case ^BinaryExpression:
+		lint_walk_expr(l, ctx, e.right)
+	case ^LogicalExpression:
+		lint_walk_hook_expr(l, ctx, e.right, .Conditional)
+	case:
+		unreachable()
+	}
+}
+
 lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding := LintHookBinding{owner=.Anonymous}) {
 	if expr == nil { return }
+	// Member / call / binary / logical chains are unbounded in length;
+	// walk them with a loop instead of one frame per link.
+	if expr_is_spine_node(expr) {
+		lint_walk_chain(l, ctx, expr)
+		return
+	}
 	if len(l.suppression_marks) > 0 {
 		#partial switch _ in expr^ {
 		case ^JSXText, ^JSXEmptyExpression, ^JSXSpreadChild:
@@ -3702,23 +3822,8 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding
 		}
 	}
 	switch e in expr^ {
-	case ^MemberExpression:
-		if e != nil {
-			if ctx.dependencies != nil { lint_dependency_member(ctx.dependencies, e) }
-			lint_queue_console_member(l, e)
-			lint_check_no_proto(l, e); lint_check_no_iterator(l, e); lint_check_no_caller(l, e); lint_check_prefer_dot_notation(l, e)
-			lint_walk_expr(l, ctx, e.object)
-			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
-		}
-	case ^CallExpression:
-		if e != nil && lint_rule_enabled(l, .L2046_GetterReturn) { lint_queue_getter_descriptors(l, e) }
-		if ctx.dependencies != nil && e != nil { lint_dependency_call(ctx.dependencies, e) }
-		if ctx.hooks != nil && e != nil { lint_check_react_hook(l, ctx.hooks, e) }
-		if e != nil { lint_queue_regexp_call(l, e.loc, e.callee, e.arguments[:]) }
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_check_no_buffer_constructor(l, e); lint_check_prefer_exponentiation_operator(l, e); lint_check_prefer_regex_literals(l, e.callee, e.arguments[:]); lint_walk_expr(l, ctx, e.callee); lint_hook_arguments(l, ctx, e) }
-		if e != nil && .Suggestion in l.fix_kinds && .Dangerous in l.fix_kinds {
-			lint_fix_console_call(l, expr, e.loc, .Value)
-		}
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		unreachable() // handled by lint_walk_chain above
 	case ^NewExpression:
 		if e != nil { lint_queue_regexp_call(l, e.loc, e.callee, e.arguments[:]) }
 		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_new_symbol(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_check_prefer_regex_literals(l, e.callee, e.arguments[:]); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
@@ -3733,8 +3838,6 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding
 			lint_walk_hook_expr(l, ctx, e.consequent, .Conditional)
 			lint_walk_hook_expr(l, ctx, e.alternate, .Conditional)
 		}
-	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_check_no_comparison_with_nan(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_hook_expr(l, ctx, e.right, .Conditional) }
 	case ^AssignmentExpression:
 		if e != nil {
 			lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_operator_assignment(l, e); lint_check_no_multi_assign(l, e)
