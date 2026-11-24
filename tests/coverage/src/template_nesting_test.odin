@@ -91,14 +91,26 @@ template_lex_counts :: proc(t: ^testing.T, source: string) -> TemplateTokenCount
 	return counts
 }
 
+// The first diagnostic of a parse, reduced to plain values: the job, and
+// with it the diagnostic's message, is gone by the time the caller looks.
 @(private="file")
-template_parse_error_count :: proc(t: ^testing.T, source: string) -> (count: int, first: kessel.ParseError) {
+TemplateFirstError :: struct {
+	code: kessel.ErrorCode,
+	span: [2]u32,
+}
+
+@(private="file")
+template_parse_error_count :: proc(t: ^testing.T, source: string) -> (count: int, first: TemplateFirstError) {
 	job: kessel.ParseJob
 	if !testing.expect(t, kessel.parse_job_open_inline(&job, source, {}, "template.js")) { return -1, {} }
 	defer kessel.parse_job_close(&job)
 	kessel.parse_job_run(&job)
-	if len(job.parser.errors) > 0 { first = job.parser.errors[0] }
-	return len(job.parser.errors), first
+	count = len(job.parser.errors)
+	if count > 0 {
+		first.code = job.parser.errors[0].code
+		first.span = {job.parser.errors[0].start, job.parser.errors[0].end}
+	}
+	return
 }
 
 // Depths 8 (old limit), 9 (first depth the old `[8]u8` lost track of), 64,
@@ -117,7 +129,7 @@ test_template_nesting_depths :: proc(t: ^testing.T) {
 		testing.expectf(t, counts.r_braces == 0, "depth %d: stray `}` tokens", depth)
 
 		errors, first := template_parse_error_count(t, source)
-		testing.expectf(t, errors == 0, "depth %d: parse errors, first: %s", depth, first.message)
+		testing.expectf(t, errors == 0, "depth %d: parse errors, first: %v", depth, first)
 	}
 }
 
@@ -142,7 +154,7 @@ test_template_nesting_over_cap :: proc(t: ^testing.T) {
 		errors, first := template_parse_error_count(t, source)
 		testing.expectf(t, errors == 1, "depth %d: %d parse errors", depth, errors)
 		testing.expect_value(t, first.code, kessel.ErrorCode.K1016_TemplateNestingTooDeep)
-		testing.expect_value(t, [2]u32{first.start, first.end}, [2]u32{dollar, dollar + 2})
+		testing.expect_value(t, first.span, [2]u32{dollar, dollar + 2})
 	}
 }
 
@@ -169,7 +181,7 @@ test_template_open_brace_counts :: proc(t: ^testing.T) {
 	parsed_counts := [?]int{255, 256, 257}
 	for count in parsed_counts {
 		errors, first := template_parse_error_count(t, template_braces_source(count))
-		testing.expectf(t, errors == 0, "%d braces: parse errors, first: %s", count, first.message)
+		testing.expectf(t, errors == 0, "%d braces: parse errors, first: %v", count, first)
 	}
 }
 
@@ -202,7 +214,7 @@ test_template_brace_counts_per_level :: proc(t: ^testing.T) {
 	testing.expect_value(t, counts.r_braces, braces_expected)
 
 	errors, first := template_parse_error_count(t, source)
-	testing.expectf(t, errors == 0, "parse errors, first: %s", first.message)
+	testing.expectf(t, errors == 0, "parse errors, first: %v", first)
 }
 
 // lexer_snapshot / lexer_restore must capture the complete interpolation

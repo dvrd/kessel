@@ -1490,6 +1490,9 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 // matching case and emits `{}`. Same fix as print_declaration_ast.
 append_import_spec :: proc(specs: ^[dynamic]^ImportSpecifierSpec, spec: $T, allocator: mem.Allocator) {
 	u := new(ImportSpecifierSpec, allocator)
+	// Out of memory: drop the specifier. The allocation guard has latched
+	// the failure, so the parse reports K2085 and discards the tree.
+	if u == nil { return }
 	u^ = spec^
 	append(specs, u)
 }

@@ -200,6 +200,18 @@ ParseJob :: struct {
 
 	// Lifecycle bit so close is idempotent.
 	opened: bool,
+
+	// Where the allocation guard turns once the job's arena is exhausted,
+	// so that a parse which ran out of memory can still wind down: a
+	// growing virtual arena, i.e. fresh pages from the OS, independent of
+	// the fixed reservation that ran out. Nothing is taken from it until
+	// that happens; close releases it.
+	emergency: mvirtual.Arena,
+
+	// Sits between the lexer / parser and `arena_alloc` for the duration
+	// of parse_job_run; see alloc_guard.odin. Kept last: it embeds the
+	// emergency reserve, which dwarfs every other field.
+	guard: AllocGuard,
 }
 
 // ============================================================================
@@ -391,7 +403,20 @@ parse_job_run :: proc(job: ^ParseJob) {
 
 	// Lexer first - it needs source_type up front to gate Annex B
 	// HTML-like comments on the very first prefetched token.
-	init_lexer(&job.lexer, source_str, job.arena_alloc, job.lex_source_type)
+	// Everything the lexer and parser allocate goes through the guard, so
+	// an exhausted arena becomes a K2085 diagnostic instead of a nil
+	// dereference. Later passes keep using job.arena_alloc directly.
+	fallback := mvirtual.arena_allocator(&job.emergency)
+	alloc_guard_init(&job.guard, job.arena_alloc, fallback, &job.lexer.offset)
+	parse_alloc := alloc_guard_allocator(&job.guard)
+
+	// Some AST lists are never `make`d: the first append to such a list
+	// takes context.allocator, which used to put it on the caller's heap,
+	// outside the arena, where nothing ever freed it. Route those into the
+	// arena as well.
+	context.allocator = parse_alloc
+
+	init_lexer(&job.lexer, source_str, parse_alloc, job.lex_source_type)
 
 	// Opt-in input validation. Runs after init_lexer because the refusal
 	// is delivered through the lexer (diagnostic + halt), so the rest of
@@ -408,7 +433,8 @@ parse_job_run :: proc(job: ^ParseJob) {
 	// gets set on the struct AFTER init_parser zeroes it (matching the
 	// existing parse_file behaviour, which init_parser's own comment
 	// at parser.odin:1514 calls out).
-	init_parser(&job.parser, &job.lexer, job.arena_alloc, job.lang, job.source_is_dts)
+	init_parser(&job.parser, &job.lexer, parse_alloc, job.lang, job.source_is_dts)
+	job.parser.alloc_guard = &job.guard
 
 	// Per-call config that init_parser doesn't take as args. Order
 	// preserved for diff-readability vs the previous parse_file body.
@@ -456,6 +482,7 @@ parse_job_reset_arena :: proc(job: ^ParseJob) {
 parse_job_close :: proc(job: ^ParseJob) {
 	if !job.opened { return }
 	if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
+	mvirtual.arena_destroy(&job.emergency) // no-op when never used
 	if job.owns_source { source_release(job.source, context.allocator) }
 	job.opened = false
 }

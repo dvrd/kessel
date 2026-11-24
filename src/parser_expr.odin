@@ -4281,6 +4281,11 @@ expr_to_pattern_array :: proc(p: ^Parser, e: ^ArrayExpression) -> (Pattern, bool
 	ap := new_node(p, ArrayPattern)
 	ap.loc = e.loc
 	elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
+	if len(elems) != len(e.elements) {
+		// Allocation failed; the loop below indexes `elems` by position.
+		parser_out_of_memory(p)
+		return nil, false
+	}
 	prev_nested := p.ctx.in_nested_pattern_convert
 	p.ctx.in_nested_pattern_convert = true
 	defer p.ctx.in_nested_pattern_convert = prev_nested

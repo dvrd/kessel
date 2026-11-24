@@ -164,6 +164,9 @@ Lexer :: struct {
 	// tokenised and the parser discards diagnostics raised from then on,
 	// which could only be artefacts of the forced end of input.
 	halted: bool,
+	// Why the lexer halted, when the lexer itself decided to (code .None
+	// when the parser halted it, e.g. on out of memory).
+	halt_error: LexerError,
 	strict_mode: bool,
 	at_start_of_file: bool,
 
@@ -347,15 +350,23 @@ template_level_leave :: proc(l: ^Lexer) {
 // Carrying on would misread each following `}` and bury the real cause
 // under a cascade of unrelated syntax errors.
 template_level_refuse :: proc(l: ^Lexer, dollar_offset: int, code: ErrorCode, message: string) {
-	// A speculative parse may rewind and reach the same `${` again; report
-	// the refusal once.
+	lexer_halt_with_error(l, LexerError{
+		offset  = u32(dollar_offset),
+		length  = 2, // the `${`
+		message = message,
+		code    = code,
+	})
+}
+
+// Halt, recording `reason` as the diagnostic that explains why. Only the
+// first halt records: a speculative parse may rewind and run into the same
+// condition again. The reason is kept in `halt_error` as well as in
+// lexer_errors so the parser can restore it if a re-lex path pops it.
+lexer_halt_with_error :: proc(l: ^Lexer, reason: LexerError) {
+	assert(reason.code != .None)
 	if !l.halted {
-		bump_append(&l.lexer_errors, LexerError{
-			offset  = u32(dollar_offset),
-			length  = 2, // the `${`
-			message = message,
-			code    = code,
-		})
+		l.halt_error = reason
+		bump_append(&l.lexer_errors, reason)
 	}
 	lexer_halt(l)
 }
@@ -378,12 +389,12 @@ lexer_halt :: proc(l: ^Lexer) {
 lexer_refuse_source :: proc(l: ^Lexer, offset, length: u32, code: ErrorCode, message: string) {
 	assert(int(offset) + int(length) <= len(l.source_bytes))
 	assert(length > 0)
+	assert(!l.halted)
 	clear(&l.lexer_errors)
 	clear(&l.comments)
-	bump_append(&l.lexer_errors, LexerError{
+	lexer_halt_with_error(l, LexerError{
 		offset = offset, length = length, message = message, code = code,
 	})
-	lexer_halt(l)
 	end := u32(len(l.source_bytes))
 	l.cur = FastToken{start = end, end = end, kind = .EOF}
 	l.nxt_valid = false

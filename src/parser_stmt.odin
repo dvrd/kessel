@@ -1624,6 +1624,11 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	// CaseBlock). Flatten the per-case lists once and run the check.
 	if !p.ast_only && total > 0 && relevant {
 		flat := make([]^Statement, total, context.temp_allocator)
+		if len(flat) != total {
+			// Allocation failed; the loop below indexes `flat` by position.
+			parser_out_of_memory(p)
+			return statement_from(p, switch_)
+		}
 		i := 0
 		for c in switch_.cases {
 			for s in c.consequent {
