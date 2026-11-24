@@ -108,6 +108,13 @@ tasks:
       - task: test:minify
       - task: test:format
       - task: test:watch
+      - task: test:robust
+
+  test:robust:
+    desc: Compare template-literal nesting limits with the JavaScript engine that runs the verifier.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_template_nesting.js
 
   test:watch:
     desc: Verify that lint, fmt and transform respond to file changes and recover from errors.

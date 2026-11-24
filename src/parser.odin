@@ -477,6 +477,17 @@ Parser :: struct {
 	// prefix so the parser's allocation and token fields retain their
 	// cache-line layout.
 	resource_budget: ParseResourceBudget,
+
+	// Out-of-memory handling; see "Out-of-memory handling" below new_node.
+	// All cold: read only on allocation fallback paths and once at the end
+	// of parse_program.
+	alloc_guard:   ^AllocGuard, // set by parse_job_run; nil for bare parsers
+	out_of_memory: bool,        // latched by parser_out_of_memory
+	oom_error:     ParseError,  // the K2085 diagnostic, kept until the end
+	// Storage p.errors falls back to when the list itself cannot grow.
+	final_error:   ParseError,
+	// Used when the allocator cannot supply the interner record.
+	interner_fallback: StringInterner,
 }
 
 ParserProfile :: struct {
@@ -670,7 +681,11 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	} else {
 		pool_size = p.source_len * 32
 	}
-	bump_init(&p.node_pool, alloc, pool_size)
+	// bump_init probes: it halves the request until the arena can satisfy
+	// it, and a pool smaller than the formula is fine. Those refusals are
+	// not out-of-memory events, so ask the arena directly; through the
+	// guard the first refused probe would latch and fail the whole parse.
+	bump_init(&p.node_pool, alloc_guard_unwrap(alloc), pool_size)
 
 	p.ctx.in_function = false
 	p.ctx.in_generator = false
@@ -702,6 +717,8 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 		interner_cap = p.source_len / 30
 	}
 	interner := new(StringInterner, alloc)
+	// A nil record would be dereferenced on the first identifier.
+	if interner == nil { interner = &p.interner_fallback }
 	init_interner(interner, alloc, interner_cap)
 	p.interner = interner
 
@@ -788,8 +805,147 @@ new_node :: #force_inline proc(p: ^Parser, $T: typeid) -> ^T {
 	if ptr != nil {
 		return transmute(^T)ptr
 	}
-	result, _ := mem.new(T, p.allocator)
-	return result
+	return (^T)(parser_alloc_node_slow(p, size_of(T), align_of(T)))
+}
+
+// ============================================================================
+// Out-of-memory handling
+// ============================================================================
+//
+// Nodes come from the bump pool; when it is full the constructors fall back
+// to the parser's allocator, and that can fail: the arena is a fixed
+// reservation and input size is not ours to choose. The constructors used
+// to ignore the error and hand a nil node to callers that write through it.
+//
+// The design keeps the fast path exactly as it was and puts everything on
+// the fallback path, which is already cold:
+//
+//   * The parser's allocator is an AllocGuard (alloc_guard.odin). When the
+//     arena refuses a request the guard latches, and keeps serving requests
+//     from memory independent of the arena, so parser_alloc_node_slow
+//     still gets a real node.
+//   * The first time the parser sees the latch it calls
+//     parser_out_of_memory: record one K2085 diagnostic and halt the
+//     lexer. Every later token is EOF, so the grammar unwinds through its
+//     ordinary end-of-input paths with no further checks in the hot code,
+//     and the report_* procedures drop the follow-on "unexpected end of
+//     input" noise.
+//   * parse_program calls parser_finish_memory on the way out. It catches
+//     failures only the guard saw (a dynamic array that could not grow
+//     drops elements without crashing), makes sure the diagnostic is in
+//     p.errors, and empties the Program so no consumer walks a tree that is
+//     known to be incomplete.
+//
+// Why not a nil check at each of the several hundred constructor call
+// sites, or a check at every statement boundary: both put a branch on the
+// hot path and neither covers the allocations that are not nodes. Why not one
+// pre-allocated sentinel node returned for every failed allocation: frames
+// that are unwinding would share it, and a frame finishing a
+// BinaryExpression would read fields another frame wrote as a different
+// node type. That was tried (a zeroed scratch buffer in the Parser) and
+// the allocation-failure sweep crashed in it, so nodes are always distinct
+// memory and running out of even the guard's reserve is a panic: a loud,
+// defined stop instead of silent corruption.
+
+// Fallback for the node constructors once the bump pool is full. Returns
+// `size` zeroed bytes; never nil.
+parser_alloc_node_slow :: proc(p: ^Parser, size, align: int) -> rawptr {
+	assert(size > 0)
+	bytes, _ := mem.alloc_bytes(size, align, p.allocator)
+	ptr := raw_data(bytes)
+	// The guard may have served this from its fallback or reserve: the
+	// memory is real, but the arena is exhausted, so stop consuming input.
+	if ptr == nil || parser_memory_failed(p) { parser_out_of_memory(p) }
+	if ptr == nil {
+		// Arena, fallback and reserve are all empty while frames are still
+		// unwinding. There is no node to give and no way to return an
+		// error through the call sites, which all dereference the result.
+		panic("kessel: out of memory while unwinding an out-of-memory parse")
+	}
+	return ptr
+}
+
+parser_memory_failed :: #force_inline proc(p: ^Parser) -> bool {
+	if p.out_of_memory { return true }
+	return p.alloc_guard != nil && p.alloc_guard.failed
+}
+
+// Latch the out-of-memory state, remember the diagnostic, halt the lexer.
+// Idempotent. The diagnostic is only stored here; parser_finish_memory puts
+// it into p.errors, because a speculative parse may truncate that list
+// (lexer_restore) after this runs.
+parser_out_of_memory :: proc(p: ^Parser) {
+	if !p.out_of_memory {
+		p.out_of_memory = true
+		start, end := cur_offset(p), cur_raw_end(p)
+		// Prefer where the lexer was when the allocation failed: the
+		// current token may be far behind if only the guard noticed.
+		if p.alloc_guard != nil && p.alloc_guard.failed && p.alloc_guard.cursor != nil {
+			start = u32(min(p.alloc_guard.failed_at, p.source_len))
+			end = start
+		}
+		p.oom_error = ParseError{
+			start    = start,
+			end      = max(start, end),
+			message  = "Out of memory: input exceeds the parser arena",
+			code     = .K2085_OutOfMemory,
+			severity = .Error,
+		}
+	}
+	if p.lexer != nil { lexer_halt(p.lexer) }
+}
+
+// Called by parse_program on every exit path. No-op unless an allocation
+// failed during this parse.
+parser_finish_memory :: proc(p: ^Parser, program: ^Program) {
+	if !parser_memory_failed(p) { return }
+	parser_out_of_memory(p)
+	assert(p.oom_error.code == .K2085_OutOfMemory)
+	// The tree is incomplete (truncated, with dropped list elements).
+	// Leave consumers nothing to walk.
+	clear(&program.body)
+	clear(&program.directives)
+	for existing in p.errors {
+		if existing.code == .K2085_OutOfMemory { return } // lexer reported it
+	}
+	parser_errors_append_guaranteed(p, p.oom_error)
+}
+
+// Make sure the diagnostic that explains a lexer halt is in p.errors. It is
+// normally there already (drained from lexer_errors), but the re-lex paths
+// pop lexer errors past their restart point and the list may have failed
+// to grow; a halt without its explanation would read as a clean parse.
+parser_finish_halted :: proc(p: ^Parser) {
+	assert(parser_halted(p))
+	halt := p.lexer.halt_error
+	if halt.code == .None { return } // halted by the parser itself (OOM)
+	for existing in p.errors {
+		if existing.code == halt.code && existing.start == halt.offset { return }
+	}
+	parser_errors_append_guaranteed(p, ParseError{
+		start    = halt.offset,
+		end      = halt.offset + halt.length,
+		message  = halt.message,
+		code     = halt.code,
+		severity = error_info(halt.code).severity,
+	})
+}
+
+// Append `err` to p.errors even when the allocator cannot grow the list:
+// in that case p.errors is re-pointed at one slot inside the Parser, which
+// drops the earlier diagnostics. Only used for diagnostics that explain why
+// the parse stopped, which supersede everything before them.
+parser_errors_append_guaranteed :: proc(p: ^Parser, err: ParseError) {
+	count_before := len(p.errors)
+	append(&p.errors, err)
+	if len(p.errors) == count_before + 1 { return }
+	p.final_error = err
+	raw := (^Raw_Dynamic_Array)(&p.errors)
+	raw.data = &p.final_error
+	raw.len = 1
+	raw.cap = 1
+	raw.allocator = mem.nil_allocator()
+	assert(len(p.errors) == 1)
 }
 
 statement_from :: proc(p: ^Parser, stmt_ptr: ^$T) -> ^Statement {
@@ -850,16 +1006,14 @@ new_expr :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Expression) {
 	total_size := int(node_end) + size_of(Expression)
 	align := max(align_of(T), align_of(Expression))
 	ptr := bump_alloc(&p.node_pool, total_size, align)
-	if ptr != nil {
-		node := transmute(^T)ptr
-		wrap := transmute(^Expression)(uintptr(ptr) + node_end)
-		wrap^ = node
-		return node, wrap
+	if ptr == nil {
+		// Pool full: one fallback allocation with the same layout.
+		ptr = parser_alloc_node_slow(p, total_size, align)
 	}
-	node, _ := mem.new(T, p.allocator)
-	expr := new_node(p, Expression)
-	expr^ = node
-	return node, expr
+	node := transmute(^T)ptr
+	wrap := transmute(^Expression)(uintptr(ptr) + node_end)
+	wrap^ = node
+	return node, wrap
 }
 
 new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
@@ -868,16 +1022,14 @@ new_stmt :: #force_inline proc(p: ^Parser, $T: typeid) -> (^T, ^Statement) {
 	total_size := int(node_end) + size_of(Statement)
 	align := max(align_of(T), align_of(Statement))
 	ptr := bump_alloc(&p.node_pool, total_size, align)
-	if ptr != nil {
-		node := transmute(^T)ptr
-		wrap := transmute(^Statement)(uintptr(ptr) + node_end)
-		wrap^ = node
-		return node, wrap
+	if ptr == nil {
+		// Pool full: see new_expr.
+		ptr = parser_alloc_node_slow(p, total_size, align)
 	}
-	node, _ := mem.new(T, p.allocator)
-	stmt := new_node(p, Statement)
-	stmt^ = node
-	return node, stmt
+	node := transmute(^T)ptr
+	wrap := transmute(^Statement)(uintptr(ptr) + node_end)
+	wrap^ = node
+	return node, wrap
 }
 
 // Report an error
@@ -1095,12 +1247,23 @@ using_starts_decl :: proc(p: ^Parser) -> bool {
 	return nxt.type == .Identifier || can_be_binding_identifier(nxt.type)
 }
 
+// parser_halted reports whether the lexer has latched a halt (template
+// nesting cap, out of memory). From that point every token is a forced EOF,
+// so any diagnostic the grammar raises is an artefact of the truncation and
+// would bury the one that explains it. The report_* procedures below drop
+// such diagnostics; the halting diagnostic itself is recorded by whoever
+// halted, not through them.
+parser_halted :: #force_inline proc(p: ^Parser) -> bool {
+	return p.lexer != nil && p.lexer.halted
+}
+
 // report_error surfaces a diagnostic at the CURRENT token. The span is
 // [cur.start, cur.end), so the error covers the whole offending token
 // instead of a single byte — callers that just need a caret keep the
 // caret at .start; renderers that want an underline get the full extent
 // for free. End-of-source errors trivially collapse to start == end.
 report_error :: proc(p: ^Parser, message: string) {
+	if parser_halted(p) { return }
 	bump_append(&p.errors, ParseError{
 		start   = cur_offset(p),
 		end     = cur_raw_end(p),
@@ -1116,12 +1279,14 @@ report_error :: proc(p: ^Parser, message: string) {
 // prior token boundary) but no matching end — a future pass can widen
 // these by passing a real span via report_error_span.
 report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
+	if parser_halted(p) { return }
 	bump_append(&p.errors, ParseError{start = u32(loc), end = u32(loc), message = message})
 }
 
 // report_error_span is the explicit-span variant. Prefer this whenever a
 // caller has both ends of the offending range.
 report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: string) {
+	if parser_halted(p) { return }
 	bump_append(&p.errors, ParseError{start = start, end = end, message = message})
 }
 
@@ -1133,6 +1298,7 @@ report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: st
 // callers that quote source text build a richer string here and still
 // pass the code so tooling can group / suppress / look it up.
 report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
+	if parser_halted(p) { return }
 	info := error_info(code)
 	bump_append(&p.errors, ParseError{
 		start    = cur_offset(p),
@@ -1150,6 +1316,7 @@ report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
 // when both ends of the offending range are known (e.g. a saved token
 // span from before a recovery rollback) and a stable code applies.
 report_error_coded_span :: #force_inline proc(p: ^Parser, code: ErrorCode, start, end: u32, message: string) {
+	if parser_halted(p) { return }
 	info := error_info(code)
 	bump_append(&p.errors, ParseError{
 		start    = start,
@@ -1529,6 +1696,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// Parse body
 	no_progress_count := 0
 	for !is_token(p, .EOF) {
+		// An allocation failure only the guard saw (a list that could not
+		// grow) does not stop the grammar by itself. Checking here, once
+		// per top-level statement, bounds how long a parse that is already
+		// lost keeps running; the halt turns the next token into EOF.
+		if parser_memory_failed(p) {
+			parser_out_of_memory(p)
+			break
+		}
 		loop_start_offset := int(cur_offset(p))
 
 		if is_token(p, .String) && string_literal_can_be_directive(p) {
@@ -1606,6 +1781,16 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		if first_loc.start != 0 || first_loc.end != 0 {
 			program.loc.start = first_loc.start
 		}
+	}
+
+	// A halted parse has a truncated body. The whole-program checks below
+	// would only report artefacts of the truncation (undefined exports,
+	// dangling cover grammar), so surface the halting diagnostic and stop.
+	if parser_halted(p) {
+		parser_drain_lexer_errors(p)
+		parser_finish_halted(p)
+		parser_finish_memory(p, program)
+		return program
 	}
 
 	// Auto-detect module vs script sourceType: any top-level import/export makes
@@ -1702,25 +1887,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// directly because error reporting needs line/col lazy-lookup off
 	// the Parser; this is the first point after parse where we're sure
 	// the lexer has seen every token.
-	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
-		for lex_err in p.lexer.lexer_errors {
-			// Propagate the lexer's code + severity into the parser's
-			// error list so JSON / pretty / binary emitters all see
-			// the same K-code regardless of which pass produced the
-			// diagnostic. `error_info` provides the severity since
-			// LexerError doesn't carry one (lexer-side warnings are
-			// not yet a thing).
-			info := error_info(lex_err.code)
-			err := ParseError{
-				start    = lex_err.offset,
-				end      = lex_err.offset,
-				message  = lex_err.message,
-				code     = lex_err.code,
-				severity = info.severity,
-			}
-			bump_append(&p.errors, err)
-		}
-	}
+	parser_drain_lexer_errors(p)
 
 	// §14.2.1 — program-level lex/var clash check.
 
@@ -1732,7 +1899,32 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// §14.2.1 — program-level lex/var clash check.
 	parser_scope_check(p, program.body[:], false)
 
+	parser_finish_memory(p, program)
 	return program
+}
+
+// Copy the lexer's diagnostics into p.errors. Called once per parse, after
+// the last token has been lexed (see the call sites in parse_program).
+parser_drain_lexer_errors :: proc(p: ^Parser) {
+	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
+		for lex_err in p.lexer.lexer_errors {
+			// Propagate the lexer's code + severity into the parser's
+			// error list so JSON / pretty / binary emitters all see
+			// the same K-code regardless of which pass produced the
+			// diagnostic. `error_info` provides the severity since
+			// LexerError doesn't carry one (lexer-side warnings are
+			// not yet a thing).
+			info := error_info(lex_err.code)
+			err := ParseError{
+				start    = lex_err.offset,
+				end      = lex_err.offset + lex_err.length,
+				message  = lex_err.message,
+				code     = lex_err.code,
+				severity = info.severity,
+			}
+			bump_append(&p.errors, err)
+		}
+	}
 }
 
 // Retroactive octal/\8/\9 check for directive-prologue strings that
