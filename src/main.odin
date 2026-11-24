@@ -429,13 +429,13 @@ main :: proc() {
 				}
 				i += 1
 			case (arg == "--deny" || arg == "-D") && i + 1 < len(os.args):
-				if ov, ok := lint_severity_alias(os.args[i+1], "error"); ok { append(&lint_overrides, ov) }
+				lint_cli_severity(&lint_overrides, os.args[i+1], "error")
 				i += 2
 			case (arg == "--warn" || arg == "-W") && i + 1 < len(os.args):
-				if ov, ok := lint_severity_alias(os.args[i+1], "warn"); ok { append(&lint_overrides, ov) }
+				lint_cli_severity(&lint_overrides, os.args[i+1], "warn")
 				i += 2
 			case (arg == "--allow" || arg == "-A") && i + 1 < len(os.args):
-				if ov, ok := lint_severity_alias(os.args[i+1], "off"); ok { append(&lint_overrides, ov) }
+				lint_cli_severity(&lint_overrides, os.args[i+1], "off")
 				i += 2
 			case:
 				append(&lint_files, arg)

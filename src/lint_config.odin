@@ -385,6 +385,28 @@ lint_config_category_defaults :: proc(rules: ^[dynamic]LintOverride, config: Lin
 	}
 }
 
+// `-D`, `-W` and `-A` take a rule name, a category name or `all`, as in
+// oxlint. A category expands to the rules recorded for it, and the flags
+// apply left to right after the config file, so `-A all -D no-debugger`
+// leaves one rule on.
+lint_cli_severity :: proc(overrides: ^[dynamic]LintOverride, name, level: string) {
+	selected := LintCategory.None
+	for category in LintCategory {
+		if category != .None && lint_category_key(category) == name { selected = category }
+	}
+	if selected == .None && name != "all" {
+		if override, ok := lint_severity_alias(name, level); ok { append(overrides, override) }
+		return
+	}
+	for rule in LintRule {
+		category := lint_rule_category(rule)
+		if category == .None || (selected != .None && category != selected) { continue }
+		override, valid := lint_override_from_level(rule, level)
+		assert(valid)
+		append(overrides, override)
+	}
+}
+
 // Oxlint classifies exhaustive-deps as correctness and rules-of-hooks as
 // pedantic. Category defaults precede rule-specific settings.
 lint_config_hook_defaults :: proc(rules: ^[dynamic]LintOverride, hooks: LintHookConfig) {
