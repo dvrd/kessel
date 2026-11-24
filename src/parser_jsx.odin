@@ -420,49 +420,7 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 				}
 			}
 		} else if is_token(p, .LBrace) {
-			start := cur_loc(p)
-			// JSXEmptyExpression spans between `{` and `}` (exclusive of both),
-			// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
-			empty_start := start.start + 1
-			eat(p)
-			// Reset ternary depth across the JSX expression-container
-			// boundary. Inside `{expr}` the surrounding ternary's `:` is
-			// not in scope; otherwise looks_like_ts_arrow_params would
-			// suppress its byte-scan and reject `{(): T => body}`-style
-			// arrow returns inside JSX (swc-8243.tsx).
-			prev_cond_depth := p.conditional_depth
-			p.conditional_depth = 0
-			expr: ^Expression = nil
-			is_spread := is_token(p, .Dot3)
-			if is_spread {
-				eat(p)
-				expr = parse_jsx_spread_operand(p)
-			} else if !is_token(p, .RBrace) {
-				expr = parse_assignment_expression(p)
-			}
-			p.conditional_depth = prev_cond_depth
-			rbrace_start := u32(cur_offset(p))
-			expect_token(p, .RBrace)
-			if is_spread {
-				// `{...xs}` is a JSXSpreadChild whose span includes both
-				// braces, as in OXC and Babel; it is not an expression
-				// container holding a SpreadElement.
-				spread := new_node(p, JSXSpreadChild)
-				spread.loc = start; spread.expression = expr
-				spread.loc.end = prev_end_offset(p)
-				bump_append(&children, spread)
-			} else {
-				container := new_node(p, JSXExpressionContainer)
-				container.loc = start
-				if expr != nil { container.expression = expr
-				} else {
-					empty, empty_e := new_expr(p, JSXEmptyExpression)
-					empty.loc = Loc{start = empty_start, end = rbrace_start}
-					container.expression = empty_e
-				}
-				container.loc.end = prev_end_offset(p)
-				bump_append(&children, container)
-			}
+			bump_append(&children, parse_jsx_brace_child(p))
 		}
 		// Progress guard: if no iteration advanced the cursor (e.g. malformed
 		// input where parse_jsx_element_or_fragment returned without consuming,
@@ -472,6 +430,57 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 		if cur_offset(p) == prev_off { break }
 	}
 	return children
+}
+
+// parse_jsx_brace_child parses a child that starts with `{`: an expression
+// container `{expr}`, an empty one `{}` or `{/* comment */}`, or a spread
+// child `{...expr}`. The current token is the `{`.
+parse_jsx_brace_child :: proc(p: ^Parser) -> JSXChild {
+	assert(is_token(p, .LBrace))
+	start := cur_loc(p)
+	// JSXEmptyExpression spans between `{` and `}` (exclusive of both),
+	// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
+	empty_start := start.start + 1
+	eat(p)
+	// Reset ternary depth across the JSX expression-container
+	// boundary. Inside `{expr}` the surrounding ternary's `:` is
+	// not in scope; otherwise looks_like_ts_arrow_params would
+	// suppress its byte-scan and reject `{(): T => body}`-style
+	// arrow returns inside JSX (swc-8243.tsx).
+	prev_cond_depth := p.conditional_depth
+	p.conditional_depth = 0
+	expr: ^Expression = nil
+	is_spread := is_token(p, .Dot3)
+	if is_spread {
+		eat(p)
+		expr = parse_jsx_spread_operand(p)
+	} else if !is_token(p, .RBrace) {
+		expr = parse_assignment_expression(p)
+	}
+	p.conditional_depth = prev_cond_depth
+	rbrace_start := u32(cur_offset(p))
+	expect_token(p, .RBrace)
+
+	if is_spread {
+		// `{...xs}` is a JSXSpreadChild whose span includes both
+		// braces, as in OXC and Babel; it is not an expression
+		// container holding a SpreadElement.
+		spread := new_node(p, JSXSpreadChild)
+		spread.loc = start; spread.expression = expr
+		spread.loc.end = prev_end_offset(p)
+		return spread
+	}
+	container := new_node(p, JSXExpressionContainer)
+	container.loc = start
+	if expr != nil {
+		container.expression = expr
+	} else {
+		empty, empty_e := new_expr(p, JSXEmptyExpression)
+		empty.loc = Loc{start = empty_start, end = rbrace_start}
+		container.expression = empty_e
+	}
+	container.loc.end = prev_end_offset(p)
+	return container
 }
 
 parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
