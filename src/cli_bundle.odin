@@ -19,7 +19,10 @@ CLI_BUNDLE_USAGE :: `Usage: kessel bundle <entry> [options]
   --main-field <name>                       package.json entry fields in order; repeatable
   --tsconfig <file>                         resolve tsconfig paths
   --jsx=classic|automatic                   JSX runtime (default: classic)
-  --jsx-factory <name> --jsx-fragment <name> --jsx-import-source=<name>
+  --jsx-factory <name> --jsx-fragment <name> --jsx-import-source=<name> --jsx-development
+  --define NAME=EXPRESSION                  replace a global or member name; repeatable
+  --target es2015..es2024                   lower newer syntax in the inputs
+  --decorators legacy [--emit-decorator-metadata]   lower TypeScript experimental decorators
   --no-tree-shaking                         keep unused statements and modules`
 
 @(private="file")
@@ -81,9 +84,11 @@ cli_bundle_arguments :: proc(args: []string, arguments: ^CLIBundleArguments) -> 
 		case "--minify":          options.minify = true
 		case "--sourcemap":       options.source_map = true
 		case "--no-tree-shaking": options.tree_shaking = false
+		case "--jsx-development": options.jsx_development = true
+		case "--emit-decorator-metadata": options.emit_decorator_metadata = true
 		case "--outfile", "--outdir", "--format", "--platform", "--external", "--global-name",
 		     "--condition", "--main-field", "--tsconfig", "--jsx", "--jsx-import-source",
-		     "--jsx-factory", "--jsx-fragment":
+		     "--jsx-factory", "--jsx-fragment", "--define", "--target", "--decorators":
 			if value == "" {
 				i += 1
 				if i == len(args) {
@@ -131,6 +136,27 @@ cli_bundle_value :: proc(arguments: ^CLIBundleArguments, flag, value: string) ->
 	case "--main-field":  append(&arguments.main_fields, value)
 	case "--tsconfig":    options.tsconfig = value
 	case "--jsx-import-source": options.jsx_import_source = value
+	case "--define":
+		// Split at the first '=': the expression may contain more of them.
+		separator := strings.index_byte(value, '=')
+		if separator <= 0 || separator + 1 == len(value) {
+			fmt.eprintln("Error: --define requires NAME=EXPRESSION")
+			return false
+		}
+		if options.define == nil { options.define = make(map[string]string) }
+		options.define[value[:separator]] = value[separator + 1:]
+	case "--target":
+		if _, known := transform_target_parse(value); !known {
+			fmt.eprintln("Error: --target requires es2015 to es2024, or esnext")
+			return false
+		}
+		options.target = value
+	case "--decorators":
+		if value != "legacy" {
+			fmt.eprintln("Error: --decorators requires legacy")
+			return false
+		}
+		options.decorators = value
 	case "--jsx-factory", "--jsx-fragment":
 		if !jsx_pragma_valid(value) {
 			fmt.eprintf("Error: %s requires a binding such as h or React.createElement\n", flag)

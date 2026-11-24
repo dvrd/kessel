@@ -95,6 +95,11 @@ bundle_module_load :: proc(g: ^BundleGraph, module: ^BundleModule) -> bool {
 	case ".json":
 		return bundle_module_load_json(g, module)
 	case ".js", ".mjs", ".cjs":
+		// Plain JavaScript needs the transformer only for the options that
+		// rewrite it: replacements, syntax lowering and decorators.
+		rewrites := len(g.options.define) != 0 || g.options.decorators != ""
+		rewrites ||= g.options.target != "" && g.options.target != "esnext"
+		if rewrites && !bundle_module_transform(g, module) { return false }
 	case ".jsx", ".ts", ".tsx", ".mts", ".cts":
 		module.typescript = extension != ".jsx"
 		if !bundle_module_transform(g, module) { return false }
@@ -147,8 +152,14 @@ bundle_module_transform :: proc(g: ^BundleGraph, module: ^BundleModule) -> bool 
 		module.transform_records = make([]SourceMapRecord, 1, g.alloc)
 		return true
 	}
+	config := ParseConfig{preserve_parens = true}
+	if filepath.ext(module.path) == ".js" {
+		// An untyped .js file may be CommonJS with a top-level `return`.
+		lexed, lex_err := module_lex_dependencies(module.original, g.alloc)
+		if lex_err == .None && lexed.format != .ESM { config.is_commonjs_override = true }
+	}
 	job: ParseJob
-	if !parse_job_open_inline(&job, module.original, {preserve_parens = true}, module.path) {
+	if !parse_job_open_inline(&job, module.original, config, module.path) {
 		bundle_error(g, module, nil, "out of memory while parsing")
 		return false
 	}
@@ -170,12 +181,17 @@ bundle_module_transform :: proc(g: ^BundleGraph, module: ^BundleModule) -> bool 
 			return false
 		}
 	}
-	options := TransformOptions{}
+	options := TransformOptions{
+		define = g.options.define, target = g.options.target,
+		decorators = g.options.decorators,
+		emit_decorator_metadata = g.options.emit_decorator_metadata,
+	}
 	if job.lang == .JSX || job.lang == .TSX {
 		options.jsx = g.options.jsx if g.options.jsx != "" else "classic"
 		options.import_source = g.options.jsx_import_source
 		options.pragma = g.options.jsx_factory
 		options.pragma_frag = g.options.jsx_fragment
+		options.development = g.options.jsx_development
 	}
 	cg: Codegen
 	sm: SourceMap

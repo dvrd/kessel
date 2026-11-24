@@ -107,6 +107,13 @@ BundleOptions :: struct {
 	jsx_import_source: string,
 	jsx_factory:  string,   // classic runtime; empty selects React.createElement
 	jsx_fragment: string,
+	jsx_development: bool,
+	// Handed to the transformer unchanged. Any of them makes plain
+	// JavaScript inputs go through the transformer as well.
+	define:       map[string]string, // global or member name to replacement expression
+	target:       string,            // "es2015" to "es2024"; empty keeps the syntax as written
+	decorators:   string,            // "legacy" lowers TypeScript experimental decorators
+	emit_decorator_metadata: bool,
 	minify:       bool,
 	source_map:   bool,
 	tree_shaking: bool,
