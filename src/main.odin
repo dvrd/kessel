@@ -577,6 +577,12 @@ main :: proc() {
 			case command == "transform" && arg == "--optimize-const-enums":
 				transform_options.optimize_const_enums = true
 				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--decorators="):
+				transform_options.decorators = strings.trim_prefix(arg, "--decorators=")
+				i += 1
+			case command == "transform" && arg == "--emit-decorator-metadata":
+				transform_options.emit_decorator_metadata = true
+				i += 1
 			case command == "transform" && strings.has_prefix(arg, "--jsx="):
 				transform_options.jsx = strings.trim_prefix(arg, "--jsx=")
 				if transform_options.jsx != "classic" && transform_options.jsx != "automatic" && transform_options.jsx != "preserve" {

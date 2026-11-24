@@ -104,6 +104,7 @@ Codegen :: struct {
 	resource_proto_class: Maybe(u32),
 	resource_scope: ResourceScope,
 	module_resources: ModuleResources,
+	transform: ^TransformState, // Decorator, target and refresh lowering; nil when unused.
 }
 
 ConstructorKind :: enum { None, Base, Derived }
@@ -198,6 +199,7 @@ codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source: string, alloc: me
 	cg.resource_scope = {}
 	cg.module_resources = {}
 	cg.runtime_scope    = nil
+	cg.transform        = nil
 }
 
 // Opt the codegen into source-map recording. After codegen_program
@@ -381,6 +383,7 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program, comments: []Comment = n
 	gen_module_resource_unwind(cg)
 	codegen_resource_helper(cg)
 	gen_module_pattern_helper(cg)
+	transform_finish_program(cg)
 	if cg.runtime_scope != nil && cg.runtime_scope.needs_module_marker {
 		cg_str(cg, "export {};")
 		cg_newline(cg)
@@ -528,6 +531,7 @@ gen_expression_begin :: proc(
 	value := codegen_runtime_expression(cg, expr)
 	if value == nil { return nil, {}, false }
 	if cg.cfg.fold_constants && minify_expression(cg, value, parent_prec) { return nil, {}, false }
+	if cg.transform != nil { value = transform_lower_expression(cg, value) }
 	prec := expression_precedence(value)
 	need_paren := prec < parent_prec
 	// The grammar forbids bare && and || operands of ?? regardless of precedence.
@@ -1077,6 +1081,7 @@ gen_variable_declarators :: proc(cg: ^Codegen, s: ^VariableDeclaration, ctx: Cod
 }
 
 gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
+	if transform_class_declaration(cg, &s.expr, .None) { return }
 	for d in s.decorators {
 		gen_decorator(cg, d)
 		cg_break_or_space(cg)
@@ -1241,6 +1246,7 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 			}
 		}
 	}
+	if transform_export_named_class(cg, s) { return }
 	if len(cg.annotations) != 0 {
 		if decl_ptr, ok := s.declaration.?; ok {
 			codegen_emit_export_annotation(cg, s.loc.start, decl_ptr)
@@ -1305,6 +1311,7 @@ strip_default_export_is_erased :: proc(s: ^ExportDefaultDeclaration) -> bool {
 
 gen_export_default_declaration :: proc(cg: ^Codegen, s: ^ExportDefaultDeclaration) {
 	if cg.cfg.strip_types && strip_default_export_is_erased(s) { return }
+	if transform_export_default_class(cg, s) { return }
 	if len(cg.annotations) != 0 {
 		switch value in s.declaration^ {
 		case ^Declaration:

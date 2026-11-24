@@ -477,6 +477,10 @@ Parser :: struct {
 	// prefix so the parser's allocation and token fields retain their
 	// cache-line layout.
 	resource_budget: ParseResourceBudget,
+
+	// TypeScript parameter decorators, keyed by the offset of the first token
+	// after them. Nil unless the source has one; only the transformer reads it.
+	param_decorators: map[u32][dynamic]Decorator,
 }
 
 ParserProfile :: struct {

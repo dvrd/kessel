@@ -7,6 +7,8 @@ TransformOptions :: struct {
 	jsx, pragma, pragma_frag, import_source: string,
 	minified, source_map, allow_namespaces, omit_pure, development: bool,
 	optimize_const_enums, lower_using: bool,
+	decorators: string, // "", "preserve", "legacy" or "standard"
+	emit_decorator_metadata: bool,
 }
 
 // The caller owns the codegen buffer and optional source map. All lowering
@@ -23,6 +25,7 @@ transform_generate :: proc(job: ^ParseJob, cg: ^Codegen, options: TransformOptio
 		sourcemap_init(sm, source)
 		codegen_enable_sourcemap(cg, sm)
 	}
+	if diagnostic := transform_state_init(job, cg, options); diagnostic != nil { return diagnostic }
 	if options.jsx != "" && options.jsx != "preserve" && options.jsx != "classic" && options.jsx != "automatic" {
 		return StripDiagnostic{what = "expected JSX mode preserve, classic, or automatic"}
 	}
