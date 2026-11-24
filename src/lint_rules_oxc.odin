@@ -298,18 +298,47 @@ lint_direct_member :: proc(expr: ^Expression) -> ^MemberExpression {
 	return member if ok else nil
 }
 
+lint_any_member :: proc(expr: ^Expression) -> ^MemberExpression {
+	if member := lint_direct_member(expr); member != nil { return member }
+	return lint_chain_member(expr)
+}
+
 // Whether two expressions are certain to denote the same value. Narrower than
 // structural equality: calls and other effects never count as the same.
+// Member and binary chains nest on the left without limit, so those links are
+// compared in a loop. Every other operand is bounded by the nesting limit.
 lint_same_expression :: proc(l: ^Linter, a, b: ^Expression) -> bool {
-	if a == nil || b == nil { return false }
-	if !lint_compare_enter(l) { return false }
-	defer l.compare_depth -= 1
-	left_chain, right_chain := lint_chain_member(a), lint_chain_member(b)
-	left_member, right_member := lint_direct_member(a), lint_direct_member(b)
-	if left_chain != nil && right_member != nil { return lint_same_member_expression(l, left_chain, right_member) }
-	if left_member != nil && right_chain != nil { return lint_same_member_expression(l, left_member, right_chain) }
-	if left_chain != nil && right_chain != nil { return lint_same_member_expression(l, left_chain, right_chain) }
-	if left_member != nil && right_member != nil { return lint_same_member_expression(l, left_member, right_member) }
+	left, right := a, b
+	for left != nil && right != nil {
+		first, second := lint_any_member(left), lint_any_member(right)
+		if first != nil && second != nil {
+			name, static := lint_static_property_name(first)
+			other, other_static := lint_static_property_name(second)
+			if static != other_static || (static && name != other) { return false }
+			if !static && lint_member_is_private(first) && lint_member_is_private(second) {
+				if first.property^.(^PrivateIdentifier).name != second.property^.(^PrivateIdentifier).name { return false }
+				left, right = first.object, second.object
+				continue
+			}
+			if first.computed && second.computed && !static {
+				if !lint_same_expression(l, lint_inner(first.property), lint_inner(second.property)) { return false }
+			}
+			left, right = lint_inner(first.object), lint_inner(second.object)
+			continue
+		}
+		if first_binary, is_binary := left^.(^BinaryExpression); is_binary {
+			second_binary, same_kind := right^.(^BinaryExpression)
+			if !same_kind || first_binary.operator != second_binary.operator { return false }
+			if !lint_same_expression(l, lint_inner(first_binary.right), lint_inner(second_binary.right)) { return false }
+			left, right = lint_inner(first_binary.left), lint_inner(second_binary.left)
+			continue
+		}
+		return lint_same_leaf(l, left, right)
+	}
+	return false
+}
+
+lint_same_leaf :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 	#partial switch left in a^ {
 	case ^Super:
 		_, same := b^.(^Super)
@@ -351,31 +380,12 @@ lint_same_expression :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 	case ^BooleanLiteral:
 		right, ok := b^.(^BooleanLiteral)
 		return ok && left.value == right.value
-	case ^BinaryExpression:
-		right, ok := b^.(^BinaryExpression)
-		if !ok || left.operator != right.operator { return false }
-		return lint_same_expression(l, lint_inner(left.left), lint_inner(right.left)) &&
-			lint_same_expression(l, lint_inner(left.right), lint_inner(right.right))
 	case ^UnaryExpression:
 		right, ok := b^.(^UnaryExpression)
 		if !ok || left.operator != right.operator { return false }
 		return lint_same_expression(l, lint_inner(left.argument), lint_inner(right.argument))
 	}
 	return false
-}
-
-lint_same_member_expression :: proc(l: ^Linter, left, right: ^MemberExpression) -> bool {
-	name, static := lint_static_property_name(left)
-	other, other_static := lint_static_property_name(right)
-	if static != other_static || (static && name != other) { return false }
-	if !static && lint_member_is_private(left) && lint_member_is_private(right) {
-		same := left.property^.(^PrivateIdentifier).name == right.property^.(^PrivateIdentifier).name
-		return same && lint_same_expression(l, left.object, right.object)
-	}
-	if left.computed && right.computed && !static {
-		if !lint_same_expression(l, lint_inner(left.property), lint_inner(right.property)) { return false }
-	}
-	return lint_same_expression(l, lint_inner(left.object), lint_inner(right.object))
 }
 
 lint_compare_inverse :: proc(operator: BinaryOperator) -> BinaryOperator {
