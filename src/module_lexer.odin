@@ -87,12 +87,17 @@ ModuleLexFrame :: struct {
 	literal_end: u32,
 }
 
+// `export @decorator class Name {}`: the decorator is an arbitrary expression,
+// so the main loop scans it and the class name is taken when `class` arrives.
+ModuleLexDecorated :: enum u8 { None, Named, Default }
+
 ModuleLexScanner :: struct {
 	lexer: Lexer,
 	result: ModuleLexResult,
 	allocator: mem.Allocator,
 	bindings: ModuleLexBindings,
 	facade_broken: bool,
+	decorated: ModuleLexDecorated,
 	// End of the last token module_lex_import consumed without recording a call.
 	consumed_end: u32,
 	commonjs_found: bool,
@@ -214,6 +219,11 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		if token.kind == .Export && depth == 0 && !member {
 			if err := module_lex_export(scan); err != .None { return err }
 			previous = .Export
+			continue
+		}
+		if token.kind == .Class && depth == 0 && scan.decorated != .None {
+			if err := module_lex_decorated_class(scan); err != .None { return err }
+			previous = .Class
 			continue
 		}
 		if depth > 0 {
@@ -400,6 +410,7 @@ module_lex_export :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 	l := &scan.lexer
 	keyword := l.cur
 	scan.result.has_module_syntax = true
+	scan.decorated = .None
 	module_lex_advance(l)
 	type_only := token_source(l, l.cur) == "type"
 	if type_only { module_lex_advance(l) }
@@ -438,11 +449,38 @@ module_lex_export :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		scan.facade_broken = true
 		name, span := module_lex_export_name(l)
 		module_lex_advance(l)
+		if l.cur.kind == .At { scan.decorated = .Default }
 		local := module_lex_function_or_class_name(l)
 		return module_lex_append_export(scan, name, span, type_only, local)
 	}
 	scan.facade_broken = true
+	if l.cur.kind == .At {
+		scan.decorated = .Named
+		return .None
+	}
 	return module_lex_declaration_export(scan, type_only)
+}
+
+// Record the class that ends an `export @decorator` or
+// `export default @decorator` declaration.
+@(private="file")
+module_lex_decorated_class :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
+	assert(scan.lexer.cur.kind == .Class)
+	assert(scan.decorated != .None)
+	named := scan.decorated == .Named
+	scan.decorated = .None
+	local, has_name := module_lex_function_or_class_name(&scan.lexer).?
+	if !has_name { return .None }
+	if named { return module_lex_append_export(scan, local.text, local.span, false, local) }
+	// The default record was appended when `default` was seen, without a
+	// local name; nothing can have been exported since.
+	assert(len(scan.result.exports) > 0)
+	entry := &scan.result.exports[len(scan.result.exports) - 1]
+	assert(entry.local_name == nil)
+	owned, err := strings.clone(local.text, scan.allocator)
+	if err != nil { return .Allocation_Error }
+	entry.local_name, entry.local_span = owned, local.span
+	return .None
 }
 
 @(private="file")
@@ -528,7 +566,10 @@ module_lex_function_or_class_name :: proc(l: ^Lexer) -> Maybe(ModuleLexName) {
 	if kind != .Function && kind != .Class { return nil }
 	module_lex_advance(l)
 	if kind == .Function && l.cur.kind == .Mul { module_lex_advance(l) }
-	if l.cur.kind == .Extends || !can_be_binding_identifier(l.cur.kind) { return nil }
+	// `class extends Base {}` and TypeScript's `class implements Shape {}`
+	// are anonymous: neither keyword can name a class in module code.
+	anonymous := l.cur.kind == .Extends || token_source(l, l.cur) == "implements"
+	if anonymous || !can_be_binding_identifier(l.cur.kind) { return nil }
 	name, span := module_lex_export_name(l)
 	module_lex_advance(l)
 	return ModuleLexName{name, span}

@@ -287,7 +287,7 @@ tasks:
     desc: Check fast module dependency extraction and source spans.
     deps: [build]
     cmds:
-      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_lexer_dependencies,coverage.test_module_lexer_script_and_invalid,coverage.test_module_lexer_import_phases,coverage.test_module_lexer_export_bindings,coverage.test_module_lexer_typescript_exports,coverage.test_module_lexer_reference_fields,coverage.test_module_lexer_string_export_names,coverage.test_module_lexer_attribute_entries,coverage.test_module_lexer_facade_and_format,coverage.test_module_lexer_scan_contexts
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_lexer_dependencies,coverage.test_module_lexer_script_and_invalid,coverage.test_module_lexer_import_phases,coverage.test_module_lexer_export_bindings,coverage.test_module_lexer_typescript_exports,coverage.test_module_lexer_reference_fields,coverage.test_module_lexer_string_export_names,coverage.test_module_lexer_attribute_entries,coverage.test_module_lexer_facade_and_format,coverage.test_module_lexer_scan_contexts,coverage.test_module_lexer_class_export_names
       - node tests/verifiers/verify_module_lexer_cli.js
 
   test:regexp:

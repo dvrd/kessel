@@ -407,3 +407,31 @@ test_module_lexer_scan_contexts :: proc(t: ^testing.T) {
 	testing.expect_value(t, scanned.dependencies[0].name, Maybe(string)("object-divisor"))
 	testing.expect_value(t, scanned.dependencies[1].name, Maybe(string)("paren-divisor"))
 }
+
+@(test)
+test_module_lexer_class_export_names :: proc(t: ^testing.T) {
+	cases := [?]struct {
+		source: string,
+		name: string,
+		local: Maybe(string),
+	}{
+		{"export @decorate(import('d'), /[)]/) class Named {}", "Named", "Named"},
+		{"export /* a */ @first @second.member class Named {}", "Named", "Named"},
+		{"export default @decorate class Named {}", "default", "Named"},
+		{"export default @decorate class {}", "default", nil},
+		{"export default @decorate class extends Base {}", "default", nil},
+		{"export default class extends Base {}", "default", nil},
+		{"export default class implements Shape {}", "default", nil},
+		{"@decorate export class Named {}", "Named", "Named"},
+	}
+	for item in cases {
+		result, err := kessel.module_lex_dependencies(item.source, context.allocator)
+		if !testing.expectf(t, err == .None, "%q: %v", item.source, err) { continue }
+		defer kessel.module_lex_destroy(&result)
+		counted := len(result.exports) == 1
+		if !testing.expectf(t, counted, "%q: export count", item.source) { continue }
+		testing.expect_value(t, result.exports[0].name, item.name)
+		testing.expect_value(t, result.exports[0].local_name, item.local)
+		testing.expect_value(t, result.has_module_syntax, true)
+	}
+}
