@@ -2637,6 +2637,13 @@ report_export_default_expr_restrictions :: proc(p: ^Parser) {
 // (`export default null null;`) is flagged.
 parse_export_default_expr :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
 	report_export_default_expr_restrictions(p)
+	// `export default /re/`: the lexer classifies a `/` after `default` as
+	// division, because `default` can also be a property name
+	// (`x.default / 2`). Here no left operand exists, so it starts a regex.
+	if (p.cur_type == .Div || p.cur_type == .AssignDiv) && p.lexer != nil {
+		relex_as_regex(p.lexer)
+		p.cur_type = p.lexer.cur.kind
+	}
 	expr := parse_assignment_expression(p)
 	if expr != nil {
 		def = expr
