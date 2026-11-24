@@ -1,7 +1,7 @@
 semantic_misc Summary:
-AST Parsed     : 107/107 (100.00%)
-Positive Passed: 107/107 (100.00%)
-Negative Passed: 289/289 (100.00%)
+AST Parsed     : 108/108 (100.00%)
+Positive Passed: 108/108 (100.00%)
+Negative Passed: 290/290 (100.00%)
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-export-statement.cjs:2:1: 'export' is only valid in module code
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
@@ -82,6 +82,7 @@ tests/coverage/misc/fail/kessel-depth-limit-non-null.ts:3:1534: Maximum nesting 
 tests/coverage/misc/fail/kessel-depth-limit-parens.js:3:512: Maximum nesting depth exceeded (limit 512)
 tests/coverage/misc/fail/kessel-depth-limit-tuple-type.ts:3:265: Maximum nesting depth exceeded (limit 512)
 tests/coverage/misc/fail/kessel-depth-limit-unary.js:3:514: Maximum nesting depth exceeded (limit 512)
+tests/coverage/misc/fail/kessel-for-head-in-concise-arrow.js:4:28: Expected ')', got ';'
 tests/coverage/misc/fail/kessel-jsx-closing-tag-name-span.jsx:3:16: Expected corresponding JSX closing tag for 'p'.
 tests/coverage/misc/fail/kessel-jsx-spread-attribute-no-operand.jsx:2:18: Expected an expression after '...' in JSX spread
 tests/coverage/misc/fail/kessel-jsx-spread-child-no-operand.jsx:2:18: Expected an expression after '...' in JSX spread
