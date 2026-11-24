@@ -2062,6 +2062,36 @@ append_utf8 :: #force_inline proc(cook_buf: ^[dynamic]u8, cp: u32) {
 	}
 }
 
+// Append the code point of a `\u` escape to a cooked value, keeping the value
+// in WTF-8: UTF-8, plus 3-byte sequences for surrogates that have no partner.
+//
+// A JavaScript string is a sequence of UTF-16 code units, so a high surrogate
+// followed by a low one is a single supplementary code point however the two
+// were spelled: `\uD83D\uDE00`, `\u{D83D}\u{DE00}`, or the two halves on either
+// side of a line continuation. When `cp` is a low surrogate and the value
+// already ends in a high one, the pair is rewritten as its 4-byte sequence.
+// Leaving it as two 3-byte sequences would be neither UTF-8 nor WTF-8.
+//
+// The three bytes ED A0..AF 80..BF at the end of the buffer can only be a high
+// surrogate: ED is a lead byte, never a continuation byte, so they cannot be
+// the tail of a longer sequence.
+append_utf8_joining_surrogates :: proc(cook_buf: ^[dynamic]u8, cp: u32) {
+	assert(cp <= 0x10FFFF)
+	length := len(cook_buf)
+	if cp >= 0xDC00 && cp <= 0xDFFF && length >= 3 {
+		lead, second, third := cook_buf[length - 3], cook_buf[length - 2], cook_buf[length - 1]
+		if lead == 0xED && second >= 0xA0 && second <= 0xAF && third >= 0x80 && third <= 0xBF {
+			high := 0xD000 | u32(second & 0x3F) << 6 | u32(third & 0x3F)
+			assert(high >= 0xD800 && high <= 0xDBFF)
+			resize(cook_buf, length - 3)
+			append_utf8(cook_buf, 0x10000 + (high - 0xD800) * 0x400 + (cp - 0xDC00))
+			assert(len(cook_buf) == length + 1) // Six bytes became four.
+			return
+		}
+	}
+	append_utf8(cook_buf, cp)
+}
+
 hex_val :: #force_inline proc(c: u8) -> i32 {
 	switch {
 	case c >= '0' && c <= '9': return i32(c - '0')
@@ -2227,7 +2257,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						} else if overflow {
 							bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: code point out of range [0..0x10FFFF]", code = .K1011_InvalidEscapeSequence})
 						} else {
-							append_utf8(&cook_buf, cp)
+							append_utf8_joining_surrogates(&cook_buf, cp)
 						}
 					} else {
 						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: missing closing '}'", code = .K1011_InvalidEscapeSequence})
@@ -2270,7 +2300,10 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 							}
 						}
 					}
-						append_utf8(&cook_buf, cp)
+						// Not the `\uHHHH\uHHHH` shape handled above, but `cp` may
+						// still complete a pair begun by `\u{D83D}` or a high
+						// surrogate before a line continuation.
+						append_utf8_joining_surrogates(&cook_buf, cp)
 						l.offset += 6
 					} else {
 						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits", code = .K1011_InvalidEscapeSequence})
@@ -3052,7 +3085,9 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 			// \uHHHH or \u{H...H}. Reuse the shared decoder.
 			cp, ok, consumed := decode_u_escape(src, i)
 			if ok {
-				append_utf8(&buf, cp)
+				// Joins an escaped surrogate pair into one code point, as
+				// string literals do; see StringLiteral.value in ast.odin.
+				append_utf8_joining_surrogates(&buf, cp)
 				i += consumed - 1
 			} else {
 				bump_append(&buf, ch)

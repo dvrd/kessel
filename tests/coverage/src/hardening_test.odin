@@ -43,7 +43,7 @@ test_string_value_lone_surrogates_are_wtf8 :: proc(t: ^testing.T) {
 		// Low then high: not a pair, two lone surrogates.
 		{`("\uDE00\uD83D");`,  {0xED, 0xB8, 0x80, 0xED, 0xA0, 0xBD}},
 		// High + low pair: one supplementary code point (U+1F600), true UTF-8.
-		{`("😀");`,  {0xF0, 0x9F, 0x98, 0x80}},
+		{`("\uD83D\uDE00");`,  {0xF0, 0x9F, 0x98, 0x80}},
 		// Neighbours of the surrogate range are ordinary 3-byte UTF-8.
 		{`("퟿");`,  {0xED, 0x9F, 0xBF, 0xEE, 0x80, 0x80}},
 	}
@@ -58,10 +58,8 @@ test_string_value_lone_surrogates_are_wtf8 :: proc(t: ^testing.T) {
 
 // Template literals cook escapes through a separate routine
 // (process_template_escapes); pin that it encodes lone surrogates the same
-// way. Escaped surrogate PAIRS are deliberately absent: unlike string
-// literals, that routine does not yet combine them (each half comes out as
-// its own 3-byte sequence), which TemplateElement.cooked documents as a
-// known inconsistency rather than a contract.
+// way. Escaped surrogate pairs are pinned for both kinds of literal by
+// test_cooked_surrogate_pairs_are_joined below.
 @(test)
 test_template_cooked_lone_surrogates_are_wtf8 :: proc(t: ^testing.T) {
 	Case :: struct { source: string, cooked: []u8 }
@@ -84,6 +82,71 @@ test_template_cooked_lone_surrogates_are_wtf8 :: proc(t: ^testing.T) {
 		testing.expect(t, has_cooked)
 		testing.expectf(t, cooked == string(c.cooked),
 			"%s: cooked bytes % x, expected % x", c.source, transmute([]u8)cooked, c.cooked)
+	}
+}
+
+// Goal: an escaped high + low surrogate pair cooks to the one 4-byte sequence
+// of its supplementary code point, in template literals exactly as in string
+// literals, and whichever `\u` spelling each half uses. Templates used to
+// leave the pair as two 3-byte sequences, which is neither UTF-8 nor WTF-8.
+//
+// Method: each body is parsed twice, once between double quotes and once
+// between backticks, and both cooked values must equal the expected bytes.
+// The table walks the boundary in both directions: pairs that must join,
+// and neighbours that must not (a reversed pair, a pair split by another
+// character, two highs, a high next to a non-surrogate).
+@(test)
+test_cooked_surrogate_pairs_are_joined :: proc(t: ^testing.T) {
+	Case :: struct { body: string, cooked: []u8 }
+	grin := []u8{0xF0, 0x9F, 0x98, 0x80} // U+1F600
+	cases := [?]Case{
+		{`\uD83D\uDE00`,           grin},
+		{`\u{D83D}\u{DE00}`,       grin},
+		{`\uD83D\u{DE00}`,         grin},
+		{`\u{D83D}\uDE00`,         grin},
+		{`\u{1F600}`,              grin},
+		{`a\uD83D\uDE00b`,         {'a', 0xF0, 0x9F, 0x98, 0x80, 'b'}},
+		// First and last code points reachable through a pair.
+		{`\uD800\uDC00`,           {0xF0, 0x90, 0x80, 0x80}},
+		{`\uDBFF\uDFFF`,           {0xF4, 0x8F, 0xBF, 0xBF}},
+		// Two pairs back to back, and a pair after a lone high surrogate.
+		{`\uD83D\uDE00\uD83D\uDE00`, {0xF0, 0x9F, 0x98, 0x80, 0xF0, 0x9F, 0x98, 0x80}},
+		{`\uD83D\uD83D\uDE00`,     {0xED, 0xA0, 0xBD, 0xF0, 0x9F, 0x98, 0x80}},
+		// The halves are adjacent code units even across a line continuation.
+		{"\\uD83D\\\n\\uDE00",        grin},
+		// Not pairs: reversed, separated, low + low, high + ordinary.
+		{`\uDE00\uD83D`,           {0xED, 0xB8, 0x80, 0xED, 0xA0, 0xBD}},
+		{`\uD83Dx\uDE00`,          {0xED, 0xA0, 0xBD, 'x', 0xED, 0xB8, 0x80}},
+		{`\uDE00\uDE00`,           {0xED, 0xB8, 0x80, 0xED, 0xB8, 0x80}},
+		{`\uD83D\uD7FF`,           {0xED, 0xA0, 0xBD, 0xED, 0x9F, 0xBF}},
+		{`\uD83D\uE000`,           {0xED, 0xA0, 0xBD, 0xEE, 0x80, 0x80}},
+	}
+	for c in cases {
+		string_source := strings.concatenate({`("`, c.body, `");`}, context.temp_allocator)
+		string_job: kessel.ParseJob
+		value := string_literal_value(t, &string_job, string_source)
+		testing.expectf(t, string(value) == string(c.cooked),
+			"%s: value bytes % x, expected % x", string_source, value, c.cooked)
+		kessel.parse_job_close(&string_job)
+
+		template_source := strings.concatenate({"(`", c.body, "`);"}, context.temp_allocator)
+		job: kessel.ParseJob
+		if !testing.expect(t, kessel.parse_job_open_inline(&job, template_source, {}, "pair.js")) {
+			continue
+		}
+		defer kessel.parse_job_close(&job)
+		kessel.parse_job_run(&job)
+		if !testing.expectf(t, len(job.parser.errors) == 0, "%q: parse error", template_source) {
+			continue
+		}
+		statement := job.program.body[0]^.(^kessel.ExpressionStatement)
+		template, is_template := statement.expression^.(^kessel.TemplateLiteral)
+		if !testing.expect(t, is_template) { continue }
+		if !testing.expect_value(t, len(template.quasis), 1) { continue }
+		cooked, has_cooked := template.quasis[0].cooked.?
+		testing.expect(t, has_cooked)
+		testing.expectf(t, cooked == string(c.cooked),
+			"%s: cooked bytes % x, expected % x", template_source, transmute([]u8)cooked, c.cooked)
 	}
 }
 
