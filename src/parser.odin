@@ -633,6 +633,14 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.pending_proto_dups = make([dynamic]u32, 0, 4, alloc)
 	p.pending_paren_patterns = make([dynamic]u32, 0, 4, alloc)
 	p.pending_priv_refs = make([dynamic]PendingPrivRef, 0, 0, alloc)
+	// The module record belongs to the parse arena like every other parser
+	// array. Left zero-valued, the first append takes `context.allocator`,
+	// and nothing frees that when the job closes: every file with an import
+	// or export leaked. Zero capacity: this only records the allocator.
+	p.staticImports  = make([dynamic]ESMStaticImport, 0, 0, alloc)
+	p.staticExports  = make([dynamic]ESMStaticExport, 0, 0, alloc)
+	p.dynamicImports = make([dynamic]ESMDynamicImport, 0, 0, alloc)
+	p.importMetas    = make([dynamic]ESMImportMeta, 0, 0, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
 	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
