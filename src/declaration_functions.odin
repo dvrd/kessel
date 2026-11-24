@@ -9,7 +9,12 @@ dts_function :: proc(state: ^DeclarationEmit, fn: ^FunctionDeclaration, statemen
 	location := Loc{statement.start, statement.start + 6}
 	if id, ok := fn.id.?; ok { cg_str(cg, id.name); location = id.loc }
 	state.private_owner = .Function
-	dts_signature(state, fn.params[:], fn.type_parameters, fn.return_type, dts_return_expression(fn.body.body[:]), fn.loc, location, fn.async || fn.generator, false, 0, body = fn.body.body[:])
+	body := fn.body.body[:]
+	dts_signature(state, {
+		params = fn.params[:], generics = fn.type_parameters, result = fn.return_type,
+		returned = dts_return_expression(body), body = body, scope = fn.loc, location = location,
+		requires_annotation = fn.async || fn.generator,
+	}, 0)
 	state.private_owner = .Inferred
 	cg_byte(cg, ';')
 }
@@ -65,24 +70,39 @@ dts_contains_return :: proc(root: ^Statement) -> bool {
 	return false
 }
 
+// Everything a signature is printed from. `returned` is the expression a
+// missing return type may be inferred from; `location` is where a missing one
+// is reported; `scope` is the span in which the parameters are in scope.
+DeclarationSignature :: struct {
+	params: []FunctionParameter,
+	generics: Maybe(^TSTypeParameterDeclaration),
+	result: Maybe(^TSTypeAnnotation),
+	returned: ^Expression,
+	body: []^Statement,
+	scope, location: Loc,
+	requires_annotation, arrow, method: bool,
+	arrow_node: ^ArrowFunctionExpression,
+}
+
 @(private)
-dts_signature :: proc(state: ^DeclarationEmit, params: []FunctionParameter, generics: Maybe(^TSTypeParameterDeclaration), result: Maybe(^TSTypeAnnotation), returned: ^Expression, scope, location: Loc, requires_annotation, arrow: bool, depth: int, method := false, arrow_node: ^ArrowFunctionExpression = nil, body: []^Statement = nil) {
+dts_signature :: proc(state: ^DeclarationEmit, sig: DeclarationSignature, depth: int) {
 	cg := &state.writer
-	private_mark := dts_private_push(state, body)
+	private_mark := dts_private_push(state, sig.body)
 	defer dts_private_pop(state, private_mark)
-	dts_type_parameters(state, generics, scope)
-	for p in params { dts_parameter_scope(state, p.pattern, scope) }
+	params, generics := sig.params, sig.generics
+	dts_type_parameters(state, generics, sig.scope)
+	for p in params { dts_parameter_scope(state, p.pattern, sig.scope) }
 	// Diagnose the return type before parameters, including for anonymous functions.
 	offset := cg.pos
-	if ty, ok := result.?; ok {
+	if ty, ok := sig.result.?; ok {
 		gen_ts_type(cg, ty.type_annotation)
-	} else if requires_annotation || !dts_infer(state, returned, false, depth + 1) {
-		if method {
-			dts_error(state, "TS9008", "Method must have an explicit return type annotation with --isolatedDeclarations.", location)
+	} else if sig.requires_annotation || !dts_infer(state, sig.returned, false, depth + 1) {
+		if sig.method {
+			dts_diagnose(state, .TS9008, sig.location)
 		} else {
-			error_span := location
-			if arrow_node != nil { error_span = dts_arrow_error_span(state, arrow_node) }
-			dts_error(state, "TS9007", "Function must have an explicit return type annotation with --isolatedDeclarations.", error_span)
+			error_span := sig.location
+			if sig.arrow_node != nil { error_span = dts_arrow_error_span(state, sig.arrow_node) }
+			dts_diagnose(state, .TS9007, error_span)
 		}
 	}
 	return_type := strings.clone(string(cg.buf[offset:cg.pos]))
@@ -90,7 +110,7 @@ dts_signature :: proc(state: ^DeclarationEmit, params: []FunctionParameter, gene
 	gen_ts_type_parameter_declaration(cg, generics)
 	cg_byte(cg, '(')
 	dts_parameters(state, params, depth)
-	cg_str(cg, ") => " if arrow else "): ")
+	cg_str(cg, ") => " if sig.arrow else "): ")
 	cg_str(cg, return_type)
 }
 
@@ -156,13 +176,17 @@ dts_parameter :: proc(state: ^DeclarationEmit, parameter: FunctionParameter, tra
 		annotation = p.type_annotation
 		optional = p.optional
 	case ^ObjectPattern:
+		state.private_parameter = dts_pattern_text(state, p.loc, p.type_annotation)
 		dts_pattern_references(state, pattern)
+		state.private_parameter = ""
 		local := p^
 		annotation = p.type_annotation
 		local.type_annotation = nil
 		gen_pattern(cg, &local)
 	case ^ArrayPattern:
+		state.private_parameter = dts_pattern_text(state, p.loc, p.type_annotation)
 		dts_pattern_references(state, pattern)
+		state.private_parameter = ""
 		local := p^
 		annotation = p.type_annotation
 		local.type_annotation = nil
@@ -172,6 +196,19 @@ dts_parameter :: proc(state: ^DeclarationEmit, parameter: FunctionParameter, tra
 	if optional || (init != nil && trailing) { cg_byte(cg, '?') }
 	cg_str(cg, ": ")
 	dts_parameter_type(state, parameter, annotation, init, optional, trailing, location, depth)
+}
+
+// A pattern's span includes its annotation. Its own text ends before that.
+@(private)
+dts_pattern_text :: proc(
+	state: ^DeclarationEmit, loc: Loc, annotation: Maybe(^TSTypeAnnotation),
+) -> string {
+	end := loc.end
+	if ty, ok := annotation.?; ok && ty.loc.start > loc.start && ty.loc.start < loc.end {
+		end = ty.loc.start
+	}
+	assert(loc.start <= end)
+	return state.writer.source[loc.start:end]
 }
 
 // Print a parameter's declared or inferred type. A parameter that callers may
@@ -202,25 +239,27 @@ dts_parameter_type :: proc(
 		gen_ts_type(cg, ty.type_annotation)
 		state.private_parameter = ""
 	} else if init == nil && implicit_undefined {
-		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
+		dts_diagnose(state, .TS9025, span)
 		return
 	} else if destructured && implicit_undefined {
-		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
+		dts_diagnose(state, .TS9025, span)
 		return
 	} else if destructured || !dts_infer(state, init, false, depth + 1) {
+		// With no type to extend, the implicit `| undefined` is the error.
+		if implicit_undefined {
+			dts_diagnose(state, .TS9025, span)
+			return
+		}
 		// Without an initializer the whole parameter is reported, including
 		// its modifiers and its `...` or `?` marker.
 		error_location := span
 		if init != nil { error_location = dts_expression_span(state, init) }
-		dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", error_location)
+		dts_diagnose(state, .TS9011, error_location)
 	}
 	if implicit_undefined {
 		dts_parameter_undefined(state, annotation, init, span, type_start)
 	}
 }
-
-DTS_IMPLICIT_UNDEFINED :: "Declaration emit for this parameter requires implicitly adding " +
-	"undefined to its type. This is not supported with --isolatedDeclarations."
 
 // TypeScript binds named properties first, then resolves computed property names.
 // Both forms can denote the same public property. Diagnose it only once.
@@ -266,7 +305,9 @@ dts_assigned_name :: proc(member: ^MemberExpression) -> (name: string, direct: b
 // declared in this region, since TypeScript binds such assignments in the
 // function's own container; a `lexical` lookup also searches enclosing regions.
 @(private)
-dts_resolve_entity :: proc(state: ^DeclarationEmit, target: ^Expression, lexical := false) -> []int {
+dts_resolve_entity :: proc(
+	state: ^DeclarationEmit, target: ^Expression, lexical := false,
+) -> []int {
 	names: [dynamic]string
 	current := target
 	for current != nil {
@@ -298,7 +339,9 @@ dts_resolve_entity :: proc(state: ^DeclarationEmit, target: ^Expression, lexical
 }
 
 @(private)
-dts_report_assignment :: proc(state: ^DeclarationEmit, seen: ^map[[2]string]bool, member: ^MemberExpression, name: string) {
+dts_report_assignment :: proc(
+	state: ^DeclarationEmit, seen: ^map[[2]string]bool, member: ^MemberExpression, name: string,
+) {
 	target := get_expression_loc(member.object)
 	key := [2]string{state.writer.source[target.start:target.end], name}
 	if key in seen^ { return }
@@ -317,7 +360,7 @@ dts_report_assignment :: proc(state: ^DeclarationEmit, seen: ^map[[2]string]bool
 	}
 	if function < 0 { return }
 	state.current_item = function
-	dts_error(state, "TS9023", "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.", member.loc)
+	dts_diagnose(state, .TS9023, member.loc)
 }
 
 @(private)
@@ -434,14 +477,15 @@ dts_parameter_undefined :: proc(state: ^DeclarationEmit, annotation: Maybe(^TSTy
 			id, plain := t.type_name^.(^Identifier)
 			if plain && id.name != "const" {
 				if annotation == nil {
-					dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", t.loc)
+					dts_diagnose(state, .TS9011, t.loc)
 					return
 				}
 				for index in dts_lookup(state, id.name, .Either) {
 					if alias, ok := state.items[index].statement.(^TSTypeAliasDeclaration); ok && dts_type_has_undefined(alias.type_annotation) { return }
 				}
-				if len(dts_lookup(state, id.name, .Type)) == 0 && !dts_reference_is_local(state, {id.name, id.loc, false, false}) { return }
-				dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, parameter)
+				declared := len(dts_lookup(state, id.name, .Type)) != 0
+				if !declared && !dts_type_name_is_local(state, id) { return }
+				dts_diagnose(state, .TS9025, parameter)
 				return
 			}
 		}

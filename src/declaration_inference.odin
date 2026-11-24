@@ -20,7 +20,7 @@ dts_variable :: proc(state: ^DeclarationEmit, decl: ^VariableDeclaration, part: 
 	if dts_redeclared_variable(state, id.name) {
 		// TypeScript merges the declarations of one variable and takes its type
 		// from the checker, which an isolated emitter does not have.
-		dts_error(state, "TS9010", "Variable must have an explicit type annotation with --isolatedDeclarations.", id.loc)
+		dts_diagnose(state, .TS9010, id.loc)
 		return
 	}
 	init := entry.init.? or_else nil
@@ -30,7 +30,7 @@ dts_variable :: proc(state: ^DeclarationEmit, decl: ^VariableDeclaration, part: 
 	dynamic_template := false
 	if init != nil { if e, ok := init^.(^TemplateLiteral); ok { dynamic_template = len(e.expressions) > 0 } }
 	if (decl.kind == .Const && dynamic_template) || !dts_infer(state, init, literal, 0) {
-		dts_error(state, "TS9010", "Variable must have an explicit type annotation with --isolatedDeclarations.", id.loc)
+		dts_diagnose(state, .TS9010, id.loc)
 	}
 }
 
@@ -53,7 +53,7 @@ dts_bound_errors :: proc(state: ^DeclarationEmit, pattern: Pattern) {
 	for len(pending) > 0 {
 		current := pop(&pending)
 		#partial switch p in current {
-		case ^Identifier: dts_error(state, "TS9019", "Binding elements can't be exported directly with --isolatedDeclarations.", p.loc)
+		case ^Identifier: dts_diagnose(state, .TS9019, p.loc)
 		case ^ArrayPattern: for i := len(p.elements) - 1; i >= 0; i -= 1 { if el, ok := p.elements[i].?; ok { append(&pending, el) } }
 		case ^ObjectPattern: for i := len(p.properties) - 1; i >= 0; i -= 1 { append(&pending, p.properties[i].value) }
 		case ^AssignmentPattern: append(&pending, p.left)
@@ -135,7 +135,7 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 	case ^TSTypeAssertion: return dts_assertion(state, e.expression, e.type_annotation, literal, depth)
 	case ^ArrayExpression:
 		if !literal {
-			dts_error(state, "TS9017", "Only const arrays can be inferred with --isolatedDeclarations.", e.loc)
+			dts_diagnose(state, .TS9017, e.loc)
 			return true
 		}
 		cg_str(cg, "readonly [")
@@ -144,7 +144,7 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 			element, ok := part.?
 			if !ok { cg_str(cg, "undefined"); continue }
 			if _, spread := element^.(^SpreadElement); spread {
-				dts_error(state, "TS9018", "Arrays with spread elements can't inferred with --isolatedDeclarations.", get_expression_loc(element))
+				dts_diagnose(state, .TS9018, get_expression_loc(element))
 			} else if !dts_infer(state, element, true, depth + 1) { dts_expression_error(state, element) }
 		}
 		cg_byte(cg, ']')
@@ -154,18 +154,30 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 		body, block := e.body.(^BlockStatement)
 		result := e.body.(^Expression) if !block else dts_return_expression(body.body[:])
 		statements := body.body[:] if block else nil
-		dts_signature(state, e.params[:], e.type_parameters, e.return_type, result, e.loc, e.loc, e.async, true, depth + 1, arrow_node = e, body = statements)
+		dts_signature(state, {
+			params = e.params[:], generics = e.type_parameters, result = e.return_type,
+			returned = result, body = statements, scope = e.loc, location = e.loc,
+			requires_annotation = e.async, arrow = true, arrow_node = e,
+		}, depth + 1)
 		return true
 	case ^ClassExpression:
-		loc := Loc{e.loc.start, e.loc.start + 5}
+		// Reported at the name, else at the first token: `class` or a decorator's `@`.
+		loc := Loc{e.loc.start, e.loc.start + u32(len("class"))}
+		if state.writer.source[e.loc.start] == '@' { loc.end = loc.start + 1 }
 		if id, ok := e.id.?; ok { loc = id.loc }
-		dts_error(state, "TS9022", "Inference from class expressions is not supported with --isolatedDeclarations.", loc)
+		dts_diagnose(state, .TS9022, loc)
 		return true
 	case ^FunctionExpression:
 		// An anonymous function is reported at its first keyword.
 		loc := Loc{e.loc.start, e.loc.start + u32(len("async" if e.async else "function"))}
 		if id, ok := e.id.?; ok { loc = id.loc }
-		dts_signature(state, e.params[:], e.type_parameters, e.return_type, dts_return_expression(e.body.body[:]), e.loc, loc, e.async || e.generator, true, depth + 1, body = e.body.body[:])
+		statements := e.body.body[:]
+		dts_signature(state, {
+			params = e.params[:], generics = e.type_parameters, result = e.return_type,
+			returned = dts_return_expression(statements), body = statements,
+			scope = e.loc, location = loc,
+			requires_annotation = e.async || e.generator, arrow = true,
+		}, depth + 1)
 		return true
 	}
 	return false
@@ -175,7 +187,8 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 dts_assertion :: proc(state: ^DeclarationEmit, expr: ^Expression, ty: ^TSType, literal: bool, depth: int) -> bool {
 	if dts_is_const_type(ty) { return dts_infer(state, expr, true, depth + 1) }
 	if ref, named := ty^.(^TSTypeReference); literal && named && ref.type_parameters == nil {
-		if id, simple := ref.type_name^.(^Identifier); simple && !dts_reference_is_local(state, {id.name, id.loc, false, false}) {
+		id, simple := ref.type_name^.(^Identifier)
+		if simple && !dts_type_name_is_local(state, id) {
 			for index in dts_lookup(state, id.name, .Either) {
 				if alias, found := state.items[index].statement.(^TSTypeAliasDeclaration); found && alias.type_parameters == nil {
 					#partial switch _ in alias.type_annotation^ {
@@ -202,7 +215,7 @@ dts_is_const_type :: proc(ty: ^TSType) -> bool {
 
 @(private)
 dts_expression_error :: proc(state: ^DeclarationEmit, expr: ^Expression) {
-	dts_error(state, "TS9013", "Expression type can't be inferred with --isolatedDeclarations.", dts_expression_span(state, expr))
+	dts_diagnose(state, .TS9013, dts_expression_span(state, expr))
 }
 
 // TypeScript reports a `satisfies` expression at its operator, not at the
@@ -236,6 +249,7 @@ dts_object :: proc(state: ^DeclarationEmit, object: ^ObjectExpression, literal: 
 	accessors := make(map[DeclarationPropertyKey]DeclarationObjectAccessor)
 	// A repeated property name keeps its first position and its last definition.
 	latest := make(map[DeclarationPropertyKey]int)
+	blocked := dts_object_blocked(state, object)
 	cg_byte(cg, '{')
 	for property, index in object.properties {
 		symbol := property.computed && dts_global_symbol_member(state, property.key)
@@ -253,7 +267,7 @@ dts_object :: proc(state: ^DeclarationEmit, object: ^ObjectExpression, literal: 
 			accessors[key] = entry
 		}
 		// Symbol members are serialized independently, ahead of the named properties.
-		if symbol { dts_object_member(state, property, literal, depth, true, &accessors) }
+		if symbol { dts_object_member(state, property, literal, depth, true, &accessors, blocked) }
 	}
 	for property in object.properties {
 		if property.computed && dts_global_symbol_member(state, property.key) { continue }
@@ -264,10 +278,35 @@ dts_object :: proc(state: ^DeclarationEmit, object: ^ObjectExpression, literal: 
 			delete_key(&latest, key)
 			member = object.properties[index]
 		}
-		dts_object_member(state, member, literal, depth, false, &accessors)
+		dts_object_member(state, member, literal, depth, false, &accessors, blocked)
 	}
 	if len(object.properties) > 0 { cg_byte(cg, ' ') }
 	cg_byte(cg, '}')
+}
+
+DeclarationObjectBlock :: enum { None, Values, All }
+
+// A member that cannot be declared stops TypeScript from inferring the object
+// syntactically. It reports that member and falls back to its checker, which
+// only revisits source nodes it can reuse: after a shorthand or dynamic name,
+// methods and function values are still checked, plain values are not; after
+// a spread nothing else is examined.
+@(private)
+dts_object_blocked :: proc(
+	state: ^DeclarationEmit, object: ^ObjectExpression,
+) -> DeclarationObjectBlock {
+	blocked := DeclarationObjectBlock.None
+	for property in object.properties {
+		if property.key == nil || property.value == nil { return .All }
+		if _, spread := property.value^.(^SpreadElement); spread { return .All }
+		if property.shorthand { blocked = .Values; continue }
+		if !property.computed { continue }
+		if _, literal := dts_literal_key(property.key); literal { continue }
+		if _, boolean := property.key^.(^BooleanLiteral); boolean { continue }
+		if dts_global_symbol_member(state, property.key) { continue }
+		blocked = .Values
+	}
+	return blocked
 }
 
 // Only data properties with a statically known name replace one another.
@@ -282,10 +321,30 @@ dts_plain_property_key :: proc(property: Property) -> (key: DeclarationPropertyK
 }
 
 @(private)
-dts_object_member :: proc(state: ^DeclarationEmit, p: Property, literal: bool, depth: int, symbol: bool, accessors: ^map[DeclarationPropertyKey]DeclarationObjectAccessor) {
-	if p.key == nil || p.value == nil { dts_error(state, "TS9015", "Objects that contain spread assignments can't be inferred with --isolatedDeclarations.", p.loc); return }
-	if _, spread := p.value^.(^SpreadElement); spread { dts_error(state, "TS9015", "Objects that contain spread assignments can't be inferred with --isolatedDeclarations.", p.loc); return }
-	if p.shorthand { dts_error(state, "TS9016", "Objects that contain shorthand properties can't be inferred with --isolatedDeclarations.", p.loc); return }
+dts_static_key :: proc(state: ^DeclarationEmit, key: ^Expression) -> bool {
+	_, literal := dts_literal_key(key)
+	return literal || dts_global_symbol_member(state, key)
+}
+
+@(private)
+dts_object_member :: proc(
+	state: ^DeclarationEmit, p: Property, literal: bool, depth: int, symbol: bool,
+	accessors: ^map[DeclarationPropertyKey]DeclarationObjectAccessor,
+	blocked: DeclarationObjectBlock,
+) {
+	if p.key == nil || p.value == nil { dts_diagnose(state, .TS9015, p.loc); return }
+	if _, spread := p.value^.(^SpreadElement); spread {
+		dts_diagnose(state, .TS9015, p.loc)
+		return
+	}
+	if p.shorthand { dts_diagnose(state, .TS9016, p.loc); return }
+	if blocked == .All { return }
+	if blocked == .Values && p.kind == .Init && !(p.computed && !dts_static_key(state, p.key)) {
+		#partial switch _ in p.value^ {
+		case ^FunctionExpression, ^ArrowFunctionExpression:
+		case: return
+		}
+	}
 	cg := &state.writer
 	if _, boolean := p.key^.(^BooleanLiteral); boolean && p.computed {
 		// TypeScript accepts `[true]` as a literal name, then omits the member
@@ -362,7 +421,7 @@ dts_default :: proc(state: ^DeclarationEmit, expr: ^Expression, keyword: string)
 	cg_str(cg, ": ")
 	_, grouped := expr^.(^ParenthesizedExpression)
 	if !dts_infer(state, expr, !grouped && dts_primitive_type(expr) != "", 0) {
-		dts_error(state, "TS9037", "Default exports can't be inferred with --isolatedDeclarations.", dts_expression_span(state, expr))
+		dts_diagnose(state, .TS9037, dts_expression_span(state, expr))
 	}
 	cg_str(cg, ";\n"); cg_str(cg, keyword)
 	cg_str(cg, state.default_name)

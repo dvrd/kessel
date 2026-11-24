@@ -197,13 +197,14 @@ Known differences from TypeScript 5.9.3:
   single-file emitter skips those checks and still emits declarations.
 - When a file is already rejected, TypeScript sometimes adds diagnostics that
   come from its type checker, such as TS9007 on an arrow function nested in a
-  call, TS4094 for mixins, or TS9039 for private names. Kessel reports the
-  primary error only.
-- Property assignments to a function (`fn.prop = value`) are diagnosed at the
-  top level of a file or namespace, not inside nested statements or expressions.
-- A generic function type used as a type argument and escapes in template
-  literal types are printed by the shared code generator without TypeScript's
-  parentheses and escape sequences.
+  call, errors on the members of a class expression, or TS4094 for mixins.
+  Kessel reports the primary error only. On the recorded fixtures it never
+  emits a declaration for a file TypeScript rejects, nor the reverse.
+- Private names are diagnosed with TypeScript's code for variables, functions,
+  class members, type aliases and extends clauses. Other owners, such as
+  interface members, report the general TS9039.
+- Escapes in template literal types are printed as their cooked text until
+  the printer's raw-text fix is merged.
 
 The experimental `module-lex` command emits JSON with imports, re-exports,
 `import.meta`, source and defer imports, and export names. Export records

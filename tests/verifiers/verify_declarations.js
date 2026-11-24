@@ -135,6 +135,7 @@ const positive = [
   'enum E1 { X = Y, X1 = E1["Y"], Y = E1.Z, Y1 = E1["Z"], S = S } enum E1 { Z = 4 }',
   'global { interface Array<T> { x } } namespace A { declare global { interface Array<T> { y } } }',
   'var total = 1 + count as number, less = a < b as boolean;',
+  'export const first = (...[a, b]: Bar[]): void => {}; export function size(...{length}: string[]): void {}',
 ];
 const negative = [
   'export const api={get v():number{return 1},set v({x}: {x:number}){}};',
@@ -220,6 +221,15 @@ const negative = [
   'await ready; const arr = [load()];',
   'export class C extends mixin(Base) {} export class D extends (x satisfies Ctor) {}',
   'declare global { interface Array<T> { x } }',
+  // After a member that cannot be declared, only reusable function nodes are still checked.
+  'var b: any; export var x = { b, a: lookup(), n: { c: lookup() }, d(p) { return 1 }, e: (q) => lookup() };',
+  'var b: any; export var x = { ...b, a: lookup(), d(p) {} };',
+  'declare var s: string; export var x = { [s]: 1, a: lookup(), d() {} };',
+  'export function f(x = 1, y = unknown, w: number): void {}',
+  'enum G { A } export class C { [G.A]() {} }',
+  'export const C = @dec class {}; export class D extends (class { foo() {} }) {}',
+  'export function f({[foo]: bar}: any): void { var foo = 1 }',
+  'export const f = async i => await load(i);',
 ];
 // Differences from TypeScript that are intended. Each entry is a fixture that
 // must still differ: a fixed or newly broken fixture fails the comparison.

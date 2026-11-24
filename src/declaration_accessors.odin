@@ -45,7 +45,7 @@ dts_typed_accessors :: proc(
 		cg.pos, cg.at_line_start = pos, line_start
 		return false
 	case .Different:
-		dts_error(state, "TS9009", "At least one accessor must have an explicit type annotation with --isolatedDeclarations.", parameter.loc)
+		dts_diagnose(state, .TS9009, parameter.loc)
 	case .Unresolved:
 		// Imported and other checker-dependent types can differ in the consuming
 		// project. Keeping both signatures lets its type checker resolve them.
@@ -94,7 +94,7 @@ dts_accessor_array_element :: proc(state: ^DeclarationEmit, ty: ^TSType) -> ^TST
 	if !generic || len(args.params) != 1 { return nil }
 	name, plain := ref.type_name^.(^Identifier)
 	if !plain || name.name != "Array" { return nil }
-	if dts_reference_is_local(state, {name.name, name.loc, false, false}) { return nil }
+	if dts_type_name_is_local(state, name) { return nil }
 	if len(dts_lookup(state, name.name, .Type)) > 0 { return nil }
 	return args.params[0]
 }
@@ -107,7 +107,7 @@ dts_accessor_object_identity :: proc(state: ^DeclarationEmit, ty: ^TSType) -> (s
 	ref, named := ty^.(^TSTypeReference)
 	if !named || ref.type_parameters != nil { return "", false }
 	name, plain := ref.type_name^.(^Identifier)
-	if !plain || dts_reference_is_local(state, {name.name, name.loc, false, false}) { return "", false }
+	if !plain || dts_type_name_is_local(state, name) { return "", false }
 	for index in dts_lookup(state, name.name, .Type) {
 		#partial switch _ in state.items[index].statement {
 		case ^TSInterfaceDeclaration, ^ClassDeclaration: return name.name, true
@@ -148,7 +148,7 @@ dts_accessor_type_root :: proc(state: ^DeclarationEmit, ty: ^TSType) -> (root: ^
 		case ^TSTypeReference:
 			id, plain := t.type_name^.(^Identifier)
 			if !plain || t.type_parameters != nil { return current, from_alias }
-			if dts_reference_is_local(state, {id.name, id.loc, false, false}) { return current, from_alias }
+			if dts_type_name_is_local(state, id) { return current, from_alias }
 			matches := dts_lookup(state, id.name, .Type)
 			if len(matches) != 1 { return current, from_alias }
 			item := &state.items[matches[0]]

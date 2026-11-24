@@ -95,11 +95,17 @@ dts_heritage :: proc(state: ^DeclarationEmit, s: ^ClassDeclaration, base: ^Expre
 		// class expression is reported at its name or `class` keyword.
 		resize(&item.errors, errors_before)
 		span := get_expression_loc(base)
-		if class, anonymous := base^.(^ClassExpression); anonymous {
+		inner := base
+		for inner != nil {
+			group, grouped := inner^.(^ParenthesizedExpression)
+			if !grouped { break }
+			inner = group.expression
+		}
+		if class, anonymous := inner^.(^ClassExpression); anonymous {
 			span = {class.loc.start, class.loc.start + u32(len("class"))}
 			if id, has_name := class.id.?; has_name { span = id.loc }
 		}
-		dts_error(state, "TS9021", "Extends clause can't contain an expression with --isolatedDeclarations.", span)
+		dts_diagnose(state, .TS9021, span)
 		return
 	}
 	name := "default_base"
@@ -198,7 +204,8 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 	loc := get_expression_loc(el.key)
 	if el.computed { loc = dts_computed_span(state, loc) }
 	// `static constructor()` is an error TypeScript still prints like a constructor.
-	static_constructor := el.static && el.kind == .Method && !el.computed && state.private_name == "constructor"
+	static_constructor := el.static && el.kind == .Method && !el.computed
+	if state.private_name != "constructor" { static_constructor = false }
 	if (el.kind == .Constructor || static_constructor) && callable {
 		cg_byte(cg, '(')
 		if el.accessibility != .Private { dts_parameters(state, fn.params[:], 0) }
@@ -222,7 +229,7 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 		dynamic_template := false
 		if init != nil { if e, ok := init^.(^TemplateLiteral); ok { dynamic_template = len(e.expressions) != 0 } }
 		if (el.readonly && dynamic_template) || !dts_infer(state, init, literal, 0) {
-			dts_error(state, "TS9012", "Property must have an explicit type annotation with --isolatedDeclarations.", loc)
+			dts_diagnose(state, .TS9012, loc)
 		} else if el.optional && init != nil && dts_optional_inferred_field(init) { cg_str(cg, " | undefined") }
 	}
 	cg_byte(cg, ';'); cg_newline(cg)
@@ -278,7 +285,7 @@ dts_accessor :: proc(state: ^DeclarationEmit, el: ClassElement, entry: Declarati
 			members^[key] = reported
 			loc := loc
 			if el.kind == .Set && entry.setter != nil && len(entry.setter.params) > 0 { loc = get_pattern_loc(entry.setter.params[0].pattern) }
-			dts_error(state, "TS9009", "At least one accessor must have an explicit type annotation with --isolatedDeclarations.", loc)
+			dts_diagnose(state, .TS9009, loc)
 		}
 	}
 	if el.kind == .Set { cg_byte(cg, ')') }
@@ -286,7 +293,13 @@ dts_accessor :: proc(state: ^DeclarationEmit, el: ClassElement, entry: Declarati
 
 @(private)
 dts_method_signature :: proc(state: ^DeclarationEmit, fn: ^FunctionExpression, loc: Loc, arrow: bool, depth: int, force_return: bool) {
-	dts_signature(state, fn.params[:], fn.type_parameters, fn.return_type, dts_return_expression(fn.body.body[:]), fn.loc, loc, force_return || fn.async || fn.generator, arrow, depth, method = true, body = fn.body.body[:])
+	body := fn.body.body[:]
+	dts_signature(state, {
+		params = fn.params[:], generics = fn.type_parameters, result = fn.return_type,
+		returned = dts_return_expression(body), body = body, scope = fn.loc, location = loc,
+		requires_annotation = force_return || fn.async || fn.generator,
+		arrow = arrow, method = true,
+	}, depth)
 }
 
 @(private)
@@ -306,7 +319,7 @@ dts_property_key :: proc(state: ^DeclarationEmit, key: ^Expression, computed: bo
 		named = known || dts_global_symbol_member(state, key)
 		if !named {
 			loc := dts_computed_span(state, get_expression_loc(key))
-			dts_error(state, "TS9038", "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.", loc)
+			dts_diagnose(state, .TS9038, loc)
 		}
 		// TypeScript keeps the binding of a name that could be an index key.
 		// A literal-typed name is rejected without declaring its binding.
@@ -330,7 +343,15 @@ DeclarationKeyType :: enum { Unknown, Index, Other }
 dts_key_may_index :: proc(state: ^DeclarationEmit, key: ^Expression) -> bool {
 	root := dts_entity_name_root(key)
 	if root == nil { return false }
-	if root != key { return true } // A property path has no local annotation to read.
+	if root != key {
+		// A property path has no local annotation to read, except an enum
+		// member, whose type is a literal and never an index key.
+		for index in dts_resolve_entity(state, key^.(^MemberExpression).object, lexical = true) {
+			_, is_enum := state.items[index].statement.(^TSEnumDeclaration)
+			if is_enum { return false }
+		}
+		return true
+	}
 	name := root^.(^Identifier).name
 	for index in dts_lookup(state, name, .Value) {
 		item := &state.items[index]
@@ -423,7 +444,8 @@ dts_global_symbol_member :: proc(state: ^DeclarationEmit, key: ^Expression) -> b
 	if !qualified || object.computed { return false }
 	root, global := object.object^.(^Identifier)
 	field, symbol := object.property^.(^Identifier)
-	return global && symbol && root.name == "globalThis" && field.name == "Symbol" && !dts_shadows_global(state, "globalThis")
+	if !global || !symbol || root.name != "globalThis" || field.name != "Symbol" { return false }
+	return !dts_shadows_global(state, "globalThis")
 }
 
 // A top-level `var` in a script is the global variable itself, so
@@ -519,7 +541,7 @@ dts_object_accessor :: proc(state: ^DeclarationEmit, property: Property, key: De
 		if property.kind == .Set { loc = get_pattern_loc(param.pattern) }
 	}
 	if annotation, ok := ty.?; ok { gen_ts_type(cg, annotation.type_annotation) } else if !dts_infer(state, expr, false, depth + 1) {
-		dts_error(state, "TS9009", "At least one accessor must have an explicit type annotation with --isolatedDeclarations.", loc)
+		dts_diagnose(state, .TS9009, loc)
 	}
 	cg_byte(cg, ';')
 }

@@ -59,7 +59,8 @@ dts_scan_enter :: proc(user: rawptr, node: AstNode) -> AstWalkAction {
 dts_scan_statements :: proc(body: []^Statement, visitor: ^DeclarationScanVisitor) {
 	for statement in body {
 		assert(statement != nil)
-		ast_walk_statement_tree(statement, {user = visitor, enter = dts_scan_enter}, context.allocator)
+		walker := AstVisitor{user = visitor, enter = dts_scan_enter}
+		ast_walk_statement_tree(statement, walker, context.allocator)
 	}
 }
 
@@ -80,26 +81,29 @@ dts_scan_region :: proc(state: ^DeclarationEmit, index: int) -> ^DeclarationRegi
 @(private)
 dts_private_push :: proc(state: ^DeclarationEmit, body: []^Statement) -> int {
 	mark := len(state.private_names)
+	locals := &state.private_names
 	for statement in body {
 		assert(statement != nil)
 		#partial switch s in statement^ {
-		case ^TSTypeAliasDeclaration: append(&state.private_names, DeclarationPrivateName{s.id.name, false, true})
-		case ^TSInterfaceDeclaration: append(&state.private_names, DeclarationPrivateName{s.id.name, false, true})
-		case ^TSEnumDeclaration: append(&state.private_names, DeclarationPrivateName{s.id.name, true, true})
+		case ^TSTypeAliasDeclaration: append(locals, DeclarationPrivateName{s.id.name, false, true})
+		case ^TSInterfaceDeclaration: append(locals, DeclarationPrivateName{s.id.name, false, true})
+		case ^TSEnumDeclaration: append(locals, DeclarationPrivateName{s.id.name, true, true})
 		case ^ClassDeclaration:
-			if id, ok := s.id.?; ok { append(&state.private_names, DeclarationPrivateName{id.name, true, true}) }
+			if id, ok := s.id.?; ok { append(locals, DeclarationPrivateName{id.name, true, true}) }
 		case ^FunctionDeclaration:
-			if id, ok := s.id.?; ok { append(&state.private_names, DeclarationPrivateName{id.name, true, false}) }
+			if id, ok := s.id.?; ok { append(locals, DeclarationPrivateName{id.name, true, false}) }
 		case ^VariableDeclaration:
 			names: [dynamic]string
-			for declarator in s.declarations { collect_pattern_bound_names_list(declarator.id, &names) }
-			for name in names { append(&state.private_names, DeclarationPrivateName{name, true, false}) }
+			for declarator in s.declarations {
+				collect_pattern_bound_names_list(declarator.id, &names)
+			}
+			for name in names { append(locals, DeclarationPrivateName{name, true, false}) }
 		}
 	}
 	hoisted: [dynamic]string
 	visitor := DeclarationScanVisitor{&hoisted, nil}
 	dts_scan_statements(body, &visitor)
-	for name in hoisted { append(&state.private_names, DeclarationPrivateName{name, true, false}) }
+	for name in hoisted { append(locals, DeclarationPrivateName{name, true, false}) }
 	return mark
 }
 
@@ -125,7 +129,10 @@ dts_private_check :: proc(state: ^DeclarationEmit, ref: DeclarationReference) {
 	code, subject := dts_private_subject(state)
 	message: string
 	if code == "TS9039" {
-		message = strings.concatenate({"Type containing private name '", ref.name, "' can't be used with --isolatedDeclarations."})
+		message = strings.concatenate({
+			"Type containing private name '", ref.name,
+			"' can't be used with --isolatedDeclarations.",
+		})
 	} else {
 		message = strings.concatenate({subject, " has or is using private name '", ref.name, "'."})
 	}
@@ -146,32 +153,45 @@ dts_hoisted_private :: proc(state: ^DeclarationEmit, name: string) -> bool {
 	return false
 }
 
+// The code and the opening words of TypeScript's message for each owner. `%s`
+// stands for the quoted name of the parameter, or of the owner without one.
+@(private = "file")
+DeclarationPrivateText :: struct { code, text: string }
+
+@(private = "file", rodata)
+dts_private_parameter_texts := #partial [DeclarationPrivateOwner]DeclarationPrivateText{
+	.Function     = {"TS4078", "Parameter %s of exported function"},
+	.Method       = {"TS4073", "Parameter %s of public method from exported class"},
+	.StaticMethod = {"TS4070", "Parameter %s of public static method from exported class"},
+	.Constructor  = {"TS4063", "Parameter %s of constructor from exported class"},
+	.Accessor     = {"TS4106", "Parameter %s of accessor"},
+}
+
+@(private = "file", rodata)
+dts_private_owner_texts := #partial [DeclarationPrivateOwner]DeclarationPrivateText{
+	.Variable       = {"TS4025", "Exported variable %s"},
+	.Function       = {"TS4060", "Return type of exported function"},
+	.Method         = {"TS4055", "Return type of public method from exported class"},
+	.StaticMethod   = {"TS4052", "Return type of public static method from exported class"},
+	.Property       = {"TS4031", "Public property %s of exported class"},
+	.StaticProperty = {"TS4028", "Public static property %s of exported class"},
+	.Getter         = {"TS4043", "Return type of public getter %s from exported class"},
+	.StaticGetter   = {"TS4040", "Return type of public static getter %s from exported class"},
+	.Alias          = {"TS4081", "Exported type alias %s"},
+	.Extends        = {"TS4020", "'extends' clause of exported class %s"},
+}
+
 @(private = "file")
 dts_private_subject :: proc(state: ^DeclarationEmit) -> (code, subject: string) {
+	entry := dts_private_owner_texts[state.private_owner]
 	name := state.private_name
-	parameter := state.private_parameter
-	quoted := strings.concatenate({"'", parameter if parameter != "" else name, "'"})
-	if parameter != "" {
-		#partial switch state.private_owner {
-		case .Function: return "TS4078", strings.concatenate({"Parameter ", quoted, " of exported function"})
-		case .Method: return "TS4073", strings.concatenate({"Parameter ", quoted, " of public method from exported class"})
-		case .StaticMethod: return "TS4070", strings.concatenate({"Parameter ", quoted, " of public static method from exported class"})
-		case .Constructor: return "TS4063", strings.concatenate({"Parameter ", quoted, " of constructor from exported class"})
-		case .Accessor: return "TS4106", strings.concatenate({"Parameter ", quoted, " of accessor"})
-		}
-		return "TS9039", ""
+	if state.private_parameter != "" {
+		entry = dts_private_parameter_texts[state.private_owner]
+		name = state.private_parameter
 	}
-	#partial switch state.private_owner {
-	case .Variable: return "TS4025", strings.concatenate({"Exported variable ", quoted})
-	case .Function: return "TS4060", "Return type of exported function"
-	case .Method: return "TS4055", "Return type of public method from exported class"
-	case .StaticMethod: return "TS4052", "Return type of public static method from exported class"
-	case .Property: return "TS4031", strings.concatenate({"Public property ", quoted, " of exported class"})
-	case .StaticProperty: return "TS4028", strings.concatenate({"Public static property ", quoted, " of exported class"})
-	case .Getter: return "TS4043", strings.concatenate({"Return type of public getter ", quoted, " from exported class"})
-	case .StaticGetter: return "TS4040", strings.concatenate({"Return type of public static getter ", quoted, " from exported class"})
-	case .Alias: return "TS4081", strings.concatenate({"Exported type alias ", quoted})
-	case .Extends: return "TS4020", strings.concatenate({"'extends' clause of exported class ", quoted})
-	}
-	return "TS9039", ""
+	// An owner without an entry has no declaration to name: an inferred type.
+	if entry.code == "" { return "TS9039", "" }
+	quoted := strings.concatenate({"'", name, "'"})
+	subject, _ = strings.replace(entry.text, "%s", quoted, 1)
+	return entry.code, subject
 }
