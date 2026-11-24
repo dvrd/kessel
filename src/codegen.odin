@@ -66,8 +66,19 @@ CodegenInfixTask :: struct {
 	ctx: CodegenExpressionContext,
 }
 
+// One suspended member / call link while its receiver is being printed.
+// Kept on a worklist (like CodegenInfixTask) because `a.b.c...` and
+// `a()()...` chains are not limited by the parser's nesting depth.
+CodegenAccessFrame :: struct {
+	expr:        ^Expression, // the MemberExpression or CallExpression
+	output_mark: int,         // cg.pos before the receiver was printed
+	close_paren: bool,        // this link was opened with '(' by its parent
+	super_props: []string,    // parameter properties to assign after super()
+}
+
 Codegen :: struct {
 	infix_work: [dynamic]CodegenInfixTask,
+	access_work: [dynamic]CodegenAccessFrame,
 	renamed: map[u32]string, // Original binding and reference offsets to shorter local names.
 	declaration_emit: ^DeclarationEmit, // Tracks references in public type signatures.
 	cfg: CodegenConfig,
@@ -179,6 +190,7 @@ codegen_print_job :: proc(job: ^ParseJob, cg: ^Codegen, options: PrintOptions, s
 codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source: string, alloc: mem.Allocator) {
 	est := max(len(source), 4096)
 	cg.infix_work    = make([dynamic]CodegenInfixTask, 0, 0, alloc)
+	cg.access_work   = make([dynamic]CodegenAccessFrame, 0, 0, alloc)
 	cg.renamed       = nil
 	cg.declaration_emit = nil
 	cg.cfg           = cfg
@@ -211,6 +223,8 @@ codegen_enable_sourcemap :: proc(cg: ^Codegen, sm: ^SourceMap) {
 codegen_destroy :: proc(cg: ^Codegen, alloc: mem.Allocator) {
 	delete(cg.infix_work)
 	cg.infix_work = nil
+	delete(cg.access_work)
+	cg.access_work = nil
 	if cg.annotations != nil { delete(cg.annotations) }
 	if cg.buf != nil { delete(cg.buf, alloc) }
 	cg.buf = nil
@@ -593,8 +607,7 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 	case ^FunctionExpression:         gen_function_expression(cg, e)
 	case ^ArrowFunctionExpression:    gen_arrow_function(cg, e, ctx)
 	case ^ClassExpression:            gen_class_expression(cg, e)
-	case ^MemberExpression:           gen_member_expression(cg, e)
-	case ^CallExpression:             gen_call_expression(cg, e)
+	case ^MemberExpression, ^CallExpression: gen_access_chain(cg, expr)
 	case ^NewExpression:              gen_new_expression(cg, e)
 	case ^ConditionalExpression:      gen_conditional_expression(cg, e, ctx)
 	case ^UpdateExpression:           gen_update_expression(cg, e)
@@ -2235,10 +2248,99 @@ gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
 	gen_class_like(cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements)
 }
 
+// gen_access_chain prints a member / call chain (`a.b(c)[d]...`) without
+// recursing along it. The parser builds such chains in a loop and does
+// not bound their length, so one native frame per link would overflow
+// the stack on generated code. Each link is suspended on cg.access_work
+// while its receiver prints; the output is byte-for-byte what the
+// recursive printer produced.
+//
+// `expr` has already been through gen_expression_begin (parentheses,
+// source map) and the annotation hook; its closing parenthesis belongs
+// to the caller.
+gen_access_chain :: proc(cg: ^Codegen, expr: ^Expression) {
+	base := len(cg.access_work)
+	current := expr
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		receiver, suspended := gen_access_enter(cg, current)
+		if !suspended { break }
+		value, child_ctx, close_paren := gen_expression_begin(cg, receiver, PREC_CALL, {})
+		if value == nil { break }
+		is_link := false
+		#partial switch _ in value^ { case ^MemberExpression, ^CallExpression: is_link = true }
+		if !is_link {
+			gen_expression_raw(cg, value, child_ctx)
+			if close_paren { cg_byte(cg, ')') }
+			break
+		}
+		// Continue down the chain; what gen_expression_raw does before
+		// dispatching (the annotation hook) happens here instead.
+		if len(cg.annotations) != 0 { codegen_emit_expression_annotation(cg, value) }
+		cg.access_work[len(cg.access_work) - 1].close_paren = close_paren
+		current = value
+	}
+	for len(cg.access_work) > base {
+		frame := pop(&cg.access_work)
+		// `close_paren` was recorded on the parent frame for its receiver,
+		// which is the link printed just before this frame resumes.
+		gen_access_leave(cg, frame)
+	}
+	assert(len(cg.access_work) == base)
+}
+
+// gen_access_enter prints what precedes a link's receiver and suspends
+// the link. Returns the receiver to print next; `suspended` is false when
+// the link was emitted whole (an inlined const enum member).
+gen_access_enter :: proc(
+	cg: ^Codegen,
+	expr: ^Expression,
+) -> (receiver: ^Expression, suspended: bool) {
+	frame := CodegenAccessFrame{expr = expr}
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		if cg.cfg.optimize_const_enums && gen_inlined_enum_member(cg, e) { return nil, false }
+		receiver = e.object
+	case ^CallExpression:
+		if len(cg.param_properties_after_super) > 0 && e.callee != nil {
+			if _, is_super := e.callee^.(^Super); is_super {
+				frame.super_props = cg.param_properties_after_super
+				cg_byte(cg, '(')
+			}
+		}
+		receiver = e.callee
+	case:
+		unreachable()
+	}
+	frame.output_mark = cg.pos
+	append(&cg.access_work, frame)
+	return receiver, true
+}
+
+// gen_access_leave prints what follows a link's receiver.
+gen_access_leave :: proc(cg: ^Codegen, frame: CodegenAccessFrame) {
+	// The receiver of this link may itself have been parenthesised.
+	if frame.close_paren { cg_byte(cg, ')') }
+	#partial switch e in frame.expr^ {
+	case ^MemberExpression: gen_member_suffix(cg, e, frame.output_mark)
+	case ^CallExpression:   gen_call_suffix(cg, e, frame.super_props)
+	case:                   unreachable()
+	}
+}
+
+// gen_member_expression prints a member expression that is not wrapped
+// in an Expression (an assignment-pattern target). The object goes back
+// through gen_expression, so a long chain below it is still printed by
+// gen_access_chain's loop.
 gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 	if cg.cfg.optimize_const_enums && gen_inlined_enum_member(cg, e) { return }
 	obj_start := cg.pos
 	gen_expression(cg, e.object, PREC_CALL)
+	gen_member_suffix(cg, e, obj_start)
+}
+
+// gen_member_suffix prints the property access that follows a member
+// expression's object. `obj_start` is cg.pos before the object printed.
+gen_member_suffix :: proc(cg: ^Codegen, e: ^MemberExpression, obj_start: int) {
 	if e.computed {
 		if e.optional { cg_str(cg, "?.") }
 		cg_byte(cg, '[')
@@ -2271,15 +2373,9 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 	}
 }
 
-gen_call_expression :: proc(cg: ^Codegen, e: ^CallExpression) {
-	properties: []string
-	if len(cg.param_properties_after_super) > 0 && e.callee != nil {
-		if _, is_super := e.callee^.(^Super); is_super {
-			properties = cg.param_properties_after_super
-			cg_byte(cg, '(')
-		}
-	}
-	gen_expression(cg, e.callee, PREC_CALL)
+// gen_call_suffix prints the arguments that follow a call's callee, and
+// the parameter-property assignments owed after a `super(...)` call.
+gen_call_suffix :: proc(cg: ^Codegen, e: ^CallExpression, properties: []string) {
 	if e.optional { cg_str(cg, "?.") }
 	gen_call_arguments(cg, e)
 	if len(properties) > 0 {
