@@ -5,6 +5,7 @@
 //
 //   * A mismatched closing tag is an error on oxc-parser's span.
 //   * `{...xs}` children are JSXSpreadChild nodes with oxc-parser's spans.
+//   * `{...}` without an operand is an error on oxc-parser's span.
 //
 // Method: each case is one JSX source. It is parsed by `kessel parse --json`
 // and by the reference parsers, and the same projection of each result is
@@ -40,6 +41,9 @@ const ERROR_CASES = [
   '<a:b></a:c>;',
   '<a></b.c>;',
   '<a>\n  <b></c>\n</a>;',
+  '<a {...}/>;',
+  '<a>{...}</a>;',
+  '<a>{... }</a>;',
 ];
 for (const source of ERROR_CASES) {
   check(`error span ${JSON.stringify(source)}`, () => {

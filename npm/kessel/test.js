@@ -303,6 +303,14 @@ try {
   else { console.error('FAIL: JSXSpreadChild', JSON.stringify([spread, container])); failed++; }
 } catch (e) { console.error('CRASH: JSXSpreadChild', e.message); failed++; }
 
+// `{...}` without an operand is an error on the `}`.
+try {
+  const errors = parseSync('empty.jsx', '<a>{...}</a>;').errors;
+  if (errors.length >= 1 && errors[0].code === 'K2020' &&
+      errors[0].start === 7 && errors[0].end === 8) passed++;
+  else { console.error('FAIL: empty JSX spread', JSON.stringify(errors)); failed++; }
+} catch (e) { console.error('CRASH: empty JSX spread', e.message); failed++; }
+
 // A mismatched closing tag is reported on the closing tag's name.
 try {
   const errors = parseSync('mismatch.jsx', '<p></div>;').errors;

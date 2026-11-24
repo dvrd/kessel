@@ -7,6 +7,7 @@
 //
 //   * a mismatched closing tag is reported on the closing tag's name;
 //   * `{...xs}` in child position is a `JSXSpreadChild`;
+//   * `{...}` without an operand is an error spanning the `}`;
 //
 // tests/verifiers/verify_jsx_ast.js checks the same contract against the
 // pinned reference parsers.
@@ -50,6 +51,10 @@ test_jsx_error_spans :: proc(t: ^testing.T) {
 		{"<a:b></a:c>;",          7, 10, .K3063_JSXInvalid},
 		{"<a></b.c>;",            5,  8, .K3063_JSXInvalid},
 		{"<a>\n  <b></c>\n</a>;", 11, 12, .K3063_JSXInvalid},
+		// `{...}` without an operand: the `}` where an expression was expected.
+		{"<a {...}/>;",           7,  8, .K2020_ExpectedExpression},
+		{"<a>{...}</a>;",         7,  8, .K2020_ExpectedExpression},
+		{"<a>{... }</a>;",        8,  9, .K2020_ExpectedExpression},
 	}
 	for error_case in cases {
 		job: kessel.ParseJob

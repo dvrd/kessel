@@ -88,6 +88,20 @@ jsx_element_name_loc :: proc(name: JSXElementName) -> Loc {
 	return Loc{}
 }
 
+// parse_jsx_spread_operand parses the expression of `{...expr}` in attribute
+// or child position; the caller has consumed `{` and `...`. JSX requires the
+// operand, so `{...}` is an error spanning the `}` where the expression was
+// expected (the span OXC reports). Returns nil in that case.
+parse_jsx_spread_operand :: proc(p: ^Parser) -> ^Expression {
+	if is_token(p, .RBrace) {
+		report_error_coded(
+			p, .K2020_ExpectedExpression, "Expected an expression after '...' in JSX spread",
+		)
+		return nil
+	}
+	return parse_assignment_expression(p)
+}
+
 // Extract a string representation of a JSXElementName for tag matching.
 // Returns the full qualified name including namespace / member parts so
 // `<a:b></b>` and `<a.b></a>` are correctly detected as mismatches.
@@ -255,8 +269,14 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 	for !is_token(p, .RAngle) && !is_token(p, .Div) && !is_token(p, .EOF) {
 		if is_token(p, .LBrace) {
 			spread_start := cur_loc(p)
-			eat(p); expect_token(p, .Dot3)
-			expr := parse_assignment_expression(p)
+			eat(p)
+			expr: ^Expression = nil
+			if expect_token(p, .Dot3) {
+				expr = parse_jsx_spread_operand(p)
+			} else {
+				// Recover as before: take whatever expression is there.
+				expr = parse_assignment_expression(p)
+			}
 			expect_token(p, .RBrace)
 			spread := new_node(p, JSXSpreadAttribute)
 			spread.loc = spread_start; spread.argument = expr
@@ -411,7 +431,7 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			is_spread := is_token(p, .Dot3)
 			if is_spread {
 				eat(p)
-				expr = parse_assignment_expression(p)
+				expr = parse_jsx_spread_operand(p)
 			} else if !is_token(p, .RBrace) {
 				expr = parse_assignment_expression(p)
 			}
