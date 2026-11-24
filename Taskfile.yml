@@ -108,6 +108,13 @@ tasks:
       - task: test:minify
       - task: test:format
       - task: test:watch
+      - task: test:bundle
+
+  test:bundle:
+    desc: Bundle the multi-file fixtures and compare their behaviour with the original modules under Node.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_bundle.js {{.CLI_ARGS}}
 
   test:watch:
     desc: Verify that lint, fmt and transform respond to file changes and recover from errors.

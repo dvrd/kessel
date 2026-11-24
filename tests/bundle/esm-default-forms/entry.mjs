@@ -1,0 +1,11 @@
+import fn from './fn.mjs';
+import Named from './named-class.mjs';
+import Anonymous from './anon-class.mjs';
+import arrow from './arrow.mjs';
+import object from './object.mjs';
+import gen from './generator.mjs';
+import asyncFn from './async.mjs';
+console.log(fn(), new Named().kind, new Anonymous().kind, arrow(2), object.a, [...gen()].join(''));
+console.log(Named.name, typeof asyncFn);
+asyncFn().then(value => console.log('async', value));
+export { fn as default, Named };
