@@ -20,15 +20,13 @@ bundle_scan_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 	assert(module.job != nil)
 	assert(module.job.program != nil)
 	model := &module.model
-	uses_cjs := false
 	for ref in model.refs {
 		if ref.resolved != SYMBOL_UNRESOLVED { continue }
 		switch ref.name {
 		case "require": module.free_cjs[ref.start] = true
-		case "module", "exports": uses_cjs = true
+		case "module", "exports": module.uses_commonjs_objects = true
 		}
 	}
-	_ = uses_cjs
 	scan := BundleScan{g = g, module = module}
 	body := module.job.program.body[:]
 	for statement, index in body {
@@ -43,7 +41,13 @@ bundle_scan_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 }
 
 @(private="file")
-bundle_scan_record :: proc(scan: ^BundleScan, kind: BundleRecordKind, specifier: string, loc: Loc, node: ^Expression) -> i32 {
+bundle_scan_record :: proc(
+	scan: ^BundleScan,
+	kind: BundleRecordKind,
+	specifier: string,
+	loc: Loc,
+	node: ^Expression,
+) -> i32 {
 	append(&scan.module.records, BundleRecord{
 		kind = kind, specifier = specifier, loc = loc, statement = scan.statement,
 		target = BUNDLE_UNRESOLVED, node = node,
@@ -77,14 +81,17 @@ bundle_scan_top_level :: proc(scan: ^BundleScan, statement: ^Statement) {
 	#partial switch node in statement^ {
 	case ^ImportDeclaration:
 		if node.phase != "" {
-			bundle_error(scan.g, module, node.loc.start, "'import %s' is not supported by the bundler", node.phase)
+			bundle_error(scan.g, module, node.loc.start,
+				"'import %s' is not supported by the bundler", node.phase)
 		}
 		record := bundle_scan_record(scan, .Import, node.source.value, node.loc, nil)
 		for item in node.specifiers {
 			switch specifier in item^ {
-			case ImportDefaultSpecifier:   module.imports[specifier.local.name] = {record, "default"}
+			case ImportDefaultSpecifier:
+				module.imports[specifier.local.name] = {record, "default"}
 			case ImportNamespaceSpecifier: module.imports[specifier.local.name] = {record, "*"}
-			case ImportSpecifier:          module.imports[specifier.local.name] = {record, specifier.imported.name}
+			case ImportSpecifier:
+				module.imports[specifier.local.name] = {record, specifier.imported.name}
 			}
 		}
 	case ^ExportAllDeclaration:
@@ -99,7 +106,8 @@ bundle_scan_top_level :: proc(scan: ^BundleScan, statement: ^Statement) {
 	case ^ExportDefaultDeclaration:
 		if node.declaration == nil || node.declaration^ == nil {
 			// The printer needs a value to bind; refuse rather than guess.
-			bundle_error(scan.g, module, node.loc.start, "this default export has no value the bundler can bind")
+			bundle_error(scan.g, module, node.loc.start,
+				"this default export has no value the bundler can bind")
 			return
 		}
 		local := BUNDLE_DEFAULT_LOCAL
@@ -121,24 +129,32 @@ bundle_scan_named_export :: proc(scan: ^BundleScan, node: ^ExportNamedDeclaratio
 		record := bundle_scan_record(scan, .Import, source.value, node.loc, nil)
 		for &specifier in node.specifiers {
 			exported := bundle_export_specifier_name(specifier.exported)
-			bundle_scan_export(scan, exported, {record, bundle_export_specifier_name(specifier.local), specifier.loc})
+			bundle_scan_export(scan, exported,
+				{record, bundle_export_specifier_name(specifier.local), specifier.loc})
 		}
 		return
 	}
 	for &specifier in node.specifiers {
 		exported := bundle_export_specifier_name(specifier.exported)
-		bundle_scan_export(scan, exported, {-1, bundle_export_specifier_name(specifier.local), specifier.loc})
+		bundle_scan_export(scan, exported,
+			{-1, bundle_export_specifier_name(specifier.local), specifier.loc})
 	}
 	declaration, has_declaration := node.declaration.?
 	if !has_declaration { return }
 	#partial switch inner in declaration^ {
 	case ^FunctionDeclaration:
-		if id, named := inner.id.?; named { bundle_scan_export(scan, id.name, {-1, id.name, id.loc}) }
+		if id, named := inner.id.?; named {
+			bundle_scan_export(scan, id.name, {-1, id.name, id.loc})
+		}
 	case ^ClassDeclaration:
-		if id, named := inner.id.?; named { bundle_scan_export(scan, id.name, {-1, id.name, id.loc}) }
+		if id, named := inner.id.?; named {
+			bundle_scan_export(scan, id.name, {-1, id.name, id.loc})
+		}
 	case ^VariableDeclaration:
 		names := make([dynamic]^Identifier, scan.g.alloc)
-		for declarator in inner.declarations { bundle_pattern_identifiers(declarator.id, &names, 0) }
+		for declarator in inner.declarations {
+			bundle_pattern_identifiers(declarator.id, &names, 0)
+		}
 		for id in names { bundle_scan_export(scan, id.name, {-1, id.name, id.loc}) }
 	}
 }
@@ -149,16 +165,22 @@ bundle_pattern_identifiers :: proc(pattern: Pattern, out: ^[dynamic]^Identifier,
 	if depth > BUNDLE_AST_DEPTH_MAX { return }
 	switch node in pattern {
 	case ^Identifier:        if node != nil { append(out, node) }
-	case ^AssignmentPattern: if node != nil { bundle_pattern_identifiers(node.left, out, depth + 1) }
-	case ^RestElement:       if node != nil { bundle_pattern_identifiers(node.argument, out, depth + 1) }
+	case ^AssignmentPattern:
+		if node != nil { bundle_pattern_identifiers(node.left, out, depth + 1) }
+	case ^RestElement:
+		if node != nil { bundle_pattern_identifiers(node.argument, out, depth + 1) }
 	case ^ObjectPattern:
 		if node != nil {
-			for property in node.properties { bundle_pattern_identifiers(property.value, out, depth + 1) }
+			for property in node.properties {
+				bundle_pattern_identifiers(property.value, out, depth + 1)
+			}
 		}
 	case ^ArrayPattern:
 		if node != nil {
 			for element in node.elements {
-				if inner, present := element.(Pattern); present { bundle_pattern_identifiers(inner, out, depth + 1) }
+				if inner, present := element.(Pattern); present {
+					bundle_pattern_identifiers(inner, out, depth + 1)
+				}
 			}
 		}
 	case ^MemberExpression:
@@ -178,7 +200,9 @@ bundle_walk_statements :: proc(scan: ^BundleScan, statements: []^Statement) {
 @(private="file")
 bundle_walk_declaration :: proc(scan: ^BundleScan, declaration: ^VariableDeclaration) {
 	if declaration == nil { return }
-	if declaration.kind == .AwaitUsing && scan.function_depth == 0 { scan.module.has_top_level_await = true }
+	if declaration.kind == .AwaitUsing && scan.function_depth == 0 {
+		scan.module.has_top_level_await = true
+	}
 	for declarator in declaration.declarations {
 		bundle_walk_pattern(scan, declarator.id)
 		if init, ok := declarator.init.?; ok { bundle_walk_expression(scan, init) }
@@ -278,7 +302,9 @@ bundle_walk_pattern :: proc(scan: ^BundleScan, pattern: Pattern) {
 	case ^ObjectPattern:
 		for property in node.properties {
 			if key, has_key := property.key.?; has_key && property.computed {
-				if expression, ok := key.(^Expression); ok { bundle_walk_expression(scan, expression) }
+				if expression, ok := key.(^Expression); ok {
+					bundle_walk_expression(scan, expression)
+				}
 			}
 			bundle_walk_pattern(scan, property.value)
 		}
@@ -323,7 +349,8 @@ bundle_walk_class :: proc(scan: ^BundleScan, class: ^ClassExpression) {
 		if !has_value || value == nil { continue }
 		scan.function_depth += 1
 		scan.this_depth += 1
-		if block, is_block := value^.(^FunctionExpression); is_block && element.kind == .StaticBlock {
+		block, is_block := value^.(^FunctionExpression)
+		if is_block && element.kind == .StaticBlock {
 			bundle_walk_statements(scan, block.body.body[:])
 		} else {
 			bundle_walk_expression(scan, value)
@@ -338,6 +365,9 @@ bundle_walk_call :: proc(scan: ^BundleScan, slot: ^Expression, call: ^CallExpres
 	module := scan.module
 	if callee, ok := call.callee^.(^Identifier); ok {
 		module.callees[callee.loc.start] = true
+		if callee.name == "eval" && module.direct_eval == nil {
+			module.direct_eval = callee.loc.start
+		}
 		if module.free_cjs[callee.loc.start] && !call.optional {
 			if len(call.arguments) == 1 {
 				if literal, is_literal := call.arguments[0]^.(^StringLiteral); is_literal {
@@ -396,6 +426,26 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 		}
 		bundle_walk_expression(scan, node.options)
 	case ^CallExpression: bundle_walk_call(scan, slot, node)
+	case ^FunctionExpression: bundle_walk_function(scan, node)
+	case ^ClassExpression:    bundle_walk_class(scan, node)
+	case ^ArrowFunctionExpression:
+		scan.function_depth += 1
+		bundle_walk_parameters(scan, node.params[:])
+		switch body in node.body {
+		case ^Expression:     bundle_walk_expression(scan, body)
+		case ^BlockStatement: if body != nil { bundle_walk_statements(scan, body.body[:]) }
+		}
+		scan.function_depth -= 1
+	case:
+		bundle_walk_children(scan, slot)
+	}
+}
+
+// Nodes with nothing to record: visit their operands.
+@(private="file")
+bundle_walk_children :: proc(scan: ^BundleScan, slot: ^Expression) {
+	module := scan.module
+	#partial switch node in slot^ {
 	case ^NewExpression:
 		bundle_walk_expression(scan, node.callee)
 		for argument in node.arguments { bundle_walk_expression(scan, argument) }
@@ -426,23 +476,15 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 		for expression in node.expressions { bundle_walk_expression(scan, expression) }
 	case ^ArrayExpression:
 		for element in node.elements {
-			if inner, present := element.(^Expression); present { bundle_walk_expression(scan, inner) }
+			if inner, present := element.(^Expression); present {
+				bundle_walk_expression(scan, inner)
+			}
 		}
 	case ^ObjectExpression:
 		for property in node.properties {
 			if property.computed { bundle_walk_expression(scan, property.key) }
 			bundle_walk_expression(scan, property.value)
 		}
-	case ^FunctionExpression: bundle_walk_function(scan, node)
-	case ^ClassExpression:    bundle_walk_class(scan, node)
-	case ^ArrowFunctionExpression:
-		scan.function_depth += 1
-		bundle_walk_parameters(scan, node.params[:])
-		switch body in node.body {
-		case ^Expression:     bundle_walk_expression(scan, body)
-		case ^BlockStatement: if body != nil { bundle_walk_statements(scan, body.body[:]) }
-		}
-		scan.function_depth -= 1
 	}
 }
 

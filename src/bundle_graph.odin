@@ -160,11 +160,13 @@ bundle_module_transform :: proc(g: ^BundleGraph, module: ^BundleModule) -> bool 
 	}
 	for statement in job.program.body {
 		if alias, ok := statement^.(^TSImportEqualsDeclaration); ok {
-			bundle_error(g, module, alias.loc.start, "TypeScript 'import x = require()' is not supported by the bundler")
+			bundle_error(g, module, alias.loc.start,
+				"TypeScript 'import x = require()' is not supported by the bundler")
 			return false
 		}
 		if assignment, ok := statement^.(^TSExportAssignment); ok {
-			bundle_error(g, module, assignment.loc.start, "TypeScript 'export =' is not supported by the bundler")
+			bundle_error(g, module, assignment.loc.start,
+				"TypeScript 'export =' is not supported by the bundler")
 			return false
 		}
 	}
@@ -196,10 +198,18 @@ bundle_module_transform :: proc(g: ^BundleGraph, module: ^BundleModule) -> bool 
 // says so, or when it uses module syntax; everything else is CommonJS, which
 // is what Node would do with it.
 @(private="file")
-bundle_module_parse :: proc(g: ^BundleGraph, module: ^BundleModule, forced: Maybe(BundleModuleKind)) -> bool {
+bundle_module_parse :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	forced: Maybe(BundleModuleKind),
+) -> bool {
 	config := ParseConfig{lang_override = .JS}
 	if kind, known := forced.?; known {
-		if kind == .ESM { config.source_type_override = .Module } else { config.is_commonjs_override = true }
+		if kind == .ESM {
+			config.source_type_override = .Module
+		} else {
+			config.is_commonjs_override = true
+		}
 	}
 	bundle_module_parse_once(g, module, config)
 	if _, known := forced.?; !known && len(module.job.parser.errors) != 0 {
@@ -236,7 +246,9 @@ bundle_package_for :: proc(g: ^BundleGraph, directory: string) -> BundlePackage 
 	scope, config, err := module_resolver_package_scope(directory, g.alloc)
 	if err == .None && config != nil {
 		info.directory = scope
-		if kind, ok := module_manifest_member(config, "type").(string); ok { info.type_module = kind == "module" }
+		if kind, ok := module_manifest_member(config, "type").(string); ok {
+			info.type_module = kind == "module"
+		}
 		#partial switch value in module_manifest_member(config, "sideEffects") {
 		case bool:
 			if !value { info.side_effects = .None }
@@ -302,9 +314,13 @@ bundle_is_external :: proc(g: ^BundleGraph, specifier: string) -> bool {
 	if strings.contains(specifier, "://") || strings.has_prefix(specifier, "data:") { return true }
 	for pattern in g.options.externals {
 		if pattern == specifier { return true }
-		if strings.has_suffix(pattern, "*") && strings.has_prefix(specifier, pattern[:len(pattern) - 1]) { return true }
+		if strings.has_suffix(pattern, "*") && strings.has_prefix(specifier,
+			pattern[:len(pattern) - 1]) {
+			return true
+		}
 		// Marking a package external also covers its subpaths.
-		if strings.has_prefix(specifier, pattern) && len(specifier) > len(pattern) && specifier[len(pattern)] == '/' {
+		longer := len(specifier) > len(pattern)
+		if longer && strings.has_prefix(specifier, pattern) && specifier[len(pattern)] == '/' {
 			return true
 		}
 	}
@@ -344,14 +360,15 @@ bundle_record_resolve :: proc(g: ^BundleGraph, module: ^BundleModule, record: ^B
 		result, err = module_resolve(record.specifier, module.path, options, g.alloc)
 	}
 	if err != .None {
-		bundle_error(g, module, record.loc.start, "could not resolve '%s' (%v)", record.specifier, err)
+		bundle_error(g, module, record.loc.start, "could not resolve '%s' (%v)", record.specifier,
+			err)
 		return
 	}
 	switch result.kind {
 	case .Builtin:
 		if g.options.platform == .Browser {
 			bundle_error(g, module, record.loc.start,
-				"'%s' is a Node builtin; mark it external to bundle for the browser", record.specifier)
+				"'%s' is a Node builtin; mark it external for a browser bundle", record.specifier)
 			return
 		}
 		record.target = BUNDLE_EXTERNAL

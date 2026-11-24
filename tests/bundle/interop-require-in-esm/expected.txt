@@ -1,0 +1,4 @@
+before require
+data loaded
+required-data b.txt function
+EXPORTS {"value": "required-data"}

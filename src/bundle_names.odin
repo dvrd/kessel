@@ -63,7 +63,9 @@ bundle_names_assign :: proc(g: ^BundleGraph) {
 			if ref.resolved == SYMBOL_UNRESOLVED { names.free[ref.name] = true }
 		}
 		for symbol in module.model.symbols[1:] {
-			if symbol.scope != SCOPE_ROOT || module.wrap != .None { names.nested[symbol.name] = true }
+			if symbol.scope != SCOPE_ROOT || module.wrap != .None {
+				names.nested[symbol.name] = true
+			}
 		}
 	}
 	helper_names := [BundleHelper]string{
@@ -83,15 +85,19 @@ bundle_names_assign :: proc(g: ^BundleGraph) {
 		stem := bundle_path_stem(g, module.path)
 		switch module.wrap {
 		case .CJS:
-			module.wrapper_name = bundle_unique_name(g, fmt.aprintf("require_%s", stem, allocator = g.alloc))
+			module.wrapper_name = bundle_unique_name(g,
+				fmt.aprintf("require_%s", stem, allocator = g.alloc))
 		case .ESM:
-			module.wrapper_name = bundle_unique_name(g, fmt.aprintf("init_%s", stem, allocator = g.alloc))
+			module.wrapper_name = bundle_unique_name(g,
+				fmt.aprintf("init_%s", stem, allocator = g.alloc))
 		case .None:
 			bundle_names_roots(g, module, sites)
 		}
 		if module.kind != .ESM { continue }
-		module.namespace_name = bundle_unique_name(g, fmt.aprintf("%s_exports", stem, allocator = g.alloc))
-		module.default_name = bundle_unique_name(g, fmt.aprintf("%s_default", stem, allocator = g.alloc))
+		module.namespace_name = bundle_unique_name(g,
+			fmt.aprintf("%s_exports", stem, allocator = g.alloc))
+		module.default_name = bundle_unique_name(g,
+			fmt.aprintf("%s_default", stem, allocator = g.alloc))
 	}
 }
 
@@ -115,7 +121,11 @@ bundle_names_sites :: proc(g: ^BundleGraph) -> map[BundleSiteKey][dynamic]Bundle
 }
 
 @(private="file")
-bundle_names_roots :: proc(g: ^BundleGraph, module: ^BundleModule, sites: map[BundleSiteKey][dynamic]BundleSite) {
+bundle_names_roots :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	sites: map[BundleSiteKey][dynamic]BundleSite,
+) {
 	model := &module.model
 	for id in model.scopes[SCOPE_ROOT].symbols {
 		symbol := model.symbols[id]
@@ -163,27 +173,39 @@ bundle_interop_name :: proc(g: ^BundleGraph, module: ^BundleModule, node_mode: b
 	slot := 1 if node_mode else 0
 	if module.interop_names[slot] == "" {
 		stem := bundle_path_stem(g, module.path)
-		module.interop_names[slot] = bundle_unique_name(g, fmt.aprintf("import_%s", stem, allocator = g.alloc))
+		module.interop_names[slot] = bundle_unique_name(g,
+			fmt.aprintf("import_%s", stem, allocator = g.alloc))
 	}
 	return module.interop_names[slot]
 }
 
-bundle_external_interop_name :: proc(g: ^BundleGraph, external: ^BundleExternalImport, node_mode: bool) -> string {
+bundle_external_interop_name :: proc(
+	g: ^BundleGraph,
+	external: ^BundleExternalImport,
+	node_mode: bool,
+) -> string {
 	slot := 1 if node_mode else 0
 	if external.interop_names[slot] == "" {
 		stem := bundle_path_stem(g, external.specifier)
-		external.interop_names[slot] = bundle_unique_name(g, fmt.aprintf("import_%s", stem, allocator = g.alloc))
+		external.interop_names[slot] = bundle_unique_name(g,
+			fmt.aprintf("import_%s", stem, allocator = g.alloc))
 	}
 	return external.interop_names[slot]
 }
 
 // The bundle-scope binding for `name` imported from an external module.
-bundle_external_binding :: proc(g: ^BundleGraph, external: ^BundleExternalImport, name: string) -> string {
+bundle_external_binding :: proc(
+	g: ^BundleGraph,
+	external: ^BundleExternalImport,
+	name: string,
+) -> string {
 	if binding, found := external.names[name]; found { return binding }
 	base := name
 	switch {
-	case name == "*":       base = fmt.aprintf("%s_ns", bundle_path_stem(g, external.specifier), allocator = g.alloc)
-	case name == "default": base = fmt.aprintf("%s_default", bundle_path_stem(g, external.specifier), allocator = g.alloc)
+	case name == "*":       base = fmt.aprintf("%s_ns", bundle_path_stem(g, external.specifier),
+		allocator = g.alloc)
+	case name == "default": base = fmt.aprintf("%s_default",
+		bundle_path_stem(g, external.specifier), allocator = g.alloc)
 	case !bundle_is_identifier(name): base = "external_export"
 	}
 	binding := bundle_unique_name(g, base)
@@ -196,7 +218,8 @@ bundle_is_identifier :: proc(name: string) -> bool {
 	if name == "" { return false }
 	for i in 0..<len(name) {
 		c := name[i]
-		letter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c == '$' || c >= 0x80
+		letter := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+		letter ||= c == '_' || c == '$' || c >= 0x80
 		if !letter && !(i > 0 && c >= '0' && c <= '9') { return false }
 	}
 	return true

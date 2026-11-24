@@ -7,7 +7,20 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 
-CLI_BUNDLE_USAGE :: "Usage: kessel bundle <entry> [--outfile <file> | --outdir <directory>] [--format esm|cjs|iife] [--platform node|browser] [--external <name>] [--minify] [--sourcemap] [--global-name <name>] [--condition <name>] [--main-field <name>] [--tsconfig <file>] [--jsx=classic|automatic] [--jsx-factory <name>] [--jsx-fragment <name>] [--jsx-import-source=<name>] [--no-tree-shaking]"
+CLI_BUNDLE_USAGE :: `Usage: kessel bundle <entry> [options]
+  --outfile <file> | --outdir <directory>   where to write (default: stdout)
+  --format esm|cjs|iife                     output format (default: esm)
+  --platform node|browser                   resolution and builtins (default: node)
+  --external <name>                         leave a module unbundled; repeatable, trailing * allowed
+  --minify                                  minify the bundle
+  --sourcemap                               write <outfile>.map
+  --global-name <name>                      iife: assign the entry's exports to this global
+  --condition <name>                        extra package.json exports condition; repeatable
+  --main-field <name>                       package.json entry fields in order; repeatable
+  --tsconfig <file>                         resolve tsconfig paths
+  --jsx=classic|automatic                   JSX runtime (default: classic)
+  --jsx-factory <name> --jsx-fragment <name> --jsx-import-source=<name>
+  --no-tree-shaking                         keep unused statements and modules`
 
 @(private="file")
 CLIBundleArguments :: struct {
@@ -32,6 +45,18 @@ cli_bundle :: proc(args: []string) -> int {
 	options.externals = arguments.externals[:]
 	options.conditions = arguments.conditions[:]
 	options.main_fields = arguments.main_fields[:]
+	if outfile := cli_bundle_outfile(arguments); outfile != "" {
+		// The output file may not exist yet, so build its path lexically.
+		directory := filepath.dir(outfile)
+		if !filepath.is_abs(directory) {
+			if cwd, err := os.get_working_directory(context.temp_allocator); err == nil {
+				directory = strings.concatenate({cwd, "/", directory}, context.temp_allocator)
+			}
+		}
+		if cleaned, err := filepath.clean(directory, context.temp_allocator); err == nil {
+			options.map_directory = cleaned
+		}
+	}
 
 	graph: BundleGraph
 	output, ok := bundle_run(&graph, options)
@@ -111,7 +136,11 @@ cli_bundle_value :: proc(arguments: ^CLIBundleArguments, flag, value: string) ->
 			fmt.eprintf("Error: %s requires a binding such as h or React.createElement\n", flag)
 			return false
 		}
-		if flag == "--jsx-factory" { options.jsx_factory = value } else { options.jsx_fragment = value }
+		if flag == "--jsx-factory" {
+			options.jsx_factory = value
+		} else {
+			options.jsx_fragment = value
+		}
 	case "--global-name":
 		if !bundle_is_identifier(value) {
 			fmt.eprintln("Error: --global-name requires an identifier")
@@ -150,28 +179,42 @@ cli_bundle_report :: proc(diagnostic: BundleDiagnostic) {
 	label := "error" if diagnostic.severity == .Error else "warning"
 	switch {
 	case diagnostic.path == "": fmt.eprintf("%s: %s\n", label, diagnostic.message)
-	case diagnostic.line == 0:  fmt.eprintf("%s: %s: %s\n", diagnostic.path, label, diagnostic.message)
+	case diagnostic.line == 0:
+		fmt.eprintf("%s: %s: %s\n", diagnostic.path, label, diagnostic.message)
 	case:
-		fmt.eprintf("%s:%d:%d: %s: %s\n", diagnostic.path, diagnostic.line, diagnostic.column, label, diagnostic.message)
+		fmt.eprintf("%s:%d:%d: %s: %s\n", diagnostic.path, diagnostic.line, diagnostic.column,
+			label, diagnostic.message)
 	}
+}
+
+// --outdir names the file after the entry, with the extension Node needs to
+// load the chosen format.
+@(private="file")
+cli_bundle_outfile :: proc(arguments: CLIBundleArguments) -> string {
+	if arguments.outdir == "" { return arguments.outfile }
+	base := filepath.stem(filepath.base(arguments.options.entry))
+	extension := ".js"
+	switch arguments.options.format {
+	case .ESM:  extension = ".mjs"
+	case .CJS:  extension = ".cjs"
+	case .IIFE: extension = ".js"
+	}
+	return strings.concatenate({arguments.outdir, "/", base, extension}, context.temp_allocator)
 }
 
 @(private="file")
 cli_bundle_write :: proc(arguments: CLIBundleArguments, output: BundleOutput) -> int {
-	outfile := arguments.outfile
-	if arguments.outdir != "" {
-		base := filepath.stem(filepath.base(arguments.options.entry))
-		extension := ".cjs" if arguments.options.format == .CJS else ".js"
-		if arguments.options.format == .ESM { extension = ".mjs" }
-		outfile = strings.concatenate({arguments.outdir, "/", base, extension}, context.temp_allocator)
-	}
+	outfile := cli_bundle_outfile(arguments)
 	if outfile == "" {
 		// Without a destination there is nowhere to put a separate map file.
-		if output.map_json != "" { fmt.eprintln("warning: --sourcemap needs --outfile or --outdir; no map was written") }
+		if output.map_json != "" {
+			fmt.eprintln("warning: --sourcemap needs --outfile or --outdir; no map was written")
+		}
 		out_printf("%s", output.code)
 		return 0
 	}
-	if directory := filepath.dir(outfile); directory != "" && directory != "." && !os.is_dir(directory) {
+	directory := filepath.dir(outfile)
+	if directory != "" && directory != "." && !os.is_dir(directory) {
 		if err := os.make_directory_all(directory); err != nil {
 			fmt.eprintf("Error: cannot create directory for '%s'\n", outfile)
 			return 1
@@ -184,7 +227,8 @@ cli_bundle_write :: proc(arguments: CLIBundleArguments, output: BundleOutput) ->
 			fmt.eprintf("Error: cannot write '%s'\n", map_file)
 			return 1
 		}
-		code = strings.concatenate({code, "//# sourceMappingURL=", filepath.base(map_file), "\n"}, context.temp_allocator)
+		code = strings.concatenate({code, "//# sourceMappingURL=", filepath.base(map_file), "\n"},
+			context.temp_allocator)
 	}
 	if err := os.write_entire_file(outfile, transmute([]byte)code); err != nil {
 		fmt.eprintf("Error: cannot write '%s'\n", outfile)

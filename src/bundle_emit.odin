@@ -76,14 +76,16 @@ bundle_emit_wrapped :: proc(e: ^BundleEmit, module: ^BundleModule) {
 	fmt.sbprintf(&e.body, "// %s\n", module.display)
 	if module.wrap == .CJS {
 		helpers.used += {.CommonJS}
-		bundle_template(&e.body, "var @0 = @1(function (exports, module) {\n", module.wrapper_name, helpers.names[.CommonJS])
+		bundle_template(&e.body, "var @0 = @1(function (exports, module) {\n", module.wrapper_name,
+			helpers.names[.CommonJS])
 		bundle_print_module(e, module, 1)
 		strings.write_string(&e.body, "});\n")
 		return
 	}
 	helpers.used += {.ESM, .Export, .Namespace, .DefProp}
 	fmt.sbprintf(&e.body, "var %s = %s();\n", module.namespace_name, helpers.names[.Namespace])
-	bundle_template(&e.body, "var @0 = @1(function () {\n", module.wrapper_name, helpers.names[.ESM])
+	bundle_template(&e.body, "var @0 = @1(function () {\n", module.wrapper_name,
+		helpers.names[.ESM])
 	// Getters first: a module that imports this one in a cycle may read the
 	// namespace while the body below is still running.
 	fmt.sbprintf(&e.body, "  %s(%s, ", helpers.names[.Export], module.namespace_name)
@@ -109,14 +111,16 @@ bundle_emit_namespaces :: proc(e: ^BundleEmit) {
 	for module in g.modules {
 		if !module.included || module.wrap != .None || !module.needs_namespace { continue }
 		helpers.used += {.Export, .Namespace, .DefProp}
-		fmt.sbprintf(&e.body, "var %s = %s(%s(), ", module.namespace_name, helpers.names[.Export], helpers.names[.Namespace])
+		fmt.sbprintf(&e.body, "var %s = %s(%s(), ", module.namespace_name, helpers.names[.Export],
+			helpers.names[.Namespace])
 		bundle_write_export_getters(g, &e.body, module, "")
 		strings.write_string(&e.body, ");\n")
 	}
 	entry := g.modules[0]
 	if g.options.format == .CJS && entry.wrap == .None && entry.needs_namespace {
 		helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
-		fmt.sbprintf(&e.body, "module.exports = %s(%s);\n", helpers.names[.ToCommonJS], entry.namespace_name)
+		fmt.sbprintf(&e.body, "module.exports = %s(%s);\n", helpers.names[.ToCommonJS],
+			entry.namespace_name)
 	}
 }
 
@@ -138,7 +142,8 @@ bundle_emit_tail :: proc(e: ^BundleEmit, entry: ^BundleModule) {
 	if g.options.format == .IIFE {
 		if g.options.global_name != "" && entry.needs_namespace {
 			helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
-			fmt.sbprintf(&e.body, "return %s(%s);\n", helpers.names[.ToCommonJS], entry.namespace_name)
+			fmt.sbprintf(&e.body, "return %s(%s);\n", helpers.names[.ToCommonJS],
+				entry.namespace_name)
 		}
 		return
 	}
@@ -167,11 +172,11 @@ bundle_emit_tail :: proc(e: ^BundleEmit, entry: ^BundleModule) {
 	if len(specifiers) != 0 {
 		bundle_template(&e.body, "export { @0 };\n", strings.join(specifiers[:], ", ", g.alloc))
 	}
-	for star in entry.stars {
-		record := entry.records[star]
-		if record.target != BUNDLE_EXTERNAL { continue }
+	// `export *` is transitive, so a star reached through bundled modules is
+	// re-exported by the entry as well. Explicit exports still take precedence.
+	for specifier in bundle_external_stars(g, entry) {
 		strings.write_string(&e.body, "export * from ")
-		write_json_string(&e.body, record.specifier)
+		write_json_string(&e.body, specifier)
 		strings.write_string(&e.body, ";\n")
 	}
 }
@@ -198,7 +203,9 @@ bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^Bun
 			if name != "" { append(&interop, name) }
 		}
 	}
-	if len(interop) != 0 { fmt.sbprintf(header, "var %s;\n", strings.join(interop[:], ", ", g.alloc)) }
+	if len(interop) != 0 {
+		fmt.sbprintf(header, "var %s;\n", strings.join(interop[:], ", ", g.alloc))
+	}
 }
 
 // CommonJS code may read __filename and __dirname. After bundling the only
@@ -217,7 +224,8 @@ bundle_emit_file_paths :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 	}
 	if user == nil { return }
 	if g.options.format != .ESM || g.options.platform != .Node {
-		bundle_warning(g, user, nil, "__filename and __dirname are not defined in this output format")
+		bundle_warning(g, user, nil,
+			"__filename and __dirname are not defined in this output format")
 		return
 	}
 	to_path := bundle_unique_name(g, "__fileURLToPath")
@@ -244,7 +252,8 @@ bundle_emit_external_imports :: proc(g: ^BundleGraph, header: ^strings.Builder) 
 			case:
 				quoted := strings.builder_make(g.alloc)
 				write_json_string(&quoted, name)
-				append(&named, fmt.aprintf("%s as %s", strings.to_string(quoted), binding, allocator = g.alloc))
+				append(&named, fmt.aprintf("%s as %s", strings.to_string(quoted), binding,
+					allocator = g.alloc))
 			}
 		}
 		if namespace != "" {
@@ -275,7 +284,7 @@ bundle_emit_external_requires :: proc(g: ^BundleGraph, header: ^strings.Builder)
 			bound = true
 			fmt.sbprintf(header, "var %s = %s(require(", name, g.helpers.names[.ToESM])
 			write_json_string(header, external.specifier)
-			fmt.sbprintf(header, "), %d);\n", slot)
+			fmt.sbprintf(header, "), %d, 1);\n", slot)
 		}
 		if !bound {
 			strings.write_string(header, "require(")
@@ -290,7 +299,8 @@ bundle_emit_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 	helpers := &g.helpers
 	n := helpers.names
 	for &external in g.externals {
-		if g.options.format != .ESM && (external.interop_names[0] != "" || external.interop_names[1] != "") {
+		bound := external.interop_names[0] != "" || external.interop_names[1] != ""
+		if g.options.format != .ESM && bound {
 			helpers.used += {.ToESM, .CopyProps, .DefProp}
 		}
 	}
@@ -312,7 +322,9 @@ bundle_emit_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 `, n[.CopyProps], n[.DefProp])
 	}
 	if .Namespace in used {
-		bundle_template(header, "var @0 = () => @1(Object.create(null), Symbol.toStringTag, { value: \"Module\" });\n", n[.Namespace], n[.DefProp])
+		bundle_template(header,
+			"var @0 = () => @1(Object.create(null), Symbol.toStringTag, { value: \"Module\" });\n",
+			n[.Namespace], n[.DefProp])
 	}
 	if .Export in used {
 		bundle_template(header, `var @0 = (target, all) => {
@@ -321,6 +333,14 @@ bundle_emit_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 };
 `, n[.Export], n[.DefProp])
 	}
+	bundle_emit_wrapper_helpers(g, header)
+	bundle_emit_interop_helpers(g, header)
+}
+
+@(private="file")
+bundle_emit_wrapper_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
+	n := g.helpers.names
+	used := g.helpers.used
 	if .CommonJS in used {
 		// Like Node, forget a module whose body threw so a later require retries it.
 		bundle_template(header, `var @0 = (fn, module) => () => {
@@ -355,7 +375,6 @@ bundle_emit_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 };
 `, n[.ESM])
 	}
-	bundle_emit_interop_helpers(g, header)
 }
 
 @(private="file")
@@ -367,8 +386,11 @@ bundle_emit_interop_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
 		// One namespace per CommonJS module and mode, so every importer sees
 		// the same object. A default export is module.exports unless the
 		// importer honours the __esModule convention and the module sets it.
+		// An external loaded with require() may turn out to be an ES module;
+		// Node then hands back its namespace, which is used as it is.
 		bundle_template(header, `var @0 = [new WeakMap(), new WeakMap()];
-var @1 = (value, nodeMode) => {
+var @1 = (value, nodeMode, external) => {
+  if (external && value != null && value[Symbol.toStringTag] === "Module") return value;
   var keyed = value !== null && (typeof value === "object" || typeof value === "function");
   var cache = @2[nodeMode ? 1 : 0];
   var result = keyed ? cache.get(value) : void 0;
@@ -402,7 +424,9 @@ var @1 = (namespace) => {
 	}
 	if .Require in used {
 		if g.options.format == .ESM && g.options.platform == .Node {
-			bundle_template(header, "import { createRequire as @0 } from \"node:module\";\nvar @1 = @2(import.meta.url);\n", helpers.create_require, n[.Require], helpers.create_require)
+			bundle_template(header, `import { createRequire as @0 } from "node:module";
+var @1 = @0(import.meta.url);
+`, helpers.create_require, n[.Require])
 		} else {
 			bundle_template(header, `var @0 = typeof require !== "undefined" ? require : (name) => {
   throw new Error('Dynamic require of "' + name + '" is not supported');
@@ -423,7 +447,9 @@ bundle_emit_reparse :: proc(g: ^BundleGraph, code: string, job: ^ParseJob) -> bo
 	parse_job_run(job)
 	checker_run_for_job(job)
 	for err in job.parser.errors {
-		bundle_error(g, nil, nil, "internal error: the bundle is not valid JavaScript at offset %d: %s", err.start, err.message)
+		bundle_error(g, nil, nil,
+			"internal error: the bundle is not valid JavaScript at offset %d: %s", err.start,
+			err.message)
 	}
 	return len(job.parser.errors) == 0
 }
@@ -440,7 +466,12 @@ bundle_emit_validate :: proc(g: ^BundleGraph, code: string) {
 // Minify by running the existing minifier over the finished bundle, then
 // carry each of its mappings through the bundle's own.
 @(private="file")
-bundle_emit_minify :: proc(g: ^BundleGraph, code: string, mappings: []BundleMapping) -> (string, []BundleMapping) {
+bundle_emit_minify :: proc(
+	g: ^BundleGraph,
+	code: string,
+	mappings: []BundleMapping) -> (string,
+	[]BundleMapping,
+) {
 	job: ParseJob
 	defer parse_job_close(&job)
 	if !bundle_emit_reparse(g, code, &job) { return code, mappings }

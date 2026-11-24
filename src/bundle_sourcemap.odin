@@ -5,6 +5,7 @@ package kessel
 // them back through the transformer's map to the text the user wrote and
 // through the minifier's map forward to the final output.
 
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 
@@ -18,7 +19,11 @@ BundleMapping :: struct {
 	src:    u32,
 }
 
-bundle_map_collect :: proc(g: ^BundleGraph, segments: []BundleSegment, shift: u32) -> []BundleMapping {
+bundle_map_collect :: proc(
+	g: ^BundleGraph,
+	segments: []BundleSegment,
+	shift: u32,
+) -> []BundleMapping {
 	mappings := make([dynamic]BundleMapping, g.alloc)
 	for segment in segments {
 		module := g.modules[segment.module]
@@ -41,7 +46,11 @@ bundle_map_collect :: proc(g: ^BundleGraph, segments: []BundleSegment, shift: u3
 // Re-express `outer` records (minified offset to bundle offset) as mappings
 // into the original sources. The mapping in force at a bundle offset is the
 // last one at or before it, provided the offset is still inside its segment.
-bundle_map_compose :: proc(g: ^BundleGraph, inner: []BundleMapping, outer: []SourceMapRecord) -> []BundleMapping {
+bundle_map_compose :: proc(
+	g: ^BundleGraph,
+	inner: []BundleMapping,
+	outer: []SourceMapRecord,
+) -> []BundleMapping {
 	if len(inner) == 0 { return nil }
 	composed := make([dynamic]BundleMapping, 0, len(outer), g.alloc)
 	for record in outer {
@@ -53,7 +62,9 @@ bundle_map_compose :: proc(g: ^BundleGraph, inner: []BundleMapping, outer: []Sou
 		if lo == 0 { continue }
 		source := inner[lo - 1]
 		if record.src_offset >= source.limit { continue }
-		append(&composed, BundleMapping{gen = record.gen_offset, limit = max(u32), module = source.module, src = source.src})
+		append(&composed, BundleMapping{
+			gen = record.gen_offset, limit = max(u32), module = source.module, src = source.src,
+		})
 	}
 	slice.stable_sort_by(composed[:], proc(a, b: BundleMapping) -> bool { return a.gen < b.gen })
 	return composed[:]
@@ -73,7 +84,7 @@ bundle_map_json :: proc(g: ^BundleGraph, mappings: []BundleMapping, code: string
 	strings.write_string(&builder, `{"version":3,"sources":[`)
 	for module, index in sources {
 		if index != 0 { strings.write_byte(&builder, ',') }
-		write_json_string(&builder, g.modules[module].display)
+		write_json_string(&builder, bundle_map_source_path(g, g.modules[module]))
 	}
 	strings.write_string(&builder, `],"sourcesContent":[`)
 	for module, index in sources {
@@ -86,12 +97,40 @@ bundle_map_json :: proc(g: ^BundleGraph, mappings: []BundleMapping, code: string
 	return strings.to_string(builder)
 }
 
+// A map's `sources` are resolved against the map file's own location. Both
+// paths are absolute, so the relative form is: one `..` per directory of the
+// map's location below the common prefix, then the rest of the module path.
 @(private="file")
-bundle_map_encode :: proc(g: ^BundleGraph, mappings: []BundleMapping, code: string, sources: []i32, source_index: map[i32]int) -> string {
+bundle_map_source_path :: proc(g: ^BundleGraph, module: ^BundleModule) -> string {
+	base := g.options.map_directory
+	if base == "" || !filepath.is_abs(module.path) { return module.display }
+	from := strings.split(strings.trim_suffix(base, "/"), "/", g.alloc)
+	to := strings.split(module.path, "/", g.alloc)
+	common := 0
+	for common < len(from) && common < len(to) - 1 && from[common] == to[common] { common += 1 }
+	builder := strings.builder_make(g.alloc)
+	for _ in common..<len(from) { strings.write_string(&builder, "../") }
+	for part, index in to[common:] {
+		if index != 0 { strings.write_byte(&builder, '/') }
+		strings.write_string(&builder, part)
+	}
+	return strings.to_string(builder)
+}
+
+@(private="file")
+bundle_map_encode :: proc(
+	g: ^BundleGraph,
+	mappings: []BundleMapping,
+	code: string,
+	sources: []i32,
+	source_index: map[i32]int,
+) -> string {
 	gen_lines := source_line_offsets(code, g.alloc)
 	src_lines := make([][]u32, len(sources), g.alloc)
 	src_positions := make([]SourceMapPosition, len(sources), g.alloc)
-	for module, index in sources { src_lines[index] = source_line_offsets(g.modules[module].original, g.alloc) }
+	for module, index in sources {
+		src_lines[index] = source_line_offsets(g.modules[module].original, g.alloc)
+	}
 
 	builder := strings.builder_make(g.alloc)
 	scratch := make([dynamic]byte, 0, 16, g.alloc)
@@ -111,7 +150,8 @@ bundle_map_encode :: proc(g: ^BundleGraph, mappings: []BundleMapping, code: stri
 		first_on_line = false
 		source := source_index[mapping.module]
 		text := g.modules[mapping.module].original
-		src_line, src_col := sourcemap_position_at(text, src_lines[source], mapping.src, &src_positions[source])
+		src_line, src_col := sourcemap_position_at(text, src_lines[source], mapping.src,
+			&src_positions[source])
 		clear(&scratch)
 		vlq_encode_into(&scratch, int(i64(gen_col) - previous_gen_col))
 		vlq_encode_into(&scratch, int(i64(source) - previous_source))

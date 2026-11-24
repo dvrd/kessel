@@ -26,7 +26,11 @@ bundle_pure_annotations :: proc(module: ^BundleModule) -> BundleEffects {
 	return effects
 }
 
-bundle_statement_has_effects :: proc(module: ^BundleModule, statement: ^Statement, effects: BundleEffects) -> bool {
+bundle_statement_has_effects :: proc(
+	module: ^BundleModule,
+	statement: ^Statement,
+	effects: BundleEffects,
+) -> bool {
 	effects := effects
 	#partial switch node in statement^ {
 	case ^ImportDeclaration, ^ExportAllDeclaration, ^EmptyStatement, ^FunctionDeclaration:
@@ -60,7 +64,10 @@ bundle_statement_has_effects :: proc(module: ^BundleModule, statement: ^Statemen
 }
 
 @(private="file")
-bundle_declaration_has_effects :: proc(effects: ^BundleEffects, declaration: ^VariableDeclaration) -> bool {
+bundle_declaration_has_effects :: proc(
+	effects: ^BundleEffects,
+	declaration: ^VariableDeclaration,
+) -> bool {
 	// Disposal runs user code when the scope exits.
 	if declaration.kind == .Using || declaration.kind == .AwaitUsing { return true }
 	for declarator in declaration.declarations {
@@ -117,13 +124,18 @@ bundle_global_is_pure :: proc(name: string) -> bool {
 }
 
 @(private="file")
-bundle_expression_pure :: proc(effects: ^BundleEffects, expression: ^Expression, depth: int) -> bool {
+bundle_expression_pure :: proc(
+	effects: ^BundleEffects,
+	expression: ^Expression,
+	depth: int,
+) -> bool {
 	if expression == nil { return true }
 	// Too deep to analyse is treated as an effect, which is always safe.
 	if depth > BUNDLE_AST_DEPTH_MAX { return false }
 	next := depth + 1
 	#partial switch node in expression^ {
-	case ^NullLiteral, ^BooleanLiteral, ^NumericLiteral, ^StringLiteral, ^BigIntLiteral, ^RegExpLiteral,
+	case ^NullLiteral, ^BooleanLiteral, ^NumericLiteral, ^StringLiteral, ^BigIntLiteral,
+	     ^RegExpLiteral,
 	     ^FunctionExpression, ^ArrowFunctionExpression, ^ThisExpression, ^MetaProperty:
 		return true
 	case ^Identifier:
@@ -147,17 +159,30 @@ bundle_expression_pure :: proc(effects: ^BundleEffects, expression: ^Expression,
 		return false
 	case ^BinaryExpression:
 		if node.operator == .StrictEq || node.operator == .StrictNotEq {
-			return bundle_expression_pure(effects, node.left, next) && bundle_expression_pure(effects, node.right, next)
+			return bundle_expression_pure(effects, node.left, next) &&
+				bundle_expression_pure(effects, node.right, next)
 		}
 		// Other operators convert their operands, which can call valueOf.
 		if node.operator == .In || node.operator == .Instanceof { return false }
 		return bundle_expression_primitive(node.left) && bundle_expression_primitive(node.right)
 	case ^LogicalExpression:
-		return bundle_expression_pure(effects, node.left, next) && bundle_expression_pure(effects, node.right, next)
+		return bundle_expression_pure(effects, node.left, next) &&
+			bundle_expression_pure(effects, node.right, next)
 	case ^ConditionalExpression:
 		return bundle_expression_pure(effects, node.test, next) &&
 			bundle_expression_pure(effects, node.consequent, next) &&
 			bundle_expression_pure(effects, node.alternate, next)
+	case ^SequenceExpression, ^ArrayExpression, ^ObjectExpression, ^CallExpression, ^NewExpression:
+		return bundle_compound_pure(effects, expression, next)
+	}
+	return false
+}
+
+// Expressions made of a list of operands: pure when every operand is, a
+// spread (which runs an iterator) is absent, and a call is annotated.
+@(private="file")
+bundle_compound_pure :: proc(effects: ^BundleEffects, expression: ^Expression, next: int) -> bool {
+	#partial switch node in expression^ {
 	case ^SequenceExpression:
 		for inner in node.expressions {
 			if !bundle_expression_pure(effects, inner, next) { return false }
@@ -221,12 +246,16 @@ bundle_shake :: proc(g: ^BundleGraph) {
 	append(&work, BundleShakeItem{kind = .Module, module = 0})
 	if entry.kind == .ESM {
 		for name in bundle_export_names(g, entry) {
-			append(&work, BundleShakeItem{kind = .Target, target = bundle_resolve_hoisted(g, entry, name, 0)})
+			append(&work,
+				BundleShakeItem{kind = .Target, target = bundle_resolve_hoisted(g, entry, name, 0)})
 		}
 		// CommonJS and IIFE consumers receive the entry's namespace object.
 		// A named IIFE global gets one even when the entry exports nothing.
-		wanted := len(entry.export_names) != 0 if g.options.format == .CJS else g.options.global_name != ""
-		if g.options.format != .ESM && wanted && entry.wrap == .None { entry.needs_namespace = true }
+		wanted := g.options.global_name != ""
+		if g.options.format == .CJS { wanted = len(entry.export_names) != 0 }
+		if g.options.format != .ESM && wanted && entry.wrap == .None {
+			entry.needs_namespace = true
+		}
 	}
 	for len(work) > 0 {
 		item := pop(&work)
@@ -252,11 +281,14 @@ bundle_shake_module :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, in
 		}
 		if module.kind != .ESM { return }
 		for local in module.imports {
-			append(work, BundleShakeItem{kind = .Target, target = bundle_import_target(g, module, local)})
+			append(work,
+				BundleShakeItem{kind = .Target, target = bundle_import_target(g, module, local)})
 		}
 		for name in bundle_export_names(g, module) {
 			inner := bundle_resolve_hoisted(g, module, name, 0)
-			if inner.kind != .Symbol { append(work, BundleShakeItem{kind = .Target, target = inner}) }
+			if inner.kind != .Symbol {
+				append(work, BundleShakeItem{kind = .Target, target = inner})
+			}
 		}
 		return
 	}
@@ -273,7 +305,12 @@ bundle_shake_module :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, in
 }
 
 @(private="file")
-bundle_shake_part :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, index, part_index: i32) {
+bundle_shake_part :: proc(
+	g: ^BundleGraph,
+	work: ^[dynamic]BundleShakeItem,
+	index,
+	part_index: i32,
+) {
 	module := g.modules[index]
 	part := &module.parts[part_index]
 	if part.live { return }
@@ -292,19 +329,31 @@ bundle_shake_part :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, inde
 }
 
 @(private="file")
-bundle_shake_name :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, index: i32, name: string) {
+bundle_shake_name :: proc(
+	g: ^BundleGraph,
+	work: ^[dynamic]BundleShakeItem,
+	index: i32,
+	name: string,
+) {
 	module := g.modules[index]
 	if name in module.imports {
-		append(work, BundleShakeItem{kind = .Target, target = bundle_import_target(g, module, name)})
+		append(work,
+			BundleShakeItem{kind = .Target, target = bundle_import_target(g, module, name)})
 		return
 	}
 	for part in module.declared[name] {
-		if !module.parts[part].live { append(work, BundleShakeItem{kind = .Part, module = index, part = part}) }
+		if !module.parts[part].live {
+			append(work, BundleShakeItem{kind = .Part, module = index, part = part})
+		}
 	}
 }
 
 @(private="file")
-bundle_shake_target :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, target: BundleTarget) {
+bundle_shake_target :: proc(
+	g: ^BundleGraph,
+	work: ^[dynamic]BundleShakeItem,
+	target: BundleTarget,
+) {
 	switch target.kind {
 	case .Missing, .Ambiguous:
 	case .Symbol:
@@ -316,7 +365,8 @@ bundle_shake_target :: proc(g: ^BundleGraph, work: ^[dynamic]BundleShakeItem, ta
 		if module.wrap != .None || module.needs_namespace { return }
 		module.needs_namespace = true
 		for name in bundle_export_names(g, module) {
-			append(work, BundleShakeItem{kind = .Target, target = bundle_resolve_hoisted(g, module, name, 0)})
+			append(work, BundleShakeItem{kind = .Target, target = bundle_resolve_hoisted(g, module,
+				name, 0)})
 		}
 	case .Property, .External:
 		// The importing record must bind the interop object where it runs.
@@ -353,6 +403,7 @@ BundleOrderFrame :: struct {
 // explicit stack holds each module at most once.
 bundle_order :: proc(g: ^BundleGraph) {
 	entry := g.modules[0]
+	bundle_order_check_namespaces(g)
 	if entry.wrap == .None {
 		stack := make([dynamic]BundleOrderFrame, g.alloc)
 		append(&stack, BundleOrderFrame{module = 0})
@@ -368,7 +419,9 @@ bundle_order :: proc(g: ^BundleGraph) {
 				descended = bundle_order_record(g, &stack, module, i32(record_index))
 			}
 			if descended { continue }
-			if module.included { append(&g.order, BundleEvent{kind = .Code, module = module.index}) }
+			if module.included {
+				append(&g.order, BundleEvent{kind = .Code, module = module.index})
+			}
 			module.visit_state = 2
 			pop(&stack)
 		}
@@ -377,14 +430,37 @@ bundle_order :: proc(g: ^BundleGraph) {
 	for module in g.modules {
 		if module.wrap != .ESM || !module.included { continue }
 		for record in module.records {
-			if record.kind == .Import && record.target == BUNDLE_EXTERNAL { bundle_external_for(g, record.specifier) }
+			if record.kind == .Import && record.target == BUNDLE_EXTERNAL {
+				bundle_external_for(g, record.specifier)
+			}
+		}
+	}
+}
+
+// A namespace object lists its export names up front. The names an external
+// module contributes through `export *` cannot be listed, so such a module can
+// be imported by name but not as a whole. An ESM entry needs no namespace
+// object of its own and re-exports the star as-is.
+@(private="file")
+bundle_order_check_namespaces :: proc(g: ^BundleGraph) {
+	for module in g.modules {
+		materialized := module.needs_namespace || module.wrap == .ESM
+		if !module.included || module.kind != .ESM || !materialized { continue }
+		if len(bundle_external_stars(g, module)) != 0 {
+			bundle_error(g, module, nil,
+				"cannot build a namespace object: the module uses 'export *' from an external")
 		}
 	}
 }
 
 // Returns true when the traversal pushed a hoisted dependency to visit first.
 @(private="file")
-bundle_order_record :: proc(g: ^BundleGraph, stack: ^[dynamic]BundleOrderFrame, module: ^BundleModule, record_index: i32) -> bool {
+bundle_order_record :: proc(
+	g: ^BundleGraph,
+	stack: ^[dynamic]BundleOrderFrame,
+	module: ^BundleModule,
+	record_index: i32,
+) -> bool {
 	record := module.records[record_index]
 	if record.kind != .Import { return false }
 	if record.target == BUNDLE_EXTERNAL {
@@ -394,7 +470,8 @@ bundle_order_record :: proc(g: ^BundleGraph, stack: ^[dynamic]BundleOrderFrame, 
 	target := g.modules[record.target]
 	if target.wrap != .None {
 		if module.included && target.included {
-			append(&g.order, BundleEvent{kind = .Init, module = module.index, record = record_index})
+			append(&g.order,
+				BundleEvent{kind = .Init, module = module.index, record = record_index})
 		}
 		return false
 	}

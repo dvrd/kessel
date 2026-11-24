@@ -1,0 +1,24 @@
+{
+  "args": [
+    "--external",
+    "kept-external",
+    "--external",
+    "@scope/*"
+  ],
+  "formats": [
+    "esm",
+    "cjs"
+  ],
+  "in_place": true,
+  "contains": [
+    "INLINED_BODY",
+    "from \"kept-external\"",
+    "from \"kept-external/sub.js\"",
+    "from \"@scope/wild-card\""
+  ],
+  "excludes": [
+    "KEPT_EXTERNAL_BODY",
+    "KEPT_EXTERNAL_SUB",
+    "WILD_BODY"
+  ]
+}

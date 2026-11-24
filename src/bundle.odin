@@ -85,6 +85,7 @@ BundleOptions :: struct {
 	conditions:   []string,
 	main_fields:  []string, // empty: resolver default for the platform
 	tsconfig:     string,
+	map_directory: string,  // where the source map will live; "" keeps display paths
 	global_name:  string,   // IIFE only
 	jsx:          string,   // "classic" or "automatic"
 	jsx_import_source: string,
@@ -175,6 +176,8 @@ BundleModule :: struct {
 	typescript: bool, // unused imports may name types the transformer kept
 	side_effect_free: bool,
 	has_top_level_await, has_import_meta, has_hashbang: bool,
+	direct_eval: Maybe(u32), // offset of a direct eval() call, which reads bindings by name
+	uses_commonjs_objects: bool, // reads a free `module` or `exports`
 	lazy: bool, // required or imported dynamically somewhere
 
 	records: [dynamic]BundleRecord,
@@ -277,16 +280,34 @@ bundle_destroy :: proc(g: ^BundleGraph) {
 	g^ = {}
 }
 
-bundle_error :: proc(g: ^BundleGraph, module: ^BundleModule, offset: Maybe(u32), format: string, args: ..any) {
+bundle_error :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	offset: Maybe(u32),
+	format: string,
+	args: ..any,
+) {
 	bundle_report(g, .Error, module, offset, fmt.aprintf(format, ..args, allocator = g.alloc))
 }
 
-bundle_warning :: proc(g: ^BundleGraph, module: ^BundleModule, offset: Maybe(u32), format: string, args: ..any) {
+bundle_warning :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	offset: Maybe(u32),
+	format: string,
+	args: ..any,
+) {
 	bundle_report(g, .Warning, module, offset, fmt.aprintf(format, ..args, allocator = g.alloc))
 }
 
 @(private="file")
-bundle_report :: proc(g: ^BundleGraph, severity: BundleSeverity, module: ^BundleModule, offset: Maybe(u32), message: string) {
+bundle_report :: proc(
+	g: ^BundleGraph,
+	severity: BundleSeverity,
+	module: ^BundleModule,
+	offset: Maybe(u32),
+	message: string,
+) {
 	diagnostic := BundleDiagnostic{severity = severity, message = message}
 	if module != nil {
 		diagnostic.path = module.display
@@ -302,7 +323,11 @@ bundle_report :: proc(g: ^BundleGraph, severity: BundleSeverity, module: ^Bundle
 // maps must cite the text the user wrote, so walk back through the
 // transformer's map. Plain JavaScript modules have no map and map to
 // themselves.
-bundle_original_offset :: proc(module: ^BundleModule, offset: u32) -> (original: u32, mapped: bool) {
+bundle_original_offset :: proc(
+	module: ^BundleModule,
+	offset: u32) -> (original: u32,
+	mapped: bool,
+) {
 	records := module.transform_records
 	if records == nil { return offset, true }
 	lo, hi := 0, len(records)

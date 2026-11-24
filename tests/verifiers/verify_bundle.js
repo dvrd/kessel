@@ -17,11 +17,17 @@
 //              Node cannot run natively (JSX, bundler-style resolution)
 //   error      the build must fail with a message containing this text
 //   contains / excludes   strings the default esm bundle must / must not contain
+//   in_place   write the bundles next to the sources, for fixtures whose
+//              bundle must still find an external package at run time
+//   sourcemap  also build with --sourcemap and require every MARK_* string in
+//              the output to map back to the line of the original file that
+//              contains it
 //
 // Usage: node verify_bundle.js [kessel-binary] [--only=<fixture>] [--reference=<esbuild module dir>]
 
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
+const { SourceMap } = require('node:module');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -93,6 +99,33 @@ function entryKind(source, entry) {
   return /^\s*(import|export)\b/m.test(fs.readFileSync(path.join(source, entry), 'utf8')) ? 'esm' : 'cjs';
 }
 
+// Every marker in the bundle must lead back to its own line in its own file.
+function checkSourceMap(label, outfile) {
+  const code = fs.readFileSync(outfile, 'utf8');
+  const mapFile = outfile + '.map';
+  assert.ok(code.trimEnd().endsWith('//# sourceMappingURL=' + path.basename(mapFile)), `${label}: no sourceMappingURL`);
+  const payload = JSON.parse(fs.readFileSync(mapFile, 'utf8'));
+  payload.sources.forEach((source, index) => {
+    const original = path.resolve(path.dirname(mapFile), source);
+    assert.equal(payload.sourcesContent[index], fs.readFileSync(original, 'utf8'), `${label}: sourcesContent of ${source}`);
+  });
+  const map = new SourceMap(payload);
+  const lines = code.split('\n');
+  let markers = 0;
+  lines.forEach((line, lineIndex) => {
+    for (const match of line.matchAll(/MARK_[A-Z_]+/g)) {
+      const entry = map.findEntry(lineIndex, match.index);
+      assert.ok(entry && entry.originalSource, `${label}: ${match[0]} is unmapped`);
+      const file = path.resolve(path.dirname(mapFile), entry.originalSource.replace(/^file:\/\//, ''));
+      const originalLine = fs.readFileSync(file, 'utf8').split('\n')[entry.originalLine];
+      assert.ok(originalLine.includes(match[0]),
+        `${label}: ${match[0]} maps to ${path.basename(file)}:${entry.originalLine + 1} (${JSON.stringify(originalLine)})`);
+      markers += 1;
+    }
+  });
+  assert.ok(markers >= 5, `${label}: expected the markers to survive, found ${markers}`);
+}
+
 let checks = 0;
 const failures = [];
 
@@ -103,7 +136,7 @@ async function checkFixture(name) {
   const entry = config.entry || ENTRY_NAMES.find(candidate => fs.existsSync(path.join(source, candidate)));
   assert.ok(entry, `${name}: no entry file`);
   const extra = config.args || [];
-  const out = path.join(temp, name, 'out');
+  const out = config.in_place ? path.join(source, 'out') : path.join(temp, name, 'out');
   fs.mkdirSync(out, { recursive: true });
 
   if (config.error) {
@@ -133,7 +166,8 @@ async function checkFixture(name) {
     const extension = { esm: 'mjs', cjs: 'cjs', iife: 'iife.js' }[variant.format];
     const outfile = path.join(out, `bundle${suffix}.${extension}`);
     const formatFlags = variant.format === 'iife' ? ['--global-name', 'bundleResult'] : [];
-    const built = await bundle(source, entry, outfile, variant.format, [...extra, ...formatFlags, ...variant.flags]);
+    const mapFlags = config.sourcemap ? ['--sourcemap'] : [];
+    const built = await bundle(source, entry, outfile, variant.format, [...extra, ...formatFlags, ...mapFlags, ...variant.flags]);
     checks += 1;
     assert.equal(built.status, 0, `${label}: build failed\n${built.stderr}`);
     // An ESM bundle of a CommonJS entry exports module.exports as its default.
@@ -145,6 +179,7 @@ async function checkFixture(name) {
     const comparable = text => variant.flags.includes('--minify')
       ? text.replace(/Cannot access '[^']+' before initialization/g, "Cannot access '?' before initialization") : text;
     assert.equal(comparable(actual), comparable(expected), `${label}: behaviour differs from the original`);
+    if (config.sourcemap) checkSourceMap(label, outfile);
     if (variant.format === 'esm' && variant.flags.length === 0) {
       const code = fs.readFileSync(outfile, 'utf8');
       for (const text of config.contains || []) assert.ok(code.includes(text), `${label}: missing ${JSON.stringify(text)}`);

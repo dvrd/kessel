@@ -55,7 +55,8 @@ bundle_target_text :: proc(g: ^BundleGraph, target: BundleTarget, callee: bool) 
 		importer := g.modules[target.via_module]
 		external := bundle_external_for(g, importer.records[target.via_record].specifier)
 		if g.options.format == .ESM { return bundle_external_binding(g, external, target.name) }
-		strings.write_string(&builder, bundle_external_interop_name(g, external, importer.node_mode))
+		strings.write_string(&builder,
+			bundle_external_interop_name(g, external, importer.node_mode))
 		if target.name != "*" {
 			bundle_write_accessor(&builder, target.name)
 			member = true
@@ -75,18 +76,28 @@ bundle_init_text :: proc(g: ^BundleGraph, importer: ^BundleModule, record: Bundl
 	if !record.used { return fmt.aprintf("%s();", target.wrapper_name, allocator = g.alloc) }
 	g.helpers.used += {.ToESM, .CopyProps, .DefProp}
 	return fmt.aprintf("%s = %s(%s(), %d);", bundle_interop_name(g, target, importer.node_mode),
-		g.helpers.names[.ToESM], target.wrapper_name, 1 if importer.node_mode else 0, allocator = g.alloc)
+		g.helpers.names[.ToESM], target.wrapper_name, 1 if importer.node_mode else 0,
+		allocator = g.alloc)
 }
 
 // `{ name: () => binding, ... }` for a namespace object. Getters keep the
 // exports live and defer every read until a consumer asks.
-bundle_write_export_getters :: proc(g: ^BundleGraph, builder: ^strings.Builder, module: ^BundleModule, indent: string) {
+bundle_write_export_getters :: proc(
+	g: ^BundleGraph,
+	builder: ^strings.Builder,
+	module: ^BundleModule,
+	indent: string,
+) {
 	strings.write_string(builder, "{\n")
 	for name in bundle_export_names(g, module) {
 		target := bundle_resolve_hoisted(g, module, name, 0)
 		strings.write_string(builder, indent)
 		strings.write_string(builder, "  ")
-		if bundle_is_identifier(name) { strings.write_string(builder, name) } else { write_json_string(builder, name) }
+		if bundle_is_identifier(name) {
+			strings.write_string(builder, name)
+		} else {
+			write_json_string(builder, name)
+		}
 		strings.write_string(builder, ": () => ")
 		strings.write_string(builder, bundle_target_text(g, target, false))
 		strings.write_string(builder, ",\n")
@@ -102,7 +113,9 @@ bundle_print_module :: proc(e: ^BundleEmit, module: ^BundleModule, depth: int) {
 	renamed := make(map[u32]string, g.alloc)
 	bundle_print_renames(g, module, &renamed)
 	bundle_print_records(g, module, &renamed)
-	statements := bundle_print_statements(g, module)
+	kept := make([]bool, len(module.job.program.body), g.alloc)
+	statements := bundle_print_statements(g, module, kept)
+	comments := bundle_print_comments(g, module, kept)
 	if g.options.format == .CJS && module.wrap == .None {
 		// CommonJS gives the file a `this`; an ES module's is undefined.
 		for slot in module.this_nodes {
@@ -121,7 +134,7 @@ bundle_print_module :: proc(e: ^BundleEmit, module: ^BundleModule, depth: int) {
 	codegen_enable_sourcemap(&cg, &sm)
 	program := module.job.program^
 	program.body = statements
-	codegen_program(&cg, &program, module.job.lexer.comments[:])
+	codegen_program(&cg, &program, comments)
 	if cg.pos != 0 && cg.buf[cg.pos - 1] != '\n' { cg_byte(&cg, '\n') }
 
 	base := strings.builder_len(e.body)
@@ -136,7 +149,10 @@ bundle_print_renames :: proc(g: ^BundleGraph, module: ^BundleModule, renamed: ^m
 	model := &module.model
 	if module.kind == .ESM {
 		for ref in model.refs {
-			if ref.resolved == SYMBOL_UNRESOLVED || model.symbols[ref.resolved].scope != SCOPE_ROOT { continue }
+			if ref.resolved == SYMBOL_UNRESOLVED { continue }
+			if model.symbols[ref.resolved].scope != SCOPE_ROOT {
+				continue
+			}
 			if ref.name in module.imports {
 				target := bundle_import_target(g, module, ref.name)
 				// Only an unused type import of a TypeScript source reaches here unresolved.
@@ -175,13 +191,16 @@ bundle_print_records :: proc(g: ^BundleGraph, module: ^BundleModule, renamed: ^m
 			text = fmt.aprintf("%s()", target.wrapper_name, allocator = g.alloc)
 		case record.kind == .Require:
 			g.helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
-			text = fmt.aprintf("%s(%s())", g.helpers.names[.ToCommonJS], target.wrapper_name, allocator = g.alloc)
+			text = fmt.aprintf("%s(%s())", g.helpers.names[.ToCommonJS], target.wrapper_name,
+				allocator = g.alloc)
 		case target.wrap == .CJS:
 			g.helpers.used += {.ToESM, .CopyProps, .DefProp}
-			text = fmt.aprintf("Promise.resolve().then(() => %s(%s(), %d))", g.helpers.names[.ToESM],
+			text = fmt.aprintf("Promise.resolve().then(() => %s(%s(), %d))",
+				g.helpers.names[.ToESM],
 				target.wrapper_name, 1 if module.node_mode else 0, allocator = g.alloc)
 		case:
-			text = fmt.aprintf("Promise.resolve().then(%s)", target.wrapper_name, allocator = g.alloc)
+			text = fmt.aprintf("Promise.resolve().then(%s)", target.wrapper_name,
+				allocator = g.alloc)
 		}
 		replacement := new(Identifier, g.alloc)
 		replacement^ = {loc = record.loc, name = text}
@@ -202,7 +221,11 @@ bundle_print_statement :: proc(g: ^BundleGraph, value: Statement) -> ^Statement 
 }
 
 @(private="file")
-bundle_print_rename_function :: proc(module: ^BundleModule, function: ^FunctionDeclaration, fallback: BindingIdentifier) {
+bundle_print_rename_function :: proc(
+	module: ^BundleModule,
+	function: ^FunctionDeclaration,
+	fallback: BindingIdentifier,
+) {
 	id, named := function.id.?
 	if !named { id = fallback }
 	if final, known := module.names[id.name]; known { id.name = final }
@@ -210,7 +233,11 @@ bundle_print_rename_function :: proc(module: ^BundleModule, function: ^FunctionD
 }
 
 @(private="file")
-bundle_print_rename_class :: proc(module: ^BundleModule, class: ^ClassDeclaration, fallback: BindingIdentifier) {
+bundle_print_rename_class :: proc(
+	module: ^BundleModule,
+	class: ^ClassDeclaration,
+	fallback: BindingIdentifier,
+) {
 	id, named := class.id.?
 	if !named { id = fallback }
 	if final, known := module.names[id.name]; known { id.name = final }
@@ -220,10 +247,16 @@ bundle_print_rename_class :: proc(module: ^BundleModule, class: ^ClassDeclaratio
 // Turn module syntax into plain declarations. Imports and re-exports vanish:
 // the rename table already points their uses at the real bindings.
 @(private="file")
-bundle_print_statements :: proc(g: ^BundleGraph, module: ^BundleModule) -> [dynamic]^Statement {
+bundle_print_statements :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	kept: []bool,
+) -> [dynamic]^Statement {
 	body := module.job.program.body[:]
 	out := make([dynamic]^Statement, 0, len(body), g.alloc)
 	for statement, index in body {
+		before := len(out)
+		defer kept[index] = len(out) != before
 		if module.kind == .CJS {
 			append(&out, statement)
 			continue
@@ -262,11 +295,32 @@ bundle_print_statements :: proc(g: ^BundleGraph, module: ^BundleModule) -> [dyna
 	return out
 }
 
+// A comment travels with the statement it sits in or precedes. Comments of
+// statements that were removed would otherwise describe code that is gone.
+// Licence comments always stay.
+@(private="file")
+bundle_print_comments :: proc(g: ^BundleGraph, module: ^BundleModule, kept: []bool) -> []Comment {
+	body := module.job.program.body[:]
+	out := make([dynamic]Comment, 0, len(module.job.lexer.comments), g.alloc)
+	next := 0 // first statement that ends after the current comment starts
+	for comment in module.job.lexer.comments {
+		for next < len(body) && get_statement_loc(body[next]).end <= comment.start { next += 1 }
+		if next == len(body) || kept[next] || codegen_comment_kind(comment) == .Legal {
+			append(&out, comment)
+		}
+	}
+	return out[:]
+}
+
 // `export default` becomes a declaration of the module's default binding.
 // An anonymous function stays a hoisted function declaration, so a cyclic
 // importer can still call it before this module's statements have run.
 @(private="file")
-bundle_print_default :: proc(g: ^BundleGraph, module: ^BundleModule, node: ^ExportDefaultDeclaration) -> ^Statement {
+bundle_print_default :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	node: ^ExportDefaultDeclaration,
+) -> ^Statement {
 	at := Loc{node.loc.start, node.loc.start}
 	fallback := BindingIdentifier{loc = at, name = module.default_name}
 	switch inner in node.declaration^ {
@@ -279,12 +333,13 @@ bundle_print_default :: proc(g: ^BundleGraph, module: ^BundleModule, node: ^Expo
 			bundle_print_rename_class(module, declaration, fallback)
 			return bundle_print_statement(g, declaration)
 		}
-		panic("the link source is plain JavaScript; a default export is a function, class or expression")
+		panic("a default export in plain JavaScript is a function, class or expression")
 	case ^Expression:
 		id := new(Identifier, g.alloc)
 		id^ = {loc = at, name = module.default_name}
 		declaration := new(VariableDeclaration, g.alloc)
-		declaration^ = {loc = node.loc, kind = .Const, declarations = make([dynamic]VariableDeclarator, 1, g.alloc)}
+		declaration^ = {loc = node.loc, kind = .Const, declarations = make(
+			[dynamic]VariableDeclarator, 1, g.alloc)}
 		declaration.declarations[0] = {loc = node.loc, id = id, init = inner}
 		return bundle_print_statement(g, declaration)
 	}
