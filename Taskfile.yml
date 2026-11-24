@@ -305,11 +305,20 @@ tasks:
       - node tests/verifiers/verify_module_lexer_reference.js --oracle-all
 
   test:regexp:
-    desc: Check regexp tree structure, Unicode sets, and diagnostics.
-    deps: [build]
+    desc: Check regexp tree structure, Unicode sets, diagnostics, and Node accept/reject agreement.
+    deps: [build, build:lib]
     cmds:
       - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_regex_ast_structure,coverage.test_regex_ast_unicode_sets,coverage.test_regex_ast_legacy_and_invalid,coverage.test_regex_ast_character_values,coverage.test_regex_ast_legacy_code_units,coverage.test_regex_ast_modifiers,coverage.test_regex_ast_duplicate_names,coverage.test_regex_ast_annex_b,coverage.test_regex_ast_legacy_octal,coverage.test_regex_ast_class_atoms,coverage.test_regex_ast_set_notation,coverage.test_regex_ast_properties
       - node tests/verifiers/verify_regex_ast_cli.js
+      - node tests/verifiers/verify_regex_ast_reference.js
+
+  test:regexp:reference:
+    desc: "Compare regexp trees with the oxc parser (needs ../oxc and cargo; set OXC_DIR to override)."
+    deps: [build:lib]
+    vars:
+      OXC_DIR: '{{.OXC_DIR | default "../oxc"}}'
+    cmds:
+      - node tests/verifiers/verify_regex_ast_reference.js --oxc {{.OXC_DIR}}
 
   test:coverage:update:
     desc: "Regenerate every snap baseline. Run after a deliberate parser change."
