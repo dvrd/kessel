@@ -418,7 +418,9 @@ async function formatting(client) {
   const [wrapped] = (await client.next(70)).result;
   assert.deepEqual(wrapped.range, range(0, 0, declaration.length));
   assert.equal(wrapped.newText, 'import type {\n\t' + names.join(',\n\t') + ',\n} from "pkg";\n');
-  const tagged = 'const text = tag`first\nsecond\r\nlast`;\r\n';
+  // A `css` template keeps its text: Prettier would format its contents as
+  // CSS, which the formatter does not do, so the statement is left alone.
+  const tagged = 'const text = css`first\nsecond\r\nlast`;\r\n';
   client.send(change(scratch, 2, {text: tagged + declaration}), requestFormat(scratch, {tabSize:4, insertSpaces:false}));
   await diagnostics(client, scratch, 2);
   const [mixed] = (await client.next(70)).result;
