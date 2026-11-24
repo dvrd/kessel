@@ -23,6 +23,10 @@ TransformState :: struct {
 	helpers:       [TransformHelper]string, // Empty until the helper is first used.
 	model:         ^SemanticModel,          // Built on first use; most files never need it.
 	enums:         EnumConstants,           // Enum declarations found while building the model.
+	target:        TransformTarget,
+	temp_scopes:   [dynamic][dynamic]string, // Per open function body; the program is first.
+	local_refs:    map[u32]bool,            // Identifier offsets bound to a declaration in the file.
+	math_checked:  bool,
 }
 
 // Reads of intrinsics inside a helper resolve in module scope, so a source
@@ -86,12 +90,16 @@ transform_state_init :: proc(
 	if decorators == .Standard {
 		return StripDiagnostic{what = "standard decorators are not lowered yet"}
 	}
-	if decorators == .Preserve { return nil }
+	target, known := transform_target_parse(options.target)
+	if !known { return StripDiagnostic{what = "expected a target from es2015 to es2024, or esnext"} }
+	if decorators == .Preserve && target == .ESNext { return nil }
 	state := new(TransformState, job.arena_alloc)
 	state^ = {
-		job = job, allocator = job.arena_alloc,
+		job = job, allocator = job.arena_alloc, target = target,
 		decorators = decorators, emit_metadata = options.emit_decorator_metadata,
 	}
+	state.temp_scopes = make([dynamic][dynamic]string, 0, 8, state.allocator)
+	append(&state.temp_scopes, make([dynamic]string, 0, 4, state.allocator))
 	cg.transform = state
 	return nil
 }
@@ -114,6 +122,8 @@ transform_helper :: proc(cg: ^Codegen, helper: TransformHelper) -> string {
 transform_finish_program :: proc(cg: ^Codegen) {
 	state := cg.transform
 	if state == nil { return }
+	assert(len(state.temp_scopes) == 1)
+	target_declare_temps(cg, state.temp_scopes[0][:])
 	for name, helper in state.helpers {
 		if name == "" { continue }
 		cg_str(cg, "function ")
@@ -173,5 +183,14 @@ transform_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expressi
 	if class, is_class := expr^.(^ClassExpression); is_class {
 		if state.decorators == .Legacy { transform_legacy_class_expression(cg, class) }
 	}
-	return expr
+	if state.target == .ESNext { return expr }
+	// A rule may produce syntax that an older target lowers again: `a ??= b`
+	// becomes `a ?? (a = b)` and then a conditional. Three steps is the longest chain.
+	value := expr
+	for _ in 0..<3 {
+		lowered := target_lower(cg, value)
+		if lowered == nil { break }
+		value = lowered
+	}
+	return value
 }

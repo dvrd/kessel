@@ -45,6 +45,7 @@ transform_class_declaration :: proc(
 ) -> bool {
 	state := cg.transform
 	if state == nil || class == nil || class.declare { return false }
+	target_check_class(cg, class)
 	if state.decorators != .Legacy { return false }
 	plan := LegacyClass{class = class}
 	plan.members.allocator = state.allocator
@@ -298,10 +299,17 @@ legacy_class_emit :: proc(cg: ^Codegen, plan: ^LegacyClass, export: TransformExp
 	class := plan.class
 	legacy_class_temporaries(cg, plan)
 	binds := plan.rebinds || plan.anonymous
+	// A target without static blocks has no static initializers either, so
+	// nothing can read the alias before the class expression has a value.
+	static_blocks := cg.transform.target >= .ES2022
 	if binds {
 		cg_str(cg, "let ")
 		cg_str(cg, plan.name)
 		cg_infix_operator(cg, "=")
+		if plan.alias != "" && !static_blocks {
+			cg_str(cg, plan.alias)
+			cg_infix_operator(cg, "=")
+		}
 		// A property definition names an anonymous class "default", as the export would.
 		if plan.anonymous { cg_str(cg, "{default:"); cg_space(cg) }
 	} else if export == .Named {
@@ -311,7 +319,7 @@ legacy_class_emit :: proc(cg: ^Codegen, plan: ^LegacyClass, export: TransformExp
 	}
 	class.decorators = nil
 	for &element in class.body.body { element.decorators = nil }
-	if plan.alias != "" { legacy_alias_block(cg.transform, class, plan.alias) }
+	if plan.alias != "" && static_blocks { legacy_alias_block(cg.transform, class, plan.alias) }
 	if cg.sm != nil { sourcemap_record(cg.sm, u32(cg.pos), class.loc.start) }
 	gen_class_like(
 		cg, "" if plan.anonymous else plan.name, class.super_class, class.body,

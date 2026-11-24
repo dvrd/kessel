@@ -466,6 +466,7 @@ gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
 		stmt_local := stmt
 		cg_record_stmt_mapping(cg, &stmt_local)
 	}
+	transform_lower_statement(cg, stmt)
 	if cg.cfg.lower_using {
 		#partial switch _ in stmt {
 		case ^LabeledStatement, ^ForStatement: if codegen_resource_for(cg, stmt) { return }
@@ -1644,6 +1645,7 @@ gen_function_params_and_body :: proc(
 	cg.param_properties_after_super = nil
 	defer cg.param_properties_after_super = outer_properties
 	gen_ts_type_parameter_declaration(cg, type_parameters)
+	transform_function_check(cg, async, generator, params, body.loc)
 	cg_byte(cg, '(')
 	first_param := 0
 	if cg.cfg.strip_types && len(params) > 0 {
@@ -1685,10 +1687,12 @@ gen_function_params_and_body :: proc(
 	}
 	kind := resource_list_kind(cg, body.body[directive_count:])
 	outer := codegen_resource_open(cg, kind)
+	transform_function_open(cg)
 	for i in directive_count..<len(body.body) {
 		gen_statement_list_item(cg, body.body[:], i)
 		codegen_end_item_line(cg, body.body[:], i, comments, &comment_index, body.loc.end)
 	}
+	transform_function_close(cg)
 	codegen_resource_close(cg, kind, outer)
 	cg.depth -= 1
 	cg_byte(cg, '}')

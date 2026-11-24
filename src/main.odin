@@ -580,6 +580,9 @@ main :: proc() {
 			case command == "transform" && strings.has_prefix(arg, "--decorators="):
 				transform_options.decorators = strings.trim_prefix(arg, "--decorators=")
 				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--target="):
+				transform_options.target = strings.trim_prefix(arg, "--target=")
+				i += 1
 			case command == "transform" && arg == "--emit-decorator-metadata":
 				transform_options.emit_decorator_metadata = true
 				i += 1

@@ -145,6 +145,26 @@ function checkSourceMap(binary, temp, run) {
   }
 }
 
+// Below ES2022 there are no static blocks to publish the alias from, and no
+// static initializers that could need it early.
+function checkOlderTarget(binary, temp, run) {
+  const directory = fs.mkdtempSync(path.join(temp, 'decorator-target-'));
+  const file = path.join(directory, 'older.ts');
+  fs.writeFileSync(file, 'function swap(target: any): any { const next = class extends target {}; ' +
+    '(next as any).swapped = true; return next; }\n' +
+    '@swap class Self { make(): Self { return new Self(); } static create(): Self { return new Self(); }\n' +
+    '  @(((t: any, k: string, d: PropertyDescriptor) => { d.enumerable = true; }) as any) seen?(): number { return this?.constructor.name.length ?? 0; } }\n' +
+    'console.log([(Self as any).swapped, new Self().make() instanceof Self, Self.create() instanceof Self,\n' +
+    '  Object.keys(Object.getPrototypeOf(Self.prototype)).join(), new Self().seen!()].join());');
+  for (const target of ['es2015', 'es2021', 'es2022']) {
+    for (const flags of [[], ['--minified']]) {
+      const code = run(binary, ['transform', file, '--decorators=legacy', '--target=' + target, ...flags]);
+      assert.equal(/static\s*\{/.test(code), target === 'es2022', target);
+      assert.equal(execute(directory, 'older.mjs', code).trim(), 'true,true,true,seen,4');
+    }
+  }
+}
+
 module.exports = function verifyDecorators(binary, temp, run, oracle) {
   const directory = fs.mkdtempSync(path.join(temp, 'decorators-'));
   let references = 0;
@@ -181,6 +201,7 @@ module.exports = function verifyDecorators(binary, temp, run, oracle) {
   const diagnostics = checkDiagnostics(binary, temp);
   checkExports(binary, temp, run);
   checkSourceMap(binary, temp, run);
+  checkOlderTarget(binary, temp, run);
   const compared = oracle ? ` TypeScript matched ${references} in order and OXC as record sets, ` +
     `apart from ${excluded} documented records.` : '';
   console.log(`Legacy decorators passed ${names.length} runtime fixtures in both output modes, ` +

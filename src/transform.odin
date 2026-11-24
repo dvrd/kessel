@@ -9,6 +9,7 @@ TransformOptions :: struct {
 	optimize_const_enums, lower_using: bool,
 	decorators: string, // "", "preserve", "legacy" or "standard"
 	emit_decorator_metadata: bool,
+	target: string, // "es2015" to "es2024", or "esnext"; empty means esnext
 }
 
 // The caller owns the codegen buffer and optional source map. All lowering
