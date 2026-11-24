@@ -758,13 +758,24 @@ function resolverOptions(options) {
     throw new TypeError('kessel: resolver options must be an object');
   }
   const { mode = 'import', tsconfig = '', browser = false, preserveSymlinks = false,
-    mainFields, exportsFields, importsFields, extensions, mainFiles, modules, conditions, aliases = [], extensionAlias = {} } = options;
+    mainFields, exportsFields, importsFields, extensions, mainFiles, modules, conditions, aliases = [], extensionAlias = {},
+    roots = [], fallback = [], restrictions = [], fullySpecified, preferRelative = false, preferAbsolute = false,
+    resolveToContext = false, explicitConditions = false, tsconfigReferences = false } = options;
   if (mode !== 'import' && mode !== 'require') throw new TypeError('kessel: mode must be import or require');
   if (typeof tsconfig !== 'string') throw new TypeError('kessel: tsconfig must be a string');
   if (typeof browser !== 'boolean' || typeof preserveSymlinks !== 'boolean') {
     throw new TypeError('kessel: browser and preserveSymlinks must be booleans');
   }
   if (!Array.isArray(aliases)) throw new TypeError('kessel: aliases must be an array');
+  const switches = { preferRelative, preferAbsolute, resolveToContext, explicitConditions, tsconfigReferences };
+  for (const [name, value] of Object.entries(switches)) {
+    if (typeof value !== 'boolean') throw new TypeError(`kessel: ${name} must be a boolean`);
+  }
+  if (fullySpecified !== undefined && typeof fullySpecified !== 'boolean') {
+    throw new TypeError('kessel: fullySpecified must be a boolean');
+  }
+  if (!Array.isArray(fallback)) throw new TypeError('kessel: fallback must be an array');
+  if (!Array.isArray(restrictions)) throw new TypeError('kessel: restrictions must be an array');
   if (extensionAlias === null || typeof extensionAlias !== 'object' || Array.isArray(extensionAlias)) {
     throw new TypeError('kessel: extensionAlias must map suffixes to arrays of replacements');
   }
@@ -786,6 +797,28 @@ function resolverOptions(options) {
       extension_alias: Object.fromEntries(suffixes),
       main_files: toolStringList(mainFiles, 'mainFiles'),
       conditions: toolStringList(conditions, 'conditions'),
+      roots: toolStringList(roots, 'roots'),
+      fallback: Array.from(fallback, entry => {
+        if (!entry || typeof entry !== 'object' || typeof entry.name !== 'string' || entry.name.length === 0 ||
+            (entry.target !== false && (typeof entry.target !== 'string' || entry.target.length === 0)) ||
+            (entry.exact !== undefined && typeof entry.exact !== 'boolean')) {
+          throw new TypeError('kessel: each fallback requires a name and a target string or false');
+        }
+        const ignore = entry.target === false;
+        return { name: entry.name, target: ignore ? '' : entry.target, exact: entry.exact === true, ignore };
+      }),
+      restrictions: Array.from(restrictions, entry => {
+        const keys = entry && typeof entry === 'object' ? Object.keys(entry) : [];
+        if (keys.length !== 1 || (keys[0] !== 'path' && keys[0] !== 'regex') ||
+            typeof entry[keys[0]] !== 'string' || entry[keys[0]].length === 0) {
+          throw new TypeError('kessel: each restriction requires either a path or a regex string');
+        }
+        return { path: entry.path || '', regex: entry.regex || '' };
+      }),
+      fully_specified: fullySpecified === undefined ? null : fullySpecified,
+      prefer_relative: preferRelative, prefer_absolute: preferAbsolute,
+      resolve_to_context: resolveToContext, explicit_conditions: explicitConditions,
+      typescript_references: tsconfigReferences,
       aliases: Array.from(aliases, alias => {
         if (!alias || typeof alias !== 'object' || typeof alias.name !== 'string' ||
             typeof alias.target !== 'string' || (alias.exact !== undefined && typeof alias.exact !== 'boolean')) {

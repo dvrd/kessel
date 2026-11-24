@@ -4,7 +4,7 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:strings"
 
-CLI_RESOLVE_USAGE :: "Usage: kessel resolve <specifier> --from <file> [--require] [--browser] [--tsconfig <file>] [--condition <name>] [--exports-fields <json>] [--imports-fields <json>] [--main-field <name>] [--no-main-fields] [--module-dir <directory>] [--no-module-dirs] [--extension <suffix>] [--extension-alias <suffix=targets>] [--no-extensions] [--main-file <name>] [--no-main-files] [--alias <name=target>] [--preserve-symlinks]"
+CLI_RESOLVE_USAGE :: "Usage: kessel resolve <specifier> --from <file> [--require] [--browser] [--tsconfig <file>] [--condition <name>] [--exports-fields <json>] [--imports-fields <json>] [--main-field <name>] [--no-main-fields] [--module-dir <directory>] [--no-module-dirs] [--extension <suffix>] [--extension-alias <suffix=targets>] [--no-extensions] [--main-file <name>] [--no-main-files] [--alias <name=target>] [--preserve-symlinks] [--root <directory>] [--fallback <name=target>] [--fallback-ignore <name>] [--restriction <directory>] [--restriction-regex <pattern>] [--fully-specified] [--no-fully-specified] [--prefer-relative] [--prefer-absolute] [--resolve-to-context] [--explicit-conditions] [--tsconfig-references]"
 
 @(private)
 cli_resolve_module :: proc(args: []string) -> int {
@@ -33,6 +33,9 @@ cli_resolve_options :: proc(args: []string, options: ^ModuleResolveOptions) -> s
 	importer: string
 	conditions, main_fields, extensions, main_files, modules: [dynamic]string
 	aliases: [dynamic]ModuleResolveAlias
+	roots: [dynamic]string
+	fallback: [dynamic]ModuleResolveFallback
+	restrictions: [dynamic]ModuleResolveRestriction
 	extension_alias := make(map[string][]string, context.temp_allocator)
 	for i := 0; i < len(args); i += 1 {
 		flag := args[i]
@@ -40,6 +43,13 @@ cli_resolve_options :: proc(args: []string, options: ^ModuleResolveOptions) -> s
 		case "--require": options.mode = .Require
 		case "--browser": options.browser = true
 		case "--preserve-symlinks": options.preserve_symlinks = true
+		case "--fully-specified": options.fully_specified = true
+		case "--no-fully-specified": options.fully_specified = false
+		case "--prefer-relative": options.prefer_relative = true
+		case "--prefer-absolute": options.prefer_absolute = true
+		case "--resolve-to-context": options.resolve_to_context = true
+		case "--explicit-conditions": options.explicit_conditions = true
+		case "--tsconfig-references": options.typescript_references = true
 		case "--no-main-fields":
 			clear(&main_fields)
 			options.main_fields = main_fields[:]
@@ -52,7 +62,8 @@ cli_resolve_options :: proc(args: []string, options: ^ModuleResolveOptions) -> s
 		case "--no-module-dirs":
 			clear(&modules)
 			options.modules = modules[:]
-		case "--from", "--tsconfig", "--condition", "--main-field", "--extension", "--main-file", "--module-dir", "--alias", "--extension-alias", "--exports-fields", "--imports-fields":
+		case "--from", "--tsconfig", "--condition", "--main-field", "--extension", "--main-file", "--module-dir", "--alias", "--extension-alias", "--exports-fields", "--imports-fields",
+		     "--root", "--fallback", "--fallback-ignore", "--restriction", "--restriction-regex":
 			i += 1
 			allows_empty := flag == "--extension" || flag == "--module-dir" || flag == "--main-field"
 			if i == len(args) || (args[i] == "" && !allows_empty) {
@@ -91,6 +102,16 @@ cli_resolve_options :: proc(args: []string, options: ^ModuleResolveOptions) -> s
 				alias, ok := cli_resolve_alias(args[i])
 				if !ok { return "" }
 				append(&aliases, alias)
+			case "--root": append(&roots, args[i])
+			case "--fallback":
+				alias, ok := cli_resolve_alias(args[i], "--fallback")
+				if !ok { return "" }
+				append(&fallback, ModuleResolveFallback{name = alias.name, target = alias.target, exact = alias.exact})
+			case "--fallback-ignore":
+				name := strings.trim_suffix(args[i], "$")
+				append(&fallback, ModuleResolveFallback{name = name, exact = name != args[i], ignore = true})
+			case "--restriction": append(&restrictions, ModuleResolveRestriction{path = args[i]})
+			case "--restriction-regex": append(&restrictions, ModuleResolveRestriction{regex = args[i]})
 			}
 		case:
 			fmt.eprintf("Error: unknown resolve option '%s'\n", flag)
@@ -103,6 +124,9 @@ cli_resolve_options :: proc(args: []string, options: ^ModuleResolveOptions) -> s
 	}
 	options.conditions = conditions[:]
 	options.aliases = aliases[:]
+	options.roots = roots[:]
+	options.fallback = fallback[:]
+	options.restrictions = restrictions[:]
 	options.extension_alias = extension_alias
 	return importer
 }
@@ -131,16 +155,16 @@ cli_resolve_manifest_fields :: proc(raw: string) -> ([][]string, bool) {
 }
 
 @(private="file")
-cli_resolve_alias :: proc(value: string) -> (ModuleResolveAlias, bool) {
+cli_resolve_alias :: proc(value: string, flag := "--alias") -> (ModuleResolveAlias, bool) {
 	equals := strings.index_byte(value, '=')
 	if equals < 1 || equals == len(value) - 1 {
-		fmt.eprintln("Error: --alias requires <name=target>")
+		fmt.eprintf("Error: %s requires <name=target>\n", flag)
 		return {}, false
 	}
 	pattern := value[:equals]
 	name := strings.trim_suffix(pattern, "$")
 	if name == "" {
-		fmt.eprintln("Error: --alias requires a non-empty name")
+		fmt.eprintf("Error: %s requires a non-empty name\n", flag)
 		return {}, false
 	}
 	return {name, value[equals + 1:], name != pattern}, true

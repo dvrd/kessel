@@ -275,10 +275,11 @@ tasks:
       - node tests/verifiers/verify_module_resolver_cli.js
 
   test:resolve:reference:
-    desc: Compare virtual TypeScript module roots through the CLI and SDK with the installed TypeScript resolver.
+    desc: Compare the resolver with the installed TypeScript, Node, and oxc-resolver.
     deps: [build, build:lib]
     cmds:
       - node tests/verifiers/verify_module_resolver_cli.js --reference
+      - node tests/verifiers/verify_module_resolver_node.js
 
   test:module-lexer:
     desc: Check fast module dependency extraction and source spans.

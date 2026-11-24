@@ -446,6 +446,38 @@ export interface ModuleResolveOptions {
   mainFiles?: readonly string[];
   conditions?: readonly string[];
   aliases?: readonly { name: string; target: string; exact?: boolean }[];
+  /**
+   * Whether a request must name its file exactly, with no extension or directory lookup.
+   * Defaults to true for mode 'import' and false for 'require'. Alias, fallback and
+   * browser-field targets may still omit the extension when this is set explicitly.
+   */
+  fullySpecified?: boolean;
+  /** Directories below which a server-relative request such as '/assets/a.js' is looked up first. */
+  roots?: readonly string[];
+  /** Try a server-relative request as a filesystem path before looking below roots. */
+  preferAbsolute?: boolean;
+  /** Try a bare request as a path beside the importer before looking for a package. */
+  preferRelative?: boolean;
+  /** Resolve to an existing directory instead of a file. The result has kind 'file'. */
+  resolveToContext?: boolean;
+  /**
+   * Replacements tried, in order, after a request failed to resolve. A target of false
+   * reports the request as ignored. Repeat a name to give it several targets.
+   */
+  fallback?: readonly { name: string; target: string | false; exact?: boolean }[];
+  /**
+   * Every restriction must admit a candidate file, otherwise lookup continues as if the
+   * file did not exist. A path admits itself and everything below it. A regex is searched
+   * for in the candidate filename and uses Odin core:text/regex syntax.
+   */
+  restrictions?: readonly ({ path: string } | { regex: string })[];
+  /**
+   * Select package map targets with the listed conditions and 'default' only. By default
+   * the mode adds 'import' or 'require', and Node adds 'node', 'node-addons' and 'module-sync'.
+   */
+  explicitConditions?: boolean;
+  /** Let a project listed under the tsconfig's references govern the files below its base. */
+  tsconfigReferences?: boolean;
 }
 
 export type ModuleResolution =
