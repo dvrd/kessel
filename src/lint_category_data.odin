@@ -7,7 +7,7 @@ package kessel
 // category never enables a rule that is known to report different ranges.
 LintCategory :: enum u8 { None, Correctness, Suspicious, Pedantic, Perf, Style, Restriction, Nursery }
 
-LINT_CATEGORY_RULE_COUNT :: 93
+LINT_CATEGORY_RULE_COUNT :: 96
 
 lint_rule_category :: proc(rule: LintRule) -> LintCategory {
 	#partial switch rule {
@@ -19,12 +19,13 @@ lint_rule_category :: proc(rule: LintRule) -> LintCategory {
 	     .L2021_NoDeleteVar, .L2023_NoDupeElseIf, .L2026_ForDirection,
 	     .L2027_ValidTypeof, .L2028_NoWith, .L2029_NoExAssign,
 	     .L2030_NoSetterReturn, .L2032_NoUnusedLabels, .L2033_RequireYield,
-	     .L2035_NoUnsafeOptionalChaining, .L2042_NoExtraBooleanCast, .L2043_NoNonoctalDecimalEscape,
-	     .L2048_NoImportAssign, .L2049_NoClassAssign, .L2050_NoFuncAssign,
-	     .L2055_NoConstAssign, .L2056_NoShadowRestrictedNames, .L2057_NoUnassignedVars,
-	     .L3008_NoDuplicateEnumValues, .L3013_NoExtraNonNullAssertion, .L3015_NoNonNullAssertedOptionalChain,
-	     .L3016_NoThisAlias, .L3017_NoUnsafeDeclarationMerging, .L3018_NoUselessEmptyExport,
-	     .L3019_PreferNamespaceKeyword, .L4006_NoUnusedExpressions, .L4022_NoIterator,
+	     .L2035_NoUnsafeOptionalChaining, .L2040_NoEmptyCharacterClass, .L2042_NoExtraBooleanCast,
+	     .L2043_NoNonoctalDecimalEscape, .L2048_NoImportAssign, .L2049_NoClassAssign,
+	     .L2050_NoFuncAssign, .L2055_NoConstAssign, .L2056_NoShadowRestrictedNames,
+	     .L2057_NoUnassignedVars, .L3003_PreferAsConst, .L3008_NoDuplicateEnumValues,
+	     .L3013_NoExtraNonNullAssertion, .L3015_NoNonNullAssertedOptionalChain, .L3016_NoThisAlias,
+	     .L3017_NoUnsafeDeclarationMerging, .L3018_NoUselessEmptyExport, .L3019_PreferNamespaceKeyword,
+	     .L3020_TripleSlashReference, .L4006_NoUnusedExpressions, .L4022_NoIterator,
 	     .L4023_NoCallerCallee, .L4024_NoUnsafeFinally, .L4027_NoUselessRename,
 	     .L4030_NoEmptyStaticBlock, .L4084_NoUselessCatch, .L4086_NoUselessRename,
 	     .L5001_BadArrayMethodOnArguments, .L5002_BadCharAtComparison, .L5003_BadComparisonSequence,

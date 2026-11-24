@@ -1,5 +1,7 @@
 package kessel
 
+import "core:strings"
+
 // The `typescript` plugin rules that need no type information.
 
 lint_is_typescript :: proc(ctx: ^LintContext) -> bool {
@@ -18,6 +20,7 @@ lint_check_typescript_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Express
 	lint_check_extra_non_null(l, expr)
 	#partial switch node in expr^ {
 	case ^TSNonNullExpression:  lint_check_non_null_optional_chain(l, node)
+	case ^TSAsExpression:       lint_check_as_const_expression(l, node)
 	case ^AssignmentExpression: lint_check_this_alias_assignment(l, node)
 	}
 }
@@ -239,5 +242,119 @@ lint_check_empty_export :: proc(l: ^Linter, body: []^Statement) {
 		node, is_export := stmt^.(^ExportNamedDeclaration)
 		if !is_export || node.declaration != nil || len(node.specifiers) != 0 { continue }
 		lint_emit(l, node.loc, .L3018_NoUselessEmptyExport)
+	}
+}
+
+// The range of a literal type that restates its initializer, or false.
+lint_as_const_literal :: proc(type: ^TSType, value: ^Expression) -> (Loc, bool) {
+	if type == nil || value == nil { return {}, false }
+	literal_type, is_literal := type^.(^TSLiteralType)
+	if !is_literal || literal_type == nil || literal_type.literal == nil { return {}, false }
+	#partial switch literal in literal_type.literal^ {
+	case ^StringLiteral:
+		initial, same_kind := value^.(^StringLiteral)
+		if same_kind && initial.value == literal.value { return literal.loc, true }
+	case ^NumericLiteral:
+		initial, same_kind := value^.(^NumericLiteral)
+		if same_kind && abs(initial.value - literal.value) < 2.220446049250313e-16 { return literal.loc, true }
+	}
+	return {}, false
+}
+
+lint_pattern_annotation :: proc(pattern: Pattern) -> Maybe(^TSTypeAnnotation) {
+	#partial switch node in pattern {
+	case ^Identifier:    return node.type_annotation
+	case ^ObjectPattern: return node.type_annotation
+	case ^ArrayPattern:  return node.type_annotation
+	}
+	return nil
+}
+
+lint_check_as_const_annotation :: proc(l: ^Linter, annotation: Maybe(^TSTypeAnnotation), value: Maybe(^Expression)) {
+	wrapper, annotated := annotation.?
+	init, has_init := value.?
+	if !annotated || wrapper == nil || !has_init { return }
+	if loc, restated := lint_as_const_literal(wrapper.type_annotation, init); restated {
+		lint_emit(l, loc, .L3003_PreferAsConst)
+	}
+}
+
+// prefer-as-const: `let x: 'a' = 'a'` and `'a' as 'a'` repeat the literal.
+lint_check_as_const_declaration :: proc(l: ^Linter, ctx: ^LintContext, d: ^VariableDeclaration) {
+	if !lint_is_typescript(ctx) || !lint_rule_enabled(l, .L3003_PreferAsConst) { return }
+	for decl in d.declarations { lint_check_as_const_annotation(l, lint_pattern_annotation(decl.id), decl.init) }
+}
+
+lint_check_as_const_field :: proc(l: ^Linter, ctx: ^LintContext, elem: ClassElement) {
+	if elem.kind != .Field || !lint_is_typescript(ctx) || !lint_rule_enabled(l, .L3003_PreferAsConst) { return }
+	lint_check_as_const_annotation(l, elem.typing.annotation, elem.value)
+}
+
+lint_check_as_const_expression :: proc(l: ^Linter, e: ^TSAsExpression) {
+	if !lint_rule_enabled(l, .L3003_PreferAsConst) { return }
+	if loc, restated := lint_as_const_literal(e.type_annotation, e.expression); restated {
+		lint_emit(l, loc, .L3003_PreferAsConst)
+	}
+}
+
+LintReferenceOption :: enum u8 { Default, Always, Never, Prefer_Import }
+
+// The first `types=`, `path=` or `lib=` attribute of a `/// <reference … />` comment.
+lint_reference_attribute :: proc(comment: string) -> (key, value: string, ok: bool) {
+	if !strings.has_prefix(comment, "/") { return "", "", false }
+	open :: "<reference "
+	start := strings.index(comment, open)
+	if start < 0 { return "", "", false }
+	end := strings.index(comment[start:], "/>")
+	if end < 0 { return "", "", false }
+	body := comment[start + len(open):start + end]
+	for part in strings.fields(body, context.temp_allocator) {
+		named := strings.has_prefix(part, "types=") || strings.has_prefix(part, "path=") || strings.has_prefix(part, "lib=")
+		if !named { continue }
+		pieces := strings.split(part, "=", context.temp_allocator)
+		if len(pieces) != 2 { return "", "", false }
+		key = strings.trim(strings.trim_space(pieces[0]), "\"")
+		value = strings.trim_right(strings.trim(pieces[1], "\""), "/")
+		return key, value, true
+	}
+	return "", "", false
+}
+
+// triple-slash-reference: `path` references are reported, `lib` ones are not,
+// and a `types` reference only when the file also imports that module.
+lint_check_triple_slash :: proc(l: ^Linter, ctx: ^LintContext, program: ^Program) {
+	if !lint_is_typescript(ctx) || !lint_rule_enabled(l, .L3020_TripleSlashReference) { return }
+	limit := u32(len(l.source))
+	if len(program.body) > 0 && program.body[0] != nil { limit = get_statement_loc(program.body[0]).start }
+	options := l.options.triple_slash
+	pending := make(map[string]Loc, 4, context.temp_allocator)
+	for comment in l.comments {
+		if comment.start >= limit { break }
+		key, value, found := lint_reference_attribute(comment.value)
+		if !found { continue }
+		loc := Loc{comment.start, comment.end}
+		never := false
+		switch key {
+		case "types":
+			never = options.types == .Never
+			if options.types == .Default || options.types == .Prefer_Import { pending[value] = loc }
+		case "path": never = options.path == .Default || options.path == .Never
+		case "lib":  never = options.lib == .Never
+		}
+		if never { lint_emit(l, loc, .L3020_TripleSlashReference) }
+	}
+	if len(pending) == 0 { return }
+	for stmt in program.body {
+		if stmt == nil { continue }
+		module := ""
+		#partial switch node in stmt^ {
+		case ^ImportDeclaration: module = node.source.value
+		case ^TSImportEqualsDeclaration:
+			if external, is_external := node.module_reference.(^TSExternalModuleReference); is_external && external.expression != nil {
+				module = external.expression.value
+			}
+		case: continue
+		}
+		if loc, referenced := pending[module]; referenced { lint_emit(l, loc, .L3020_TripleSlashReference) }
 	}
 }
