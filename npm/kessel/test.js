@@ -1221,6 +1221,16 @@ try {
     const fallback = realpathSync(join(resolverDir, 'script.js'));
     assert.equal(resolveModuleSync('.', importer, { mode: 'require', mainFields: 'custom' }).path, fallback);
     assert.equal(resolveModuleSync('.', importer, { mode: 'require', mainFields: [], mainFiles: ['script'] }).path, fallback);
+    assert.equal(resolveModuleSync('/script.js', importer, { roots: [resolverDir] }).path, fallback);
+    assert.equal(resolveModuleSync('script', importer, { preferRelative: true, fullySpecified: false }).path, fallback);
+    assert.equal(resolveModuleSync('gone', importer, { fallback: [{ name: 'gone', target: fallback }] }).path, fallback);
+    assert.deepEqual(resolveModuleSync('gone', importer, { fallback: [{ name: 'gone', target: false }] }), { kind: 'ignored', path: '' });
+    assert.throws(() => resolveModuleSync('./script.js', importer, { restrictions: [{ regex: '\\.ts$' }] }), { code: 'Not_Found' });
+    assert.equal(realpathSync(resolveModuleSync('.', importer, { resolveToContext: true }).path), realpathSync(resolverDir));
+    for (const options of [{ roots: 'x' }, { fallback: [{ name: 'a' }] }, { restrictions: [{}] }, { fullySpecified: 1 },
+      { restrictions: [{ path: 'a', regex: 'b' }] }, { preferRelative: 'yes' }, { explicitConditions: 0 }]) {
+      assert.throws(() => resolveModuleSync('./script.js', importer, options), TypeError);
+    }
     passed++;
   } catch (e) { console.error('FAIL: resolveModuleSync:', e.message); failed++; }
   finally { rmSync(resolverDir, { recursive: true, force: true }); }

@@ -146,7 +146,7 @@ const SYNTHETIC_FILES = {
   'bare/nested/entry.js': '', 'bare/a.js': '',
 };
 const SYNTHETIC_REQUESTS = ['app', 'app/self', 'app/a.js', '#http', '#fs', '#local', '#dep', '#dep/x', '#bare',
-  '#folder/x.js', '#/slash', '#null', '#choice', '#missing', '#', '#/', './a.js', './a', './a.js?query',
+  '#folder/x.js', '#/slash', '#null', '#choice', '#missing', '#', '#/', '#/../a.js', './a.js', './a', './a.js?query',
   './a.js#fragment', './a%20b.js', './a b.js', './a%2Fb.js', './dirOrFile', './dirOrFile/', './lib', './lib/',
   '.', './', '..', '../app/a.js', 'dep', 'dep/', 'dep/lib/x', 'dep/lib/x.js', 'dep/dir', 'dep/dir/', 'dep/dir.js',
   'dep/missing', 'folder/dist/x.js', 'folder/x', 'folder/dir', 'folder/null/a', 'folder/p/x', 'folder/p/internal/y',

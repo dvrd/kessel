@@ -273,6 +273,7 @@ tasks:
     cmds:
       - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_resolver_entry_points,coverage.test_module_resolver_typescript_config
       - node tests/verifiers/verify_module_resolver_cli.js
+      - node tests/verifiers/verify_module_resolver_options.js
 
   test:resolve:reference:
     desc: Compare the resolver with the installed TypeScript, Node, and oxc-resolver.
@@ -280,6 +281,7 @@ tasks:
     cmds:
       - node tests/verifiers/verify_module_resolver_cli.js --reference
       - node tests/verifiers/verify_module_resolver_node.js
+      - node tests/verifiers/verify_module_resolver_reference.js
 
   test:module-lexer:
     desc: Check fast module dependency extraction and source spans.

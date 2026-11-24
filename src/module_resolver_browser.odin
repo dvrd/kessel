@@ -96,7 +96,13 @@ module_resolver_browser_lookup :: proc(
 	key, key_err := module_resolver_browser_key(scope, start, specifier, allocator)
 	if key_err != .None { return {}, key_err }
 	if key == "" { return {}, .None }
-	#partial switch value in mapping.members[key] {
+	entry, listed := mapping.members[key]
+	if !listed && strings.has_prefix(key, "./") {
+		// Packages also write file keys without the leading "./". Bundlers
+		// accept both spellings, and so does enhanced-resolve.
+		entry = mapping.members[key[2:]]
+	}
+	#partial switch value in entry {
 	case bool:
 		if !value { return {ignored = true}, .None }
 	case string:
