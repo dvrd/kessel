@@ -4687,9 +4687,11 @@ parse_class_name_bigint :: proc(p: ^Parser, kind: ClassElementKind) -> ClassElem
 	} else {
 		big.value = current.value
 	}
-	big.loc.end = prev_end_offset(p)
 	key = big_e
+	// Consume the token before reading its end; see parse_property_key.
 	eat(p)
+	big.loc.end = prev_end_offset(p)
+	assert(big.loc.start < big.loc.end)
 	return ClassElementName{key = key, kind = kind, computed = false}
 }
 

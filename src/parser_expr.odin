@@ -3230,8 +3230,12 @@ parse_property_key :: proc(p: ^Parser) -> (key: ^Expression, computed: bool, ok:
 		} else {
 			big.value = current.value
 		}
-		big.loc.end = prev_end_offset(p)
+		// The token must be consumed before its end is read: taken earlier,
+		// prev_end_offset is the end of the token before the key (the `{` or
+		// `,`) and the literal gets an empty range.
 		eat(p)
+		big.loc.end = prev_end_offset(p)
+		assert(big.loc.start < big.loc.end)
 		return big_e, false, true
 	}
 	if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
