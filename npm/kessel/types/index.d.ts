@@ -465,6 +465,13 @@ export interface RegExpNode {
     max: RegExpRepeatBound | null;
     greedy: boolean;
   };
+  /**
+   * Flags a `(?i-m:…)` group adds and removes, as bit masks in the same order as
+   * RegExpTree.flags. Only i, m and s can be set. Zero on every other node.
+   */
+  modifiers: { add: number; remove: number };
+  /** How the members of a `v`-flag class combine. `Union` on every other node. */
+  class_relation: 'Union' | 'Intersection' | 'Subtraction';
 }
 
 export interface RegExpTree {
