@@ -49,7 +49,12 @@ bundle_names_assign :: proc(g: ^BundleGraph) {
 	names.taken = make(map[string]bool, g.alloc)
 	names.free = make(map[string]bool, g.alloc)
 	names.nested = make(map[string]bool, g.alloc)
-	for reserved in ([]string{"arguments", "eval", "undefined", "require", "module", "exports"}) {
+	// Names the generated glue itself reads from the global scope. A module
+	// that declares its own top-level `Symbol` or `Object` must not hide them.
+	for reserved in ([]string{
+		"arguments", "eval", "undefined", "require", "module", "exports", "Object", "Symbol",
+		"WeakMap", "Promise", "Error", "__filename", "__dirname",
+	}) {
 		names.free[reserved] = true
 	}
 	for module in g.modules {

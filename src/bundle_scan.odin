@@ -97,6 +97,11 @@ bundle_scan_top_level :: proc(scan: ^BundleScan, statement: ^Statement) {
 	case ^ExportNamedDeclaration:
 		bundle_scan_named_export(scan, node)
 	case ^ExportDefaultDeclaration:
+		if node.declaration == nil || node.declaration^ == nil {
+			// The printer needs a value to bind; refuse rather than guess.
+			bundle_error(scan.g, module, node.loc.start, "this default export has no value the bundler can bind")
+			return
+		}
 		local := BUNDLE_DEFAULT_LOCAL
 		if declaration, ok := node.declaration^.(^Declaration); ok {
 			#partial switch inner in declaration^ {
