@@ -781,7 +781,26 @@ NumericLiteral :: struct {
 
 StringLiteral :: struct {
 	loc:   Loc,
+	// The literal's string value with escapes decoded.
+	//
+	// Encoding: UTF-8, with one exception that makes it WTF-8 (generalized
+	// UTF-8). A JavaScript string is a sequence of UTF-16 code units and may
+	// hold a surrogate that is not part of a pair, which UTF-8 cannot
+	// represent. A lone surrogate written as an escape (`"\uD800"`,
+	// `"\u{DFFF}"`) is stored as the 3-byte sequence its code point would
+	// have (ED A0 80 .. ED BF BF). An escaped high + low PAIR
+	// (`"\uD83D\uDE00"`) is combined into the single 4-byte sequence of
+	// the code point it denotes.
+	//
+	// Consequence for Odin consumers: `value` is not guaranteed to pass
+	// `utf8.valid_string`, and a strict UTF-8 decoder reports the bytes of
+	// a lone surrogate as invalid. Compare and hash it as bytes; decode it
+	// as WTF-8 if the surrogates matter. Raw source bytes that are not valid
+	// UTF-8 are a separate matter: see ParseConfig.reject_invalid_utf8.
+	//
+	// Pinned by test_string_value_lone_surrogates_are_wtf8.
 	value: string,
+	// The source text of the literal, quotes included.
 	raw:   string,
 }
 
@@ -800,6 +819,10 @@ RegExpLiteral :: struct {
 TemplateElement :: struct {
 	loc:               Loc,
 	tail:              bool,
+	// The text with escapes decoded. Lone escaped surrogates are WTF-8
+	// encoded exactly as in StringLiteral.value. Known inconsistency: an
+	// escaped surrogate PAIR is not combined here, so `\uD83D\uDE00`
+	// yields two 3-byte sequences rather than one 4-byte sequence.
 	cooked:            Maybe(string),
 	raw:               string,
 }
