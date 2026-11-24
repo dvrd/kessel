@@ -157,23 +157,40 @@ bundle_expression_pure :: proc(
 		case .Minus, .Plus, .BitwiseNot: return bundle_expression_primitive(node.argument)
 		}
 		return false
-	case ^BinaryExpression:
-		if node.operator == .StrictEq || node.operator == .StrictNotEq {
-			return bundle_expression_pure(effects, node.left, next) &&
-				bundle_expression_pure(effects, node.right, next)
-		}
-		// Other operators convert their operands, which can call valueOf.
-		if node.operator == .In || node.operator == .Instanceof { return false }
-		return bundle_expression_primitive(node.left) && bundle_expression_primitive(node.right)
-	case ^LogicalExpression:
-		return bundle_expression_pure(effects, node.left, next) &&
-			bundle_expression_pure(effects, node.right, next)
+	case ^BinaryExpression, ^LogicalExpression:
+		return bundle_chain_pure(effects, expression, next)
 	case ^ConditionalExpression:
 		return bundle_expression_pure(effects, node.test, next) &&
 			bundle_expression_pure(effects, node.consequent, next) &&
 			bundle_expression_pure(effects, node.alternate, next)
 	case ^SequenceExpression, ^ArrayExpression, ^ObjectExpression, ^CallExpression, ^NewExpression:
 		return bundle_compound_pure(effects, expression, next)
+	}
+	return false
+}
+
+// `a === b === c` and `a && b && c` nest on the left without limit, so the
+// left operands are checked in a loop. The bound is the node count of the tree.
+@(private="file")
+bundle_chain_pure :: proc(effects: ^BundleEffects, expression: ^Expression, next: int) -> bool {
+	current := expression
+	for _ in 0..<EXPR_SPINE_COUNT_MAX {
+		#partial switch node in current^ {
+		case ^LogicalExpression:
+			if !bundle_expression_pure(effects, node.right, next) { return false }
+			current = node.left
+			continue
+		case ^BinaryExpression:
+			if node.operator == .StrictEq || node.operator == .StrictNotEq {
+				if !bundle_expression_pure(effects, node.right, next) { return false }
+				current = node.left
+				continue
+			}
+			// Other operators convert their operands, which can call valueOf.
+			if node.operator == .In || node.operator == .Instanceof { return false }
+			return bundle_expression_primitive(node.left) && bundle_expression_primitive(node.right)
+		}
+		return bundle_expression_pure(effects, current, next)
 	}
 	return false
 }

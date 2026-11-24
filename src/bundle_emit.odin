@@ -448,7 +448,10 @@ var @1 = @0(import.meta.url);
 @(private="file")
 bundle_emit_reparse :: proc(e: ^BundleEmit, code: string, shift: u32, job: ^ParseJob) -> bool {
 	g := e.g
-	config := ParseConfig{lang_override = .JS}
+	// The bundle nests its inputs a few levels deeper than they were written
+	// (a wrapper function, a call around it). An input at the parser's limit
+	// must still validate.
+	config := ParseConfig{lang_override = .JS, max_depth = PARSE_RESOURCE_AST_DEPTH + 16}
 	if g.options.format == .ESM { config.source_type_override = .Module }
 	if !parse_job_open_inline(job, code, config, "bundle.js") {
 		bundle_error(g, nil, nil, "out of memory while checking the bundle")

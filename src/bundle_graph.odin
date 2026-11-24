@@ -203,21 +203,23 @@ bundle_module_parse :: proc(
 	module: ^BundleModule,
 	forced: Maybe(BundleModuleKind),
 ) -> bool {
+	kind, known := forced.?
+	if !known {
+		// The module lexer classifies the file without building a tree. A
+		// file it cannot scan is parsed as CommonJS, and the parser reports
+		// what is wrong with it.
+		kind = .CJS
+		lexed, lex_err := module_lex_dependencies(module.source, g.alloc)
+		if lex_err == .None && lexed.format == .ESM { kind = .ESM }
+	}
 	config := ParseConfig{lang_override = .JS}
-	if kind, known := forced.?; known {
-		if kind == .ESM {
-			config.source_type_override = .Module
-		} else {
-			config.is_commonjs_override = true
-		}
+	if kind == .ESM {
+		config.source_type_override = .Module
+	} else {
+		// CommonJS runs inside a function, so a top-level `return` is legal.
+		config.is_commonjs_override = true
 	}
 	if !bundle_module_parse_once(g, module, config) { return false }
-	if _, known := forced.?; !known && len(module.job.parser.errors) != 0 {
-		// A top-level `return` is legal only in CommonJS. Retry before reporting.
-		parse_job_close(module.job)
-		config.is_commonjs_override = true
-		if !bundle_module_parse_once(g, module, config) { return false }
-	}
 	job := module.job
 	// Early errors (duplicate declarations, invalid break targets, ...) are
 	// the input's own. Report them against the input, not against the bundle.
@@ -226,8 +228,7 @@ bundle_module_parse :: proc(
 		for err in job.parser.errors { bundle_error(g, module, err.start, "%s", err.message) }
 		return false
 	}
-	module.kind = .ESM if job.program.type == .Module else .CJS
-	if kind, known := forced.?; known { module.kind = kind }
+	module.kind = kind
 	module.has_hashbang = job.lexer.has_hashbang
 	module.model = semantic_build(job.program, module.source, .JS, job.arena_alloc)
 	bundle_scan_module(g, module)
@@ -340,24 +341,14 @@ bundle_is_external :: proc(g: ^BundleGraph, specifier: string) -> bool {
 	return false
 }
 
-// Builtins the resolver does not classify yet. Everything under `node:` is a
-// builtin by definition; the bare names are the ones its table lacks.
-@(private="file")
-bundle_is_node_builtin :: proc(specifier: string) -> bool {
-	if strings.has_prefix(specifier, "node:") { return true }
-	return specifier == "inspector" || specifier == "inspector/promises"
-}
-
+// Probed in this order for a request without an extension. JavaScript comes
+// first, as in Node; the TypeScript and JSX entries are what a bundler adds.
 BUNDLE_EXTENSIONS := []string{".js", ".json", ".ts", ".tsx", ".jsx", ".mjs", ".cjs", ".mts", ".cts"}
 
 @(private="file")
 bundle_record_resolve :: proc(g: ^BundleGraph, module: ^BundleModule, record: ^BundleRecord) {
 	record.target = BUNDLE_UNRESOLVED
 	if bundle_is_external(g, record.specifier) {
-		record.target = BUNDLE_EXTERNAL
-		return
-	}
-	if bundle_is_node_builtin(record.specifier) && g.options.platform == .Node {
 		record.target = BUNDLE_EXTERNAL
 		return
 	}
@@ -374,16 +365,13 @@ bundle_record_resolve :: proc(g: ^BundleGraph, module: ^BundleModule, record: ^B
 		typescript_config = g.options.tsconfig,
 		extensions = BUNDLE_EXTENSIONS,
 		extension_alias = alias,
+		// Bundled sources routinely omit the extension that Node's ES loader
+		// requires, so import requests probe for one as require() does. The
+		// request keeps its import conditions.
+		fully_specified = false,
 	}
 	if len(g.options.main_fields) != 0 { options.main_fields = g.options.main_fields }
 	result, err := module_resolve(record.specifier, module.path, options, g.alloc)
-	relative := module_resolver_is_relative(record.specifier) || filepath.is_abs(record.specifier)
-	if err != .None && options.mode == .Import && relative {
-		// Bundled sources routinely omit the extension that Node's ES loader
-		// requires. Probe for it the way a CommonJS request would.
-		options.mode = .Require
-		result, err = module_resolve(record.specifier, module.path, options, g.alloc)
-	}
 	if err != .None && record.optional {
 		// `try { require("optional-dependency") } catch {}` is how CommonJS
 		// probes for a package. Node throws at run time and the code copes;
