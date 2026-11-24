@@ -1071,6 +1071,11 @@ try {
     assert.deepEqual(invalid.errors, [{ start: Buffer.byteLength(bad) - 1, end: Buffer.byteLength(bad), message: 'Expected expression after assignment operator' }]);
     assert.throws(() => minifySync('a.js', null), TypeError);
     assert.throws(() => minifySync('a.js', '', { mangle: 1 }), TypeError);
+    assert.throws(() => minifySync('a.js', '', { mangleNames: 'yes' }), TypeError);
+    const named = 'function outer(){function innerName(){return 1}return innerName.name+innerName()}';
+    assert.ok(minifySync('names.js', named).code.includes('innerName'));
+    const renamed = minifySync('names.js', named, { mangleNames: true }).code;
+    assert.ok(!renamed.includes('innerName') && renamed.includes('function outer('));
     passed++;
   } catch (e) { console.error('FAIL: minifySync:', e.message); failed++; }
 
