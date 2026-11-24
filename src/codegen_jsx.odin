@@ -258,7 +258,7 @@ gen_jsx_classic_attr_value :: proc(cg: ^Codegen, value: ^Expression) {
 	#partial switch item in value^ {
 	case ^StringLiteral:
 		sourcemap_record(cg.sm, u32(cg.pos), item.loc.start)
-		gen_string_quoted(cg, jsx_text_value(cg, item.value, false))
+		gen_string_quoted(cg, jsx_text_value(cg, jsx_attr_string_source(item), false))
 	case ^JSXExpressionContainer:
 		gen_expression(cg, item.expression, PREC_ASSIGN)
 	case:
@@ -278,7 +278,9 @@ jsx_child_value :: proc(cg: ^Codegen, child: JSXChild) -> (string, bool) {
 	text: string
 	#partial switch item in child {
 	case ^JSXText:
-		text = jsx_text_value(cg, item.value, true)
+		// `value` is already entity-decoded by the parser. Start from `raw`
+		// so that decoding happens exactly once, after line trimming.
+		text = jsx_text_value(cg, item.raw, true)
 		if text == "" { return "", false }
 	case ^JSXExpressionContainer:
 		if _, empty := item.expression^.(^JSXEmptyExpression); empty { return "", false }
@@ -304,6 +306,20 @@ gen_jsx_child_value :: proc(cg: ^Codegen, child: JSXChild, text: string) {
 	}
 }
 
+// The parser decodes entities into a JSX attribute's `StringLiteral.value`.
+// The transform decodes too, so it must start from the undecoded source text
+// (`raw` without its quotes): decoding `value` again would turn `&amp;lt;`
+// into `<`. A literal built by another pass has no `raw`; its `value` is
+// taken as undecoded text, which is what such passes produced before.
+jsx_attr_string_source :: proc(literal: ^StringLiteral) -> string {
+	raw := literal.raw
+	if len(raw) < 2 { return literal.value }
+	quote := raw[0]
+	if quote != '"' && quote != '\'' { return literal.value }
+	if raw[len(raw)-1] != quote { return literal.value }
+	return raw[1:len(raw)-1]
+}
+
 // Trim before decoding so an explicit &nbsp; at a line boundary survives.
 jsx_text_value :: proc(cg: ^Codegen, raw: string, trim_lines: bool) -> string {
 	if !strings.contains_any(raw, "&\n\r\u2028\u2029") { return raw }
@@ -327,21 +343,7 @@ jsx_append_text_line :: proc(builder: ^strings.Builder, line: string, left, righ
 	if right { text = strings.trim_right(text, SPACE) }
 	if text == "" { return }
 	if strings.builder_len(builder^) != 0 { strings.write_byte(builder, ' ') }
-	start, amp := 0, -1
-	for index in 0..<len(text) {
-		switch text[index] {
-		case '&': amp = index
-		case ';':
-			if amp < 0 { continue }
-			if value, ok := jsx_decode_entity(text[amp+1:index]); ok {
-				strings.write_string(builder, text[start:amp])
-				strings.write_rune(builder, value)
-				start = index + 1
-			}
-			amp = -1
-		}
-	}
-	strings.write_string(builder, text[start:])
+	jsx_write_decoded(builder, text)
 }
 
 jsx_decode_entity :: proc(name: string) -> (rune, bool) {

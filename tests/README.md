@@ -13,6 +13,7 @@ tests/
 │   ├── verify_lexer_tokens.js    # Lexer token-stream conformance
 │   ├── verify_bench_regression.js  # Performance regression gate
 │   ├── verify_crashes_known.js     # Known crash-class tracking
+│   ├── verify_depth_limit.js       # Nesting-depth limit and long-chain stack safety
 │   ├── fuzz_diff.js          # Differential fuzzing vs reference
 │   └── fuzz_invalid.js       # Invalid-input mutation fuzzing
 ├── runners/               # Shell runners
@@ -99,6 +100,18 @@ single-file input in the upstream isolated-declaration compiler cases. The task
 exits with a failure on a diagnostic or declaration AST difference. The separate
 `task test:dts:namespaces` compares all single-file inputs in TypeScript’s
 `conformance/internalModules` directory, including its invalid-source fixtures.
+`task test:dts:computed` does the same for `conformance/es6/computedProperties`.
+Both allow only the differences listed with their reasons in
+`tests/verifiers/verify_declarations.js`, and fail when a listed input starts
+to match, so the list cannot go stale.
+
+`task test:dts:broad` compares every input under TypeScript’s `compiler` and
+`conformance` directories. Inputs that Kessel’s parser rejects are counted.
+Every other difference must appear in `tests/baselines/dts_typescript_differences.txt`
+with its category (`diagnostics`, `output`, `kessel-accepts` or `kessel-rejects`).
+A new difference or a recorded one that no longer occurs fails the task. After
+reviewing an intended change, refresh the list with
+`task test:dts:broad -- --update`.
 
 ### Release Gate (`task test:release`)
 

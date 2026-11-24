@@ -10,6 +10,9 @@ FormatOptions :: struct {
 	single_quote:    bool,
 	bracket_spacing: bool,
 	trailing_comma:  bool,
+	// Prettier's "es5" setting: no trailing comma after function parameters
+	// and call arguments. The default is "all".
+	trailing_comma_es5: bool,
 	end_of_line:     string,
 }
 

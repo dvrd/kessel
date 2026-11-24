@@ -292,6 +292,63 @@ try {
   else { console.error('FAIL: JSX parse'); failed++; }
 } catch (e) { console.error('CRASH: JSX', e.message); failed++; }
 
+// JSX entities are decoded into `value`; `raw` keeps the source text.
+try {
+  const body = '&copy; &#x1F600; &amp;lt; &amp x';
+  const source = `const el = <a title="&lt;b&gt; &amp;&#65;&foo;">${body}</a>;`;
+  const { program, errors } = parseSync('entities.jsx', source);
+  const element = program.body[0].declarations[0].init;
+  const title = element.openingElement.attributes[0].value;
+  const text = element.children[0];
+  if (errors.length === 0 &&
+      title.value === '<b> &A&foo;' && title.raw === '"&lt;b&gt; &amp;&#65;&foo;"' &&
+      text.value === '\u00a9 \u{1F600} &lt; &amp x' && text.raw === body) passed++;
+  else { console.error('FAIL: JSX entities', JSON.stringify([title, text, errors])); failed++; }
+} catch (e) { console.error('CRASH: JSX entities', e.message); failed++; }
+
+// `{...xs}` in child position is a JSXSpreadChild spanning both braces.
+try {
+  const { program, errors } = parseSync('spread.jsx', '<a>{...xs}{y}</a>;');
+  const [spread, container] = program.body[0].expression.children;
+  if (errors.length === 0 && spread.type === 'JSXSpreadChild' &&
+      spread.start === 3 && spread.end === 10 &&
+      spread.expression.type === 'Identifier' && spread.expression.name === 'xs' &&
+      container.type === 'JSXExpressionContainer') passed++;
+  else { console.error('FAIL: JSXSpreadChild', JSON.stringify([spread, container])); failed++; }
+} catch (e) { console.error('CRASH: JSXSpreadChild', e.message); failed++; }
+
+// `{...}` without an operand is an error on the `}`.
+try {
+  const errors = parseSync('empty.jsx', '<a>{...}</a>;').errors;
+  if (errors.length >= 1 && errors[0].code === 'K2020' &&
+      errors[0].start === 7 && errors[0].end === 8) passed++;
+  else { console.error('FAIL: empty JSX spread', JSON.stringify(errors)); failed++; }
+} catch (e) { console.error('CRASH: empty JSX spread', e.message); failed++; }
+
+// A mismatched closing tag is reported on the closing tag's name.
+try {
+  const errors = parseSync('mismatch.jsx', '<p></div>;').errors;
+  if (errors.length >= 1 && errors[0].code === 'K3063' &&
+      errors[0].start === 5 && errors[0].end === 8) passed++;
+  else { console.error('FAIL: JSX closing tag span', JSON.stringify(errors)); failed++; }
+} catch (e) { console.error('CRASH: JSX closing tag span', e.message); failed++; }
+
+// Program.hashbang: the node oxc-parser emits, or null. It travels in binary
+// version 9; programs without one still use the earlier versions.
+try {
+  const withHashbang = parseSync('cli.js', '#!/usr/bin/env node\nconst x = 1;').program;
+  const expected = { type: 'Hashbang', start: 0, end: 19, value: '/usr/bin/env node' };
+  assert.deepEqual({ ...withHashbang.hashbang }, expected);
+  assert.equal(withHashbang.body[0].type, 'VariableDeclaration');
+  assert.equal(withHashbang.body[0].start, 20);
+  assert.equal(parseSync('plain.js', 'const x = 1;').program.hashbang, null);
+  assert.equal(parseSync('plain.ts', 'const x: number = 1;').program.hashbang, null);
+  const typed = parseSync('cli.ts', '#!/usr/bin/env -S node\nlet x: number;').program;
+  assert.equal(typed.hashbang.value, '/usr/bin/env -S node');
+  assert.equal(typed.body[0].declarations[0].id.typeAnnotation.type, 'TSTypeAnnotation');
+  passed++;
+} catch (e) { console.error('FAIL: Program.hashbang:', e.message); failed++; }
+
 // Valid input must yield zero errors.
 try {
   const { errors } = parseSync('clean.js', 'const x = 1;');
@@ -999,6 +1056,27 @@ try {
     const span = scan.exports[0].span;
     assert.equal(Buffer.from(source).subarray(span.start, span.end).toString(), 'primary');
     assert.deepEqual(scanModuleSync('').dependencies, []);
+    // es-module-lexer equivalents: t, se, d, attribute pairs, facade, format.
+    const lexed = scanModuleSync("/* π */ import a from 'a' with { type: 'json' };\n" +
+      "export { a as 'b' }; import.source('c');");
+    const [declared, called] = lexed.dependencies;
+    const bytes = Buffer.from("/* π */ import a from 'a' with { type: 'json' };");
+    assert.equal(declared.import_type, 'Static');
+    assert.equal(bytes.subarray(declared.statement.start, declared.clause_end).toString(),
+      "import a from 'a' with { type: 'json' }");
+    assert.equal(declared.arguments_start, null);
+    assert.deepEqual(declared.attribute_entries.map(pair => [pair.key, pair.value]),
+      [['type', 'json']]);
+    assert.equal(called.import_type, 'Dynamic_Source_Phase');
+    assert.equal(called.arguments_start, called.request.start - 1);
+    assert.equal(lexed.exports[0].name_is_string, true);
+    assert.equal(lexed.facade, false);
+    assert.equal(lexed.format, 'ESM');
+    assert.equal(scanModuleSync("export * from 'a';").facade, true);
+    const commonjs = scanModuleSync("module.exports = require('a');");
+    assert.deepEqual([commonjs.format, commonjs.has_commonjs_syntax, commonjs.has_module_syntax],
+      ['CJS', true, false]);
+    assert.equal(scanModuleSync('f();').format, 'Unknown');
     assert.throws(() => scanModuleSync("import('incomplete'"), { name: 'SyntaxError', code: 'Invalid_Syntax' });
     passed++;
   } catch (e) { console.error('FAIL: scanModuleSync:', e.message); failed++; }
@@ -1071,6 +1149,11 @@ try {
     assert.deepEqual(invalid.errors, [{ start: Buffer.byteLength(bad) - 1, end: Buffer.byteLength(bad), message: 'Expected expression after assignment operator' }]);
     assert.throws(() => minifySync('a.js', null), TypeError);
     assert.throws(() => minifySync('a.js', '', { mangle: 1 }), TypeError);
+    assert.throws(() => minifySync('a.js', '', { mangleNames: 'yes' }), TypeError);
+    const named = 'function outer(){function innerName(){return 1}return innerName.name+innerName()}';
+    assert.ok(minifySync('names.js', named).code.includes('innerName'));
+    const renamed = minifySync('names.js', named, { mangleNames: true }).code;
+    assert.ok(!renamed.includes('innerName') && renamed.includes('function outer('));
     passed++;
   } catch (e) { console.error('FAIL: minifySync:', e.message); failed++; }
 
@@ -1127,6 +1210,32 @@ try {
     assert.throws(() => transformSync('size.ts', source, { typescript: { optimizeConstEnums: 1 } }), TypeError);
     passed++;
   } catch (e) { console.error('FAIL: transformSync const enums:', e.message); failed++; }
+
+  try {
+    const lowered = transformSync('chain.ts', 'export const read = (a: any) => a?.b ?? 1_000;', { target: 'es2019' });
+    assert.deepEqual(lowered.errors, []);
+    assert.doesNotMatch(lowered.code, /\?\.|\?\?|_000/);
+    assert.match(transformSync('fields.js', 'class C { x = 1; }', { target: 'es2021' }).errors[0].message, /class fields/);
+    const decorated = transformSync('service.ts',
+      'const seen: unknown[] = [];\nfunction mark(target: object, key: string) { seen.push(key); }\n' +
+      'class Service { @mark value: string = ""; }\nglobalThis.seen = seen;',
+      { decorator: { legacy: true, emitDecoratorMetadata: true }, sourceMap: true });
+    assert.deepEqual(decorated.errors, []);
+    assert.match(decorated.code, /"design:type", String/);
+    const state = {};
+    new Function('globalThis', decorated.code)(state);
+    assert.deepEqual(state.seen, ['value']);
+    assert.match(transformSync('service.ts', '@d class C {}').code, /@d/);
+    const refreshed = transformSync('view.jsx', 'import { useState } from "react";\nexport function View() { useState(0); return <a />; }',
+      { jsx: { runtime: 'automatic', refresh: { emitFullSignatures: true, refreshReg: 'register' } } });
+    assert.deepEqual(refreshed.errors, []);
+    assert.match(refreshed.code, /register\(_c, "View"\)/);
+    assert.match(refreshed.code, /_s\(View, "useState\{\(0\)\}"\)/);
+    assert.throws(() => transformSync('a.js', '', { target: 'es5' }), TypeError);
+    assert.throws(() => transformSync('a.js', '', { decorator: { emitDecoratorMetadata: true } }), TypeError);
+    assert.throws(() => transformSync('a.js', '', { jsx: { runtime: 'classic', refresh: 1 } }), TypeError);
+    passed++;
+  } catch (e) { console.error('FAIL: transformSync target, decorators and refresh:', e.message); failed++; }
 
   try {
     const source = 'function execute(events) { using r = { [Symbol.dispose || Symbol.for("Symbol.dispose")]() { events.push(this.id); }, id: 3 }; events.push(1); }';
@@ -1221,6 +1330,16 @@ try {
     const fallback = realpathSync(join(resolverDir, 'script.js'));
     assert.equal(resolveModuleSync('.', importer, { mode: 'require', mainFields: 'custom' }).path, fallback);
     assert.equal(resolveModuleSync('.', importer, { mode: 'require', mainFields: [], mainFiles: ['script'] }).path, fallback);
+    assert.equal(resolveModuleSync('/script.js', importer, { roots: [resolverDir] }).path, fallback);
+    assert.equal(resolveModuleSync('script', importer, { preferRelative: true, fullySpecified: false }).path, fallback);
+    assert.equal(resolveModuleSync('gone', importer, { fallback: [{ name: 'gone', target: fallback }] }).path, fallback);
+    assert.deepEqual(resolveModuleSync('gone', importer, { fallback: [{ name: 'gone', target: false }] }), { kind: 'ignored', path: '' });
+    assert.throws(() => resolveModuleSync('./script.js', importer, { restrictions: [{ regex: '\\.ts$' }] }), { code: 'Not_Found' });
+    assert.equal(realpathSync(resolveModuleSync('.', importer, { resolveToContext: true }).path), realpathSync(resolverDir));
+    for (const options of [{ roots: 'x' }, { fallback: [{ name: 'a' }] }, { restrictions: [{}] }, { fullySpecified: 1 },
+      { restrictions: [{ path: 'a', regex: 'b' }] }, { preferRelative: 'yes' }, { explicitConditions: 0 }]) {
+      assert.throws(() => resolveModuleSync('./script.js', importer, options), TypeError);
+    }
     passed++;
   } catch (e) { console.error('FAIL: resolveModuleSync:', e.message); failed++; }
   finally { rmSync(resolverDir, { recursive: true, force: true }); }

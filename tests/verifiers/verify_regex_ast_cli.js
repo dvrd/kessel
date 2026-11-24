@@ -27,10 +27,26 @@ assert.equal(group.group_kind, 'Named_Capture');
 assert.equal(reference.kind, 'Named_Reference');
 assert.equal(bytes.subarray(reference.name.start, reference.name.end).toString(), 'name');
 
+// Modifier flags are bit masks in d, g, i, m, s, u, v, y order, like the tree's flags.
+const modifiers = regexp('(?i-m:[a&&b])', 'v');
+assert.equal(modifiers.status, 0, modifiers.stderr || String(modifiers.error));
+const modified = JSON.parse(modifiers.stdout);
+const modifierGroup = modified.nodes.find(node => node.group_kind === 'Modifiers');
+assert.deepEqual(modifierGroup.modifiers, { add: 1 << 2, remove: 1 << 3 });
+assert.equal(modified.nodes.find(node => node.kind === 'Character_Class').class_relation,
+  'Intersection');
+assert.deepEqual(group.modifiers, { add: 0, remove: 0 });
+assert.equal(group.class_relation, 'Union');
+
+// The builder is strict where the parser's validator is lenient.
+const unknownScript = regexp(String.raw`\p{Script=NotAScript}`, 'u');
+assert.equal(unknownScript.status, 1);
+assert.match(unknownScript.stderr, /Invalid_Pattern at byte 0/);
+
 const invalid = regexp('[a-z&&a]', 'v');
 assert.equal(invalid.status, 1);
 assert.match(invalid.stderr, /Invalid_Pattern/);
 const flags = regexp('a', 'uv');
 assert.equal(flags.status, 1);
 assert.match(flags.stderr, /Invalid_Flags/);
-console.log('Regexp CLI passed tree, UTF-8 span, and diagnostic checks');
+console.log('Regexp CLI passed tree, UTF-8 span, modifier, and diagnostic checks');

@@ -1074,7 +1074,7 @@ typescript/tests/cases/conformance/jsx/jsxCheckJsxNoTypeArgumentsAllowed.tsx::fi
 typescript/tests/cases/conformance/jsx/jsxEsprimaFbTestSuite.tsx:40:51: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 typescript/tests/cases/conformance/jsx/jsxInvalidEsprimaTestSuite.tsx::1.tsx:3:2: Unexpected token: lone closing JSX fragment '</>'
 typescript/tests/cases/conformance/jsx/jsxParsingError1.tsx:11:45: JSX expressions may not use the comma operator
-typescript/tests/cases/conformance/jsx/jsxParsingError2.tsx::Error1.tsx:2:27: Expected corresponding JSX closing tag for 'span'.
+typescript/tests/cases/conformance/jsx/jsxParsingError2.tsx::Error1.tsx:2:23: Expected corresponding JSX closing tag for 'span'.
 typescript/tests/cases/conformance/jsx/jsxParsingError3.tsx::Error1.tsx:1:16: Unexpected token. Did you mean `{'}'}` or `&rbrace;`?
 typescript/tests/cases/conformance/jsx/jsxParsingErrorImmediateSpreadInAttributeValue.tsx:9:1: Missing initializer in 'const' declaration
 typescript/tests/cases/conformance/jsx/jsxUnclosedParserRecovery.ts:12:2: Expected '>', got '/'
@@ -1086,7 +1086,7 @@ typescript/tests/cases/conformance/jsx/tsxFragmentErrors.tsx:9:7: Expected '>', 
 typescript/tests/cases/conformance/jsx/tsxGenericArrowFunctionParsing.tsx:8:19: Unexpected token. Did you mean `{'>'}` or `&gt;`?
 typescript/tests/cases/conformance/jsx/tsxStatelessFunctionComponents1.tsx:43:16: Unexpected ';' in object literal
 typescript/tests/cases/conformance/jsx/tsxTypeArgumentResolution.tsx:26:13: Type argument list cannot be empty
-typescript/tests/cases/conformance/jsx/unicodeEscapesInJsxtags.tsx:17:1: Expected corresponding JSX closing tag for '\u0061'.
+typescript/tests/cases/conformance/jsx/unicodeEscapesInJsxtags.tsx:16:13: Expected corresponding JSX closing tag for '\u0061'.
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJs1.ts::index.cjs:51:12: Expected 'from', got '='
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsExportAssignment.ts::index.js:3:8: 'export =' is only allowed in TypeScript files
 typescript/tests/cases/conformance/node/allowJs/nodeModulesAllowJsImportAssignment.ts::file.js:4:11: Expected 'from', got '='

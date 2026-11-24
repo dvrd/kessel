@@ -6,12 +6,15 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 
-// TypeScript's paths and baseUrl apply to non-relative specifiers. An empty
-// result lets the caller continue ordinary package resolution.
+// TypeScript's paths and baseUrl apply to non-relative specifiers. A rooted
+// specifier such as "/images/a" is eligible for paths but not for baseUrl,
+// which the caller requests with paths_only. An empty result lets the caller
+// continue ordinary resolution.
 @(private)
 module_resolver_tsconfig_path :: proc(
 	specifier, filename: string,
 	allocator: mem.Allocator,
+	paths_only := false,
 ) -> (string, ModuleResolveError) {
 	context.allocator = allocator
 	if strings.contains_rune(filename, 0) { return "", .Invalid_TSConfig }
@@ -19,6 +22,8 @@ module_resolver_tsconfig_path :: proc(
 	if config_err != .None { return "", config_err }
 	paths_base := options.base_url
 	if !options.has_base_url { paths_base = options.paths_base }
+	project_dir, dir_err := module_resolver_importer_dir(filename, true, allocator)
+	if dir_err != .None { return "", dir_err }
 
 	if len(options.paths) > 0 {
 		// The object map provides decoded values. The token stream supplies
@@ -30,7 +35,7 @@ module_resolver_tsconfig_path :: proc(
 		if select_err != .None { return "", select_err }
 		for target in targets {
 			substitution := string(target.(json.String))
-			path, path_err := module_resolver_tsconfig_expand(substitution, capture, paths_base, allocator)
+			path, path_err := module_resolver_tsconfig_expand(substitution, capture, paths_base, project_dir, allocator)
 			if path_err != .None { return "", path_err }
 			switch filepath.ext(substitution) {
 			case ".js", ".jsx", ".ts", ".tsx", ".cjs", ".mjs", ".cts", ".mts", ".json":
@@ -41,7 +46,7 @@ module_resolver_tsconfig_path :: proc(
 		}
 	}
 
-	if options.has_base_url {
+	if options.has_base_url && !paths_only {
 		path, path_err := filepath.join({options.base_url, specifier}, allocator)
 		if path_err != nil { return "", .Allocation_Error }
 		return module_resolver_tsconfig_probe(path, allocator)
@@ -113,6 +118,8 @@ module_resolver_tsconfig_read :: proc(filename, project_dir: string, allocator: 
 	source, read_err := os.read_entire_file_from_path(filename, allocator)
 	if read_err == .Not_Exist { return {}, .TSConfig_Not_Found }
 	if read_err != nil { return {}, .IO_Error }
+	// TypeScript reads an empty configuration file as an empty object.
+	if strings.trim_space(string(source)) == "" { source = transmute([]u8)string("{}") }
 	path, path_err := filepath.abs(filename, allocator)
 	if path_err != nil { return {}, .IO_Error }
 	dir := filepath.dir(path)
@@ -129,7 +136,12 @@ module_resolver_tsconfig_read :: proc(filename, project_dir: string, allocator: 
 		options.paths_base = dir
 	}
 	if options.has_base_url {
-		base, base_err := module_resolver_tsconfig_base(dir, options.base_url, allocator)
+		anchor := dir
+		if strings.has_prefix(options.base_url, "${configDir}") {
+			options.base_url = strings.trim_left(strings.trim_prefix(options.base_url, "${configDir}"), "/")
+			anchor = project_dir
+		}
+		base, base_err := module_resolver_tsconfig_base(anchor, options.base_url, allocator)
 		if base_err != nil { return {}, .Allocation_Error }
 		options.base_url = base
 	}
@@ -185,6 +197,13 @@ module_resolver_tsconfig_merge :: proc(result: ^ModuleTSConfigOptions, source: M
 module_resolver_tsconfig_parent :: proc(parent, directory: string, allocator: mem.Allocator) -> (string, ModuleResolveError) {
 	if parent == "" || strings.contains_rune(parent, 0) { return "", .Invalid_TSConfig }
 	if filepath.is_abs(parent) { return module_resolver_tsconfig_existing(parent, allocator) }
+	if parent == "." || parent == ".." {
+		// Without a trailing slash TypeScript resolves these like a module
+		// request, which finds the tsconfig.json of that directory.
+		nested, join_err := filepath.join({directory, parent, "tsconfig.json"}, allocator)
+		if join_err != nil { return "", .Allocation_Error }
+		return module_resolver_tsconfig_existing(nested, allocator)
+	}
 	if !strings.has_prefix(parent, "./") && !strings.has_prefix(parent, "../") {
 		return module_resolver_tsconfig_package(parent, directory, allocator)
 	}
@@ -314,10 +333,17 @@ module_resolver_tsconfig_select :: proc(
 module_resolver_tsconfig_expand :: proc(
 	target: string,
 	capture: Maybe(string),
-	base: string,
+	base, project_dir: string,
 	allocator: mem.Allocator,
 ) -> (string, ModuleResolveError) {
 	target := target
+	base := base
+	// TypeScript 5.5 anchors a ${configDir} substitution at the directory of
+	// the configuration being compiled, also when an inherited file wrote it.
+	if strings.has_prefix(target, "${configDir}") {
+		target = strings.trim_left(strings.trim_prefix(target, "${configDir}"), "/")
+		base = project_dir
+	}
 	if matched, ok := capture.?; ok {
 		if star := strings.index_byte(target, '*'); star >= 0 {
 			expanded, err := strings.concatenate({target[:star], matched, target[star + 1:]}, allocator)

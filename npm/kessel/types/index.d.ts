@@ -109,14 +109,25 @@ export interface ParseError {
   severity?: Severity;
 }
 
+/** The `#!...` line a script can start with, as on `Program.hashbang`. */
+export interface Hashbang {
+  type: 'Hashbang';
+  /** The text after `#!`, up to the line terminator. */
+  value: string;
+  start: number;
+  end: number;
+}
+
 /** Result envelope returned by {@link parseSync}. */
 export interface ParseResult {
   /**
    * The ESTree-compatible AST. Typed as the standard `Program` from
    * `@types/estree`; runtime nodes may include TS- or JSX-specific types
    * that aren't part of that spec (narrow via `node.type`).
+   *
+   * `hashbang` is `null` unless the source starts with `#!`.
    */
-  program: Program;
+  program: Program & { hashbang: Hashbang | null };
   /** Parse-time errors. Empty array on success. */
   errors: ParseError[];
 }
@@ -254,15 +265,35 @@ export interface TransformOptions {
     development?: boolean;
     pure?: boolean;
     throwIfNamespace?: boolean;
+    refresh?: boolean | ReactRefreshOptions;
   } | {
     runtime: 'automatic';
     importSource?: string;
     development?: boolean;
     pure?: boolean;
     throwIfNamespace?: boolean;
+    refresh?: boolean | ReactRefreshOptions;
   };
+  /**
+   * Lower syntax newer than this ECMAScript edition: exponentiation, optional catch binding,
+   * optional chaining, nullish coalescing, logical assignment and numeric separators.
+   * Newer syntax with no lowering is reported in `errors`. Defaults to 'esnext'.
+   */
+  target?: 'es2015' | 'es2016' | 'es2017' | 'es2018' | 'es2019' | 'es2020' | 'es2021' | 'es2022' | 'es2023' | 'es2024' | 'esnext';
+  /** Lower TypeScript experimental decorators. Without `legacy`, decorators are printed as written. */
+  decorator?: { legacy?: boolean; emitDecoratorMetadata?: boolean };
   minified?: boolean;
   sourceMap?: boolean;
+}
+
+/** React Fast Refresh registration and Hook signatures. */
+export interface ReactRefreshOptions {
+  /** Runtime registration function. Defaults to `$RefreshReg$`. */
+  refreshReg?: string;
+  /** Runtime signature factory. Defaults to `$RefreshSig$`. */
+  refreshSig?: string;
+  /** Emit the readable Hook signature instead of its SHA-1 digest. */
+  emitFullSignatures?: boolean;
 }
 
 export interface GeneratedCode {
@@ -277,6 +308,8 @@ export function transformSync(filename: string, source: string, options?: Transf
 export interface MinifyOptions {
   compress?: boolean;
   mangle?: boolean;
+  /** Also shorten function and class names. This changes their `name` property. Default false. */
+  mangleNames?: boolean;
   /** Factory and fragment bindings supplied by the downstream JSX transform. */
   jsx?: { pragma?: string; pragmaFrag?: string };
   sourceMap?: boolean;
@@ -350,28 +383,83 @@ export interface ByteSpan {
   end: number;
 }
 
+/** One literal `key: 'value'` pair of an import attributes clause. */
+export interface ModuleImportAttribute {
+  key: string;
+  value: string;
+  /** Spans exclude the quotes of string keys and values. */
+  key_span: ByteSpan;
+  value_span: ByteSpan;
+}
+
+/**
+ * es-module-lexer's `t`, by name. Its numeric value is the position in this
+ * list: None 0 (TypeScript `import x = require()`), Static 1, Dynamic 2,
+ * Import_Meta 3, Static_Source_Phase 4, Dynamic_Source_Phase 5,
+ * Static_Defer_Phase 6, Dynamic_Defer_Phase 7.
+ */
+export type ModuleImportType =
+  | 'None' | 'Static' | 'Dynamic' | 'Import_Meta' | 'Static_Source_Phase'
+  | 'Dynamic_Source_Phase' | 'Static_Defer_Phase' | 'Dynamic_Defer_Phase';
+
 export interface ModuleDependency {
   kind: 'Static' | 'Reexport' | 'Dynamic' | 'Import_Meta' | 'Import_Equals';
   phase: 'Evaluation' | 'Source' | 'Defer';
+  /** es-module-lexer `ss` is `statement.start`. Includes a trailing `;`. */
   statement: ByteSpan;
+  /**
+   * es-module-lexer `s`/`e`: inside the quotes for declarations, the whole
+   * specifier expression for dynamic imports. Zero for `import.meta`, whose
+   * `s`/`e` is `statement`.
+   */
   request: ByteSpan;
+  /** es-module-lexer `a` is `attributes.start`; null is its -1. */
   attributes: ByteSpan | null;
+  /** es-module-lexer `n`; null is its undefined. */
   name: string | null;
   type_only: boolean;
+  import_type: ModuleImportType;
+  /**
+   * es-module-lexer `se`: the end of the specifier or of its attributes
+   * clause, before any `;`. Equals `statement.end` for dynamic imports.
+   */
+  clause_end: number;
+  /** es-module-lexer `d`: the offset of the `(` of a dynamic import. */
+  arguments_start: number | null;
+  /** Empty unless the attributes are literal `key: 'value'` pairs. */
+  attribute_entries: ModuleImportAttribute[];
 }
 
 export interface ModuleExport {
+  /** es-module-lexer `n`. */
   name: string;
+  /** es-module-lexer `s`/`e`, without the quotes of a string name. */
   span: ByteSpan;
+  /** es-module-lexer `ln`; null is its undefined. */
   local_name: string | null;
+  /** es-module-lexer `ls`/`le`, without the quotes of a string name. */
   local_span: ByteSpan | null;
   type_only: boolean;
+  /** The name is a string literal: its quotes sit one byte outside `span`. */
+  name_is_string: boolean;
+  local_is_string: boolean;
 }
 
 export interface ModuleScanResult {
   dependencies: ModuleDependency[];
   exports: ModuleExport[];
+  /** Static import/export declarations or `import.meta` are present. */
   has_module_syntax: boolean;
+  /** Only import declarations, `export ... from` and `export {...}` lists. */
+  facade: boolean;
+  /** `require(...)`, `module.exports` or `exports.x` outside strings and comments. */
+  has_commonjs_syntax: boolean;
+  /**
+   * A hint: ESM when `has_module_syntax`, otherwise CJS when
+   * `has_commonjs_syntax`, otherwise Unknown. Top-level await alone does not
+   * make a source ESM here.
+   */
+  format: 'Unknown' | 'ESM' | 'CJS';
 }
 
 /** Scan module syntax and bindings without building a JavaScript AST. */
@@ -410,6 +498,13 @@ export interface RegExpNode {
     max: RegExpRepeatBound | null;
     greedy: boolean;
   };
+  /**
+   * Flags a `(?i-m:…)` group adds and removes, as bit masks in the same order as
+   * RegExpTree.flags. Only i, m and s can be set. Zero on every other node.
+   */
+  modifiers: { add: number; remove: number };
+  /** How the members of a `v`-flag class combine. `Union` on every other node. */
+  class_relation: 'Union' | 'Intersection' | 'Subtraction';
 }
 
 export interface RegExpTree {
@@ -446,6 +541,38 @@ export interface ModuleResolveOptions {
   mainFiles?: readonly string[];
   conditions?: readonly string[];
   aliases?: readonly { name: string; target: string; exact?: boolean }[];
+  /**
+   * Whether a request must name its file exactly, with no extension or directory lookup.
+   * Defaults to true for mode 'import' and false for 'require'. Alias, fallback and
+   * browser-field targets may still omit the extension when this is set explicitly.
+   */
+  fullySpecified?: boolean;
+  /** Directories below which a server-relative request such as '/assets/a.js' is looked up first. */
+  roots?: readonly string[];
+  /** Try a server-relative request as a filesystem path before looking below roots. */
+  preferAbsolute?: boolean;
+  /** Try a bare request as a path beside the importer before looking for a package. */
+  preferRelative?: boolean;
+  /** Resolve to an existing directory instead of a file. The result has kind 'file'. */
+  resolveToContext?: boolean;
+  /**
+   * Replacements tried, in order, after a request failed to resolve. A target of false
+   * reports the request as ignored. Repeat a name to give it several targets.
+   */
+  fallback?: readonly { name: string; target: string | false; exact?: boolean }[];
+  /**
+   * Every restriction must admit a candidate file, otherwise lookup continues as if the
+   * file did not exist. A path admits itself and everything below it. A regex is searched
+   * for in the candidate filename and uses Odin core:text/regex syntax.
+   */
+  restrictions?: readonly ({ path: string } | { regex: string })[];
+  /**
+   * Select package map targets with the listed conditions and 'default' only. By default
+   * the mode adds 'import' or 'require', and Node adds 'node', 'node-addons' and 'module-sync'.
+   */
+  explicitConditions?: boolean;
+  /** Let a project listed under the tsconfig's references govern the files below its base. */
+  tsconfigReferences?: boolean;
 }
 
 export type ModuleResolution =

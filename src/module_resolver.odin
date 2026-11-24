@@ -31,6 +31,21 @@ ModuleResolveOptions :: struct {
 	typescript_config: string,
 	preserve_symlinks: bool,
 	browser: bool,
+	// The fields below follow enhanced-resolve. Their zero values keep the
+	// Node-compatible behavior described above.
+	roots: []string,
+	fallback: []ModuleResolveFallback,
+	restrictions: []ModuleResolveRestriction,
+	// Unset means strict for Import and extension probing for Require.
+	fully_specified: Maybe(bool),
+	prefer_relative: bool,
+	prefer_absolute: bool,
+	resolve_to_context: bool,
+	// Only the listed conditions and "default" select package map targets.
+	explicit_conditions: bool,
+	typescript_references: bool,
+	// Compiled by module_resolve from restrictions. Callers leave it empty.
+	restriction_matchers: []ModuleRestrictionMatcher,
 }
 
 ModuleResolveKind :: enum { File, Builtin, Ignored }
@@ -56,6 +71,7 @@ ModuleResolveError :: enum {
 	Package_Import_Not_Defined,
 	IO_Error,
 	Allocation_Error,
+	Invalid_Restriction,
 }
 
 // Resolve filesystem paths, Node builtins, and packages. The caller owns
@@ -76,6 +92,30 @@ module_resolve :: proc(
 		if options.browser { fields = {"browser", "module", "main"} }
 		options.main_fields = fields
 	}
+	options.restriction_matchers = nil
+	if len(options.restrictions) == 0 {
+		return module_resolver_dispatch(requested, importer, options, allocator)
+	}
+
+	// Compiled patterns live exactly as long as this one resolution.
+	patterns: mvirtual.Arena
+	if err := mvirtual.arena_init_growing(&patterns); err != nil { return {}, .Allocation_Error }
+	defer mvirtual.arena_destroy(&patterns)
+
+	matchers, compile_err := module_resolver_compile_restrictions(
+		options.restrictions, mvirtual.arena_allocator(&patterns),
+	)
+	if compile_err != .None { return {}, compile_err }
+	options.restriction_matchers = matchers
+	return module_resolver_dispatch(requested, importer, options, allocator)
+}
+
+@(private="file")
+module_resolver_dispatch :: proc(
+	requested, importer: string,
+	options: ModuleResolveOptions,
+	allocator: mem.Allocator,
+) -> (ModuleResolution, ModuleResolveError) {
 	if !options.browser {
 		return module_resolver_once(requested, importer, options, allocator)
 	}
@@ -90,6 +130,7 @@ module_resolver_once :: proc(
 	browser_probe: ^ModuleBrowserMapping = nil,
 ) -> (ModuleResolution, ModuleResolveError) {
 	assert(allocator.procedure != nil)
+	options := options
 	specifier := requested
 	if specifier == "" || importer == "" { return {}, .Invalid_Specifier }
 	if strings.contains_rune(specifier, 0) { return {}, .Invalid_Specifier }
@@ -103,51 +144,75 @@ module_resolver_once :: proc(
 	if len(options.aliases) > 0 {
 		mapped, map_err := module_resolver_alias(specifier, options.aliases, temp)
 		if map_err != .None { return {}, map_err }
+		// An alias target is configuration rather than an import a user wrote.
+		// enhanced-resolve lets it omit the extension under fullySpecified.
+		// Node-style strict imports, where the option is unset, stay exact.
+		if mapped != specifier && options.fully_specified != nil { options.fully_specified = false }
 		specifier = mapped
 	}
+	start, err := module_resolver_importer_dir(importer, options.preserve_symlinks, temp)
+	if err != .None { return {}, err }
+	if options.typescript_config != "" && os.is_directory(options.typescript_config) {
+		// A directory stands for the tsconfig.json it contains.
+		options.typescript_config, err = module_resolver_tsconfig_project("", options.typescript_config, temp)
+		if err != .None { return {}, err }
+	}
+	if options.typescript_references && options.typescript_config != "" {
+		options.typescript_config, err = module_resolver_tsconfig_reference(options.typescript_config, start, temp)
+		if err != .None { return {}, err }
+	}
+	found, request_err := module_resolver_request(specifier, start, options, temp, browser_probe)
+	if request_err != .None && len(options.fallback) > 0 {
+		found, request_err = module_resolver_fallback(specifier, start, request_err, options, temp, browser_probe)
+	}
+	if request_err != .None { return {}, request_err }
+	if found.kind != .File {
+		name, clone_err := strings.clone(found.path, allocator)
+		if clone_err != nil { return {}, .Allocation_Error }
+		return {kind = found.kind, path = name}, .None
+	}
+	return module_resolver_finish(found.path, options.preserve_symlinks, browser_probe, allocator)
+}
+
+// Resolve one already-aliased request from a directory. The returned path
+// lives in the scratch allocator and is not yet canonical.
+@(private)
+module_resolver_request :: proc(
+	specifier, start: string,
+	options: ModuleResolveOptions,
+	temp: mem.Allocator,
+	browser_probe: ^ModuleBrowserMapping,
+) -> (ModuleResolution, ModuleResolveError) {
+	assert(start != "")
+	if specifier == "" { return {}, .Invalid_Specifier }
 	name := strings.trim_prefix(specifier, "node:")
 	if module_resolver_is_builtin(name) || module_resolver_is_prefixed_builtin(specifier) {
-		owned, clone_err := strings.clone(specifier, allocator)
-		if clone_err != nil { return {}, .Allocation_Error }
-		return {kind = .Builtin, path = owned}, .None
+		return {kind = .Builtin, path = specifier}, .None
 	}
 	if name != specifier { return {}, .Invalid_Specifier }
 
-	start, err := module_resolver_importer_dir(importer, options.preserve_symlinks, temp)
-	if err != .None { return {}, err }
 	resolved: string
+	err: ModuleResolveError
 	if specifier[0] == '#' {
 		mapped, map_err := module_resolver_imports(specifier, start, options, temp, browser_probe)
 		if map_err != .None { return {}, map_err }
-		if mapped.kind == .Builtin {
-			name, clone_err := strings.clone(mapped.path, allocator)
-			if clone_err != nil { return {}, .Allocation_Error }
-			return {kind = .Builtin, path = name}, .None
-		}
+		if mapped.kind == .Builtin { return mapped, .None }
 		resolved = mapped.path
 	} else if filepath.is_abs(specifier) || module_resolver_is_relative(specifier) {
-		target := specifier
-		if !filepath.is_abs(target) {
-			joined, join_err := filepath.join({start, target}, temp)
-			if join_err != nil { return {}, .Allocation_Error }
-			target = joined
-		}
-		if options.typescript_config != "" {
-			resolved, err = module_resolver_tsconfig_root_path(specifier, target, options, temp, browser_probe)
-		}
-		if resolved == "" && err == .None {
-			resolved, err = module_resolver_load_path(target, options, temp, browser_probe)
-		}
+		resolved, err = module_resolver_request_path(specifier, start, options, temp, browser_probe)
 	} else {
 		if options.typescript_config != "" {
 			resolved, err = module_resolver_tsconfig_path(specifier, options.typescript_config, temp)
+		}
+		if resolved == "" && err == .None && options.prefer_relative {
+			resolved = module_resolver_request_sibling(specifier, start, options, temp, browser_probe)
 		}
 		if resolved == "" && err == .None {
 			resolved, err = module_resolver_load_package(specifier, start, options, temp, browser_probe)
 		}
 	}
 	if err != .None { return {}, err }
-	return module_resolver_finish(resolved, options.preserve_symlinks, browser_probe, allocator)
+	return {kind = .File, path = resolved}, .None
 }
 
 @(private="file")
@@ -196,6 +261,10 @@ module_resolver_alias :: proc(
 		visited[index] = current
 		next: string
 		for alias in aliases {
+			// A request that already lies inside the target is settled. Without
+			// this, "pkg" -> "pkg/dist" would rewrite its own output forever.
+			if current == alias.target { continue }
+			if strings.has_prefix(current, alias.target) && current[len(alias.target)] == '/' { continue }
 			if current == alias.name {
 				next = alias.target
 				break
@@ -249,10 +318,15 @@ module_resolver_is_relative :: proc(path: string) -> bool {
 @(private="file")
 module_resolver_is_builtin :: proc(name: string) -> bool {
 	switch name {
-	case "assert", "assert/strict", "async_hooks", "buffer", "child_process",
+	// The names of module.builtinModules in Node 26, including the deprecated
+	// underscore-prefixed internals that require() still accepts.
+	case "_http_agent", "_http_client", "_http_common", "_http_incoming",
+		"_http_outgoing", "_http_server", "_tls_common", "_tls_wrap",
+		"assert", "assert/strict", "async_hooks", "buffer", "child_process",
 		"cluster", "console", "constants", "crypto", "dgram", "diagnostics_channel",
 		"dns", "dns/promises", "domain", "events", "fs", "fs/promises",
-		"http", "http2", "https", "module", "net", "os", "path", "path/posix",
+		"http", "http2", "https", "inspector", "inspector/promises",
+		"module", "net", "os", "path", "path/posix",
 		"path/win32", "perf_hooks", "process", "punycode", "querystring",
 		"readline", "readline/promises", "repl", "stream", "stream/consumers",
 		"stream/promises", "stream/web", "string_decoder", "sys", "timers",
@@ -266,31 +340,50 @@ module_resolver_is_builtin :: proc(name: string) -> bool {
 @(private="file")
 module_resolver_is_prefixed_builtin :: proc(name: string) -> bool {
 	switch name {
-	case "node:sea", "node:sqlite", "node:test", "node:test/reporters":
+	case "node:ffi", "node:sea", "node:sqlite", "node:test", "node:test/reporters":
 		return true
 	}
 	return false
 }
 
-@(private="file")
+// A request that ends in a slash names a directory. Node's CommonJS loader
+// and enhanced-resolve both skip the file and extension probes for it.
+@(private)
 module_resolver_load_path :: proc(
 	path: string,
 	options: ModuleResolveOptions,
 	allocator: mem.Allocator,
 	browser_probe: ^ModuleBrowserMapping = nil,
+	directory_only := false,
 ) -> (string, ModuleResolveError) {
-	if options.mode == .Import {
+	if options.resolve_to_context {
+		if os.is_directory(path) { return path, .None }
+		return "", .Not_Found
+	}
+	if module_resolver_fully_specified(options) {
 		return module_resolver_check_mapped_path(path, options, allocator, browser_probe)
 	}
-	if file, err := module_resolver_load_file(path, options, allocator, browser_probe); err != .Not_Found {
-		return file, err
+	if !directory_only {
+		if file, err := module_resolver_load_file(path, options, allocator, browser_probe); err != .Not_Found {
+			return file, err
+		}
 	}
 	if !os.is_directory(path) { return "", .Not_Found }
 	return module_resolver_load_main(path, options, allocator, browser_probe = browser_probe)
 }
 
+@(private)
+module_resolver_fully_specified :: proc(options: ModuleResolveOptions) -> bool {
+	return options.fully_specified.? or_else (options.mode == .Import)
+}
+
 @(private="file")
-module_resolver_probe_file :: proc(path: string, allocator: mem.Allocator, browser_probe: ^ModuleBrowserMapping) -> ModuleResolveError {
+module_resolver_probe_file :: proc(
+	path: string,
+	allocator: mem.Allocator,
+	browser_probe: ^ModuleBrowserMapping,
+	restrictions: []ModuleRestrictionMatcher,
+) -> ModuleResolveError {
 	if browser_probe != nil {
 		mapping, err := module_resolver_browser_lookup(filepath.dir(path), path, allocator)
 		if err != .None { return err }
@@ -299,14 +392,23 @@ module_resolver_probe_file :: proc(path: string, allocator: mem.Allocator, brows
 			return .None
 		}
 	}
-	if os.is_file(path) { return .None }
-	return .Not_Found
+	if !os.is_file(path) { return .Not_Found }
+	// A file outside the restrictions does not exist for this resolution, so
+	// the caller continues with its next candidate.
+	if !module_resolver_restrictions_allow(path, restrictions) { return .Not_Found }
+	return .None
 }
 
 // Replace only an explicitly requested final suffix. Extensions appended by
 // ordinary lookup and candidates produced by this map do not re-enter it.
 @(private)
-module_resolver_extension_alias :: proc(path: string, aliases: map[string][]string, allocator: mem.Allocator, browser_probe: ^ModuleBrowserMapping) -> (string, ModuleResolveError) {
+module_resolver_extension_alias :: proc(
+	path: string,
+	aliases: map[string][]string,
+	allocator: mem.Allocator,
+	browser_probe: ^ModuleBrowserMapping,
+	restrictions: []ModuleRestrictionMatcher = nil,
+) -> (string, ModuleResolveError) {
 	base := filepath.base(path)
 	dot := strings.last_index_byte(base, '.')
 	if dot <= 0 { return "", .Not_Found }
@@ -315,7 +417,7 @@ module_resolver_extension_alias :: proc(path: string, aliases: map[string][]stri
 	if !found { targets, found = aliases[extension[1:]] }
 	if !found { return "", .Not_Found }
 	stem := path[:len(path)-len(extension)]
-	if file, err := module_resolver_probe_extensions(stem, targets, allocator, browser_probe); err != .Not_Found {
+	if file, err := module_resolver_probe_extensions(stem, targets, allocator, browser_probe, restrictions); err != .Not_Found {
 		return file, err
 	}
 	// An existing source filename excluded by the mapping cannot fall back
@@ -327,26 +429,32 @@ module_resolver_extension_alias :: proc(path: string, aliases: map[string][]stri
 @(private="file")
 module_resolver_load_file :: proc(path: string, options: ModuleResolveOptions, allocator: mem.Allocator, browser_probe: ^ModuleBrowserMapping) -> (string, ModuleResolveError) {
 	if len(options.extension_alias) > 0 {
-		if result, err := module_resolver_extension_alias(path, options.extension_alias, allocator, browser_probe); err != .Not_Found {
+		if result, err := module_resolver_extension_alias(path, options.extension_alias, allocator, browser_probe, options.restriction_matchers); err != .Not_Found {
 			return result, err
 		}
 	}
 	extensions := options.extensions.([]string)
 	// An empty suffix puts the exact filename at its configured position.
 	if !slice.contains(extensions, "") {
-		if probe := module_resolver_probe_file(path, allocator, browser_probe); probe != .Not_Found {
+		if probe := module_resolver_probe_file(path, allocator, browser_probe, options.restriction_matchers); probe != .Not_Found {
 			return path, probe
 		}
 	}
-	return module_resolver_probe_extensions(path, extensions, allocator, browser_probe)
+	return module_resolver_probe_extensions(path, extensions, allocator, browser_probe, options.restriction_matchers)
 }
 
 @(private)
-module_resolver_probe_extensions :: proc(path: string, extensions: []string, allocator: mem.Allocator, browser_probe: ^ModuleBrowserMapping) -> (string, ModuleResolveError) {
+module_resolver_probe_extensions :: proc(
+	path: string,
+	extensions: []string,
+	allocator: mem.Allocator,
+	browser_probe: ^ModuleBrowserMapping,
+	restrictions: []ModuleRestrictionMatcher = nil,
+) -> (string, ModuleResolveError) {
 	for extension in extensions {
 		candidate, err := strings.concatenate({path, extension}, allocator)
 		if err != nil { return "", .Allocation_Error }
-		if probe := module_resolver_probe_file(candidate, allocator, browser_probe); probe != .Not_Found {
+		if probe := module_resolver_probe_file(candidate, allocator, browser_probe, restrictions); probe != .Not_Found {
 			return candidate, probe
 		}
 	}
@@ -358,7 +466,7 @@ module_resolver_load_index :: proc(path: string, options: ModuleResolveOptions, 
 	for name in options.main_files.([]string) {
 		candidate, err := filepath.join({path, name}, allocator)
 		if err != nil { return "", .Allocation_Error }
-		if file, probe := module_resolver_probe_extensions(candidate, options.extensions.([]string), allocator, browser_probe); probe != .Not_Found {
+		if file, probe := module_resolver_probe_extensions(candidate, options.extensions.([]string), allocator, browser_probe, options.restriction_matchers); probe != .Not_Found {
 			return file, probe
 		}
 	}
@@ -467,9 +575,10 @@ module_resolver_load_package :: proc(
 		for _ in 0..=len(start) {
 			if configured || filepath.base(directory) != "node_modules" {
 				prefix := directory if !absolute else ""
-				pkg, err := filepath.join({prefix, root, name}, allocator)
-				if err != nil { return "", .Allocation_Error }
-				path, probe := module_resolver_probe_package(pkg, subpath, options, request, allocator, browser_probe)
+				root_dir, root_err := filepath.join({prefix, root}, allocator)
+				pkg, err := filepath.join({root_dir, name}, allocator)
+				if root_err != nil || err != nil { return "", .Allocation_Error }
+				path, probe := module_resolver_probe_package(root_dir, pkg, subpath, options, request, allocator, browser_probe)
 				if path != "" || probe != .None { return path, probe }
 			}
 			if absolute { break }
@@ -481,11 +590,24 @@ module_resolver_load_package :: proc(
 	return "", .Not_Found
 }
 
+// CommonJS joins the request onto each existing node_modules directory without
+// requiring the package directory itself, so "missing/../file" can name a
+// file beside it.
+@(private="file")
+module_resolver_joins_missing_package :: proc(
+	root_dir: string,
+	options: ModuleResolveOptions,
+	request: ModulePackageRequest,
+) -> bool {
+	if options.mode != .Require || request != .Bare { return false }
+	return os.is_directory(root_dir)
+}
+
 // An empty path without an error continues the search. Once exports selects
 // a package, even a missing target is final and must shadow lower-priority roots.
 @(private="file")
 module_resolver_probe_package :: proc(
-	pkg, subpath: string,
+	root_dir, pkg, subpath: string,
 	options: ModuleResolveOptions,
 	request: ModulePackageRequest,
 	allocator: mem.Allocator,
@@ -502,7 +624,9 @@ module_resolver_probe_package :: proc(
 		}
 	}
 
-	if subpath == "" {
+	if subpath == "" && options.resolve_to_context {
+		if is_package { return pkg, .None }
+	} else if subpath == "" {
 		// A directory claims its name in a configured root even when a sibling
 		// file has an implicit suffix. Node CommonJS checks that file first.
 		probe_as_file := !is_package if options.modules != nil else options.mode == .Require
@@ -516,20 +640,31 @@ module_resolver_probe_package :: proc(
 				return path, err
 			}
 		}
-	} else if is_package {
-		target, join_err := filepath.join({pkg, subpath[1:]}, allocator)
+	} else if is_package || module_resolver_joins_missing_package(root_dir, options, request) {
+		rest := subpath[1:]
+		if options.mode == .Import && request == .Bare {
+			// Without an exports map the ES module loader joins the subpath as a URL.
+			decoded, url_err := module_resolver_url_path(rest, allocator)
+			if url_err != .None { return "", url_err }
+			rest = decoded
+		}
+		target, join_err := filepath.join({pkg, rest}, allocator)
 		if join_err != nil { return "", .Allocation_Error }
 		// Node resolves an external imports-map target as a package and exact
 		// subpath, including when the original caller used require().
 		if request == .Imports_Target {
 			return module_resolver_check_mapped_path(target, options, allocator, browser_probe)
 		}
-		path, err := module_resolver_load_path(target, options, allocator, browser_probe)
+		directory_only := strings.has_suffix(subpath, "/")
+		path, err := module_resolver_load_path(target, options, allocator, browser_probe, directory_only)
 		if err != .Not_Found && !(options.modules != nil && err == .Directory_Import) {
 			return path, err
 		}
 	}
-	if is_package && options.mode == .Import && options.modules == nil { return "", .Not_Found }
+	// Node's ES module loader commits to the first package directory. The
+	// CommonJS loader and bundler-style lookups continue to outer directories.
+	strict_import := options.mode == .Import && module_resolver_fully_specified(options)
+	if is_package && strict_import && options.modules == nil { return "", .Not_Found }
 	return "", .None
 }
 
@@ -584,11 +719,11 @@ module_resolver_check_mapped_path :: proc(
 	browser_probe: ^ModuleBrowserMapping,
 ) -> (string, ModuleResolveError) {
 	if len(options.extension_alias) > 0 {
-		if result, err := module_resolver_extension_alias(path, options.extension_alias, allocator, browser_probe); err != .Not_Found {
+		if result, err := module_resolver_extension_alias(path, options.extension_alias, allocator, browser_probe, options.restriction_matchers); err != .Not_Found {
 			return result, err
 		}
 	}
-	if probe := module_resolver_probe_file(path, allocator, browser_probe); probe != .Not_Found {
+	if probe := module_resolver_probe_file(path, allocator, browser_probe, options.restriction_matchers); probe != .Not_Found {
 		return path, probe
 	}
 	if options.mode == .Import && os.is_directory(path) { return "", .Directory_Import }
@@ -774,10 +909,18 @@ module_resolver_is_index_key :: proc(key: string) -> bool {
 @(private="file")
 module_resolver_has_condition :: proc(key: string, options: ModuleResolveOptions) -> bool {
 	if key == "default" { return true }
-	if key == "browser" && options.browser { return true }
-	if key == "node" && !options.browser { return true }
-	if key == "require" && options.mode == .Require { return true }
-	if key == "import" && options.mode == .Import { return true }
+	if !options.explicit_conditions {
+		if key == "browser" && options.browser { return true }
+		if key == "require" && options.mode == .Require { return true }
+		if key == "import" && options.mode == .Import { return true }
+		// Node enables these for both loaders: node-addons unless --no-addons
+		// is given, module-sync since Node 22.10.
+		if !options.browser {
+			switch key {
+			case "node", "node-addons", "module-sync": return true
+			}
+		}
+	}
 	for condition in options.conditions {
 		if key == condition { return true }
 	}

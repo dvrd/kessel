@@ -563,6 +563,7 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 // other diagnostics merge into.
 scope_emit :: #force_inline proc(p: ^Parser, at: u32, message: string) {
 	if p == nil { return }
+	if p.depth_exceeded { return }
 	bump_append(&p.errors, ParseError{start = at, end = at, message = message})
 }
 
@@ -1490,6 +1491,9 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 // matching case and emits `{}`. Same fix as print_declaration_ast.
 append_import_spec :: proc(specs: ^[dynamic]^ImportSpecifierSpec, spec: $T, allocator: mem.Allocator) {
 	u := new(ImportSpecifierSpec, allocator)
+	// Out of memory: drop the specifier. The allocation guard has latched
+	// the failure, so the parse reports K2085 and discards the tree.
+	if u == nil { return }
 	u^ = spec^
 	append(specs, u)
 }
@@ -2007,6 +2011,9 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		eat(p)
 		current_expr := head_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)  // consume `.`
 			if p.cur_type != .Identifier && !is_keyword_usable_as_property_name(p.cur_type) &&
 			   p.cur_type != .Await && p.cur_type != .Yield {
@@ -2637,6 +2644,13 @@ report_export_default_expr_restrictions :: proc(p: ^Parser) {
 // (`export default null null;`) is flagged.
 parse_export_default_expr :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
 	report_export_default_expr_restrictions(p)
+	// `export default /re/`: the lexer classifies a `/` after `default` as
+	// division, because `default` can also be a property name
+	// (`x.default / 2`). Here no left operand exists, so it starts a regex.
+	if (p.cur_type == .Div || p.cur_type == .AssignDiv) && p.lexer != nil {
+		relex_as_regex(p.lexer)
+		p.cur_type = p.lexer.cur.kind
+	}
 	expr := parse_assignment_expression(p)
 	if expr != nil {
 		def = expr

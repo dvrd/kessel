@@ -4,7 +4,7 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:strings"
 
-CLI_RESOLVE_USAGE :: "Usage: kessel resolve <specifier> --from <file> [--require] [--browser] [--tsconfig <file>] [--condition <name>] [--exports-fields <json>] [--imports-fields <json>] [--main-field <name>] [--no-main-fields] [--module-dir <directory>] [--no-module-dirs] [--extension <suffix>] [--extension-alias <suffix=targets>] [--no-extensions] [--main-file <name>] [--no-main-files] [--alias <name=target>] [--preserve-symlinks]"
+CLI_RESOLVE_USAGE :: "Usage: kessel resolve <specifier> --from <file> [--require] [--browser] [--tsconfig <file>] [--condition <name>] [--exports-fields <json>] [--imports-fields <json>] [--main-field <name>] [--no-main-fields] [--module-dir <directory>] [--no-module-dirs] [--extension <suffix>] [--extension-alias <suffix=targets>] [--no-extensions] [--main-file <name>] [--no-main-files] [--alias <name=target>] [--preserve-symlinks] [--root <directory>] [--fallback <name=target>] [--fallback-ignore <name>] [--restriction <directory>] [--restriction-regex <pattern>] [--fully-specified] [--no-fully-specified] [--prefer-relative] [--prefer-absolute] [--resolve-to-context] [--explicit-conditions] [--tsconfig-references]"
 
 @(private)
 cli_resolve_module :: proc(args: []string) -> int {
@@ -29,82 +29,141 @@ cli_resolve_module :: proc(args: []string) -> int {
 }
 
 @(private="file")
+CliResolveLists :: struct {
+	importer: string,
+	conditions, main_fields, extensions, main_files, modules, roots: [dynamic]string,
+	aliases: [dynamic]ModuleResolveAlias,
+	fallback: [dynamic]ModuleResolveFallback,
+	restrictions: [dynamic]ModuleResolveRestriction,
+	extension_alias: map[string][]string,
+}
+
+@(private="file")
 cli_resolve_options :: proc(args: []string, options: ^ModuleResolveOptions) -> string {
-	importer: string
-	conditions, main_fields, extensions, main_files, modules: [dynamic]string
-	aliases: [dynamic]ModuleResolveAlias
-	extension_alias := make(map[string][]string, context.temp_allocator)
+	lists: CliResolveLists
+	lists.extension_alias = make(map[string][]string, context.temp_allocator)
 	for i := 0; i < len(args); i += 1 {
 		flag := args[i]
-		switch flag {
-		case "--require": options.mode = .Require
-		case "--browser": options.browser = true
-		case "--preserve-symlinks": options.preserve_symlinks = true
-		case "--no-main-fields":
-			clear(&main_fields)
-			options.main_fields = main_fields[:]
-		case "--no-extensions":
-			clear(&extensions)
-			options.extensions = extensions[:]
-		case "--no-main-files":
-			clear(&main_files)
-			options.main_files = main_files[:]
-		case "--no-module-dirs":
-			clear(&modules)
-			options.modules = modules[:]
-		case "--from", "--tsconfig", "--condition", "--main-field", "--extension", "--main-file", "--module-dir", "--alias", "--extension-alias", "--exports-fields", "--imports-fields":
-			i += 1
-			allows_empty := flag == "--extension" || flag == "--module-dir" || flag == "--main-field"
-			if i == len(args) || (args[i] == "" && !allows_empty) {
-				fmt.eprintf("Error: %s requires a value\n", flag)
-				return ""
-			}
-			switch flag {
-			case "--from": importer = args[i]
-			case "--tsconfig": options.typescript_config = args[i]
-			case "--condition": append(&conditions, args[i])
-			case "--exports-fields", "--imports-fields":
-				fields, ok := cli_resolve_manifest_fields(args[i])
-				if !ok {
-					fmt.eprintf("Error: %s requires a JSON array of keys or key paths\n", flag)
-					return ""
-				}
-				if flag == "--exports-fields" { options.exports_fields = fields }
-				else { options.imports_fields = fields }
-			case "--main-field":
-				append(&main_fields, args[i])
-				options.main_fields = main_fields[:]
-			case "--module-dir":
-				append(&modules, args[i])
-				options.modules = modules[:]
-			case "--extension":
-				append(&extensions, args[i])
-				options.extensions = extensions[:]
-			case "--extension-alias":
-				key, values, valid := cli_resolve_extension_alias(args[i])
-				if !valid { return "" }
-				extension_alias[key] = values
-			case "--main-file":
-				append(&main_files, args[i])
-				options.main_files = main_files[:]
-			case "--alias":
-				alias, ok := cli_resolve_alias(args[i])
-				if !ok { return "" }
-				append(&aliases, alias)
-			}
-		case:
+		if cli_resolve_switch(flag, options, &lists) { continue }
+		if !cli_resolve_takes_value(flag) {
 			fmt.eprintf("Error: unknown resolve option '%s'\n", flag)
 			return ""
 		}
+		i += 1
+		allows_empty := flag == "--extension" || flag == "--module-dir" || flag == "--main-field"
+		if i == len(args) || (args[i] == "" && !allows_empty) {
+			fmt.eprintf("Error: %s requires a value\n", flag)
+			return ""
+		}
+		if !cli_resolve_value(flag, args[i], options, &lists) { return "" }
 	}
-	if importer == "" {
+	if lists.importer == "" {
 		fmt.eprintln("Error: resolve requires --from <file>")
 		return ""
 	}
-	options.conditions = conditions[:]
-	options.aliases = aliases[:]
-	options.extension_alias = extension_alias
-	return importer
+	options.conditions = lists.conditions[:]
+	options.aliases = lists.aliases[:]
+	options.roots = lists.roots[:]
+	options.fallback = lists.fallback[:]
+	options.restrictions = lists.restrictions[:]
+	options.extension_alias = lists.extension_alias
+	return lists.importer
+}
+
+// Flags without a value. A "--no-" flag sets an explicitly empty list, which
+// differs from leaving the option at its default.
+@(private="file")
+cli_resolve_switch :: proc(flag: string, options: ^ModuleResolveOptions, lists: ^CliResolveLists) -> bool {
+	switch flag {
+	case "--require": options.mode = .Require
+	case "--browser": options.browser = true
+	case "--preserve-symlinks": options.preserve_symlinks = true
+	case "--fully-specified": options.fully_specified = true
+	case "--no-fully-specified": options.fully_specified = false
+	case "--prefer-relative": options.prefer_relative = true
+	case "--prefer-absolute": options.prefer_absolute = true
+	case "--resolve-to-context": options.resolve_to_context = true
+	case "--explicit-conditions": options.explicit_conditions = true
+	case "--tsconfig-references": options.typescript_references = true
+	case "--no-main-fields":
+		clear(&lists.main_fields)
+		options.main_fields = lists.main_fields[:]
+	case "--no-extensions":
+		clear(&lists.extensions)
+		options.extensions = lists.extensions[:]
+	case "--no-main-files":
+		clear(&lists.main_files)
+		options.main_files = lists.main_files[:]
+	case "--no-module-dirs":
+		clear(&lists.modules)
+		options.modules = lists.modules[:]
+	case: return false
+	}
+	return true
+}
+
+@(private="file")
+cli_resolve_takes_value :: proc(flag: string) -> bool {
+	switch flag {
+	case "--from", "--tsconfig", "--condition", "--main-field", "--extension", "--main-file",
+	     "--module-dir", "--alias", "--extension-alias", "--exports-fields", "--imports-fields",
+	     "--root", "--fallback", "--fallback-ignore", "--restriction", "--restriction-regex":
+		return true
+	}
+	return false
+}
+
+@(private="file")
+cli_resolve_value :: proc(
+	flag, value: string,
+	options: ^ModuleResolveOptions,
+	lists: ^CliResolveLists,
+) -> bool {
+	assert(cli_resolve_takes_value(flag))
+	switch flag {
+	case "--from": lists.importer = value
+	case "--tsconfig": options.typescript_config = value
+	case "--condition": append(&lists.conditions, value)
+	case "--root": append(&lists.roots, value)
+	case "--restriction": append(&lists.restrictions, ModuleResolveRestriction{path = value})
+	case "--restriction-regex": append(&lists.restrictions, ModuleResolveRestriction{regex = value})
+	case "--exports-fields", "--imports-fields":
+		fields, ok := cli_resolve_manifest_fields(value)
+		if !ok {
+			fmt.eprintf("Error: %s requires a JSON array of keys or key paths\n", flag)
+			return false
+		}
+		if flag == "--exports-fields" { options.exports_fields = fields }
+		else { options.imports_fields = fields }
+	case "--main-field":
+		append(&lists.main_fields, value)
+		options.main_fields = lists.main_fields[:]
+	case "--module-dir":
+		append(&lists.modules, value)
+		options.modules = lists.modules[:]
+	case "--extension":
+		append(&lists.extensions, value)
+		options.extensions = lists.extensions[:]
+	case "--main-file":
+		append(&lists.main_files, value)
+		options.main_files = lists.main_files[:]
+	case "--extension-alias":
+		key, values, valid := cli_resolve_extension_alias(value)
+		if !valid { return false }
+		lists.extension_alias[key] = values
+	case "--alias":
+		alias, ok := cli_resolve_alias(value)
+		if !ok { return false }
+		append(&lists.aliases, alias)
+	case "--fallback":
+		alias, ok := cli_resolve_alias(value, "--fallback")
+		if !ok { return false }
+		append(&lists.fallback, ModuleResolveFallback{name = alias.name, target = alias.target, exact = alias.exact})
+	case "--fallback-ignore":
+		name := strings.trim_suffix(value, "$")
+		append(&lists.fallback, ModuleResolveFallback{name = name, exact = name != value, ignore = true})
+	}
+	return true
 }
 
 @(private="file")
@@ -131,16 +190,16 @@ cli_resolve_manifest_fields :: proc(raw: string) -> ([][]string, bool) {
 }
 
 @(private="file")
-cli_resolve_alias :: proc(value: string) -> (ModuleResolveAlias, bool) {
+cli_resolve_alias :: proc(value: string, flag := "--alias") -> (ModuleResolveAlias, bool) {
 	equals := strings.index_byte(value, '=')
 	if equals < 1 || equals == len(value) - 1 {
-		fmt.eprintln("Error: --alias requires <name=target>")
+		fmt.eprintf("Error: %s requires <name=target>\n", flag)
 		return {}, false
 	}
 	pattern := value[:equals]
 	name := strings.trim_suffix(pattern, "$")
 	if name == "" {
-		fmt.eprintln("Error: --alias requires a non-empty name")
+		fmt.eprintf("Error: %s requires a non-empty name\n", flag)
 		return {}, false
 	}
 	return {name, value[equals + 1:], name != pattern}, true

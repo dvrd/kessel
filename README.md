@@ -143,18 +143,25 @@ bin/kessel microbench parse app.js --iterations 500 --ast-only
 bin/kessel server --compact
 ```
 
-`kessel fmt <file>` prints imports, named re-exports, export lists and data literals.
-A single `const`, `let` or `var` binding or a default export can contain nested
-objects and arrays. The formatter handles shorthand and computed keys, spreads
-of supported values, sparse arrays and numeric rows. Simple TypeScript type
-names, qualified names and array types are supported, including chained
-assertions such as `as const satisfies Project.Config`.
+`kessel fmt <file>` prints JavaScript in the layout of Prettier 3.8.3. It formats
+declarations, functions, arrow functions, classes, calls, member chains,
+operators, objects, arrays, template literals, destructuring, control flow and
+module syntax. Comments between statements, class members, object properties
+and switch cases move with the code around them. In TypeScript files it also
+formats data declarations with simple type names, qualified names and array
+types, including chained assertions such as `as const satisfies Project.Config`.
 
 Use `--print-width 60 --single-quote` to wrap at 60 columns and prefer single
-quotes. The defaults are 80 columns and two-space indentation. Unsupported
-statements, statements with internal comments and `prettier-ignore` targets
-retain their original source. Use `--end-of-line lf|crlf|cr|auto` for generated
-line breaks. The editor detects the document's convention automatically.
+quotes. The defaults are 80 columns and two-space indentation. Use
+`--trailing-comma all|es5|none` and `--end-of-line lf|crlf|cr|auto` as in
+Prettier. The editor detects the document's line endings automatically.
+
+A statement keeps its original source when the formatter cannot yet print it
+as Prettier would. That covers other TypeScript syntax, JSX, decorators,
+comments inside an expression or a parameter list, and `prettier-ignore`
+targets. A statement also keeps its source when Prettier's layout for it would
+change on a second run, so formatting a file twice never changes it. The
+output is parsed again before it is returned.
 
 Add `--watch` to `lint`, `fmt`, or `transform` to run once and repeat after saves.
 The CLI polls the named paths, including files replaced by an editor's atomic save.
@@ -174,7 +181,29 @@ interfaces, aliases, namespaces, and re-exports. Diagnostics on stderr give the 
 UTF-8 byte range. A failed emit exits with status 1 and writes no declarations.
 Class index signatures and nested or merged namespaces retain private types used
 by public signatures. Computed interface and type-literal members can refer to
-local or imported keys. Some computed class members and inferred types remain in development.
+local or imported keys.
+
+Types are taken from annotations, or inferred the way TypeScript's
+`isolatedDeclarations` mode allows: literals, `as` assertions, `as const` arrays
+and objects, object literals, function and arrow expressions, a single direct
+`return`, parameter defaults, enum constants, and paired accessors. Anything
+that needs a type checker is reported with TypeScript's `TS90xx` code instead
+of being guessed.
+
+Known differences from TypeScript 5.9.3:
+
+- A file with a parse error or an early error (for example `super` outside a
+  method) fails with `Invalid_Syntax` and emits nothing. TypeScript's
+  single-file emitter skips those checks and still emits declarations.
+- When a file is already rejected, TypeScript sometimes adds diagnostics that
+  come from its type checker, such as TS9007 on an arrow function nested in a
+  call, TS4094 for mixins, or TS9039 for private names. Kessel reports the
+  primary error only.
+- Property assignments to a function (`fn.prop = value`) are diagnosed at the
+  top level of a file or namespace, not inside nested statements or expressions.
+- A generic function type used as a type argument and escapes in template
+  literal types are printed by the shared code generator without TypeScript's
+  parentheses and escape sequences.
 
 The experimental `module-lex` command emits JSON with imports, re-exports,
 `import.meta`, source and defer imports, and export names. Export records
@@ -207,6 +236,21 @@ An explicit suffix can opt into substitution. For example,
 `--extension-alias .js=.ts,.js` resolves a request for `./entry.js` to
 `entry.ts` first, then `entry.js`. The order also applies to explicit package
 entry paths. An empty replacement tries the filename without its suffix.
+
+The enhanced-resolve lookup options are available too. `--root <directory>`
+looks a server-relative request such as `/assets/logo.js` up below each root
+before the filesystem root, or after it with `--prefer-absolute`.
+`--prefer-relative` tries a bare request beside the importer before package
+lookup. `--fallback name=target` is tried only after a request failed. Repeat
+a name for several targets, and use `--fallback-ignore name` to report the
+request as ignored. `--restriction <directory>` and `--restriction-regex
+<pattern>` hide candidate files outside them, so lookup continues with the next
+candidate. `--fully-specified` and `--no-fully-specified` override whether a
+request must name its file exactly, which defaults to the Node rule of the
+mode. `--resolve-to-context` resolves a directory. `--explicit-conditions`
+selects package map targets with the given `--condition` names and `default`
+only. `--tsconfig-references` lets a project listed under `references` supply
+the paths for the files below it.
 
 Pass `--browser` for the browser export condition and package browser field
 remaps. An ignored module produces `{"kind":"ignored","path":""}`.
@@ -243,6 +287,96 @@ Each error carries a stable `code` (e.g. `K3010`) and `severity` field for
 programmatic handling. Full API and visitor helpers documented in
 [`npm/kessel/README.md`](npm/kessel/README.md).
 
+### Odin package
+
+Kessel is one Odin package (`src/`). Import it and you get the typed AST in
+process, without JSON and without a subprocess:
+
+```odin
+import kessel "path/to/kessel/src"
+
+State :: struct {
+    query:     ^kessel.ScopeQuery,
+    positions: ^kessel.SourcePositions,
+}
+
+compile :: proc(source: string) -> bool {
+    // Parse. The job owns one arena holding the whole AST; `parse_job_close`
+    // releases all of it, so AST pointers are valid until then.
+    job: kessel.ParseJob
+    config := kessel.ParseConfig{lang_override = kessel.Lang.JSX}
+    if !kessel.parse_job_open_inline(&job, source, config, "app.jsx") { return false }
+    defer kessel.parse_job_close(&job)
+    kessel.parse_job_run(&job)
+    if len(job.parser.errors) != 0 { return false }   // start/end are byte offsets
+
+    // `#!...` first line, if any.
+    if hashbang, present := job.program.hashbang.?; present { _ = hashbang.value }
+
+    // Scopes: bindings and references, queried by the `loc` of a node.
+    model := kessel.semantic_build(job.program, source, job.lang, job.arena_alloc)
+    query: kessel.ScopeQuery
+    kessel.scope_query_init(&query, &model, job.arena_alloc)
+    defer kessel.scope_query_destroy(&query)
+
+    // Byte offsets -> 1-based line, 0-based UTF-16 column, and back.
+    positions: kessel.SourcePositions
+    if !kessel.source_positions_init(&positions, source, context.allocator) { return false }
+    defer kessel.source_positions_destroy(&positions)
+
+    // Walk the tree. `.Skip` leaves out a subtree, `.Stop` ends the walk.
+    state := State{query = &query, positions = &positions}
+    status := kessel.ast_walk(job.program, {user = &state, enter = enter}, context.allocator)
+    return status == .Completed
+}
+
+enter :: proc(user: rawptr, node: kessel.AstNode) -> kessel.AstWalkAction {
+    state := cast(^State)user
+    #partial switch n in node {
+    case ^kessel.JSXElement:
+        where_ := kessel.source_position_at(state.positions, n.loc.start)
+        function, inside := kessel.scope_query_enclosing_function(state.query, n.loc)
+        _, _, _ = where_, function, inside
+    case ^kessel.JSXText:
+        _ = n.value                       // entity-decoded; n.raw is the source text
+    case ^kessel.JSXSpreadChild:
+        _ = n.expression                  // `{...xs}` as a child
+    case ^kessel.Identifier:
+        symbol := kessel.scope_query_symbol_at(state.query, n.loc)
+        _ = symbol                        // SYMBOL_UNRESOLVED for a global
+    case ^kessel.FunctionParameter:
+        view := kessel.function_parameter_view(n)   // {target, default_value}
+        _ = view
+    case ^kessel.TSTypeAnnotation:
+        return .Skip                      // not interested in types
+    }
+    return .Continue
+}
+```
+
+| API | File | What it gives you |
+|---|---|---|
+| `parse_job_open_inline`, `parse_job_run`, `parse_job_close` | `src/parse_job.odin` | `job.program`, `job.parser.errors`; one arena per job |
+| `Program.hashbang` | `src/ast.odin` | The `#!` line as `Maybe(Hashbang)` |
+| `ast_walk`, `ast_walk_statement_tree`, `ast_walk_expression_tree`, `ast_node_loc` | `src/ast_walk.odin` | Enter/leave over typed `AstNode`s. Depth-bounded (`PARSE_RESOURCE_AST_DEPTH`, 512); long `a + b + ...` and `a.b().c` chains use a loop, not the stack |
+| `function_parameter_view` | `src/function_parameter.odin` | Target and default of a parameter, however the parser stored it |
+| `semantic_build` | `src/semantic.odin` | Scope tree, symbols, references |
+| `scope_query_symbol_at`, `scope_query_references`, `scope_query_bindings_named`, `scope_query_enclosing_function`, ... | `src/scope_query.odin` | Which binding an identifier or JSX tag declares or uses; all uses of a binding; the function around a node |
+| `source_position_at`, `source_offset_at` | `src/positions.odin` | Byte offset <-> (line, UTF-16 column); CRLF, CR, U+2028/9, BOM and astral characters handled |
+| `sourcemap_builder_*` | `src/sourcemap_builder.odin` | Source Map v3: sources, names, mappings in any order, JSON out |
+| `jsx_decode_entities` | `src/jsx_entities.odin` | The decoder behind `JSXText.value` |
+
+Conventions worth knowing: every `Loc` and diagnostic span is a UTF-8 byte
+offset (the JSON emitter converts to UTF-16; use `source_position_at` to do
+the same); source-map lines and columns are 0-based while
+`source_position_at` lines are 1-based; strings in the AST point into the
+source or the job's arena and die with the job.
+
+[`tests/library/consumer`](tests/library/consumer/main.odin) is a complete
+program using all of the above; `task test:library` builds it and checks its
+output against oxc-parser, Babel and `source-map-js`. The same task compiles
+and runs the snippet above, so it cannot drift from the API.
+
 ### CLI Flags
 
 | Flag | Description |
@@ -254,6 +388,7 @@ programmatic handling. Full API and visitor helpers documented in
 | `--range` | Emit ESLint-style `range: [start, end]` |
 | `--preserve-parens` | Wrap `(expr)` in ParenthesizedExpression nodes |
 | `--show-semantic-errors` | Run the semantic checker (pass 3) |
+| `--max-depth=N` | Reject source nested deeper than `N` levels with one `K2081` diagnostic instead of risking a stack overflow. Default 512. Operator, member and call chains (`a+b+c`, `a.b.c`, `a()()`) do not count and may be arbitrarily long |
 | `--ast-only` | Skip semantic checks (for benchmarking) |
 | `--ast-type=js\|ts\|auto` | Force ESTree shape (JS or TS fields) |
 | `--module-record` | Emit static import/export module record |
@@ -431,8 +566,8 @@ task test:release             # Zero-tolerance pre-release chain (~13 min)
 | `task test:codegen` | Spec-corpus round-trip: parse → codegen → re-parse → AST equality (~2s) |
 | `task test:codegen:full` | Pretty and minified round trips across spec, ESTree, Babel, test262, and TypeScript (~73K fixtures) |
 | `task test:watch` | CLI watch lifecycle, atomic saves, configuration changes, error recovery, and autofix |
-| `task test:format` | Module and data-literal formatting against Prettier 3.8.3 fixtures, idempotence, source preservation, and CLI errors |
-| `task test:format:real` | Check that formatted files in the 467-file release corpus retain their syntax and comments and stay unchanged on a second pass |
+| `task test:format` | Statement, expression, comment, module and data-literal formatting against Prettier 3.8.3 fixtures, idempotence, source preservation, and CLI errors |
+| `task test:format:real` | Check that formatted files in the 467-file release corpus retain their syntax tree and comments and stay unchanged on a second pass |
 | `task test:transform:reference` | Execute classic and automatic JSX fixtures and compare runtime behavior with the pinned OXC transformer |
 | `task test:bench:regression` | 10 curated files vs baselines, fails on >5% regression |
 | `task test:conformance:report` | Print conformance summary from snap files |
@@ -495,7 +630,12 @@ Three-pass pipeline:
 | `src/raw_transfer.odin` | Zero-copy binary AST buffer wire format |
 | `src/main.odin` | CLI dispatch + worker pool + server mode |
 | `src/lib_exports.odin` | Shared-library exports for the npm FFI |
-| `src/sourcemap.odin` | Source-map v3 VLQ encoder |
+| `src/sourcemap.odin` | Source map for the printer's own output |
+| `src/sourcemap_builder.odin` | Source Map v3 builder (sources, names, mappings) and the shared VLQ encoder |
+| `src/ast_walk.odin` | Typed, depth-bounded AST walk with enter/leave |
+| `src/function_parameter.odin` | One view of a parameter's target and default value |
+| `src/scope_query.odin` | Scope queries by source position, on top of `src/semantic.odin` |
+| `src/positions.odin` | Byte offset <-> line / UTF-16 column |
 | `src/simd.odin` | Cross-platform SIMD intrinsics |
 | `src/parse_job.odin` | Source → parsed Program deep module |
 | `src/token.odin` | `TokenType` enum, `FastToken`, `LiteralValue` |
@@ -519,9 +659,9 @@ results are in the [codegen section](#codegen).
 | 4 | **Linter (`kessel lint`)** | 🚧 Built-in lint rules with a pinned oxlint parity inventory |
 | 5 | Transformer (`kessel transform`, `transformSync`) | TypeScript lowering, classic and automatic JSX runtimes, and build-time global replacements. Target lowering, decorators, and React Refresh remain open. |
 | 6 | Semantic model · CFG · resolver · module lexer · regexp AST | In progress |
-| 7 | Formatter (`kessel fmt`, `formatSync`) | Wraps import and export lists and nested data literals at the configured width. General statement and expression formatting, JSX layout and comment placement remain open. |
+| 7 | Formatter (`kessel fmt`, `formatSync`) | Prints JavaScript statements, expressions and classes in Prettier 3.8.3's layout, with comments that stand between list items. TypeScript syntax, JSX layout, decorators and comments inside expressions remain open and keep their source. |
 | 8 | Minifier + mangler (`kessel minify`, `minifySync`) | Experimental. Folds JS and JSX numeric and boolean expressions, joins adjacent declarations, and shortens local JS and JSX bindings. Preserves JSX tag semantics and factory pragmas. TypeScript retains its binding names and initializer expressions for type inference. |
-| 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. The TypeScript reference suite covers namespaces, class index signatures and computed interface members. Some computed class members and inferred types remain open. |
+| 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. Compared with TypeScript 5.9.3 on its whole compiler and conformance fixture directories; every emitter difference is recorded in `tests/baselines/dts_typescript_differences.txt`. Files with early errors are rejected, and checker-dependent secondary diagnostics are not reproduced. |
 | 10 | Bundler + language server | The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. Bundling remains planned. |
 
 Run `task build:vscode` to create an installable VSIX for your platform.

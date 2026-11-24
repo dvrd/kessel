@@ -758,13 +758,24 @@ function resolverOptions(options) {
     throw new TypeError('kessel: resolver options must be an object');
   }
   const { mode = 'import', tsconfig = '', browser = false, preserveSymlinks = false,
-    mainFields, exportsFields, importsFields, extensions, mainFiles, modules, conditions, aliases = [], extensionAlias = {} } = options;
+    mainFields, exportsFields, importsFields, extensions, mainFiles, modules, conditions, aliases = [], extensionAlias = {},
+    roots = [], fallback = [], restrictions = [], fullySpecified, preferRelative = false, preferAbsolute = false,
+    resolveToContext = false, explicitConditions = false, tsconfigReferences = false } = options;
   if (mode !== 'import' && mode !== 'require') throw new TypeError('kessel: mode must be import or require');
   if (typeof tsconfig !== 'string') throw new TypeError('kessel: tsconfig must be a string');
   if (typeof browser !== 'boolean' || typeof preserveSymlinks !== 'boolean') {
     throw new TypeError('kessel: browser and preserveSymlinks must be booleans');
   }
   if (!Array.isArray(aliases)) throw new TypeError('kessel: aliases must be an array');
+  const switches = { preferRelative, preferAbsolute, resolveToContext, explicitConditions, tsconfigReferences };
+  for (const [name, value] of Object.entries(switches)) {
+    if (typeof value !== 'boolean') throw new TypeError(`kessel: ${name} must be a boolean`);
+  }
+  if (fullySpecified !== undefined && typeof fullySpecified !== 'boolean') {
+    throw new TypeError('kessel: fullySpecified must be a boolean');
+  }
+  if (!Array.isArray(fallback)) throw new TypeError('kessel: fallback must be an array');
+  if (!Array.isArray(restrictions)) throw new TypeError('kessel: restrictions must be an array');
   if (extensionAlias === null || typeof extensionAlias !== 'object' || Array.isArray(extensionAlias)) {
     throw new TypeError('kessel: extensionAlias must map suffixes to arrays of replacements');
   }
@@ -786,6 +797,28 @@ function resolverOptions(options) {
       extension_alias: Object.fromEntries(suffixes),
       main_files: toolStringList(mainFiles, 'mainFiles'),
       conditions: toolStringList(conditions, 'conditions'),
+      roots: toolStringList(roots, 'roots'),
+      fallback: Array.from(fallback, entry => {
+        if (!entry || typeof entry !== 'object' || typeof entry.name !== 'string' || entry.name.length === 0 ||
+            (entry.target !== false && (typeof entry.target !== 'string' || entry.target.length === 0)) ||
+            (entry.exact !== undefined && typeof entry.exact !== 'boolean')) {
+          throw new TypeError('kessel: each fallback requires a name and a target string or false');
+        }
+        const ignore = entry.target === false;
+        return { name: entry.name, target: ignore ? '' : entry.target, exact: entry.exact === true, ignore };
+      }),
+      restrictions: Array.from(restrictions, entry => {
+        const keys = entry && typeof entry === 'object' ? Object.keys(entry) : [];
+        if (keys.length !== 1 || (keys[0] !== 'path' && keys[0] !== 'regex') ||
+            typeof entry[keys[0]] !== 'string' || entry[keys[0]].length === 0) {
+          throw new TypeError('kessel: each restriction requires either a path or a regex string');
+        }
+        return { path: entry.path || '', regex: entry.regex || '' };
+      }),
+      fully_specified: fullySpecified === undefined ? null : fullySpecified,
+      prefer_relative: preferRelative, prefer_absolute: preferAbsolute,
+      resolve_to_context: resolveToContext, explicit_conditions: explicitConditions,
+      typescript_references: tsconfigReferences,
       aliases: Array.from(aliases, alias => {
         if (!alias || typeof alias !== 'object' || typeof alias.name !== 'string' ||
             typeof alias.target !== 'string' || (alias.exact !== undefined && typeof alias.exact !== 'boolean')) {
@@ -831,7 +864,7 @@ function formatSync(filename, source, options = {}) {
     throw new TypeError('kessel: endOfLine must be lf, crlf, cr or auto');
   }
   const settings = { print_width: printWidth, tab_width: tabWidth, use_tabs: useTabs,
-    single_quote: singleQuote, bracket_spacing: bracketSpacing, trailing_comma: trailingComma !== 'none',
+    single_quote: singleQuote, bracket_spacing: bracketSpacing, trailing_comma: trailingComma !== 'none', trailing_comma_es5: trailingComma === 'es5',
     end_of_line: endOfLine };
   return readToolResult(_format, 'formatSync', toolInput(filename, 'filename'),
     toolInput(source, 'source'), Buffer.from(JSON.stringify(settings)));
@@ -865,6 +898,7 @@ function transformSync(filename, source, options = {}) {
     throw new TypeError('kessel: jsx must select preserve, classic, or automatic');
   }
   const { pragma, pragmaFrag, importSource, development = false, pure = true, throwIfNamespace = true } = settingsObject ? jsx : {};
+  const lowering = transformLoweringSettings(options, settingsObject ? jsx.refresh : undefined);
   for (const value of [pragma, pragmaFrag, importSource]) {
     if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
       throw new TypeError('kessel: pragma, pragmaFrag, and importSource must be non-empty strings');
@@ -875,25 +909,53 @@ function transformSync(filename, source, options = {}) {
   }
   const settings = JSON.stringify({ define, jsx: runtime, pragma, pragma_frag: pragmaFrag, import_source: importSource,
     omit_pure: !pure, allow_namespaces: !throwIfNamespace, development, minified, source_map: sourceMap,
-    optimize_const_enums: optimizeConstEnums, lower_using: explicitResourceManagement });
+    optimize_const_enums: optimizeConstEnums, lower_using: explicitResourceManagement, ...lowering });
   return generatedCode(_transform, 'transformSync', filename, source, settings);
+}
+
+// Decorator, target and React Refresh options, validated and renamed for the native transformer.
+function transformLoweringSettings(options, refresh = false) {
+  const { target = 'esnext', decorator = {} } = options;
+  if (typeof target !== 'string' || !/^(es6|es20(1[5-9]|2[0-4])|esnext)$/i.test(target)) {
+    throw new TypeError('kessel: target must be a string from es2015 to es2024, or esnext');
+  }
+  if (decorator === null || typeof decorator !== 'object' || Array.isArray(decorator)) {
+    throw new TypeError('kessel: decorator options must be an object');
+  }
+  const { legacy = false, emitDecoratorMetadata = false } = decorator;
+  if (typeof legacy !== 'boolean' || typeof emitDecoratorMetadata !== 'boolean') {
+    throw new TypeError('kessel: decorator.legacy and decorator.emitDecoratorMetadata must be booleans');
+  }
+  if (emitDecoratorMetadata && !legacy) throw new TypeError('kessel: emitDecoratorMetadata requires decorator.legacy');
+  const refreshObject = typeof refresh === 'object' && refresh !== null && !Array.isArray(refresh);
+  if (typeof refresh !== 'boolean' && !refreshObject) throw new TypeError('kessel: jsx.refresh must be a boolean or an object');
+  const { refreshReg, refreshSig, emitFullSignatures = false } = refreshObject ? refresh : {};
+  for (const value of [refreshReg, refreshSig]) {
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
+      throw new TypeError('kessel: refreshReg and refreshSig must be non-empty strings');
+    }
+  }
+  if (typeof emitFullSignatures !== 'boolean') throw new TypeError('kessel: emitFullSignatures must be a boolean');
+  return { target, decorators: legacy ? 'legacy' : 'preserve', emit_decorator_metadata: emitDecoratorMetadata,
+    refresh: refresh !== false, refresh_reg: refreshReg, refresh_sig: refreshSig,
+    refresh_full_signatures: emitFullSignatures };
 }
 
 function minifySync(filename, source, options = {}) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) {
     throw new TypeError('kessel: minify options must be an object');
   }
-  const { compress = true, mangle = true, sourceMap = false, jsx = {} } = options;
+  const { compress = true, mangle = true, mangleNames = false, sourceMap = false, jsx = {} } = options;
   if (!jsx || typeof jsx !== 'object' || Array.isArray(jsx)) throw new TypeError('kessel: jsx must be an object');
   const { pragma, pragmaFrag } = jsx;
   if ([pragma, pragmaFrag].some(value => value !== undefined && (typeof value !== 'string' || !value.length))) {
     throw new TypeError('kessel: JSX pragma and pragmaFrag must be nonempty strings');
   }
-  if ([compress, mangle, sourceMap].some(value => typeof value !== 'boolean')) {
-    throw new TypeError('kessel: compress, mangle and sourceMap must be booleans');
+  if ([compress, mangle, mangleNames, sourceMap].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: compress, mangle, mangleNames and sourceMap must be booleans');
   }
   return generatedCode(_minify, 'minifySync', filename, source,
-    JSON.stringify({ compress, mangle, source_map: sourceMap, pragma, pragma_frag: pragmaFrag }));
+    JSON.stringify({ compress, mangle, mangle_names: mangleNames, source_map: sourceMap, pragma, pragma_frag: pragmaFrag }));
 }
 
 function generatedCode(native, name, filename, source, settings) {

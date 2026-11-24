@@ -122,6 +122,28 @@ ParseConfig :: struct {
 	// Shared guardrails for malformed input. Zero-valued fields use the
 	// defaults from resource_budget.odin.
 	resource_budget: ParseResourceBudget,
+
+	// Reject source that is not well-formed UTF-8 (Unicode Table 3-7:
+	// no overlong encodings, no encoded surrogates, nothing above
+	// U+10FFFF, no truncated or stray continuation bytes). The source is
+	// validated before any token is consumed; on failure the job reports
+	// exactly one K1017_InvalidUtf8 diagnostic spanning the first
+	// ill-formed sequence and an empty Program. Default false: ill-formed
+	// bytes are lexed as before (they may reach string values unchanged).
+	// Costs one pass over the source when on, nothing when off.
+	reject_invalid_utf8: bool,
+
+	// Maximum nesting depth of the source (parentheses, brackets, blocks,
+	// prefix operators, nested functions, types, JSX elements, ...).
+	// Deeper input is rejected with one K2081 diagnostic instead of
+	// overflowing the native stack. Zero (the default) or a negative
+	// value means "use resource_budget.ast_depth", which itself defaults
+	// to PARSE_RESOURCE_AST_DEPTH (512); there is no way to disable the
+	// limit. Chains the parser builds iteratively (`a+b+c`, `a&&b`,
+	// `a.b.c`, `a()()`) do not count and may be arbitrarily long.
+	// The default is sized for an 8 MB stack on an unoptimised build;
+	// a caller that raises it must provide proportionally more stack.
+	max_depth: int,
 }
 
 // Snapshot a CliConfig into a ParseConfig. Called once per parse job
@@ -145,6 +167,7 @@ parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 		ast_only               = false,
 		source_is_dts_override = nil,
 		resource_budget         = parse_resource_budget_default(),
+		max_depth               = cli.max_depth,
 	}
 }
 
@@ -190,7 +213,40 @@ ParseJob :: struct {
 
 	// Lifecycle bit so close is idempotent.
 	opened: bool,
+
+	// Set when the job was opened over a caller-supplied allocator
+	// (parse_job_open_inline's `backing`). `heap_arena` then takes the
+	// place of `arena`: it draws blocks from that allocator and returns
+	// all of them on close. `arena_ptr` is nil for such a job, so the
+	// consumers that need the contiguous virtual arena (raw transfer,
+	// --stats) do not apply to it.
+	uses_heap_arena: bool,
+	heap_arena:      mem.Dynamic_Arena,
+
+	// Where the allocation guard turns once the job's arena is exhausted,
+	// so that a parse which ran out of memory can still wind down. Nothing
+	// is taken from either until that happens; close releases both.
+	//   emergency       a growing virtual arena: fresh pages from the OS,
+	//                   independent of the fixed reservation that ran out.
+	//   heap_emergency  for a caller-supplied allocator: the same
+	//                   allocator asked for small blocks, which it may
+	//                   still have when it refused a 64 KiB one.
+	emergency:      mvirtual.Arena,
+	heap_emergency: mem.Dynamic_Arena,
+
+	// Sits between the lexer / parser and `arena_alloc` for the duration
+	// of parse_job_run; see alloc_guard.odin. Kept last: it embeds the
+	// emergency reserve, which dwarfs every other field.
+	guard: AllocGuard,
 }
+
+// Block size of the arena layered over a caller-supplied allocator. Larger
+// requests (the node bump pool, big arrays) go to that allocator directly.
+PARSE_JOB_HEAP_BLOCK_SIZE :: 64 * 1024
+// Block size of `heap_emergency`: small, because it is only asked once the
+// allocator has already refused something bigger.
+PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE :: 4 * 1024
+#assert(PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE < PARSE_JOB_HEAP_BLOCK_SIZE)
 
 // ============================================================================
 // Internal helpers — lang / dts / source-type resolution
@@ -287,7 +343,22 @@ parse_job_open :: proc(job: ^ParseJob, path: string, config: ParseConfig) -> boo
 //
 // `label` is the synthetic path used for diagnostics and lang detection
 // (pass e.g. "<test>.ts" to route through TS grammar).
-parse_job_open_inline :: proc(job: ^ParseJob, source: string, config: ParseConfig, label := "<inline>") -> bool {
+//
+// `backing` selects where the job's memory comes from. Left at its zero
+// value (every existing caller) the job reserves its own virtual-memory
+// arena, as before. Given an allocator, the job takes ALL of its memory
+// from it instead: the AST, diagnostics and the lexer's and parser's
+// working state, including the scratch strings they would otherwise put in
+// context.temp_allocator. It asks for 64 KiB blocks plus one allocation per
+// larger request, never frees individually, and returns everything in
+// parse_job_close, so it suits an embedder with a per-request or tracked
+// heap. An allocator that runs out mid-parse is reported as K2085 in
+// job.parser.errors, not as a crash. `backing` must support free and stay
+// valid until close.
+parse_job_open_inline :: proc(
+	job: ^ParseJob, source: string, config: ParseConfig, label := "<inline>",
+	backing := mem.Allocator{},
+) -> bool {
 	job^ = ParseJob{
 		config      = config,
 		source_path = label,
@@ -295,6 +366,19 @@ parse_job_open_inline :: proc(job: ^ParseJob, source: string, config: ParseConfi
 		owns_source = false,
 		owns_arena  = true,
 		opened      = true,
+	}
+
+	if backing.procedure != nil {
+		// The arena itself allocates nothing until first use, so opening
+		// cannot fail here; an exhausted `backing` surfaces during run.
+		mem.dynamic_arena_init(&job.heap_arena, backing, backing,
+			PARSE_JOB_HEAP_BLOCK_SIZE, PARSE_JOB_HEAP_BLOCK_SIZE, 16)
+		mem.dynamic_arena_init(&job.heap_emergency, backing, backing,
+			PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE, PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE, 16)
+		job.uses_heap_arena = true
+		job.arena_alloc = mem.dynamic_arena_allocator(&job.heap_arena)
+		parse_job_resolve(job)
+		return true
 	}
 
 	if err := mvirtual.arena_init_static(&job.arena, arena_reserve_for_source(len(job.source.data))); err != nil {
@@ -381,13 +465,50 @@ parse_job_run :: proc(job: ^ParseJob) {
 
 	// Lexer first - it needs source_type up front to gate Annex B
 	// HTML-like comments on the very first prefetched token.
-	init_lexer(&job.lexer, source_str, job.arena_alloc, job.lex_source_type)
+	// Everything the lexer and parser allocate goes through the guard, so
+	// an exhausted arena becomes a K2085 diagnostic instead of a nil
+	// dereference. Later passes keep using job.arena_alloc directly.
+	fallback := mvirtual.arena_allocator(&job.emergency)
+	if job.uses_heap_arena { fallback = mem.dynamic_arena_allocator(&job.heap_emergency) }
+	alloc_guard_init(&job.guard, job.arena_alloc, fallback, &job.lexer.offset)
+	parse_alloc := alloc_guard_allocator(&job.guard)
+
+	// Some AST lists are never `make`d: the first append to such a list
+	// takes context.allocator, which used to put it on the caller's heap,
+	// outside the arena, where nothing ever freed it. Route those into the
+	// arena as well.
+	context.allocator = parse_alloc
+
+	// A job over a caller-supplied allocator promises that ALL its memory
+	// comes from that allocator, so the diagnostics' formatted messages
+	// and the parser's scratch tables must not land in the thread's temp
+	// allocator either. Jobs with their own arena keep the caller's temp
+	// allocator, as before.
+	// (Assigned unconditionally: a `context` assignment inside an `if`
+	// block would end with that block.)
+	temp_alloc := context.temp_allocator
+	if job.uses_heap_arena { temp_alloc = parse_alloc }
+	context.temp_allocator = temp_alloc
+
+	init_lexer(&job.lexer, source_str, parse_alloc, job.lex_source_type)
+
+	// Opt-in input validation. Runs after init_lexer because the refusal
+	// is delivered through the lexer (diagnostic + halt), so the rest of
+	// the pipeline sees an ordinary, empty parse.
+	if job.config.reject_invalid_utf8 {
+		bad_start, bad_length := utf8_first_ill_formed(job.source.data)
+		if bad_length > 0 {
+			lexer_refuse_source(&job.lexer, u32(bad_start), u32(bad_length),
+				.K1017_InvalidUtf8, "Source is not valid UTF-8")
+		}
+	}
 
 	// Parser - lang and source_is_dts at construction; everything else
 	// gets set on the struct AFTER init_parser zeroes it (matching the
 	// existing parse_file behaviour, which init_parser's own comment
 	// at parser.odin:1514 calls out).
-	init_parser(&job.parser, &job.lexer, job.arena_alloc, job.lang, job.source_is_dts)
+	init_parser(&job.parser, &job.lexer, parse_alloc, job.lang, job.source_is_dts)
+	job.parser.alloc_guard = &job.guard
 
 	// Per-call config that init_parser doesn't take as args. Order
 	// preserved for diff-readability vs the previous parse_file body.
@@ -402,6 +523,9 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.allow_legacy_module_names = job.config.allow_legacy_module_names
 	job.parser.ast_only         = job.config.ast_only
 	job.parser.resource_budget  = parse_resource_budget_normalize(job.config.resource_budget)
+	depth_max := job.config.max_depth
+	if depth_max <= 0 { depth_max = job.parser.resource_budget.ast_depth }
+	parser_depth_configure(&job.parser, depth_max)
 	job.lexer.skip_regex_validation = job.config.ast_only
 	job.parser.is_commonjs      = job.is_commonjs
 	job.parser.is_node_ts_module = strings.has_suffix(job.source_path, ".cts") ||
@@ -434,7 +558,14 @@ parse_job_reset_arena :: proc(job: ^ParseJob) {
 // `defer` even after open failure.
 parse_job_close :: proc(job: ^ParseJob) {
 	if !job.opened { return }
-	if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
+	if job.uses_heap_arena {
+		// Returns every block and out-of-band allocation to `backing`.
+		mem.dynamic_arena_destroy(&job.heap_arena)
+		mem.dynamic_arena_destroy(&job.heap_emergency)
+	} else {
+		if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
+		mvirtual.arena_destroy(&job.emergency) // no-op when never used
+	}
 	if job.owns_source { source_release(job.source, context.allocator) }
 	job.opened = false
 }

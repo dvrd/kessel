@@ -1,17 +1,110 @@
 package kessel
 
 import "core:mem"
+import mvirtual "core:mem/virtual"
 import "core:strings"
 
-// Only replace complete, parsed statements. Copy gaps from the
-// original file so directives, comments and unsupported syntax survive exactly.
+FORMAT_SCRATCH_BLOCK_BYTES :: 1 << 20
+
+// Formats a parsed program. Only complete statements are replaced. The gaps
+// between them are copied from the original file, so directives, comments
+// and unsupported syntax survive exactly.
+//
+// The result is checked before it is returned: it must parse, and formatting
+// it again must change nothing. A statement that fails the second condition
+// keeps its original text. Prettier's own output is not always stable, for
+// example where an object that it expanded then counts as written expanded,
+// and a formatter that is not idempotent cannot be trusted in a save hook.
 format_program :: proc(job: ^ParseJob, options: FormatOptions) -> string {
 	assert(len(job.parser.errors) == 0)
 	assert(format_options_valid(options))
 	source := string(job.source.data)
+	count := len(job.program.body)
+	first := format_pass(job, options, nil)
+	if first.formatted == 0 { return source }
+	// Text that formatting leaves alone is stable by definition.
+	if first.text == source { return source }
+
+	check: ParseJob
+	buffer: []u8
+	if !format_reparse_open(&check, &buffer, first.text, job) { return source }
+	defer format_reparse_close(&check, buffer)
+	parse_job_run(&check)
+	if len(check.parser.errors) != 0 || len(check.program.body) != count { return source }
+	second := format_pass(&check, options, nil)
+	if second.text == first.text { return first.text }
+
+	skip := make([]bool, count, job.arena_alloc)
+	unstable := 0
+	for index in 0..<count {
+		before, after := first.spans[index], second.spans[index]
+		was_formatted := before.end > before.start
+		if was_formatted != (after.end > after.start) { return source }
+		if !was_formatted { continue }
+		if first.text[before.start:before.end] != second.text[after.start:after.end] {
+			skip[index] = true
+			unstable += 1
+		}
+	}
+	// A difference outside every formatted statement has no known cause.
+	if unstable == 0 { return source }
+	third := format_pass(job, options, skip)
+	if third.formatted == 0 { return source }
+	return third.text
+}
+
+@(private="file")
+FormatPass :: struct {
+	text:      string,
+	// Where each statement's formatted text lies in `text`. Statements that
+	// kept their original text have an empty span.
+	spans:     []Loc,
+	formatted: int,
+}
+
+// The second parse needs an arena of its own. A native build reserves
+// address space for it. WebAssembly has none to reserve and borrows a buffer.
+@(private="file")
+format_reparse_open :: proc(check: ^ParseJob, buffer: ^[]u8, text: string, original: ^ParseJob) -> bool {
+	when ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32 {
+		bytes, err := make([]u8, int(arena_reserve_for_source(len(text))))
+		if err != nil { return false }
+		buffer^ = bytes
+		check^ = ParseJob{
+			config = original.config, source_path = original.source_path,
+			source = {data = transmute([]u8)text}, opened = true,
+		}
+		if mvirtual.arena_init_buffer(&check.arena, bytes) != nil {
+			delete(bytes)
+			buffer^ = nil
+			return false
+		}
+		check.arena_ptr = &check.arena
+		check.arena_alloc = mvirtual.arena_allocator(&check.arena)
+		check.owns_arena = true
+		parse_job_resolve(check)
+		return true
+	} else {
+		return parse_job_open_inline(check, text, original.config, original.source_path)
+	}
+}
+
+@(private="file")
+format_reparse_close :: proc(check: ^ParseJob, buffer: []u8) {
+	parse_job_close(check)
+	if buffer != nil { delete(buffer) }
+}
+
+// One pass over the program. `skip` names statements that must keep their
+// original text.
+@(private="file")
+format_pass :: proc(job: ^ParseJob, options: FormatOptions, skip: []bool) -> FormatPass {
+	source := string(job.source.data)
 	newline := format_line_ending(options.end_of_line, source)
 	comments := job.lexer.comments[:]
 	out := strings.builder_make(0, len(source), job.arena_alloc)
+	spans := make([]Loc, len(job.program.body), job.arena_alloc)
+	formatted := 0
 	parts := make([dynamic]FormatPart, job.arena_alloc)
 	tokens := make([dynamic]FastToken, job.arena_alloc)
 	scanner: Lexer
@@ -21,18 +114,37 @@ format_program :: proc(job: ^ParseJob, options: FormatOptions) -> string {
 	previous_end: u32
 	previous_index := -2
 	column := 0
+	// Documents are many times larger than the text they describe. They live
+	// in a scratch arena that is reset after every statement, because the
+	// parse arena is sized for the tree alone.
+	scratch: mem.Dynamic_Arena
+	mem.dynamic_arena_init(&scratch, context.allocator, context.allocator, FORMAT_SCRATCH_BLOCK_BYTES, FORMAT_SCRATCH_BLOCK_BYTES / 4)
+	defer mem.dynamic_arena_destroy(&scratch)
+	scratch_alloc := mem.dynamic_arena_allocator(&scratch)
+	printer: FormatContext
+	format_context_init(&printer, source, options, job.arena_alloc, scratch_alloc)
+	printer.typescript = job.lang == .TS || job.lang == .TSX
+	printer.comments = comments
+	printer.comment_stamps = make([]u32, len(comments), job.arena_alloc)
 	for statement, index in job.program.body {
+		if skip != nil && skip[index] { continue }
 		module_list := false
 		#partial switch node in statement^ {
 		case ^ImportDeclaration, ^ExportAllDeclaration: module_list = true
 		case ^ExportNamedDeclaration: module_list = node.declaration == nil
-		case ^VariableDeclaration, ^ExportDefaultDeclaration:
-		case: continue
+		// Prettier drops a stray `;`. Dropping a statement is not this
+		// loop's job, so it keeps its text.
+		case ^EmptyStatement: continue
 		}
 		loc := get_statement_loc(statement)
-		if format_preserve_comments(comments, source, loc) { continue }
+		if loc.end <= loc.start { continue }
+		if format_is_ignored(comments, source, loc) { continue }
 		clear(&parts)
+		doc: Doc
+		// Only the general printer places comments.
+		commented := format_has_comment(comments, loc)
 		if module_list {
+			if commented { continue }
 			clear(&tokens)
 			scanner.offset = int(loc.start)
 			for scanner.offset < int(loc.end) {
@@ -42,8 +154,34 @@ format_program :: proc(job: ^ParseJob, options: FormatOptions) -> string {
 			}
 			if len(tokens) == 0 || tokens[len(tokens)-1].end != loc.end { continue }
 			if !format_module_parts(&parts, tokens[:], source, options, job.arena_alloc) { continue }
-		} else if !format_data_statement(&parts, statement, source, options, job.arena_alloc) {
-			continue
+		} else {
+			mem.dynamic_arena_reset(&scratch)
+			printed, ok := format_statement_doc(&printer, job.program, index)
+			if ok {
+				loc.end = format_statement_end(source, statement, loc)
+				// The comments above and beside the statement print with
+				// it, so that they take Prettier's spacing too.
+				body := job.program.body[:]
+				gap_start := previous_end
+				if index > 0 && previous_index + 1 != index {
+					gap_start = get_statement_loc(body[index-1]).end
+				}
+				next_start := u32(len(source))
+				if index + 1 < len(body) { next_start = get_statement_loc(body[index+1]).start }
+				around, covered, attached := format_statement_comments(
+					&printer, gap_start, loc.start, loc.end, next_start, index > 0, index + 1 < len(body))
+				if attached && gap_start <= loc.start && loc.end <= next_start {
+					doc = format_with_comments(&printer, around, printed)
+					loc = covered
+				} else {
+					printer.failed = false
+					doc = printed
+				}
+			} else if commented || !format_data_statement(&parts, statement, source, options, job.arena_alloc) {
+				// The data printer still covers typed declarations, which
+				// the general printer does not print yet.
+				continue
+			}
 		}
 
 		gap := source[previous_end:loc.start]
@@ -57,15 +195,35 @@ format_program :: proc(job: ^ParseJob, options: FormatOptions) -> string {
 			if line > 0 { column = 0 }
 			column += format_width(gap[line:])
 		}
-		column = format_layout_write(&out, parts[:], options, column, newline)
+		span_start := u32(len(out.buf))
+		if doc != nil {
+			column = format_doc_print(&out, doc, options, column, newline, scratch_alloc)
+		} else {
+			column = format_layout_write(&out, parts[:], options, column, newline)
+		}
+		spans[index] = {span_start, u32(len(out.buf))}
+		formatted += 1
 		previous_end = loc.end
 		previous_index = index
 	}
-	if previous_index < 0 { return source }
+	if previous_index < 0 { return {text = source, spans = spans} }
 	tail := source[previous_end:]
 	if strings.trim_space(tail) == "" { strings.write_string(&out, newline) }
 	else { strings.write_string(&out, tail) }
-	return strings.to_string(out)
+	return {text = strings.to_string(out), spans = spans, formatted = formatted}
+}
+
+// A top-level directive's span stops before its semicolon. The printed
+// statement brings its own, so the original one must be consumed with it.
+@(private="file")
+format_statement_end :: proc(source: string, statement: ^Statement, loc: Loc) -> u32 {
+	expression, is_expression := statement^.(^ExpressionStatement)
+	if !is_expression || loc.end == 0 || source[loc.end-1] == ';' { return loc.end }
+	if get_expression_loc(expression.expression).end != loc.end { return loc.end }
+	index := int(loc.end)
+	for index < len(source) && (source[index] == ' ' || source[index] == '\t') { index += 1 }
+	if index < len(source) && source[index] == ';' { return u32(index + 1) }
+	return loc.end
 }
 
 @(private)
@@ -81,9 +239,15 @@ format_has_blank_line :: proc(gap: string) -> bool {
 }
 
 @(private="file")
-format_preserve_comments :: proc(comments: []Comment, source: string, loc: Loc) -> bool {
+format_has_comment :: proc(comments: []Comment, loc: Loc) -> bool {
 	index := codegen_comment_lower_bound(comments, loc.start)
-	if index < len(comments) && comments[index].start < loc.end { return true }
+	return index < len(comments) && comments[index].start < loc.end
+}
+
+// A `prettier-ignore` comment directly above a statement protects it.
+@(private="file")
+format_is_ignored :: proc(comments: []Comment, source: string, loc: Loc) -> bool {
+	index := codegen_comment_lower_bound(comments, loc.start)
 	start := loc.start
 	for index > 0 {
 		index -= 1

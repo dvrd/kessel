@@ -1,0 +1,93 @@
+key dynamic
+evaluate field-a
+evaluate field-b
+apply field-b({}, "first", undefined)
+apply field-a({}, "first", undefined)
+evaluate computed-field
+apply computed-field({}, "dynamic", undefined)
+evaluate method
+evaluate method-param-0
+evaluate method-param-1
+apply method-param-1({}, "method", 1)
+apply method-param-0({}, "method", 0)
+apply method({}, "method", {configurable,enumerable,value,writable})
+evaluate getter
+apply getter({}, "value", {configurable,enumerable,get,set})
+evaluate late-setter
+evaluate late-param
+apply late-param({}, "late", 0)
+apply late-setter({}, "late", {configurable,enumerable,get,set})
+evaluate symbol-method
+apply symbol-method({}, Symbol(tagged), {configurable,enumerable,value,writable})
+evaluate string-key
+apply string-key({}, "quoted key", {configurable,enumerable,value,writable})
+evaluate numeric-key
+apply numeric-key({}, 42, {configurable,enumerable,value,writable})
+evaluate constant-computed
+apply constant-computed({}, "constant", {configurable,enumerable,value,writable})
+evaluate declared
+apply declared({}, "ambient", undefined)
+evaluate static-field
+apply static-field(fn:Order, "label", undefined)
+evaluate static-method
+evaluate static-param
+apply static-param(fn:Order, "create", 0)
+apply static-method(fn:Order, "create", {configurable,enumerable,value,writable})
+evaluate class-outer
+evaluate class-inner
+evaluate constructor-param
+apply constructor-param(fn:Order, undefined, 0)
+apply class-inner(fn:Order)
+apply class-outer(fn:Order)
+order 42,constructor,method,value,late,quoted key,constant
+instance [["dynamic",2],["first",1],["seed",7]]
+replace self Self
+self replaced true
+self original differs true
+self original base true
+self make true true
+self me true
+self shadow parameter
+self nested true
+descriptor writable false
+descriptor static false
+descriptor double 42
+key loop1
+evaluate loop-key-1
+apply loop-key-1({}, "loop1", {configurable,enumerable,value,writable})
+evaluate loop-class-1
+apply loop-class-1(fn:Loop)
+key loop2
+evaluate loop-key-2
+apply loop-key-2({}, "loop2", {configurable,enumerable,value,writable})
+evaluate loop-class-2
+apply loop-class-2(fn:Loop)
+loop distinct true true
+key level2
+key level1
+key level0
+evaluate recursive-key-0
+apply recursive-key-0({}, "level0", {configurable,enumerable,value,writable})
+evaluate recursive-0
+apply recursive-0(fn:Level)
+evaluate recursive-key-1
+apply recursive-key-1({}, "level1", {configurable,enumerable,value,writable})
+evaluate recursive-1
+apply recursive-1(fn:Level)
+evaluate recursive-key-2
+apply recursive-key-2({}, "level2", {configurable,enumerable,value,writable})
+evaluate recursive-2
+apply recursive-2(fn:Level)
+recursive level2,level1,level0
+evaluate override
+apply override({}, "twice", {configurable,enumerable,value,writable})
+evaluate derived
+evaluate derived-param
+apply derived-param(fn:Derived, undefined, 0)
+apply derived(fn:Derived)
+derived 9
+evaluate namespace-method
+apply namespace-method({}, "method", {configurable,enumerable,value,writable})
+evaluate namespace-class
+apply namespace-class(fn:Inside)
+namespace true function

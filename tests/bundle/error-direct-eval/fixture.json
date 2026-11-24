@@ -1,0 +1,3 @@
+{
+  "error": "direct eval in an ES module is not supported"
+}

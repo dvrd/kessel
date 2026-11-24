@@ -1,0 +1,7 @@
+{
+  "expected": "expected.txt",
+  "args": [
+    "--platform",
+    "browser"
+  ]
+}
