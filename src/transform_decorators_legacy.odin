@@ -35,6 +35,7 @@ LegacyClass :: struct {
 	rebinds:     bool, // The class decorators may replace the binding.
 	anonymous:   bool,
 	temps:       [dynamic]string, // Declared once, ahead of the class.
+	lowered:     ^LoweredClass,   // Set when the class was also lowered for the target.
 	metadata:    MemberMetadata,
 }
 
@@ -45,15 +46,43 @@ transform_class_declaration :: proc(
 ) -> bool {
 	state := cg.transform
 	if state == nil || class == nil || class.declare { return false }
-	target_check_class(cg, class)
-	if state.decorators != .Legacy { return false }
+	lowers := state.target < .ES2022
+	// Accessor fields become a getter and a setter before decorators are
+	// planned, so a decorator on one is applied to that pair.
+	class_desugar_accessors(cg, class)
+	if !lowers { class_register(cg, class) }
 	plan := LegacyClass{class = class}
 	plan.members.allocator = state.allocator
 	plan.temps.allocator = state.allocator
-	if !legacy_class_plan(cg, &plan) { return false }
-	if cg.strip_diag != nil { return true }
+	decorated := state.decorators == .Legacy && legacy_class_plan(cg, &plan)
+	if cg.strip_diag != nil { return decorated }
+	if !decorated {
+		if !lowers { return false }
+		if class.id == nil { return class_default_anonymous(cg, class) }
+		info := class_lower(cg, class, "")
+		info.emitted = true
+		return class_declaration_emit(cg, info, export)
+	}
+	// Decorated members are planned first, while the fields are still in the
+	// class; lowering then removes the fields and the plan keeps their keys.
 	legacy_class_names(cg, &plan, export)
+	if lowers {
+		plan.lowered = class_lower(cg, class, "")
+		plan.lowered.emitted = true
+	}
 	legacy_class_emit(cg, &plan, export)
+	return true
+}
+
+// `export default class { ... }` has no binding to call its static part on,
+// so it is exported as the value of the lowered class expression.
+class_default_anonymous :: proc(cg: ^Codegen, class: ^ClassExpression) -> bool {
+	state := cg.transform
+	if !class_needs_lowering(cg, class) { return false }
+	state.class_names[class.loc.start] = "default"
+	cg_module_keyword(cg, "export default ")
+	gen_expression(cg, transform_expression(state, class), PREC_ASSIGN)
+	cg_byte(cg, ';')
 	return true
 }
 
@@ -181,11 +210,6 @@ legacy_member_supported :: proc(
 		cg_strip_unsupported(cg, element.loc, what)
 		return false
 	}
-	if element.is_accessor {
-		what := "legacy decorators on an accessor field are not supported"
-		cg_strip_unsupported(cg, element.loc, what)
-		return false
-	}
 	if element.declare && element.computed && !legacy_key_is_constant(element.key) {
 		cg_strip_unsupported(cg, element.loc, "a decorated declared field needs a constant key")
 		return false
@@ -305,6 +329,7 @@ legacy_alias_block :: proc(state: ^TransformState, class: ^ClassExpression, alia
 
 legacy_class_emit :: proc(cg: ^Codegen, plan: ^LegacyClass, export: TransformExport) {
 	class := plan.class
+	class_declaration_before(cg, plan.lowered)
 	legacy_class_temporaries(cg, plan)
 	binds := plan.rebinds || plan.anonymous
 	// A target without static blocks has no static initializers either, so
@@ -335,6 +360,8 @@ legacy_class_emit :: proc(cg: ^Codegen, plan: ^LegacyClass, export: TransformExp
 	)
 	if plan.anonymous { cg_str(cg, "}.default") }
 	if binds { cg_byte(cg, ';') }
+	// Static initializers run before any decorator is applied.
+	class_declaration_after(cg, plan.lowered, plan.name)
 	for static in ([2]bool{false, true}) {
 		for member in plan.members {
 			if member.element.static == static { legacy_member_emit(cg, plan, member) }

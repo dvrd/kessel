@@ -112,9 +112,13 @@ target_collect_ambient :: proc(statements: []^Statement, all: bool, ambient: ^ma
 				if id, plain := declarator.id.(^Identifier); plain { ambient[id.loc.start] = true }
 			}
 		case ^FunctionDeclaration:
-			if id, named := node.id.?; named && (node.declare || all) { ambient[id.loc.start] = true }
+			if id, named := node.id.?; named && (node.declare || all) {
+				ambient[id.loc.start] = true
+			}
 		case ^ClassDeclaration:
-			if id, named := node.id.?; named && (node.declare || all) { ambient[id.loc.start] = true }
+			if id, named := node.id.?; named && (node.declare || all) {
+				ambient[id.loc.start] = true
+			}
 		case ^TSModuleDeclaration:
 			// Nesting of namespaces is bounded by the parser's depth limit.
 			body, present := node.body.?
@@ -239,6 +243,9 @@ target_capture :: proc(cg: ^Codegen, expr: ^Expression, loc: Loc) -> (first, aga
 target_lower :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 	state := cg.transform
 	target := state.target
+	if target < .ES2022 {
+		if lowered := class_lower_expression(cg, expr); lowered != nil { return lowered }
+	}
 	#partial switch node in expr^ {
 	case ^LogicalExpression:
 		if node.operator == .NullishCoalescing && target < .ES2020 {
@@ -535,7 +542,10 @@ target_check_unsupported :: proc(cg: ^Codegen, expr: ^Expression) {
 	#partial switch node in expr^ {
 	case ^ArrowFunctionExpression:
 		if node.async { target_require(cg, node.loc, .ES2017, "async functions cannot be lowered") }
-		for param in node.params { target_check_pattern(cg, param.pattern) }
+		for param in node.params {
+			target_check_pattern(cg, param.pattern)
+			class_note_pattern_names(cg, param.pattern, param.default_val)
+		}
 	case ^AwaitExpression:
 		target_require(cg, node.loc, .ES2017, "await cannot be lowered")
 		if !target_inside_function(cg, node.loc.start) {
@@ -553,8 +563,6 @@ target_check_unsupported :: proc(cg: ^Codegen, expr: ^Expression) {
 				target_require(cg, property.loc, .ES2018, "object spread cannot be lowered")
 			}
 		}
-	case ^ClassExpression:
-		target_check_class(cg, node)
 	case ^RegExpLiteral:
 		if strings.contains_rune(node.flags, 's') {
 			target_require(cg, node.loc, .ES2018, "the regular expression flag s cannot be lowered")
@@ -583,24 +591,6 @@ target_inside_function :: proc(cg: ^Codegen, offset: u32) -> bool {
 	return false
 }
 
-// Fields, private names and static blocks arrived together in ES2022 and
-// depend on one another, so none of them is lowered on its own.
-target_check_class :: proc(cg: ^Codegen, class: ^ClassExpression) {
-	if cg.transform.target >= .ES2022 { return }
-	for element in class.body.body {
-		if cg.cfg.strip_types && class_element_erased(element) { continue }
-		private := false
-		if element.key != nil { _, private = element.key^.(^PrivateIdentifier) }
-		switch {
-		case element.kind == .StaticBlock:
-			cg_strip_unsupported(cg, element.loc, "class static blocks cannot be lowered")
-		case private:
-			cg_strip_unsupported(cg, element.loc, "private class members cannot be lowered")
-		case element.kind == .Field:
-			cg_strip_unsupported(cg, element.loc, "class fields cannot be lowered")
-		}
-	}
-}
 
 // Every function except an arrow passes through here before it prints.
 transform_function_check :: proc(
@@ -609,7 +599,10 @@ transform_function_check :: proc(
 	if cg.transform == nil { return }
 	if async { target_require(cg, loc, .ES2017, "async functions cannot be lowered") }
 	if async && generator { target_require(cg, loc, .ES2018, "async generators cannot be lowered") }
-	for param in params { target_check_pattern(cg, param.pattern) }
+	for param in params {
+		target_check_pattern(cg, param.pattern)
+		class_note_pattern_names(cg, param.pattern, param.default_val)
+	}
 }
 
 // Temporaries created while a function body prints are declared when it
@@ -650,23 +643,8 @@ target_check_pattern :: proc(cg: ^Codegen, pattern: Pattern) {
 	}
 }
 
-// Statements have no replacement tree; the few rules that concern them edit
-// the statement in place before it prints.
-transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
-	state := cg.transform
-	if state == nil || state.target == .ESNext { return }
-	// Explicit resource management is newer than every edition a target can name.
-	resource: ^VariableDeclaration
-	#partial switch node in stmt {
-	case ^VariableDeclaration: resource = node
-	case ^ForStatement:        resource = node.init_decl.? or_else nil
-	case ^ForOfStatement:      resource = node.left_decl.? or_else nil
-	}
-	if resource != nil && resource_kind(resource) != .None && !cg.cfg.lower_using {
-		what := "using declarations cannot be lowered without --lower-using"
-		cg_strip_unsupported(cg, resource.loc, what)
-	}
-	if state.target >= .ES2022 { return }
+// Import and export forms that arrived after ES2015.
+target_check_module_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	what_names :: "string names in import and export lists cannot be lowered"
 	#partial switch node in stmt {
 	case ^ExportAllDeclaration:
@@ -697,9 +675,34 @@ transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 		if len(node.attributes) != 0 {
 			cg_strip_unsupported(cg, node.loc, "import attributes cannot be lowered")
 		}
+	}
+}
+
+// Statements have no replacement tree; the few rules that concern them edit
+// the statement in place before it prints.
+transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
+	state := cg.transform
+	if state == nil || state.target == .ESNext { return }
+	// Explicit resource management is newer than every edition a target can name.
+	resource: ^VariableDeclaration
+	#partial switch node in stmt {
+	case ^VariableDeclaration: resource = node
+	case ^ForStatement:        resource = node.init_decl.? or_else nil
+	case ^ForOfStatement:      resource = node.left_decl.? or_else nil
+	}
+	if resource != nil && resource_kind(resource) != .None && !cg.cfg.lower_using {
+		what := "using declarations cannot be lowered without --lower-using"
+		cg_strip_unsupported(cg, resource.loc, what)
+	}
+	if state.target >= .ES2022 { return }
+	target_check_module_statement(cg, stmt)
+	#partial switch node in stmt {
 	case ^ForStatement:
 		if declaration, declared := node.init_decl.?; declared {
-			for declarator in declaration.declarations { target_check_pattern(cg, declarator.id) }
+			for declarator in declaration.declarations {
+				target_check_pattern(cg, declarator.id)
+				class_note_pattern_names(cg, declarator.id, declarator.init)
+			}
 		}
 	case ^TryStatement:
 		// `catch {` becomes `catch (unused) {`.
@@ -710,12 +713,17 @@ transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 		}
 		if present { if param, bound := handler.param.?; bound { target_check_pattern(cg, param) } }
 	case ^VariableDeclaration:
-		for declarator in node.declarations { target_check_pattern(cg, declarator.id) }
+		for declarator in node.declarations {
+			target_check_pattern(cg, declarator.id)
+			class_note_pattern_names(cg, declarator.id, declarator.init)
+		}
 	case ^ForInStatement:
+		if target, written := node.left_expr.?; written { class_lower_private_targets(cg, target) }
 		if declaration, declared := node.left_decl.?; declared {
 			for declarator in declaration.declarations { target_check_pattern(cg, declarator.id) }
 		}
 	case ^ForOfStatement:
+		if target, written := node.left_expr.?; written { class_lower_private_targets(cg, target) }
 		if node.await { target_require(cg, node.loc, .ES2018, "for await cannot be lowered") }
 		if declaration, declared := node.left_decl.?; declared {
 			for declarator in declaration.declarations { target_check_pattern(cg, declarator.id) }

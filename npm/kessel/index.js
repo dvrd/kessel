@@ -915,7 +915,12 @@ function transformSync(filename, source, options = {}) {
 
 // Decorator, target and React Refresh options, validated and renamed for the native transformer.
 function transformLoweringSettings(options, refresh = false) {
-  const { target = 'esnext', decorator = {} } = options;
+  const { target = 'esnext', decorator = {}, assumptions = {} } = options;
+  if (assumptions === null || typeof assumptions !== 'object' || Array.isArray(assumptions)) {
+    throw new TypeError('kessel: assumptions must be an object');
+  }
+  const { setPublicClassFields = false } = assumptions;
+  if (typeof setPublicClassFields !== 'boolean') throw new TypeError('kessel: setPublicClassFields must be a boolean');
   if (typeof target !== 'string' || !/^(es6|es20(1[5-9]|2[0-4])|esnext)$/i.test(target)) {
     throw new TypeError('kessel: target must be a string from es2015 to es2024, or esnext');
   }
@@ -937,6 +942,7 @@ function transformLoweringSettings(options, refresh = false) {
   }
   if (typeof emitFullSignatures !== 'boolean') throw new TypeError('kessel: emitFullSignatures must be a boolean');
   return { target, decorators: legacy ? 'legacy' : 'preserve', emit_decorator_metadata: emitDecoratorMetadata,
+    class_fields: setPublicClassFields ? 'assign' : 'define',
     refresh: refresh !== false, refresh_reg: refreshReg, refresh_sig: refreshSig,
     refresh_full_signatures: emitFullSignatures };
 }

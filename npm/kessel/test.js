@@ -1215,7 +1215,18 @@ try {
     const lowered = transformSync('chain.ts', 'export const read = (a: any) => a?.b ?? 1_000;', { target: 'es2019' });
     assert.deepEqual(lowered.errors, []);
     assert.doesNotMatch(lowered.code, /\?\.|\?\?|_000/);
-    assert.match(transformSync('fields.js', 'class C { x = 1; }', { target: 'es2021' }).errors[0].message, /class fields/);
+    assert.match(transformSync('wait.js', 'async function f() {}', { target: 'es2016' }).errors[0].message, /async functions/);
+    const fields = 'class B { set x(v) { globalThis.set = v; } } class C extends B { x = 1; #y = 2; static z = this.name; y() { return this.#y; } }\n' +
+      'globalThis.out = [Object.keys(new C()).join(), new C().y(), C.z];';
+    for (const [assumptions, expected] of [[undefined, { out: ['x', 2, 'C'] }], [{ setPublicClassFields: true }, { set: 1, out: ['', 2, 'C'] }]]) {
+      const classes = transformSync('fields.js', fields, { target: 'es2021', assumptions });
+      assert.deepEqual(classes.errors, []);
+      assert.doesNotMatch(classes.code, /#y|static z/);
+      const seen = {};
+      new Function('globalThis', classes.code)(seen);
+      assert.deepEqual(seen, expected);
+    }
+    assert.throws(() => transformSync('a.js', '', { assumptions: { setPublicClassFields: 1 } }), TypeError);
     const decorated = transformSync('service.ts',
       'const seen: unknown[] = [];\nfunction mark(target: object, key: string) { seen.push(key); }\n' +
       'class Service { @mark value: string = ""; }\nglobalThis.seen = seen;',

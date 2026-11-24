@@ -13,7 +13,12 @@ TransformDecorators :: enum u8 { Preserve, Legacy, Standard }
 // Helpers are emitted as hoisted function declarations at the end of the
 // program, once, and only when a lowering used them. Each gets a binding
 // that cannot collide with a name in the source.
-TransformHelper :: enum u8 { Decorate, Decorate_Param, Decorate_Metadata }
+TransformHelper :: enum u8 {
+	Decorate, Decorate_Param, Decorate_Metadata,
+	Define_Field, Prop_Key, Set_Name, Take_Member,
+	Private_Init, Private_Brand, Private_Get, Private_Set, Private_Method,
+	Private_Accessor_Get, Private_Accessor_Set, Private_Readonly, Private_In,
+}
 
 TransformState :: struct {
 	job:           ^ParseJob,
@@ -29,6 +34,12 @@ TransformState :: struct {
 	local_refs:    map[u32]bool,
 	math_checked:  bool,
 	refresh:       RefreshOptions,
+	class_fields:  ClassFields,
+	classes:       map[u32]^LoweredClass,   // By the offset of the class body.
+	class_list:    [dynamic]^LoweredClass,
+	class_names:   map[u32]string,          // Contextual names of anonymous class expressions.
+	super_done:    map[^Expression]bool,    // `super(...)` calls that already carry initializers.
+	weak_checked:  bool,
 }
 
 // Reads of intrinsics inside a helper resolve in module scope, so a source
@@ -37,12 +48,38 @@ TRANSFORM_HELPER_GLOBALS := [TransformHelper][]string{
 	.Decorate          = {"Object", "Reflect"},
 	.Decorate_Param    = {},
 	.Decorate_Metadata = {"Reflect"},
+	.Define_Field         = {"Object"},
+	.Prop_Key             = {"Reflect"},
+	.Set_Name             = {"Object"},
+	.Take_Member          = {"Object"},
+	.Private_Init         = {"TypeError"},
+	.Private_Brand        = {"TypeError"},
+	.Private_Get          = {"TypeError"},
+	.Private_Set          = {"TypeError"},
+	.Private_Method       = {"TypeError"},
+	.Private_Accessor_Get = {"TypeError"},
+	.Private_Accessor_Set = {"TypeError"},
+	.Private_Readonly     = {"TypeError"},
+	.Private_In           = {"TypeError"},
 }
 
 TRANSFORM_HELPER_KINDS := [TransformHelper]string{
 	.Decorate          = "decorate",
 	.Decorate_Param    = "param",
 	.Decorate_Metadata = "metadata",
+	.Define_Field         = "define",
+	.Prop_Key             = "key_of",
+	.Set_Name             = "name",
+	.Take_Member          = "take",
+	.Private_Init         = "private_init",
+	.Private_Brand        = "private_brand",
+	.Private_Get          = "private_get",
+	.Private_Set          = "private_set",
+	.Private_Method       = "private_method",
+	.Private_Accessor_Get = "private_getter",
+	.Private_Accessor_Set = "private_setter",
+	.Private_Readonly     = "private_readonly",
+	.Private_In           = "private_in",
 }
 
 // Every line ends a statement or opens or closes a block, so the compact
@@ -74,6 +111,76 @@ TRANSFORM_HELPER_BODIES := [TransformHelper]string{
     return Reflect.metadata(key, value);
   }
 }`,
+	.Define_Field = `(target, key, value) {
+  var field = { value: value, enumerable: true, configurable: true, writable: true };
+  Object.defineProperty(target, key, field);
+  return value;
+}`,
+	.Prop_Key = `(value) {
+  return Reflect.ownKeys({ [value]: 0 })[0];
+}`,
+	.Set_Name = `(target, name) {
+  var own = Object.getOwnPropertyDescriptor(target, "name");
+  var unnamed = own && own.value === "";
+  if (unnamed) Object.defineProperty(target, "name", { value: name, configurable: true });
+}`,
+	.Take_Member = `(target, key, name) {
+  var member = Object.getOwnPropertyDescriptor(target, key);
+  delete target[key];
+  var rename = function (callee, text) {
+    if (callee) Object.defineProperty(callee, "name", { value: text, configurable: true });
+  };
+  if ("value" in member) {
+    rename(member.value, name);
+    return member.value;
+  }
+  rename(member.get, "get " + name);
+  rename(member.set, "set " + name);
+  return member;
+}`,
+	.Private_Init = `(target, store, value) {
+  if (store.has(target)) throw new TypeError("Cannot initialize a private field twice");
+  store.set(target, value);
+  return value;
+}`,
+	.Private_Brand = `(target, brand) {
+  if (brand.has(target)) throw new TypeError("Cannot initialize private methods twice");
+  brand.add(target);
+}`,
+	.Private_Get = `(target, store) {
+  if (!store.has(target)) throw new TypeError("Cannot read an absent private member");
+  return store.get(target);
+}`,
+	.Private_Set = `(target, store, value) {
+  if (!store.has(target)) throw new TypeError("Cannot write an absent private member");
+  store.set(target, value);
+  return value;
+}`,
+	.Private_Method = `(target, brand, method) {
+  if (!brand.has(target)) throw new TypeError("Cannot read an absent private member");
+  return method;
+}`,
+	.Private_Accessor_Get = `(target, brand, accessor) {
+  if (!brand.has(target)) throw new TypeError("Cannot read an absent private member");
+  if (!accessor.get) throw new TypeError("The private accessor was defined without a getter");
+  return accessor.get.call(target);
+}`,
+	.Private_Accessor_Set = `(target, brand, accessor, value) {
+  if (!brand.has(target)) throw new TypeError("Cannot write an absent private member");
+  if (!accessor.set) throw new TypeError("The private accessor was defined without a setter");
+  accessor.set.call(target, value);
+  return value;
+}`,
+	.Private_Readonly = `(target, brand, value) {
+  if (!brand.has(target)) throw new TypeError("Cannot write an absent private member");
+  throw new TypeError("A private method is not writable");
+}`,
+	.Private_In = `(store, target) {
+  if (target === null || typeof target !== "object" && typeof target !== "function") {
+    throw new TypeError("Cannot use 'in' to look for a private member in a non-object");
+  }
+  return store.has(target);
+}`,
 }
 
 transform_state_init :: proc(
@@ -94,6 +201,10 @@ transform_state_init :: proc(
 	if decorators == .Standard {
 		return StripDiagnostic{what = "standard decorators are not lowered yet"}
 	}
+	switch options.class_fields {
+	case "", "define", "assign":
+	case: return StripDiagnostic{what = "expected class fields mode define or assign"}
+	}
 	target, known := transform_target_parse(options.target)
 	if !known {
 		return StripDiagnostic{what = "expected a target from es2015 to es2024, or esnext"}
@@ -113,6 +224,11 @@ transform_state_init :: proc(
 		job = job, allocator = job.arena_alloc, target = target, refresh = refresh,
 		decorators = decorators, emit_metadata = options.emit_decorator_metadata,
 	}
+	state.class_fields = .Assign if options.class_fields == "assign" else .Define
+	state.classes = make(map[u32]^LoweredClass, 8, state.allocator)
+	state.class_list = make([dynamic]^LoweredClass, 0, 8, state.allocator)
+	state.class_names = make(map[u32]string, 8, state.allocator)
+	state.super_done = make(map[^Expression]bool, 8, state.allocator)
 	state.temp_scopes = make([dynamic][dynamic]string, 0, 8, state.allocator)
 	append(&state.temp_scopes, make([dynamic]string, 0, 4, state.allocator))
 	cg.transform = state
@@ -227,13 +343,17 @@ transform_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expressi
 	assert(expr != nil)
 	if class, is_class := expr^.(^ClassExpression); is_class {
 		if state.decorators == .Legacy { transform_legacy_class_expression(cg, class) }
+		if state.target >= .ES2022 && state.classes[class.body.loc.start] == nil {
+			class_desugar_accessors(cg, class)
+			class_register(cg, class)
+		}
 	}
 	// After the first diagnostic nothing is written, so lowering can stop.
 	if state.target == .ESNext || cg.strip_diag != nil { return expr }
 	// A rule may produce syntax that an older target lowers again: `a ??= b`
 	// becomes `a ?? (a = b)` and then a conditional. Three steps is the longest chain.
 	value := expr
-	for _ in 0..<3 {
+	for _ in 0..<4 {
 		lowered := target_lower(cg, value)
 		if lowered == nil { break }
 		value = lowered
