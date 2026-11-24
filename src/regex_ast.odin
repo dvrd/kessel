@@ -10,8 +10,9 @@ import mvirtual "core:mem/virtual"
 //
 // The builder is a strict parser of the whole pattern grammar: it produces a
 // tree exactly when `new RegExp(pattern, flags)` would compile. It does not
-// lean on the validator in regex.odin, which is tuned for the parser hot path
-// and the conformance corpus and is deliberately lenient elsewhere.
+// lean on the validator in regex.odin, which is a fast approximation for the
+// lexer. The dependency runs the other way: regex_validate_literal asks
+// regex_pattern_verdict below whenever the approximation is not enough.
 //
 // The grammar is spread over three files:
 //   regex_ast.odin         disjunctions, groups, group names, quantifiers
@@ -141,9 +142,23 @@ regex_parse_ast :: proc(
 	}
 	defer mvirtual.arena_destroy(&scratch)
 
+	return regex_ast_parse(pattern, parsed_flags, allocator, mvirtual.arena_allocator(&scratch))
+}
+
+// Run the grammar over `pattern`. Nodes go to `allocator`; `scratch` holds the
+// group-name table and is the caller's to release.
+@(private="file")
+regex_ast_parse :: proc(
+	pattern: string,
+	flags: RegexAstFlags,
+	allocator, scratch: mem.Allocator,
+) -> (RegexAst, RegexAstError) {
+	assert(allocator.procedure != nil)
+	assert(scratch.procedure != nil)
+	assert(u64(len(pattern)) < u64(max(u32)))
 	ast: RegexAst
-	ast.flags = parsed_flags
-	ast.capture_count, ast.has_named_captures = regex_ast_capture_summary(pattern, parsed_flags)
+	ast.flags = flags
+	ast.capture_count, ast.has_named_captures = regex_ast_capture_summary(pattern, flags)
 	ast.nodes.allocator = allocator
 	if _, err := append(&ast.nodes, RegexAstNode{}); err != nil {
 		return {}, {kind = .Allocation_Error}
@@ -151,9 +166,9 @@ regex_parse_ast :: proc(
 	parser := RegexAstParser{
 		ast = &ast,
 		pattern = pattern,
-		unicode = .Unicode in parsed_flags || .Unicode_Sets in parsed_flags,
-		unicode_sets = .Unicode_Sets in parsed_flags,
-		scratch = mvirtual.arena_allocator(&scratch),
+		unicode = .Unicode in flags || .Unicode_Sets in flags,
+		unicode_sets = .Unicode_Sets in flags,
+		scratch = scratch,
 	}
 	parser.named_groups = parser.unicode || ast.has_named_captures
 	parser.names = make(map[string]u32, 0, parser.scratch)
@@ -168,6 +183,55 @@ regex_parse_ast :: proc(
 	assert(parser.next_capture == ast.capture_count)
 	assert(ast.root == 1)
 	return ast, {}
+}
+
+// What the grammar says about a pattern when no tree is wanted. Unknown means
+// the question could not be answered (nesting past REGEX_AST_DEPTH_MAX, or no
+// memory); the caller must fall back on some other judgement.
+RegexVerdict :: enum { Accepted, Rejected, Unknown }
+
+// Per-thread memory for regex_pattern_verdict. The lexer asks for a verdict on
+// regexp literals while it tokenizes, so the tree must not cost a system call
+// per literal (regex_parse_ast maps and unmaps an arena on every call) and must
+// not pile up in the parse arena, which is only released with the whole job.
+// The arena is created on a thread's first verdict, rewound after each one, and
+// lives as long as the thread.
+@(thread_local, private="file") regex_verdict_arena: mvirtual.Arena
+@(thread_local, private="file") regex_verdict_arena_ready: bool
+
+// Decide whether `new RegExp(pattern, flags)` would compile, using exactly the
+// grammar regex_parse_ast builds trees with, and discard the tree. The error
+// is meaningful for Rejected and carries a byte offset into `pattern`.
+regex_pattern_verdict :: proc(
+	pattern: string,
+	flags: RegexAstFlags,
+) -> (RegexVerdict, RegexAstError) {
+	if u64(len(pattern)) >= u64(max(u32)) { return .Unknown, {kind = .Source_Too_Large} }
+	if !regex_verdict_arena_ready {
+		if err := mvirtual.arena_init_growing(&regex_verdict_arena); err != nil {
+			return .Unknown, {kind = .Allocation_Error}
+		}
+		// Keep one byte in use so that rewinding never returns the first block
+		// to the operating system.
+		if _, err := mvirtual.arena_alloc(&regex_verdict_arena, 1, 1); err != nil {
+			mvirtual.arena_destroy(&regex_verdict_arena)
+			return .Unknown, {kind = .Allocation_Error}
+		}
+		regex_verdict_arena_ready = true
+	}
+
+	temp := mvirtual.arena_temp_begin(&regex_verdict_arena)
+	defer mvirtual.arena_temp_end(temp)
+
+	allocator := mvirtual.arena_allocator(&regex_verdict_arena)
+	_, err := regex_ast_parse(pattern, flags, allocator, allocator)
+	verdict := RegexVerdict.Unknown
+	switch err.kind {
+	case .None:            verdict = .Accepted
+	case .Invalid_Pattern: verdict = .Rejected
+	case .Invalid_Flags, .Source_Too_Large, .Depth_Limit, .Allocation_Error:
+	}
+	return verdict, err
 }
 
 regex_ast_destroy :: proc(ast: ^RegexAst) {

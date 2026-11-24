@@ -2881,27 +2881,24 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		bump_append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive", code = .K1012_InvalidRegex})
 	}
 
-	// Now that flags are parsed, run the full pattern validator. It owns
-	// every diagnostic that depends on flag context (property escapes,
-	// strict IdentityEscape, char-class range early errors in u/v mode,
-	// v-flag set notation, …) plus the flag-agnostic named-group checks.
+	// Now that flags are parsed, validate the pattern. Every diagnostic that
+	// depends on flag context (property escapes, strict IdentityEscape, class
+	// ranges, `v` set notation, …) comes from here, together with the
+	// flag-agnostic quantifier and named-group checks.
 	//
-	// Promoted to always-on (2026-05-08). Was previously gated on
-	// check_semantics, mirroring OXC's parser/semantic split, but every
-	// diagnostic emitted here is a §22.2.1 early error — a SyntaxError
-	// that ECMA-262 specifies as parse-phase. Running it always closes
-	// ~356 negatives in `parser_test262.snap` (the
-	// `language/literals/regexp` and `built-ins/RegExp/property-escapes`
-	// clusters) without any false-positive risk on positive fixtures —
-	// `semantic_test262.snap` has been at 47088/47090 positives for
-	// multiple sessions with this code path active.
+	// Always on: each diagnostic is a §22.2.1 early error, a SyntaxError the
+	// specification assigns to the parse phase, and the regexp negatives in
+	// `parser_test262.snap` depend on it.
 	//
-	// Post-#5 the validator no longer reaches into lexer state — it
-	// takes (source, span, flags, alloc) and returns a
-	// [dynamic]RegexDiagnostic. We map those back into LexerError so the
-	// lexer's error channel stays the single source of truth.
+	// regex_validate_literal never reaches into lexer state: it takes
+	// (source, span, flags, alloc) and returns diagnostics, which are mapped
+	// into LexerError so the lexer's error channel stays the single source
+	// of truth. It accepts an ordinary literal after the validator's scans
+	// and consults the regexp tree builder for the rest; see its comment.
 	if !l.skip_regex_validation {
-		diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
+		diags := regex_validate_literal(
+			l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator,
+		)
 		for d in diags {
 			// Propagate the validator's code if it set one, otherwise
 			// fall back to K1012_InvalidRegex — every regex-validator

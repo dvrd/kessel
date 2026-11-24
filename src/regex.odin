@@ -5,24 +5,19 @@ import "core:mem"
 import "core:slice"
 
 // ============================================================================
-// Regular expression pattern validator (ES2025 §22.2.1).
+// Regular expression literal validation (ES2025 §22.2.1 plus Annex B.1.2).
 //
-// Called via the public `regex_validate` entry below. The validator
-// returns its diagnostics to the caller, which routes them into
-// whatever error channel they prefer (the lexer appends to
-// `l.lexer_errors` today; a future semantic checker could call
-// `regex_validate` directly on RegExpLiteral nodes post-parse). Bytes
-// covered are exclusively `src[pat_start:pat_end]`, the closed-open
-// range of the pattern body (between the opening `/` and the closing
-// `/`). The validator never mutates lexer cursor state because it
-// never sees the lexer.
+// `regex_validate_literal` below is the entry point. It returns its
+// diagnostics to the caller, which routes them into whatever error channel it
+// prefers (the lexer appends to `l.lexer_errors`). Bytes covered are
+// exclusively `src[pat_start:pat_end]`, the closed-open range of the pattern
+// body between the opening `/` and the closing `/`. Nothing here sees the
+// lexer or mutates its cursor.
 //
-// The pre-#5 API took `l: ^Lexer` everywhere and reached into
-// `l.source_bytes` / `l.lexer_errors`. That coupling made regex
-// validation a lexer concern even though the brief calls it semantic.
-// Public API is now `regex_validate(source, span, flags, alloc)`; the
-// internal procs route through a small `RegexValidator` value that
-// holds the borrowed source bytes and the per-call diagnostics buffer.
+// The procedures after the entry point form the validator: linear scans over
+// the pattern that allocate nothing unless they report. They do not decide
+// alone any more. The entry point explains how the verdict is shared with the
+// regexp tree builder (regex_ast.odin).
 // ============================================================================
 
 // One validator-emitted diagnostic. Caller maps these onto whatever
@@ -41,37 +36,54 @@ RegexDiagnostic :: struct {
 }
 
 // Per-call validator state. Source is borrowed; errors and allocator
-// are owned. Constructed inside `regex_validate` and threaded into the
-// internal validator procs as their first argument. Not exported - the
+// are owned. Constructed inside `regex_validate_literal` and threaded into
+// the internal validator procs as their first argument. Not exported - the
 // caller never builds one directly.
 RegexValidator :: struct {
 	source:    []u8,                      // borrowed
 	errors:    [dynamic]RegexDiagnostic,  // owned, built per-call
 	allocator: mem.Allocator,
-	defer_v_string_negation: bool,
 }
 
-// regex_validate is the public entry point. Builds a RegexValidator,
-// runs the full pattern pipeline, and returns the populated diagnostic
-// list. The returned slice is backed by the validator's [dynamic] which
-// is allocated on `alloc` - typically the parse arena. Caller iterates
-// the returned slice and routes diagnostics into its own channel.
+// regex_validate_literal is what the lexer calls for a regexp literal. It
+// decides accept or reject and returns the diagnostics of a rejection.
 //
-// Empty return = no diagnostics. The validator never panics or aborts;
-// every malformed regex surfaces as one or more diagnostics.
-regex_validate :: proc(
-	source:           []u8,
+// Two implementations know the pattern grammar. The validator in this file is
+// a few linear scans with no allocation, cheap enough for the lexer, and loose:
+// it was grown against the conformance corpus and rejects some valid patterns
+// outside it (`/[\&]/v`, `/[[]]/v`, a group name spelled with an escape). The
+// tree builder (regex_ast.odin) is a strict parser that agrees with V8 on tens
+// of thousands of patterns and costs about a node per pattern byte.
+//
+// The validator runs first, and a pattern it has no complaint about is
+// accepted on the spot; that is the hot path and it never reaches the builder.
+// A complaint is checked with the builder before it is reported: if the
+// grammar accepts the pattern, the complaint was wrong and is dropped. The
+// validator's diagnostics are still what a rejected literal reports, since
+// their wording and offsets are pinned by the conformance snapshots.
+regex_validate_literal :: proc(
+	source:             []u8,
 	pat_start, pat_end: u32,
-	has_u, has_v:     bool,
-	alloc:            mem.Allocator,
-	defer_v_string_negation := false,
+	has_u, has_v:       bool,
+	alloc:              mem.Allocator,
 ) -> []RegexDiagnostic {
+	assert(pat_start <= pat_end)
+	if int(pat_end) > len(source) { return nil }
 	v: RegexValidator
 	v.source    = source
 	v.errors    = make([dynamic]RegexDiagnostic, 0, 4, alloc)
 	v.allocator = alloc
-	v.defer_v_string_negation = defer_v_string_negation
 	regex_validate_pattern(&v, pat_start, pat_end, has_u, has_v)
+	if len(v.errors) == 0 { return nil }
+	// `u` together with `v` is already a flag error; there is no grammar to
+	// consult for that combination, so the validator's reading is kept.
+	if has_u && has_v { return v.errors[:] }
+
+	flags := RegexAstFlags{.Unicode_Sets} if has_v else RegexAstFlags{.Unicode} if has_u else {}
+	verdict, _ := regex_pattern_verdict(string(source[pat_start:pat_end]), flags)
+	// Unknown (nesting beyond the builder's limit, no memory) leaves the
+	// validator's complaint standing.
+	if verdict == .Accepted { return nil }
 	return v.errors[:]
 }
 
@@ -1664,7 +1676,7 @@ regex_validate_v_mode_class :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 			nest_depth -= 1
 			if nest_depth <= 0 {
 				// Class closes. Check negated-class + property-of-strings.
-				if class_is_negated && class_has_prop_of_strings && !v.defer_v_string_negation {
+				if class_is_negated && class_has_prop_of_strings {
 					append(&v.errors, RegexDiagnostic{
 						offset = u32(class_open_off),
 						message = "Invalid negated character class containing property of strings in v-mode",
