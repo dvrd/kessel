@@ -167,6 +167,7 @@ tasks:
       - node tests/verifiers/verify_lint_flow.js
       - node tests/verifiers/verify_lint_prefer_const.js
       - node tests/verifiers/verify_lint_react_hooks.js
+      - node tests/verifiers/verify_lint_parity_cases.js
 
   test:lint:reference:
     desc: Compare lint configuration, diagnostic spans and fixes with the pinned oxlint executable.

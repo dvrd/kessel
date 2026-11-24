@@ -87,5 +87,10 @@ if (mode === '--refresh') {
     console.log(`oxlint ${pin}: ${result.referenceRules} rules in ${Object.keys(result.plugins).length} plugins`);
     console.log(`Kessel: ${result.candidates.length} rules, ${matched} with a same-name reference, ${ambiguous} ambiguous`);
     console.table(result.plugins);
+    // A shared name says nothing about behavior. The recorded comparisons do.
+    const recorded = Object.values(require('../lint/upstream_parity.json').rules);
+    const complete = recorded.filter(rule => rule.fixtures > 0 && rule.matched === rule.fixtures).length;
+    console.log(`Upstream fixtures: ${recorded.length} rules compared with oxlint ${pin}, ` +
+      `${complete} agree on every compared fixture (task test:lint:reference -- --upstream)`);
   }
 }
