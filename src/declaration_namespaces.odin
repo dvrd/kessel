@@ -5,6 +5,7 @@ DeclarationRegion :: struct {
 	bindings: map[string][dynamic]int,
 	first, end, parent, depth, symbol: int,
 	active, ambient, marker, private_items: bool,
+	scan: DeclarationRegionScan,
 }
 
 DeclarationNamespaceKey :: struct { parent: int, name: string }

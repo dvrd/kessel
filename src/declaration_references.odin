@@ -6,7 +6,9 @@ dts_reference :: proc(state: ^DeclarationEmit, expr: ^Expression, value: bool, q
 	for root != nil {
 		#partial switch node in root^ {
 		case ^Identifier:
-			append(&state.references, DeclarationReference{node.name, node.loc, value, qualified})
+			reference := DeclarationReference{node.name, node.loc, value, qualified}
+			append(&state.references, reference)
+			dts_private_check(state, reference)
 			return
 		case ^MemberExpression: root = node.object
 		case: return
@@ -22,6 +24,13 @@ dts_reference_is_local :: proc(state: ^DeclarationEmit, ref: DeclarationReferenc
 		if scope.value == ref.value && scope.name == ref.name && scope.loc.start <= ref.loc.start && ref.loc.end <= scope.loc.end { return true }
 	}
 	return false
+}
+
+// A plain type name that a type parameter or an `infer` binding shadows.
+@(private)
+dts_type_name_is_local :: proc(state: ^DeclarationEmit, id: ^Identifier) -> bool {
+	assert(id != nil)
+	return dts_reference_is_local(state, {name = id.name, loc = id.loc})
 }
 
 @(private)
@@ -121,7 +130,7 @@ dts_track_signature :: proc(state: ^DeclarationEmit, sig: ^TSSignature) -> bool 
 		dts_signature_params(state, v.params[:], v.loc)
 	case TSConstructSignatureDeclaration:
 		dts_type_parameters(state, v.type_parameters, v.loc)
-		if v.return_type == nil { dts_error(state, "TS9008", "Method must have an explicit return type annotation with --isolatedDeclarations.", v.loc) }
+		if v.return_type == nil { dts_diagnose(state, .TS9008, v.loc) }
 		dts_signature_params(state, v.params[:], v.loc)
 	case TSIndexSignature:
 		for p in v.parameters { dts_parameter_scope(state, p.pattern, v.loc) }
@@ -140,7 +149,7 @@ dts_track_computed_signature :: proc(state: ^DeclarationEmit, key: ^Expression, 
 		dts_reference(state, root, true)
 		return true
 	}
-	dts_error(state, "TS9014", "Computed properties must be number or string literals, variables or dotted expressions with --isolatedDeclarations.", loc)
+	dts_diagnose(state, .TS9014, loc)
 	return false
 }
 
@@ -163,7 +172,7 @@ dts_entity_name_root :: proc(key: ^Expression) -> ^Expression {
 
 @(private)
 dts_missing_signature_type :: proc(state: ^DeclarationEmit, loc: Loc) {
-	dts_error(state, "TS9013", "Expression type can't be inferred with --isolatedDeclarations.", loc)
+	dts_diagnose(state, .TS9013, loc)
 }
 
 @(private)
@@ -173,7 +182,7 @@ dts_signature_params :: proc(state: ^DeclarationEmit, params: []TSFunctionParam,
 		if p.type_annotation == nil {
 			if id, ok := p.pattern.(^Identifier); ok && id.type_annotation != nil { continue }
 			// The reported parameter includes its `?` or `...` marker.
-			dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", p.loc)
+			dts_diagnose(state, .TS9011, p.loc)
 		}
 	}
 }

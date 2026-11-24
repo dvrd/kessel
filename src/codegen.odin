@@ -2922,7 +2922,12 @@ gen_ts_type_arguments :: proc(
 	cg_byte(cg, '<')
 	for i in 0..<len(a.params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
+		// Declaration output follows TypeScript and parenthesizes a leading
+		// generic function type, so `<` is never followed directly by `<`.
+		wrap := i == 0 && cg.declaration_emit != nil && dts_parenthesized_argument(a.params[i])
+		if wrap { cg_byte(cg, '(') }
 		gen_ts_type(cg, a.params[i])
+		if wrap { cg_byte(cg, ')') }
 	}
 	cg_byte(cg, '>')
 }

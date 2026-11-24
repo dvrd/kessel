@@ -3,7 +3,10 @@ package kessel
 @(private)
 dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 	if state.enums.allocator.procedure == nil {
-		state.semantic = semantic_build(state.job.program, state.writer.source, state.job.lang, context.allocator, enum_constants = &state.enums)
+		state.semantic = semantic_build(
+			state.job.program, state.writer.source, state.job.lang, context.allocator,
+			enum_constants = &state.enums,
+		)
 		state.enum_scopes = state.semantic.enum_declarations
 		state.external_enum_members = make(map[SemanticBindingKey]bool)
 	}
@@ -27,7 +30,7 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 		init, explicit := member.initializer.?
 		if explicit && dts_enum_external(state, init, scope, decl) {
 			state.external_enum_members[{scope, name}] = true
-			dts_error(state, "TS9020", "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.", get_expression_loc(member.id))
+			dts_diagnose(state, .TS9020, get_expression_loc(member.id))
 		}
 		value: EnumConstant
 		if registered {
@@ -45,6 +48,9 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 			}
 		}
 		if !explicit && !numbered { value = nil }
+		if explicit && value == nil && dts_enum_forward_reference(state, decl, i, init) {
+			value = f64(0)
+		}
 		#partial switch constant in value {
 		case f64:
 			buf: [64]byte
@@ -67,8 +73,65 @@ dts_enum_declares :: proc(decl: ^TSEnumDeclaration, name: string) -> bool {
 	return false
 }
 
+// `ns.inner.Enum.member` reads another enum through its namespaces. The value
+// lives in a different declaration, so it is external like `Enum.member`.
 @(private)
-dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: ScopeId, decl: ^TSEnumDeclaration) -> bool {
+dts_enum_qualified_member :: proc(
+	state: ^DeclarationEmit, member: ^MemberExpression, decl: ^TSEnumDeclaration,
+) -> bool {
+	name, direct := dts_assigned_name(member)
+	if !direct { return false }
+	for index in dts_resolve_entity(state, member.object, lexical = true) {
+		other, is_enum := state.items[index].statement.(^TSEnumDeclaration)
+		if is_enum && other != decl && dts_enum_declares(other, name) { return true }
+	}
+	return false
+}
+
+// Only a member of a declaration that precedes this one has a value here.
+@(private)
+dts_enum_declared_earlier :: proc(
+	state: ^DeclarationEmit, decl: ^TSEnumDeclaration, name: string,
+) -> bool {
+	for index in dts_lookup(state, decl.id.name, .Either) {
+		other, is_enum := state.items[index].statement.(^TSEnumDeclaration)
+		if !is_enum || other == decl { continue }
+		if other.loc.start < decl.loc.start && dts_enum_declares(other, name) { return true }
+	}
+	return false
+}
+
+// TypeScript evaluates a read of a member that is declared later (in this
+// declaration or a later one of the same enum) to 0 and prints that value.
+@(private)
+dts_enum_forward_reference :: proc(
+	state: ^DeclarationEmit, decl: ^TSEnumDeclaration, position: int, init: ^Expression,
+) -> bool {
+	name: string
+	#partial switch e in init^ {
+	case ^Identifier: name = e.name
+	case ^MemberExpression:
+		id, member, known := enum_static_member(e)
+		if !known || id.name != decl.id.name { return false }
+		name = member
+	case: return false
+	}
+	for member, index in decl.body.members {
+		declared, valid := enum_member_name(member.id)
+		if valid && declared == name { return index > position }
+	}
+	for index in dts_lookup(state, decl.id.name, .Either) {
+		other, is_enum := state.items[index].statement.(^TSEnumDeclaration)
+		if !is_enum || other == decl { continue }
+		if other.loc.start > decl.loc.start && dts_enum_declares(other, name) { return true }
+	}
+	return false
+}
+
+@(private)
+dts_enum_external :: proc(
+	state: ^DeclarationEmit, expr: ^Expression, scope: ScopeId, decl: ^TSEnumDeclaration,
+) -> bool {
 	owner := decl.id.name
 	pending: [dynamic]^Expression
 	append(&pending, expr)
@@ -79,7 +142,8 @@ dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: Sco
 			if state.external_enum_members[{scope, e.name}] { return true }
 			if state.enums.values[{scope, e.name}] != nil {
 				if dts_enum_declares(decl, e.name) { continue }
-				return true
+				if dts_enum_declared_earlier(state, decl, e.name) { return true }
+				continue
 			}
 			for index in dts_lookup(state, e.name, .Either) {
 				item := state.items[index]
@@ -91,11 +155,14 @@ dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: Sco
 			id, name, known := enum_static_member(e)
 			if known && id.name == owner && state.external_enum_members[{scope, name}] { return true }
 			if known && id.name == owner && state.enums.values[{scope, name}] != nil {
-				if !dts_enum_declares(decl, name) { return true }
+				if !dts_enum_declares(decl, name) && dts_enum_declared_earlier(state, decl, name) {
+					return true
+				}
 			}
 			if known && id.name != owner {
 				for index in dts_lookup(state, id.name, .Either) { if _, is_enum := state.items[index].statement.(^TSEnumDeclaration); is_enum { return true } }
 			}
+			if !known && dts_enum_qualified_member(state, e, decl) { return true }
 		case ^ParenthesizedExpression: append(&pending, e.expression)
 		case ^UnaryExpression: append(&pending, e.argument)
 		case ^BinaryExpression: append(&pending, e.left, e.right)
