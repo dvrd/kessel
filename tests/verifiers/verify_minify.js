@@ -486,6 +486,22 @@ function verifyCompression() {
     assert.ok(spacing.includes(text), text);
   }
 
+  // Left-associative chains are as deep as they are long. The compressor walks
+  // them with a list, and joining literals stays linear in the source size.
+  // Node itself overflows on much longer chains; this length still exceeds the inline list.
+  const terms = 1500;
+  const chained = 'var x="s",o={n:0,get b(){this.n++;return this}},f=function(){f.n=(f.n||0)+1;return f};' +
+    'globalThis.result=[(' + '"a"+'.repeat(terms) + '"z").length,(x+' + '"b"+'.repeat(terms) + '"z").length,' +
+    '(' + '1+'.repeat(terms) + 'x).length,(' + 'x&&'.repeat(terms) + '7),o' + '.b'.repeat(terms) + '.n,o' + '["b"]'.repeat(terms) +
+    '.n,f' + '()'.repeat(terms) + '.n,(' + 'undefined||'.repeat(terms) + '3)];';
+  const chainFile = write('chains.js', chained);
+  for (const flags of [[], ['--no-mangle']]) {
+    const output = emit('minify', chainFile, flags);
+    assert.equal(outcome(output), outcome(chained), 'chains ' + flags.join(' '));
+    // Short literals join until the accumulated one is long; then joining stops to stay linear.
+    assert.ok(output.length < chained.length);
+    assert.ok(output.includes('"' + 'a'.repeat(30)) && output.split('"a"+').length < terms / 2);
+  }
   // The value of a script's last statement is visible to eval and to the embedder.
   for (const script of ['var c = 0; if (c) 5;', 'var c = 0; if (!c) 5;', 'var c = 0; 7; if (c);', 'var c = 1; if (c) { 1; 2; } else 3;',
     'var c = 0; if (c) 1; else { 2; 3; }', 'var c = 0; 4; if (c) { 5; }', 'var c = 2; lab: { if (c) { 6; break lab; } 7; }',

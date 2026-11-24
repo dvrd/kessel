@@ -20,6 +20,7 @@ MinifyCompressor :: struct {
 }
 
 COMPRESS_SEQUENCE_MAX :: 1024
+COMPRESS_JOIN_SMALL :: 64
 // A chain of guards folds into nested conditionals. Parsers and printers
 // recurse once per level, so the chain length is bounded.
 COMPRESS_CONDITIONAL_DEPTH_MAX :: 32
@@ -606,6 +607,11 @@ compress_identifier_name :: proc(name: string) -> bool {
 
 compress_member :: proc(c: ^MinifyCompressor, member: ^MemberExpression) {
 	compress_expression(c, member.object)
+	compress_member_property(c, member)
+}
+
+// The part of a member access that is not its receiver.
+compress_member_property :: proc(c: ^MinifyCompressor, member: ^MemberExpression) {
 	if !member.computed { return }
 	compress_value(c, member.property)
 	// `a["b"]` is `a.b`.
@@ -635,6 +641,11 @@ compress_typeof_comparison :: proc(binary: ^BinaryExpression) {
 // without re-escaping anything.
 compress_join_strings :: proc(c: ^MinifyCompressor, left, right: ^StringLiteral) -> ^StringLiteral {
 	if len(left.raw) < 2 || len(right.raw) < 2 || left.raw[0] != right.raw[0] { return nil }
+	// Each join copies both operands. Appending many short literals to a long
+	// one would copy the long one every time, so a join must be small or must
+	// add at least a sixteenth of what it copies. Total work stays linear.
+	small := len(left.raw) + len(right.raw) <= COMPRESS_JOIN_SMALL
+	if !small && len(right.raw) * 16 < len(left.raw) { return nil }
 	raw := make([]byte, len(left.raw) + len(right.raw) - 2, c.alloc)
 	copy(raw, left.raw[:len(left.raw)-1])
 	copy(raw[len(left.raw)-1:], right.raw[1:])
@@ -717,6 +728,46 @@ compress_arguments :: proc(c: ^MinifyCompressor, callee: ^Expression, arguments:
 	for argument in arguments { compress_value(c, argument) }
 }
 
+// Whether the chain operand of a link is read as a value, so that `void 0`
+// may stand there. A receiver, a callee and the left operand of `**` are not.
+compress_chain_operand_is_value :: proc(node: ^Expression) -> bool {
+	#partial switch v in node^ {
+	case ^BinaryExpression:  return v.operator != .Pow
+	case ^LogicalExpression: return true
+	}
+	return false
+}
+
+// `a + b + c`, `a && b`, `a.b.c` and `a()()` nest along their left operand
+// without limit: the parser builds them in a loop. Visit such a chain with an
+// explicit list, innermost link first, exactly as recursion would return.
+compress_chain :: proc(c: ^MinifyCompressor, expr: ^Expression) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	// Without the list the chain is left as written, which is always valid.
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+	assert(len(spine.nodes) > 0)
+	if compress_chain_operand_is_value(spine.nodes[len(spine.nodes)-1]) {
+		compress_value(c, spine.leaf)
+	} else {
+		compress_expression(c, spine.leaf)
+	}
+	#reverse for node in spine.nodes {
+		#partial switch v in node^ {
+		case ^BinaryExpression:
+			compress_value(c, v.right)
+			compress_typeof_comparison(v)
+			compress_string_concatenation(c, node, v)
+		case ^LogicalExpression: compress_value(c, v.right)
+		case ^MemberExpression:  compress_member_property(c, v)
+		case ^CallExpression:
+			for argument in v.arguments { compress_value(c, argument) }
+		case: unreachable()
+		}
+	}
+}
+
 // Visit operands. A callee, member receiver, tag, `delete` operand and the
 // left operand of `**` keep their spelling: `void 0` would need parentheses
 // there, or would change what `delete` reports.
@@ -741,8 +792,8 @@ compress_expression :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 	case ^FunctionExpression:      compress_function(c, v)
 	case ^ArrowFunctionExpression: compress_arrow(c, v)
 	case ^ClassExpression:         compress_class(c, v)
-	case ^MemberExpression:        compress_member(c, v)
-	case ^CallExpression:          compress_arguments(c, v.callee, v.arguments[:])
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		compress_chain(c, expr)
 	case ^NewExpression:           compress_arguments(c, v.callee, v.arguments[:])
 	case ^ConditionalExpression:
 		compress_value(c, v.test)
@@ -755,14 +806,6 @@ compress_expression :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 		} else {
 			compress_value(c, v.argument)
 		}
-	case ^BinaryExpression:
-		if v.operator == .Pow { compress_expression(c, v.left) } else { compress_value(c, v.left) }
-		compress_value(c, v.right)
-		compress_typeof_comparison(v)
-		compress_string_concatenation(c, expr, v)
-	case ^LogicalExpression:
-		compress_value(c, v.left)
-		compress_value(c, v.right)
 	case ^AssignmentExpression:
 		compress_target(c, v.left)
 		compress_value(c, v.right)
