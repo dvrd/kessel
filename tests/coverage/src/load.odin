@@ -107,6 +107,14 @@ walk_and_read :: proc(
 		if strings.has_prefix(rel, vendor_root) {
 			rel = rel[len(vendor_root):]
 			if len(rel) > 0 && rel[0] == '/' { rel = rel[1:] }
+		} else {
+			// The walker reports real paths. When `tests/vendor` is a symlink
+			// (git worktrees share one vendored corpus) they do not start
+			// with `vendor_root`, and an absolute path would leak into the
+			// snap files and the manifest hashes. The suite subpath is still
+			// part of the real path, so take the path from there.
+			marker := strings.concatenate({"/", vendor_subpath, "/"}, allocator)
+			if index := strings.index(rel, marker); index >= 0 { rel = rel[index + 1:] }
 		}
 
 		// Clone path strings into the suite arena (the walker hands us
