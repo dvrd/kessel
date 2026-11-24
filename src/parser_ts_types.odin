@@ -601,6 +601,35 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		break
 	}
 	node.loc.end = node.quasis[len(node.quasis) - 1].loc.end
+	// The tail token ends before the closing backtick, so the "end of the last
+	// token" that enclosing nodes close on is one byte short of this type.
+	// Without the correction `type A = \`a${B}\`` (no semicolon), `x as
+	// \`a${B}\`` and a trailing property signature all end inside the template.
+	// parse_template_literal makes the same correction for expressions.
+	if p.prev_token_end < node.loc.end { p.prev_token_end = node.loc.end }
+	r := new_node(p, TSType); r^ = node
+	return parse_ts_postfix(p, r, node.loc)
+}
+
+// Wrap a substitution-free template (`\`foo\``) in a TSLiteralType. `content`
+// is the span of the template token, which starts after the opening backtick,
+// so the type and anything built from its start (a union, an array type) would
+// begin one byte late; the literal carries the corrected span. Its single quasi
+// gets the delimiter-inclusive span TypeScript ESTree uses, like the quasis of
+// a TSTemplateLiteralType.
+parse_ts_template_plain_type :: proc(p: ^Parser, lit: ^Expression, content: Loc) -> ^TSType {
+	node := new_node(p, TSLiteralType); node.loc = content; node.literal = lit
+	node.loc.end = prev_end_offset(p)
+	if lit != nil {
+		if template, ok := lit^.(^TemplateLiteral); ok && template != nil {
+			assert(template.loc.start <= content.start)
+			node.loc.start = template.loc.start
+			if len(template.quasis) == 1 {
+				quasi := &template.quasis[0]
+				quasi.loc = ts_template_quasi_loc(p.lexer.source, quasi.loc, true)
+			}
+		}
+	}
 	r := new_node(p, TSType); r^ = node
 	return parse_ts_postfix(p, r, node.loc)
 }
@@ -1036,10 +1065,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// `cooked` decode and §12.9.6 escape validation match the JS
 		// expression-position template handling exactly.
 		lit := parse_template_literal(p, false)
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit
-		node.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_template_plain_type(p, lit, start)
 	case .TemplateHead:
 		// TS template-literal type with substitutions: `\`a${T}b\``. Each
 		// `${...}` slot holds a TYPE, not an expression - so we can't reuse
