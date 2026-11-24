@@ -292,6 +292,14 @@ try {
   else { console.error('FAIL: JSX parse'); failed++; }
 } catch (e) { console.error('CRASH: JSX', e.message); failed++; }
 
+// A mismatched closing tag is reported on the closing tag's name.
+try {
+  const errors = parseSync('mismatch.jsx', '<p></div>;').errors;
+  if (errors.length >= 1 && errors[0].code === 'K3063' &&
+      errors[0].start === 5 && errors[0].end === 8) passed++;
+  else { console.error('FAIL: JSX closing tag span', JSON.stringify(errors)); failed++; }
+} catch (e) { console.error('CRASH: JSX closing tag span', e.message); failed++; }
+
 // Valid input must yield zero errors.
 try {
   const { errors } = parseSync('clean.js', 'const x = 1;');

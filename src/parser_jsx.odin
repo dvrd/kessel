@@ -59,7 +59,15 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	closing_name := closing != nil ? jsx_element_name_string(closing.name) : ""
 	if closing != nil && opening_name != closing_name &&
 	   len(opening_name) > 0 && len(closing_name) > 0 && len(p.errors) == 0 {
-		report_error_coded(p, .K3063_JSXInvalid, fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name))
+		// Span the closing tag's name, as OXC does. The parser has already
+		// consumed the closing `>`, so the current token is whatever follows
+		// the element and says nothing about where the mistake is.
+		closing_name_loc := jsx_element_name_loc(closing.name)
+		assert(closing_name_loc.start < closing_name_loc.end)
+		report_error_coded_span(
+			p, .K3063_JSXInvalid, closing_name_loc.start, closing_name_loc.end,
+			fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name),
+		)
 	}
 	elem := new_node(p, JSXElement)
 	elem.loc = start
@@ -68,6 +76,16 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	elem.closing_element = closing
 	elem.loc.end = prev_end_offset(p)
 	return expression_from(p, elem)
+}
+
+// Source span of a whole element name: `div`, `a:b` or `a.b.c`.
+jsx_element_name_loc :: proc(name: JSXElementName) -> Loc {
+	switch n in name {
+	case JSXIdentifier:        return n.loc
+	case ^JSXNamespacedName:   if n != nil { return n.loc }
+	case ^JSXMemberExpression: if n != nil { return n.loc }
+	}
+	return Loc{}
 }
 
 // Extract a string representation of a JSXElementName for tag matching.
