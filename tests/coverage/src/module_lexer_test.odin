@@ -207,3 +207,237 @@ test_module_lexer_typescript_exports :: proc(t: ^testing.T) {
 	testing.expect_value(t, result.dependencies[1].name, Maybe(string)("library"))
 	testing.expect_value(t, result.dependencies[1].type_only, false)
 }
+
+// The fields below are the es-module-lexer equivalents: `t` (import_type),
+// `se` (clause_end), `d` (arguments_start) and the quoted-name flags that
+// turn `span` into es-module-lexer's quote-inclusive `s`/`e`. Each case
+// names the exact source slice the field must delimit.
+@(test)
+test_module_lexer_reference_fields :: proc(t: ^testing.T) {
+	source := "import a from 'a';\n" +
+	          "import b from 'b' with { type: 'json' } ;\n" +
+	          "export * from 'c'\n" +
+	          "import source d from 'd';\n" +
+	          "import defer * as e from 'e';\n" +
+	          "f(import /* g */ ( 'g' ), import.source('h'), import.defer('i'));\n" +
+	          "import.meta.url;\n" +
+	          "import j = require('j');\n"
+	result, err := kessel.module_lex_dependencies(source, context.allocator)
+	if !testing.expect_value(t, err, .None) { return }
+	defer kessel.module_lex_destroy(&result)
+	expected := [?]struct {
+		type: kessel.ModuleImportType,
+		clause: string,
+		arguments: Maybe(string),
+	}{
+		{.Static, "import a from 'a'", nil},
+		{.Static, "import b from 'b' with { type: 'json' }", nil},
+		{.Static, "export * from 'c'", nil},
+		{.Static_Source_Phase, "import source d from 'd'", nil},
+		{.Static_Defer_Phase, "import defer * as e from 'e'", nil},
+		{.Dynamic, "import /* g */ ( 'g' )", "( 'g' )"},
+		{.Dynamic_Source_Phase, "import.source('h')", "('h')"},
+		{.Dynamic_Defer_Phase, "import.defer('i')", "('i')"},
+		{.Import_Meta, "import.meta", nil},
+		{.None, "import j = require('j')", nil},
+	}
+	if !testing.expect_value(t, len(result.dependencies), len(expected)) { return }
+	for item, index in expected {
+		entry := result.dependencies[index]
+		testing.expect_value(t, entry.import_type, item.type)
+		testing.expect_value(t, source[entry.statement.start:entry.clause_end], item.clause)
+		if arguments, ok := item.arguments.?; ok {
+			if !testing.expect_value(t, entry.arguments_start != nil, true) { return }
+			testing.expect_value(t, source[entry.arguments_start.?:entry.clause_end], arguments)
+		} else {
+			testing.expect_value(t, entry.arguments_start == nil, true)
+		}
+	}
+	// `statement` keeps its semicolon; only `clause_end` excludes it.
+	testing.expect_value(t, source[result.dependencies[0].statement.end - 1], u8(';'))
+	testing.expect_value(t, result.dependencies[2].statement.end, result.dependencies[2].clause_end)
+}
+
+@(test)
+test_module_lexer_string_export_names :: proc(t: ^testing.T) {
+	source := "export { a as 'b c', \"d\" as e, f as g, 'h' } from 'm';\n" +
+	          "export * as \"i j\" from 'n';\n" +
+	          "const k = 'l'; export { k as 'k', k };\n"
+	result, err := kessel.module_lex_dependencies(source, context.allocator)
+	if !testing.expect_value(t, err, .None) { return }
+	defer kessel.module_lex_destroy(&result)
+	expected := [?]struct {
+		raw: string,
+		name_is_string, local_is_string: bool,
+	}{
+		{"'b c'", true, false}, {"e", false, false}, {"g", false, false}, {"'h'", true, false},
+		{"\"i j\"", true, false}, {"'k'", true, false}, {"k", false, false},
+	}
+	if !testing.expect_value(t, len(result.exports), len(expected)) { return }
+	for item, index in expected {
+		entry := result.exports[index]
+		testing.expect_value(t, entry.name_is_string, item.name_is_string)
+		testing.expect_value(t, entry.local_is_string, item.local_is_string)
+		quote := u32(1) if entry.name_is_string else u32(0)
+		testing.expect_value(t, source[entry.span.start - quote:entry.span.end + quote], item.raw)
+	}
+}
+
+// Attribute pairs are decoded for literal clauses only; a computed options
+// object is not statically known and must yield no pairs, not an error.
+@(test)
+test_module_lexer_attribute_entries :: proc(t: ^testing.T) {
+	source := "import a from 'a' with { type: 'json', \"k\\u0065y\": 'v\\n' };\n" +
+	          "import b from 'b'\nwith\n{ type: 'css', };\n" +
+	          "import c from 'c' with {};\n" +
+	          "import d from 'd' assert { type: 'json' };\n" +
+	          "import e from 'e'\nassert\n{}\n" +
+	          "import('f', { with: { type: 'json' } });\n" +
+	          "import('g', { assert: { type: 'json', }, });\n" +
+	          "import('h', options);\n" +
+	          "import('i', { with: attributes });\n" +
+	          "import('j', { ...spread });\n" +
+	          "import('k', { 'with': { type: 'css' } });\n"
+	result, err := kessel.module_lex_dependencies(source, context.allocator)
+	if !testing.expect_value(t, err, .None) { return }
+	defer kessel.module_lex_destroy(&result)
+	Pair :: struct { key, value: string }
+	expected := [?]struct {
+		attributes: bool,
+		pairs: []Pair,
+	}{
+		{true, {{"type", "json"}, {"key", "v\n"}}},
+		{true, {{"type", "css"}}},
+		{true, {}},
+		{true, {{"type", "json"}}},
+		{false, {}}, // `assert` after a line break is an expression statement
+		{true, {{"type", "json"}}},
+		{true, {{"type", "json"}}},
+		{true, {}},
+		{true, {}},
+		{true, {}},
+		{true, {{"type", "css"}}},
+	}
+	if !testing.expect_value(t, len(result.dependencies), len(expected)) { return }
+	for item, index in expected {
+		entry := result.dependencies[index]
+		testing.expect_value(t, entry.attributes != nil, item.attributes)
+		if !testing.expect_value(t, len(entry.attribute_entries), len(item.pairs)) { continue }
+		for pair, pair_index in item.pairs {
+			actual := entry.attribute_entries[pair_index]
+			testing.expect_value(t, actual.key, pair.key)
+			testing.expect_value(t, actual.value, pair.value)
+		}
+	}
+	first := result.dependencies[0].attribute_entries
+	testing.expect_value(t, source[first[0].key_span.start:first[0].key_span.end], "type")
+	testing.expect_value(t, source[first[0].value_span.start:first[0].value_span.end], "json")
+	testing.expect_value(t, source[first[1].key_span.start:first[1].key_span.end], "k\\u0065y")
+	second := result.dependencies[1]
+	testing.expect_value(t, source[second.statement.start:second.clause_end],
+		"import b from 'b'\nwith\n{ type: 'css', }")
+}
+
+@(test)
+test_module_lexer_facade_and_format :: proc(t: ^testing.T) {
+	cases := [?]struct {
+		source: string,
+		facade, module_syntax, commonjs: bool,
+		format: kessel.ModuleFormat,
+	}{
+		{"", true, false, false, .Unknown},
+		{"// comment only\n", true, false, false, .Unknown},
+		{"import 'a'; export * from 'b'; export { c } from 'c';;", true, true, false, .ESM},
+		{"import a from 'a'; export { a, a as b };", true, true, false, .ESM},
+		{"import a from 'a'; a();", false, true, false, .ESM},
+		{"export const a = 1;", false, true, false, .ESM},
+		{"export default 1;", false, true, false, .ESM},
+		{"import('a');", false, false, false, .Unknown},
+		{"import.meta;", false, true, false, .ESM},
+		{"const a = require('a');", false, false, true, .CJS},
+		{"module.exports = {};", false, false, true, .CJS},
+		{"exports.a = 1;", false, false, true, .CJS},
+		{"exports['a'] = 1;", false, false, true, .CJS},
+		{"import a from 'a'; module.exports = a;", false, true, true, .ESM},
+		// Members, declarations, strings and comments are not CommonJS use.
+		{"loader.require('a'); a.module.exports; a.exports.b;", false, false, false, .Unknown},
+		{"function require(a) {} const s = \"require('a')\"; // module.exports",
+			false, false, false, .Unknown},
+		{"typeof require; typeof module; const exports = 1;", false, false, false, .Unknown},
+	}
+	for item in cases {
+		result, err := kessel.module_lex_dependencies(item.source, context.allocator)
+		if !testing.expectf(t, err == .None, "%q: %v", item.source, err) { continue }
+		defer kessel.module_lex_destroy(&result)
+		source := item.source
+		testing.expectf(t, result.facade == item.facade, "%q: facade", source)
+		testing.expectf(t, result.has_module_syntax == item.module_syntax, "%q: module", source)
+		testing.expectf(t, result.has_commonjs_syntax == item.commonjs, "%q: commonjs", source)
+		testing.expectf(t, result.format == item.format, "%q: %v", source, result.format)
+	}
+}
+
+// Regressions found by the es-module-lexer reference gate: operands the
+// import-keyword path consumes whole, `/` after a statement block, and class
+// names behind decorators or TypeScript's `implements`.
+@(test)
+test_module_lexer_scan_contexts :: proc(t: ^testing.T) {
+	operands := "import(import.meta.url); import(a, import.meta);"
+	result, err := kessel.module_lex_dependencies(operands, context.allocator)
+	if !testing.expect_value(t, err, .None) { return }
+	defer kessel.module_lex_destroy(&result)
+	if !testing.expect_value(t, len(result.dependencies), 4) { return }
+	first := result.dependencies[0]
+	testing.expect_value(t, operands[first.request.start:first.request.end], "import.meta.url")
+	testing.expect_value(t, first.attributes == nil, true)
+	third := result.dependencies[2]
+	testing.expect_value(t, operands[third.request.start:third.request.end], "a")
+	if testing.expect_value(t, third.attributes != nil, true) {
+		options := third.attributes.?
+		testing.expect_value(t, operands[options.start:options.end], "import.meta")
+	}
+
+	blocks := "function a() {} /import('x')/.test(b);\n" +
+	          "if (c) {} /import('y')/.test(d);\n" +
+	          "for (;;) {} /import('z')/.test(e);\n" +
+	          "f = {} / g / import('object-divisor');\n" +
+	          "h = (i) / j / import('paren-divisor');\n" +
+	          "function* k() { yield /import('yielded')/; }\n" +
+	          "await /import('awaited')/.test(l);\n" +
+	          "m.yield / n / import('member-divisor');\n"
+	scanned, blocks_err := kessel.module_lex_dependencies(blocks, context.allocator)
+	if !testing.expect_value(t, blocks_err, .None) { return }
+	defer kessel.module_lex_destroy(&scanned)
+	if !testing.expect_value(t, len(scanned.dependencies), 3) { return }
+	testing.expect_value(t, scanned.dependencies[0].name, Maybe(string)("object-divisor"))
+	testing.expect_value(t, scanned.dependencies[1].name, Maybe(string)("paren-divisor"))
+	testing.expect_value(t, scanned.dependencies[2].name, Maybe(string)("member-divisor"))
+}
+
+@(test)
+test_module_lexer_class_export_names :: proc(t: ^testing.T) {
+	cases := [?]struct {
+		source: string,
+		name: string,
+		local: Maybe(string),
+	}{
+		{"export @decorate(import('d'), /[)]/) class Named {}", "Named", "Named"},
+		{"export /* a */ @first @second.member class Named {}", "Named", "Named"},
+		{"export default @decorate class Named {}", "default", "Named"},
+		{"export default @decorate class {}", "default", nil},
+		{"export default @decorate class extends Base {}", "default", nil},
+		{"export default class extends Base {}", "default", nil},
+		{"export default class implements Shape {}", "default", nil},
+		{"@decorate export class Named {}", "Named", "Named"},
+	}
+	for item in cases {
+		result, err := kessel.module_lex_dependencies(item.source, context.allocator)
+		if !testing.expectf(t, err == .None, "%q: %v", item.source, err) { continue }
+		defer kessel.module_lex_destroy(&result)
+		counted := len(result.exports) == 1
+		if !testing.expectf(t, counted, "%q: export count", item.source) { continue }
+		testing.expect_value(t, result.exports[0].name, item.name)
+		testing.expect_value(t, result.exports[0].local_name, item.local)
+		testing.expect_value(t, result.has_module_syntax, true)
+	}
+}

@@ -28,8 +28,9 @@ cli_format_file :: proc(args: []string) -> int {
 			if flag == "--end-of-line" { options.end_of_line = args[i]; continue }
 			if flag == "--trailing-comma" {
 				switch args[i] {
-				case "all", "es5": options.trailing_comma = true
-				case "none": options.trailing_comma = false
+				case "all": options.trailing_comma, options.trailing_comma_es5 = true, false
+				case "es5": options.trailing_comma, options.trailing_comma_es5 = true, true
+				case "none": options.trailing_comma, options.trailing_comma_es5 = false, false
 				case: fmt.eprintln(CLI_FORMAT_USAGE); return 2
 				}
 			} else {

@@ -104,6 +104,8 @@ kessel_resolve_module :: proc "c" (request_ptr: [^]u8, request_len: i32) -> Kess
 		return kessel_tool_error("Invalid_Request", "Could not decode resolver options")
 	}
 	request.options.mode = .Require if request.require_mode else .Import
+	// Matchers are derived from restrictions inside module_resolve.
+	request.options.restriction_matchers = nil
 	result, err := module_resolve(request.specifier, request.importer, request.options, temp)
 	if err != .None { return kessel_tool_error(err, "Could not resolve module") }
 	return kessel_tool_json(result)
@@ -207,7 +209,7 @@ kessel_minify :: proc "c" (
 	source, source_ok := kessel_tool_input(source_ptr, source_len)
 	settings, settings_ok := kessel_tool_input(options_ptr, options_len)
 	if !file_ok || !source_ok || !settings_ok { return {} }
-	options: struct { compress, mangle, source_map: bool, pragma, pragma_frag: string }
+	options: struct { compress, mangle, mangle_names, source_map: bool, pragma, pragma_frag: string }
 	if err := json.unmarshal_string(settings, &options, .JSON, context.temp_allocator); err != nil {
 		return kessel_tool_error("Invalid_Request", "Could not decode minifier options")
 	}
@@ -223,6 +225,7 @@ kessel_minify :: proc "c" (
 	sm: SourceMap
 	map_out := &sm if options.source_map else nil
 	codegen_print_job(&job, &cg, {minified = true, compress = options.compress, mangle = options.mangle,
+		mangle_names = options.mangle_names,
 		pragma = options.pragma, pragma_frag = options.pragma_frag}, map_out)
 	defer codegen_destroy(&cg, context.allocator)
 	defer if map_out != nil { sourcemap_destroy(map_out) }

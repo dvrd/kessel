@@ -240,6 +240,17 @@ Use `extensionAlias: { '.js': ['.ts', '.js'] }` to resolve an explicit
 `./entry.js` request to a TypeScript source file first. The resolver tries
 replacement suffixes in order for relative paths and explicit package targets.
 
+The enhanced-resolve lookup options are `roots`, `preferAbsolute`,
+`preferRelative`, `fallback`, `restrictions`, `fullySpecified`,
+`resolveToContext`, `explicitConditions` and `tsconfigReferences`. For example,
+`{ roots: ['/srv/public'], fallback: [{ name: 'buffer', target: false }],
+restrictions: [{ path: '/srv' }, { regex: '\\.(js|ts)$' }] }` looks
+`/assets/a.js` up below the root, reports an unresolved `buffer` as ignored,
+and skips candidate files outside `/srv` or with another extension.
+`fullySpecified` defaults to the Node rule of the mode: exact for `import`,
+extension and directory lookup for `require`. `resolveToContext` returns a
+directory with kind `file`.
+
 An empty string in `extensions` tries the exact filename at that position.
 Relative ESM imports and explicit package export and import targets use exact paths
 by default. Supplying a `tsconfig` with `rootDirs` enables TypeScript source
@@ -273,13 +284,14 @@ to type-check. Some computed class members and inferred types remain in developm
 ### Formatting
 
 `formatSync(filename, source, options?)` returns a string. The filename selects
-the JavaScript or TypeScript grammar. Imports, named re-exports and export lists
-support width-aware layout. Nested object and array literals also use this layout
-in single-name variable declarations and default exports, including sparse arrays,
-numeric rows, computed keys and TypeScript annotations such as
-`as const satisfies Project.Config`. Unsupported
-statements, statements with internal comments and `prettier-ignore` targets retain
-their original spelling.
+the JavaScript or TypeScript grammar. JavaScript statements, expressions and
+classes print in the layout of Prettier 3.8.3, as do comments that stand between
+statements, class members, object properties and switch cases. In TypeScript
+files, data declarations may carry simple annotations such as
+`as const satisfies Project.Config`. A statement retains its original spelling
+when it uses other TypeScript syntax, JSX, decorators, a comment inside an
+expression or a `prettier-ignore` directive, or when Prettier's layout for it
+would change on a second run. Formatting the result again returns it unchanged.
 A parse error throws a `SyntaxError` with a UTF-8 byte `offset`.
 
 ```js
@@ -343,6 +355,25 @@ that is invalid at a replacement site produces a transform diagnostic.
 Assignments keep their original target when a replacement is a literal.
 A `with` body or a sloppy function containing direct `eval` keeps its dynamic
 name lookups.
+
+`target` lowers syntax newer than an ECMAScript edition, from `'es2015'` to
+`'es2024'`. Kessel lowers exponentiation, optional catch binding, optional
+chaining, nullish coalescing, logical assignment and numeric separators.
+Newer syntax it cannot lower, such as class fields below `es2022` or async
+functions below `es2017`, is reported in `errors` and no code is returned.
+
+```js
+transformSync('read.ts', 'export const read = (a?: Box) => a?.value ?? 0;', { target: 'es2019' });
+```
+
+`decorator: { legacy: true }` lowers TypeScript experimental decorators, in
+TypeScript's evaluation order. `emitDecoratorMetadata` adds the `design:type`,
+`design:paramtypes` and `design:returntype` records derived from annotations.
+Without a type checker a type alias is recorded as `Object`. Standard
+decorators are printed as written.
+
+`jsx.refresh` adds React Fast Refresh registrations and Hook signatures, with
+the same options as OXC: `refreshReg`, `refreshSig` and `emitFullSignatures`.
 
 The classic runtime honors leading `@jsx` and `@jsxFrag` comments. Set
 `pure: false` inside the JSX options when the factory itself has side effects.

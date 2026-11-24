@@ -74,6 +74,8 @@ lint_member_is_private :: proc(member: ^MemberExpression) -> bool {
 }
 
 lint_same_reference :: proc(l: ^Linter, a, b: ^Expression) -> bool {
+	if !lint_compare_enter(l) { return false }
+	defer l.compare_depth -= 1
 	left, right := lint_inner(a), lint_inner(b)
 	if left == nil || right == nil { return false }
 	#partial switch first in left^ {

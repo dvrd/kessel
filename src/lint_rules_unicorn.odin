@@ -376,12 +376,24 @@ lint_check_set_size_references :: proc(l: ^Linter, model: ^SemanticModel, refere
 // ---------------------------------------------------------------------------
 
 lint_flatten_logical :: proc(out: ^[dynamic]^Expression, node: ^LogicalExpression) {
-	for side in ([2]^Expression{node.left, node.right}) {
-		inner := lint_unparen(side)
+	// The left spine of `a && b && c` is unbounded, so it is followed in a
+	// loop. Right operands nest within the parser's limit and may recurse.
+	links := make([dynamic]^LogicalExpression, 0, 4, context.temp_allocator)
+	current := node
+	for {
+		append(&links, current)
+		inner := lint_unparen(current.left)
+		nested, is_logical := inner^.(^LogicalExpression)
+		if !is_logical || nested.operator != node.operator { break }
+		current = nested
+	}
+	append(out, links[len(links) - 1].left)
+	#reverse for link in links {
+		inner := lint_unparen(link.right)
 		if nested, is_logical := inner^.(^LogicalExpression); is_logical && nested.operator == node.operator {
 			lint_flatten_logical(out, nested)
 		} else {
-			append(out, side)
+			append(out, link.right)
 		}
 	}
 }

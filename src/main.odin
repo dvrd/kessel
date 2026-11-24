@@ -469,6 +469,11 @@ main :: proc() {
 		flush_stdout_writer()
 		if exit_status != 0 { os.exit(exit_status) }
 
+	case "bundle":
+		exit_status := cli_bundle(os.args[2:])
+		flush_stdout_writer()
+		if exit_status != 0 { os.exit(exit_status) }
+
 	case "codegen", "minify":
 		optimize := command == "minify"
 		if len(os.args) < 3 {
@@ -496,6 +501,9 @@ main :: proc() {
 				i += 1
 			case optimize && arg == "--no-mangle":
 				options.mangle = false
+				i += 1
+			case optimize && arg == "--mangle-names":
+				options.mangle_names = true
 				i += 1
 			case command == "minify" && arg == "--no-compress":
 				options.compress = false
@@ -577,6 +585,26 @@ main :: proc() {
 			case command == "transform" && arg == "--optimize-const-enums":
 				transform_options.optimize_const_enums = true
 				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--decorators="):
+				transform_options.decorators = strings.trim_prefix(arg, "--decorators=")
+				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--target="):
+				transform_options.target = strings.trim_prefix(arg, "--target=")
+				i += 1
+			case command == "transform" && arg == "--react-refresh":
+				transform_options.refresh = true
+				i += 1
+			case command == "transform" && arg == "--refresh-full-signatures":
+				transform_options.refresh_full_signatures = true
+				i += 1
+			case command == "transform" && (strings.has_prefix(arg, "--refresh-reg=") || strings.has_prefix(arg, "--refresh-sig=")):
+				value := arg[len("--refresh-reg="):]
+				if !refresh_binding_valid(value) { fmt.eprintln("Error: invalid React Refresh runtime binding"); os.exit(2) }
+				if strings.has_prefix(arg, "--refresh-reg=") { transform_options.refresh_reg = value } else { transform_options.refresh_sig = value }
+				i += 1
+			case command == "transform" && arg == "--emit-decorator-metadata":
+				transform_options.emit_decorator_metadata = true
+				i += 1
 			case command == "transform" && strings.has_prefix(arg, "--jsx="):
 				transform_options.jsx = strings.trim_prefix(arg, "--jsx=")
 				if transform_options.jsx != "classic" && transform_options.jsx != "automatic" && transform_options.jsx != "preserve" {
@@ -642,18 +670,22 @@ print_usage :: proc() {
 	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
 	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
 	out_println("  dts <file.ts>                   Emit isolated TypeScript declarations to stdout.")
-	out_println("  fmt <file>                      Format module imports and exports to stdout.")
+	out_println("  fmt <file>                      Format a file in Prettier's layout to stdout.")
 	out_println("  resolve <specifier> --from F   Resolve a module and print its path as JSON.")
+	out_println("  bundle <entry> [--outfile F]    Bundle a module graph into one file (esm, cjs or iife).")
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
 	out_println("  lint/fmt/transform --watch      Repeat the command when input files change.")
 	out_println("  lint --list-rules               Print the lint rule catalogue as JSON.")
-	out_println("  minify <file> [--no-compress] [--no-mangle] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
+	out_println("  minify <file> [--no-compress] [--no-mangle] [--mangle-names] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
 	out_println("                                  Options: --no-compress, --no-mangle.")
 	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
 	out_println("  transform <file> [--define NAME=EXPRESSION] [--jsx=classic|automatic|preserve] [--jsx-development] [--jsx-import-source=X] [--jsx-pragma=X] [--jsx-pragma-frag=X] [--minified] [--sourcemap]")
 	out_println("  strip-types <file> [--minified] Erase TypeScript types, emit plain JavaScript.")
 	out_println("  transform --lower-using          Lower explicit resource management declarations.")
 	out_println("  transform --optimize-const-enums Inline constant TypeScript enum members.")
+	out_println("  transform --target=es2015..es2024 Lower newer syntax; reject what cannot be lowered.")
+	out_println("  transform --decorators=legacy [--emit-decorator-metadata]  Lower TypeScript experimental decorators.")
+	out_println("  transform --react-refresh [--refresh-reg=X] [--refresh-sig=X] [--refresh-full-signatures]")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
 	out_println("  module-lex <file>               Scan module dependencies and exports.")
 	out_println("  regexp <pattern> [--flags F]    Build a regexp tree and print it as JSON.")
@@ -670,6 +702,7 @@ print_usage :: proc() {
 	out_println("  --color=true|false              ANSI color in diagnostics. Default: true.")
 	out_println("                                   Env: KESSEL_COLOR=1|0. Flag overrides env.")
 	out_println("  --show-semantic-errors          Run the AST-walker semantic checker (pass 3).")
+	out_println("  --max-depth=N                   Reject nesting deeper than N (K2081). Default: 512.")
 	out_println("")
 	out_println("Examples:")
 	out_println("  kessel parse app.js                       Pretty diagnostics, exit 1 on error.")
@@ -782,7 +815,12 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	// makes the state explicit so server mode and tests get the same
 	// shape without ambient globals. See src/emitter.odin.
 	e: Emitter
-	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
+	emit_config := emit_config_from_cli(cli, job.lang)
+	// Without --json the document is built only to exercise the emitter
+	// and then discarded, so skip the whitespace: pretty output for a
+	// long operator chain is hundreds of megabytes of indentation.
+	if !cli.emit_json { emit_config.compact = true }
+	emitter_init(&e, emit_config, len(job.source.data), context.allocator)
 	defer emitter_destroy(&e)
 
 	emit_job_json(&e, &job)

@@ -302,6 +302,8 @@ lint_direct_member :: proc(expr: ^Expression) -> ^MemberExpression {
 // structural equality: calls and other effects never count as the same.
 lint_same_expression :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 	if a == nil || b == nil { return false }
+	if !lint_compare_enter(l) { return false }
+	defer l.compare_depth -= 1
 	left_chain, right_chain := lint_chain_member(a), lint_chain_member(b)
 	left_member, right_member := lint_direct_member(a), lint_direct_member(b)
 	if left_chain != nil && right_member != nil { return lint_same_member_expression(l, left_chain, right_member) }

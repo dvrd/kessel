@@ -8,6 +8,10 @@ import "core:strings"
 // ============================================================================
 
 parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
+	// Every nested statement (block, body, branch, label) re-enters here.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	// At statement start, `/` or `/=` must be a regex literal (not
 	// division), because no LHS exists. Re-lex if the lexer's
 	// previous-token-class heuristic guessed wrong (typical case after
@@ -1624,6 +1628,11 @@ parse_switch_statement :: proc(p: ^Parser) -> ^Statement {
 	// CaseBlock). Flatten the per-case lists once and run the check.
 	if !p.ast_only && total > 0 && relevant {
 		flat := make([]^Statement, total, context.temp_allocator)
+		if len(flat) != total {
+			// Allocation failed; the loop below indexes `flat` by position.
+			parser_out_of_memory(p)
+			return statement_from(p, switch_)
+		}
 		i := 0
 		for c in switch_.cases {
 			for s in c.consequent {
@@ -2518,6 +2527,11 @@ parse_function_param_decorators :: proc(p: ^Parser, param: ^FunctionParameter) -
 	// the parser stays alive on syntactically-valid-but-invalid-position
 	// decorators rather than crashing in parse_binding_pattern.
 	decorators_seen := false
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return decorators_seen }
+	decorators: [dynamic]Decorator
+	decorators.allocator = p.allocator
 	if allow_ts_mode(p) {
 		for is_token(p, .At) {
 			if !decorators_seen {
@@ -2526,12 +2540,22 @@ parse_function_param_decorators :: proc(p: ^Parser, param: ^FunctionParameter) -
 					report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
 				}
 			}
+			at := cur_loc(p)
 			eat(p) // consume `@`
 			// Decorator expression: identifier (optionally member-chained / called).
 			// parse_left_hand_side_expr handles `dec`, `a.b`, `dec(args)`.
-			_ = parse_left_hand_side_expr(p)
+			expression := parse_left_hand_side_expr(p)
+			append(&decorators, Decorator{loc = Loc{at.start, p.prev_token_end}, expression = expression})
 		}
 		param.loc = cur_loc(p)
+		// The parameter node has no decorator slot because its layout is part of the
+		// raw-transfer format. The transformer finds them by the parameter's first token.
+		if decorators_seen {
+			if p.param_decorators == nil {
+				p.param_decorators = make(map[u32][dynamic]Decorator, 4, p.allocator)
+			}
+			p.param_decorators[param.loc.start] = decorators
+		}
 	}
 	return decorators_seen
 }
@@ -2981,6 +3005,11 @@ parse_class_name :: proc(p: ^Parser) -> Maybe(BindingIdentifier) {
 }
 
 parse_class_extends :: proc(p: ^Parser) -> (Maybe(^Expression), Maybe(^TSTypeParameterInstantiation)) {
+	// `class extends class extends ...` reaches the heritage expression
+	// without passing parse_expr_with_prec.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil, nil }
 	super_class: Maybe(^Expression)
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
 	if match_token(p, .Extends) {
@@ -3464,6 +3493,23 @@ report_overload_flush :: proc(p: ^Parser, body: []ClassElement, start, end_excl:
 // compile-time constant (numeric literal, string literal, unary +/-
 // on numeric, reference to same-enum member, or binary ops on constants).
 ts_enum_init_is_constant :: proc(init: ^Expression, member_names: ^map[string]bool) -> bool {
+	// `A = 1 + 2 + 3 + ...` is a left-deep chain the parser does not bound
+	// in length, so the left operand is followed by this loop and only
+	// the right operands (bounded by the nesting limit) recurse.
+	init := init
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		if init == nil { return false }
+		binary, is_binary := init^.(^BinaryExpression)
+		if !is_binary || binary == nil { break }
+		#partial switch binary.operator {
+		case .BitOr, .BitAnd, .BitXor, .ShiftLeft, .ShiftRight,
+		     .ShiftRightUnsigned, .Add, .Sub, .Mul, .Div, .Mod, .Pow:
+			if !ts_enum_init_is_constant(binary.right, member_names) { return false }
+			init = binary.left
+		case:
+			return false
+		}
+	}
 	if init == nil { return false }
 	#partial switch v in init^ {
 	case ^NumericLiteral: return true
@@ -3474,15 +3520,6 @@ ts_enum_init_is_constant :: proc(init: ^Expression, member_names: ^map[string]bo
 	case ^UnaryExpression:
 		if v != nil && (v.operator == .Minus || v.operator == .Plus || v.operator == .BitwiseNot) {
 			return ts_enum_init_is_constant(v.argument, member_names)
-		}
-	case ^BinaryExpression:
-		if v != nil {
-			#partial switch v.operator {
-			case .BitOr, .BitAnd, .BitXor, .ShiftLeft, .ShiftRight,
-			     .ShiftRightUnsigned, .Add, .Sub, .Mul, .Div, .Mod, .Pow:
-				return ts_enum_init_is_constant(v.left, member_names) &&
-				       ts_enum_init_is_constant(v.right, member_names)
-			}
 		}
 	case ^ParenthesizedExpression:
 		if v != nil { return ts_enum_init_is_constant(v.expression, member_names) }
@@ -6937,6 +6974,9 @@ parse_object_pattern_key :: proc(p: ^Parser) -> (key: Maybe(ObjectPatternPropert
 }
 
 parse_object_pattern :: proc(p: ^Parser) -> Pattern {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 
 	if !expect_token(p, .LBrace) {
@@ -7242,6 +7282,9 @@ new_identifier_from_cur :: #force_inline proc(p: ^Parser) -> ^Identifier {
 }
 
 parse_array_pattern :: proc(p: ^Parser) -> Pattern {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 
 	if !expect_token(p, .LBracket) {

@@ -1,0 +1,1 @@
+{"kessel":["--decorators=legacy","--emit-decorator-metadata"],"typescript":{"experimentalDecorators":true,"emitDecoratorMetadata":true,"strictNullChecks":true},"oxc":{"decorator":{"legacy":true,"emitDecoratorMetadata":true}}}

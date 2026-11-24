@@ -170,8 +170,21 @@ lint_has_comment_between :: proc(l: ^Linter, start, end: u32) -> bool {
 // the root, as they are in the reference implementation.
 // ---------------------------------------------------------------------------
 
+LINT_COMPARE_DEPTH_MAX :: 256
+
+// Two member or call chains can each be arbitrarily long, and comparing them
+// descends both at once. Past this depth they count as different, which
+// reports nothing, instead of recursing once per link.
+lint_compare_enter :: proc(l: ^Linter) -> bool {
+	if l.compare_depth >= LINT_COMPARE_DEPTH_MAX { return false }
+	l.compare_depth += 1
+	return true
+}
+
 lint_content_eq :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 	if a == nil || b == nil { return a == b }
+	if !lint_compare_enter(l) { return false }
+	defer l.compare_depth -= 1
 	#partial switch left in a^ {
 	case ^Identifier:
 		right, ok := b^.(^Identifier)

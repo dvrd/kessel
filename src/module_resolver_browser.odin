@@ -30,16 +30,22 @@ module_resolver_browser :: proc(
 
 	request := ModuleBrowserRequest{specifier, importer}
 	seen: [64]ModuleBrowserRequest
+	// Alias and browser-field targets are configuration. When the caller asked
+	// for fullySpecified, only the request as written must name its file exactly.
+	step_options := options
 	for index in 0..<len(seen) {
 		mapped, alias_err := module_resolver_alias(request.specifier, options.aliases, temp)
 		if alias_err != .None { return {}, alias_err }
+		if mapped != request.specifier && step_options.fully_specified != nil {
+			step_options.fully_specified = false
+		}
 		request.specifier = mapped
 		for visited in seen[:index] {
 			if visited == request { return {}, .Browser_Mapping_Cycle }
 		}
 		seen[index] = request
 
-		result, replacement, err := module_resolver_browser_step(request, options, temp)
+		result, replacement, err := module_resolver_browser_step(request, step_options, temp)
 		if err != .None { return {}, err }
 		if replacement.ignored { return {kind = .Ignored}, .None }
 		if replacement.target == "" {
@@ -51,6 +57,7 @@ module_resolver_browser :: proc(
 		anchor, join_err := filepath.join({replacement.scope, "package.json"}, temp)
 		if join_err != nil { return {}, .Allocation_Error }
 		request = {replacement.target, anchor}
+		if step_options.fully_specified != nil { step_options.fully_specified = false }
 	}
 	return {}, .Browser_Mapping_Cycle
 }
@@ -89,7 +96,13 @@ module_resolver_browser_lookup :: proc(
 	key, key_err := module_resolver_browser_key(scope, start, specifier, allocator)
 	if key_err != .None { return {}, key_err }
 	if key == "" { return {}, .None }
-	#partial switch value in mapping.members[key] {
+	entry, listed := mapping.members[key]
+	if !listed && strings.has_prefix(key, "./") {
+		// Packages also write file keys without the leading "./". Bundlers
+		// accept both spellings, and so does enhanced-resolve.
+		entry = mapping.members[key[2:]]
+	}
+	#partial switch value in entry {
 	case bool:
 		if !value { return {ignored = true}, .None }
 	case string:

@@ -66,6 +66,7 @@ minify_constant :: proc(root: ^Expression) -> (MinifyConstant, bool) {
 		frame := frames[pending]
 		#partial switch n in frame.node^ {
 		case ^NumericLiteral:
+			if minify_legacy_octal(n.raw) { return {}, false }
 			values[count] = {number = n.value, bytes = len(n.raw)}
 			count += 1
 		case ^BooleanLiteral:
@@ -105,6 +106,12 @@ minify_constant :: proc(root: ^Expression) -> (MinifyConstant, bool) {
 	return values[0], true
 }
 
+// `010` is eight in sloppy code and `08` is eight in decimal. The parsed value
+// of these legacy spellings is not relied on; they print as written.
+minify_legacy_octal :: proc(raw: string) -> bool {
+	return len(raw) > 1 && raw[0] == '0' && raw[1] >= '0' && raw[1] <= '9'
+}
+
 minify_number_text :: proc(buffer: []byte, value: f64) -> string {
 	if math.is_nan(value) || math.is_inf(value) { return "" }
 	if value == 0 && math.sign_bit(value) { return "-0" }
@@ -114,15 +121,80 @@ minify_number_text :: proc(buffer: []byte, value: f64) -> string {
 	}
 	text := strconv.write_float(buffer, value, 'g', -1, 64)
 	if len(text) > 0 && text[0] == '+' { text = text[1:] }
+	text = minify_number_exponent(text)
 	roundtrip, ok := strconv.parse_f64(text)
 	if !ok || transmute(u64)roundtrip != transmute(u64)value { return "" }
 	return text
+}
+
+// `1e+21` is `1e21` and `1e-06` is `1e-6`. The text is edited in place.
+minify_number_exponent :: proc(text: string) -> string {
+	bytes := transmute([]byte)text
+	mark := -1
+	for char, index in bytes { if char == 'e' { mark = index } }
+	if mark < 0 { return text }
+	read, write := mark + 1, mark + 1
+	if read < len(bytes) && bytes[read] == '-' { read += 1; write += 1 }
+	if read < len(bytes) && bytes[read] == '+' { read += 1 }
+	for read + 1 < len(bytes) && bytes[read] == '0' { read += 1 }
+	for read < len(bytes) { bytes[write] = bytes[read]; read += 1; write += 1 }
+	return string(bytes[:write])
+}
+
+// Rewrite a decimal spelling as digits and a power of ten: `1000000` is `1e6`,
+// `0.00025` is `25e-5` and `0.5` is `.5`. Returns the input when no form is shorter.
+minify_number_compact :: proc(buffer: []byte, text: string) -> string {
+	digits: [40]byte
+	count, exponent, index := 0, 0, 0
+	negative := len(text) > 0 && text[0] == '-'
+	if negative { index = 1 }
+	seen_point := false
+	for index < len(text) && count < len(digits) {
+		char := text[index]
+		if char == '.' && !seen_point {
+			seen_point = true
+		} else if char >= '0' && char <= '9' {
+			if count != 0 || char != '0' { digits[count] = char; count += 1 }
+			if seen_point { exponent -= 1 }
+		} else {
+			break
+		}
+		index += 1
+	}
+	// Only plain decimals are rewritten. An exponent or an over-long input stays.
+	if index != len(text) || count == 0 || 3 + count + 5 > len(buffer) { return text }
+	for count > 1 && digits[count-1] == '0' { count -= 1; exponent += 1 }
+	best := text
+	scratch: [64]byte
+	// Candidate 1: `.digits` for a value below one with no leading fractional zeros.
+	if exponent == -count && count + 2 <= len(scratch) {
+		length := 0
+		if negative { scratch[length] = '-'; length += 1 }
+		scratch[length] = '.'; length += 1
+		copy(scratch[length:], digits[:count]); length += count
+		if length < len(best) { copy(buffer, scratch[:length]); best = string(buffer[:length]) }
+	}
+	// Candidate 2: `digits e exponent`.
+	if exponent != 0 {
+		length := 0
+		if negative { scratch[length] = '-'; length += 1 }
+		copy(scratch[length:], digits[:count]); length += count
+		scratch[length] = 'e'; length += 1
+		power: [8]byte
+		spelled := strconv.write_int(power[:], i64(exponent), 10)
+		copy(scratch[length:], spelled); length += len(spelled)
+		if length < len(best) { copy(buffer, scratch[:length]); best = string(buffer[:length]) }
+	}
+	return best
 }
 
 minify_expression :: proc(cg: ^Codegen, expr: ^Expression, parent_prec: int) -> bool {
 	value: MinifyConstant
 	#partial switch n in expr^ {
 	case ^BooleanLiteral: value = minify_boolean(n.value, n.value ? 4 : 5)
+	case ^NumericLiteral:
+		if minify_legacy_octal(n.raw) { return false }
+		value = {number = n.value, bytes = len(n.raw)}
 	case ^BinaryExpression, ^UnaryExpression, ^ParenthesizedExpression:
 		folded, ok := minify_constant(expr)
 		if !ok { return false }
@@ -131,8 +203,17 @@ minify_expression :: proc(cg: ^Codegen, expr: ^Expression, parent_prec: int) -> 
 	}
 	buffer: [64]byte
 	text: string
-	if value.boolean { text = value.number == 0 ? "!1" : "!0" }
-	else { text = minify_number_text(buffer[:], value.number) }
+	compact: [64]byte
+	if value.boolean {
+		text = value.number == 0 ? "!1" : "!0"
+	} else {
+		text = minify_number_text(buffer[:], value.number)
+		if len(text) == 0 { return false }
+		shorter := minify_number_compact(compact[:], text)
+		// Accept the power-of-ten spelling only when it reads back as the same double.
+		roundtrip, ok := strconv.parse_f64(shorter)
+		if ok && transmute(u64)roundtrip == transmute(u64)value.number { text = shorter }
+	}
 	if len(text) == 0 { return false }
 	// Retain grouping for a member receiver and for a unary left operand of **.
 	group := parent_prec >= PREC_CALL || (parent_prec >= PREC_EXP && (text[0] == '-' || text[0] == '!'))
@@ -177,4 +258,105 @@ gen_statement_list_item :: proc(cg: ^Codegen, statements: []^Statement, index: i
 minify_same_declaration :: proc(decl: ^VariableDeclaration, stmt: ^Statement) -> bool {
 	next, ok := stmt^.(^VariableDeclaration)
 	return ok && !next.declare && next.kind == decl.kind
+}
+
+// The terminator of a block's last statement is redundant before `}`. An
+// empty statement is the exception: its `;` is the whole statement.
+minify_trim_terminator :: proc(cg: ^Codegen, statements: []^Statement) {
+	if !cg.cfg.compact_syntax || len(statements) == 0 { return }
+	if cg.pos == 0 || cg.buf[cg.pos-1] != ';' { return }
+	current := statements[len(statements)-1]
+	for _ in 0..<cg.pos {
+		#partial switch v in current^ {
+		case ^EmptyStatement: return
+		case ^IfStatement:      current = v.alternate.? or_else v.consequent
+		case ^ForStatement:     current = v.body
+		case ^ForInStatement:   current = v.body
+		case ^ForOfStatement:   current = v.body
+		case ^WhileStatement:   current = v.body
+		case ^WithStatement:    current = v.body
+		case ^LabeledStatement: current = v.body
+		case:
+			cg.pos -= 1
+			return
+		}
+	}
+}
+
+minify_block_follows :: proc(cg: ^Codegen, stmt: ^Statement) -> bool {
+	_, block := stmt^.(^BlockStatement)
+	return cg.cfg.compact_syntax && block
+}
+
+// `var{a}=b` and `let[a]=b` need no space after the keyword.
+minify_pattern_follows :: proc(cg: ^Codegen, declaration: ^VariableDeclaration) -> bool {
+	if !cg.cfg.compact_syntax || len(declaration.declarations) == 0 { return false }
+	plain := declaration.kind == .Var || declaration.kind == .Let || declaration.kind == .Const
+	if !plain { return false }
+	#partial switch _ in declaration.declarations[0].id {
+	case ^ObjectPattern, ^ArrayPattern: return true
+	}
+	return false
+}
+
+// `(a)=>a` can be written `a=>a` when the parameter is a plain identifier.
+minify_arrow_bare_parameter :: proc(cg: ^Codegen, arrow: ^ArrowFunctionExpression) -> bool {
+	if !cg.cfg.compact_syntax || len(arrow.params) != 1 { return false }
+	if arrow.type_parameters != nil || arrow.return_type != nil { return false }
+	parameter := arrow.params[0]
+	if parameter.default_val != nil || parameter.accessibility != .None { return false }
+	if parameter.readonly { return false }
+	id, plain := parameter.pattern.(^Identifier)
+	return plain && id.type_annotation == nil && !id.optional
+}
+
+// Whether the printed operand certainly begins with punctuation. A constant
+// operand may be replaced by its folded value, which can begin with a digit,
+// so only spellings that survive folding count.
+minify_starts_with_punctuation :: proc(cg: ^Codegen, expr: ^Expression) -> bool {
+	current := expr
+	for depth in 0..<64 {
+		if current == nil { return false }
+		#partial switch v in current^ {
+		case ^StringLiteral, ^TemplateLiteral, ^ArrayExpression, ^ObjectExpression, ^RegExpLiteral:
+			return true
+		case ^BooleanLiteral:
+			// Printed as `!0` or `!1` when it is the whole operand.
+			return depth == 0 && cg.cfg.fold_constants
+		case ^UnaryExpression:
+			#partial switch v.operator {
+			case .LogicalNot: return true
+			case .Minus, .BitwiseNot:
+				// `-5` stays `-5` and `~5` folds to `-6`. A nested operand could fold to a digit.
+				_, literal := v.argument^.(^NumericLiteral)
+				if literal { return true }
+				_, constant := minify_constant(current)
+				return !constant
+			}
+			return false
+		case ^BinaryExpression:
+			if _, constant := minify_constant(current); constant { return false }
+			current = v.left
+		case ^UpdateExpression:
+			if v.prefix { return true }
+			current = v.argument
+		case ^LogicalExpression:        current = v.left
+		case ^ConditionalExpression:    current = v.test
+		case ^AssignmentExpression:     current = v.left
+		case ^MemberExpression:         current = v.object
+		case ^CallExpression:           current = v.callee
+		case ^TaggedTemplateExpression: current = v.tag
+		case ^SequenceExpression:
+			if len(v.expressions) == 0 { return false }
+			current = v.expressions[0]
+		case: return false
+		}
+	}
+	return false
+}
+
+// A keyword needs no space before punctuation: `return!0`, `case"a":`.
+minify_keyword_space :: proc(cg: ^Codegen, operand: ^Expression) {
+	if cg.cfg.compact_syntax && minify_starts_with_punctuation(cg, operand) { return }
+	cg_byte(cg, ' ')
 }

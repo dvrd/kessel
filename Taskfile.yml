@@ -105,9 +105,32 @@ tasks:
       - task: test:lint
       - task: test:strip-types
       - task: test:transform
+      - task: test:jsx
+      - task: test:library
       - task: test:minify
       - task: test:format
       - task: test:watch
+      - task: test:robust
+      - task: test:depth
+      - task: test:bundle
+
+  test:robust:
+    desc: Compare template-literal nesting limits with the JavaScript engine that runs the verifier.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_template_nesting.js
+
+  test:depth:
+    desc: "Nesting-depth gate: deep input is rejected with K2081 and million-term chains survive every tool, on an 8 MB stack, optimized and debug builds."
+    deps: [build, build:debug]
+    cmds:
+      - node tests/verifiers/verify_depth_limit.js
+
+  test:bundle:
+    desc: Bundle the multi-file fixtures and compare their behaviour with the original modules under Node.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_bundle.js {{.CLI_ARGS}}
 
   test:watch:
     desc: Verify that lint, fmt and transform respond to file changes and recover from errors.
@@ -134,6 +157,18 @@ tasks:
     deps: [build]
     cmds:
       - node tests/verifiers/verify_transform.js
+
+  test:library:
+    desc: Build the Odin programs that use Kessel as a package and verify what they print.
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_sourcemap_builder.js
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_library_consumer.js
+
+  test:jsx:
+    desc: Compare JSX values, spread children and JSX error spans with the reference parsers.
+    deps: [build]
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_jsx_ast.js
 
   test:minify:
     desc: Compare compressed programs with their original runtime results and check source maps.
@@ -268,32 +303,70 @@ tasks:
     cmds:
       - node tests/verifiers/verify_declarations.js --namespaces
 
+  test:dts:computed:
+    desc: Compare the upstream computed-property corpus with TypeScript, allowing only the documented differences.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --computed
+
+  test:dts:broad:
+    desc: Compare every TypeScript compiler and conformance input against the recorded list of emitter differences.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --broad {{.CLI_ARGS}}
+
   test:resolve:
     desc: Check native and CLI module resolution against filesystem fixtures.
     deps: [build]
     cmds:
-      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_resolver_entry_points,coverage.test_module_resolver_typescript_config
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_resolver_entry_points,coverage.test_module_resolver_typescript_config,coverage.test_module_resolver_lookup_options
       - node tests/verifiers/verify_module_resolver_cli.js
+      - node tests/verifiers/verify_module_resolver_options.js
 
   test:resolve:reference:
-    desc: Compare virtual TypeScript module roots through the CLI and SDK with the installed TypeScript resolver.
+    desc: Compare the resolver with the installed TypeScript, Node, and oxc-resolver.
     deps: [build, build:lib]
     cmds:
       - node tests/verifiers/verify_module_resolver_cli.js --reference
+      - node tests/verifiers/verify_module_resolver_node.js
+      - node tests/verifiers/verify_module_resolver_reference.js
 
   test:module-lexer:
     desc: Check fast module dependency extraction and source spans.
     deps: [build]
     cmds:
-      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_lexer_dependencies,coverage.test_module_lexer_script_and_invalid,coverage.test_module_lexer_import_phases,coverage.test_module_lexer_export_bindings,coverage.test_module_lexer_typescript_exports
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_lexer_dependencies,coverage.test_module_lexer_script_and_invalid,coverage.test_module_lexer_import_phases,coverage.test_module_lexer_export_bindings,coverage.test_module_lexer_typescript_exports,coverage.test_module_lexer_reference_fields,coverage.test_module_lexer_string_export_names,coverage.test_module_lexer_attribute_entries,coverage.test_module_lexer_facade_and_format,coverage.test_module_lexer_scan_contexts,coverage.test_module_lexer_class_export_names
       - node tests/verifiers/verify_module_lexer_cli.js
+      - task: test:module-lexer:reference
+
+  test:module-lexer:reference:
+    desc: Compare the module lexer field by field with es-module-lexer, an AST oracle and V8 over real-world, node_modules, test262 and Babel sources.
+    deps: [build:lib]
+    cmds:
+      - node tests/verifiers/verify_module_lexer_reference.js
+      - node tests/verifiers/verify_module_lexer_node.js
+
+  test:module-lexer:reference:oracle:
+    desc: Reference gate plus the AST oracle on every file, including those where both lexers already agree (slower).
+    deps: [build:lib]
+    cmds:
+      - node tests/verifiers/verify_module_lexer_reference.js --oracle-all
 
   test:regexp:
-    desc: Check regexp tree structure, Unicode sets, and diagnostics.
-    deps: [build]
+    desc: Check regexp tree structure, Unicode sets, diagnostics, and Node accept/reject agreement.
+    deps: [build, build:lib]
     cmds:
-      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_regex_ast_structure,coverage.test_regex_ast_unicode_sets,coverage.test_regex_ast_legacy_and_invalid,coverage.test_regex_ast_character_values,coverage.test_regex_ast_legacy_code_units
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_regex_ast_structure,coverage.test_regex_ast_unicode_sets,coverage.test_regex_ast_legacy_and_invalid,coverage.test_regex_ast_character_values,coverage.test_regex_ast_legacy_code_units,coverage.test_regex_ast_modifiers,coverage.test_regex_ast_duplicate_names,coverage.test_regex_ast_annex_b,coverage.test_regex_ast_legacy_octal,coverage.test_regex_ast_class_atoms,coverage.test_regex_ast_set_notation,coverage.test_regex_ast_properties
       - node tests/verifiers/verify_regex_ast_cli.js
+      - node tests/verifiers/verify_regex_ast_reference.js
+
+  test:regexp:reference:
+    desc: "Compare regexp trees with the oxc parser (needs ../oxc and cargo; set OXC_DIR to override)."
+    deps: [build:lib]
+    vars:
+      OXC_DIR: '{{.OXC_DIR | default "../oxc"}}'
+    cmds:
+      - node tests/verifiers/verify_regex_ast_reference.js --oxc {{.OXC_DIR}}
 
   test:coverage:update:
     desc: "Regenerate every snap baseline. Run after a deliberate parser change."

@@ -1,16 +1,19 @@
 name: CI
 
+# `develop` is the integration branch: feature and fix branches merge there
+# and get the primary gate. A pull request into `main` is a release, so it
+# alone runs the complete release gate (see `release_checks` below).
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   push:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   test:
     uses: ./.github/workflows/primary-tests.yml
     with:
-      release_checks: ${{ github.event_name == 'pull_request' }}
+      release_checks: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
 
   playground:
     permissions:

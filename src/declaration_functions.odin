@@ -12,18 +12,55 @@ dts_function :: proc(state: ^DeclarationEmit, fn: ^FunctionDeclaration, statemen
 	cg_byte(cg, ';')
 }
 
+// TypeScript infers from a body whose only return statement is a direct child
+// of the function block. A return nested in another statement leaves the type
+// unknown. Like TypeScript, a bare `return;` before the candidate is ignored.
 @(private)
 dts_return_expression :: proc(body: []^Statement) -> ^Expression {
-	if len(body) == 0 { return nil }
-	ret, last := body[len(body) - 1]^.(^ReturnStatement)
-	if !last { return nil }
-	for stmt in body[:len(body) - 1] {
-		#partial switch _ in stmt^ {
-		case ^VariableDeclaration, ^FunctionDeclaration, ^ExpressionStatement, ^EmptyStatement, ^ClassDeclaration, ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration:
-		case: return nil
+	candidate: ^Expression
+	for stmt in body {
+		assert(stmt != nil)
+		if ret, direct := stmt^.(^ReturnStatement); direct {
+			if candidate != nil { return nil }
+			candidate = ret.argument.? or_else nil
+		} else if dts_contains_return(stmt) {
+			return nil
 		}
 	}
-	return ret.argument.? or_else nil
+	return candidate
+}
+
+// Nested functions and classes own their return statements, so the walk only
+// descends through statements that share the enclosing function's body.
+@(private)
+dts_contains_return :: proc(root: ^Statement) -> bool {
+	assert(root != nil)
+	pending: [dynamic]^Statement
+	append(&pending, root)
+	for len(pending) > 0 {
+		stmt := pop(&pending)
+		#partial switch s in stmt^ {
+		case ^ReturnStatement: return true
+		case ^BlockStatement: append(&pending, ..s.body[:])
+		case ^LabeledStatement: append(&pending, s.body)
+		case ^WhileStatement: append(&pending, s.body)
+		case ^DoWhileStatement: append(&pending, s.body)
+		case ^ForStatement: append(&pending, s.body)
+		case ^ForInStatement: append(&pending, s.body)
+		case ^ForOfStatement: append(&pending, s.body)
+		case ^WithStatement: append(&pending, s.body)
+		case ^IfStatement:
+			append(&pending, s.consequent)
+			if alternate, ok := s.alternate.?; ok { append(&pending, alternate) }
+		case ^SwitchStatement:
+			for clause in s.cases { append(&pending, ..clause.consequent[:]) }
+		case ^TryStatement:
+			append(&pending, ..s.block.body[:])
+			if handler, ok := s.handler.?; ok { append(&pending, ..handler.body.body[:]) }
+			if finalizer, ok := s.finalizer.?; ok { append(&pending, ..finalizer.body[:]) }
+		}
+	}
+	return false
 }
 
 @(private)
@@ -115,11 +152,13 @@ dts_parameter :: proc(state: ^DeclarationEmit, parameter: FunctionParameter, tra
 		annotation = p.type_annotation
 		optional = p.optional
 	case ^ObjectPattern:
+		dts_pattern_references(state, pattern)
 		local := p^
 		annotation = p.type_annotation
 		local.type_annotation = nil
 		gen_pattern(cg, &local)
 	case ^ArrayPattern:
+		dts_pattern_references(state, pattern)
 		local := p^
 		annotation = p.type_annotation
 		local.type_annotation = nil
@@ -128,13 +167,54 @@ dts_parameter :: proc(state: ^DeclarationEmit, parameter: FunctionParameter, tra
 	}
 	if optional || (init != nil && trailing) { cg_byte(cg, '?') }
 	cg_str(cg, ": ")
-	type_start := cg.pos
-	if ty, ok := annotation.?; ok { gen_ts_type(cg, ty.type_annotation) } else if !dts_infer(state, init, false, depth + 1) {
-		if init != nil { location = get_expression_loc(init) }
-		dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", location)
-	}
-	if init != nil && !trailing { dts_parameter_undefined(state, annotation, init, parameter.loc, type_start) }
+	dts_parameter_type(state, parameter, annotation, init, optional, trailing, location, depth)
 }
+
+// Print a parameter's declared or inferred type. A parameter that callers may
+// omit while a later one is required, and an optional parameter property, both
+// read as `T | undefined`, so the union is made explicit in the declaration.
+@(private)
+dts_parameter_type :: proc(
+	state: ^DeclarationEmit, parameter: FunctionParameter, annotation: Maybe(^TSTypeAnnotation),
+	init: ^Expression, optional, trailing: bool, location: Loc, depth: int,
+) {
+	cg := &state.writer
+	property := parameter.accessibility != .None || parameter.readonly || parameter.override_
+	implicit_undefined := init != nil && !trailing
+	if init == nil && optional && property { implicit_undefined = true }
+	// TypeScript reports the whole parameter, including its property modifiers.
+	span := parameter.loc
+	if parameter.modifier_start != 0 { span.start = parameter.modifier_start }
+	assert(span.start <= span.end)
+	// A destructuring pattern never takes its type from a default value.
+	binding := parameter.pattern
+	if assignment, assigned := binding.(^AssignmentPattern); assigned { binding = assignment.left }
+	_, object_pattern := binding.(^ObjectPattern)
+	_, array_pattern := binding.(^ArrayPattern)
+	destructured := object_pattern || array_pattern
+	type_start := cg.pos
+	if ty, ok := annotation.?; ok {
+		gen_ts_type(cg, ty.type_annotation)
+	} else if init == nil && implicit_undefined {
+		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
+		return
+	} else if destructured && implicit_undefined {
+		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
+		return
+	} else if destructured || !dts_infer(state, init, false, depth + 1) {
+		// Without an initializer the whole parameter is reported, including
+		// its modifiers and its `...` or `?` marker.
+		error_location := span
+		if init != nil { error_location = dts_expression_span(state, init) }
+		dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", error_location)
+	}
+	if implicit_undefined {
+		dts_parameter_undefined(state, annotation, init, span, type_start)
+	}
+}
+
+DTS_IMPLICIT_UNDEFINED :: "Declaration emit for this parameter requires implicitly adding " +
+	"undefined to its type. This is not supported with --isolatedDeclarations."
 
 // TypeScript binds named properties first, then resolves computed property names.
 // Both forms can denote the same public property. Diagnose it only once.
@@ -291,6 +371,7 @@ dts_parameter_undefined :: proc(state: ^DeclarationEmit, annotation: Maybe(^TSTy
 	ty: ^TSType
 	group := false
 	if a, typed := annotation.?; typed { ty = a.type_annotation } else {
+		assert(init != nil)
 		#partial switch e in init^ {
 		case ^TSAsExpression: ty = e.type_annotation
 		case ^TSTypeAssertion: ty = e.type_annotation
@@ -311,12 +392,12 @@ dts_parameter_undefined :: proc(state: ^DeclarationEmit, annotation: Maybe(^TSTy
 				for index in dts_lookup(state, id.name, .Either) {
 					if alias, ok := state.items[index].statement.(^TSTypeAliasDeclaration); ok && dts_type_has_undefined(alias.type_annotation) { return }
 				}
-				if len(dts_lookup(state, id.name, .Type)) == 0 && !dts_reference_is_local(state, {id.name, id.loc, false}) { return }
-				dts_error(state, "TS9025", "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.", parameter)
+				if len(dts_lookup(state, id.name, .Type)) == 0 && !dts_reference_is_local(state, {id.name, id.loc, false, false}) { return }
+				dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, parameter)
 				return
 			}
 		}
-	} else if dts_primitive_type(init) == "undefined" { return }
+	} else if init != nil && dts_primitive_type(init) == "undefined" { return }
 	if group {
 		text := strings.clone(string(cg.buf[type_start:cg.pos]))
 		cg.pos = type_start

@@ -680,22 +680,27 @@ lint_check_dupe_keys :: proc(l: ^Linter, e: ^ObjectExpression) {
 
 lint_split_logical :: proc(out: ^[dynamic]^Expression, expr: ^Expression, operator: LogicalOperator) {
 	if expr == nil { return }
-	#partial switch node in expr^ {
-	case ^LogicalExpression:
-		if node.operator == operator {
-			lint_split_logical(out, node.left, operator)
-			lint_split_logical(out, node.right, operator)
-			return
-		}
-	case ^ParenthesizedExpression:
-		lint_split_logical(out, node.expression, operator)
-		return
+	// A chain such as `a || b || c` nests on the left without limit, so the
+	// left spine is followed in a loop. Right operands are bounded by the
+	// parser's nesting limit and may recurse.
+	rights := make([dynamic]^Expression, 0, 4, context.temp_allocator)
+	current := expr
+	for {
+		current = lint_unparen(current)
+		if current == nil { break }
+		node, is_logical := current^.(^LogicalExpression)
+		if !is_logical || node.operator != operator { break }
+		append(&rights, node.right)
+		current = node.left
 	}
-	append(out, expr)
+	if current != nil { append(out, current) }
+	#reverse for right in rights { lint_split_logical(out, right, operator) }
 }
 
 // `a && b` equals `b && a` for this rule. Other shapes compare structurally.
 lint_else_if_equal :: proc(l: ^Linter, a, b: ^Expression) -> bool {
+	if !lint_compare_enter(l) { return false }
+	defer l.compare_depth -= 1
 	left, left_logical := a^.(^LogicalExpression)
 	right, right_logical := b^.(^LogicalExpression)
 	if left_logical && right_logical && left.operator == right.operator && left.operator != .NullishCoalescing {

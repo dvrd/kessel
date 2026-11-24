@@ -182,11 +182,17 @@ lint_check_unsafe_finally :: proc(l: ^Linter, stmt: ^Statement) {
 // that throws on undefined.
 lint_optional_short_circuit :: proc(l: ^Linter, expr: ^Expression) {
 	inner := lint_inner(expr)
+	// `a && b && c` nests on the left without limit: follow that spine in a
+	// loop. Only `&&` passes its left value through.
+	for inner != nil {
+		logical, is_logical := inner^.(^LogicalExpression)
+		if !is_logical { break }
+		lint_optional_short_circuit(l, logical.right)
+		if logical.operator != .And { return }
+		inner = lint_inner(logical.left)
+	}
 	if inner == nil { return }
 	#partial switch node in inner^ {
-	case ^LogicalExpression:
-		if node.operator == .And { lint_optional_short_circuit(l, node.left) }
-		lint_optional_short_circuit(l, node.right)
 	case ^AwaitExpression:
 		lint_optional_short_circuit(l, node.argument)
 	case ^ConditionalExpression:

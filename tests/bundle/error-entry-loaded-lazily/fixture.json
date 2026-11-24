@@ -1,0 +1,3 @@
+{
+  "error": "top-level await is not supported in an entry that is also loaded lazily"
+}
