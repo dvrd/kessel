@@ -354,6 +354,16 @@ null comparisons, or `["error", "always", {"null": "ignore"}]` for a
 null-specific exception. The `null` setting accepts `always`, `ignore`,
 and `never`.
 
+A rule name may carry its oxlint plugin, as in `unicorn/no-new-array`,
+`oxc/erasing-op` or `@typescript-eslint/no-this-alias`. In an `.oxlintrc.json`,
+`categories` and `plugins` select rules the way oxlint does: `correctness` is on
+at `warn` unless the file changes it, the other categories are off, and the
+`typescript`, `unicorn` and `oxc` plugins are active unless `plugins` lists
+others. A category only switches on rules whose diagnostics match the pinned
+oxlint on every compared upstream fixture (`tests/lint/upstream_parity.json`).
+Every other rule still needs its own entry under `rules`. `kessel.lint.json`
+and runs without a config keep Kessel's own defaults.
+
 Enable `no-console` to report reads, calls, and assignments to statically named
 properties on the global console. For example, `["warn", {"allow": ["warn",
 "error"]}]` permits those two methods. Locally declared and imported consoles are exempt.

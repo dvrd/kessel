@@ -14,9 +14,19 @@ LintHookConfig :: struct {
 	correctness, pedantic: string,
 }
 
+// The `categories` and `plugins` keys of an .oxlintrc.json. A level is "off",
+// "warn" or "error", or "" when the file does not mention the category.
+LintCategoryConfig :: struct {
+	levels: [LintCategory]string,
+	// Oxlint enables these three plugins unless `plugins` lists others.
+	plugins_listed: bool,
+	typescript, unicorn, oxc: bool,
+}
+
 LintConfigLayer :: struct {
 	rules: [dynamic]LintOverride,
 	hooks: LintHookConfig,
+	categories: LintCategoryConfig,
 	globals: LintGlobalConfig,
 	ignores: [dynamic]string,
 	overrides: [dynamic]LintConfigOverride,
@@ -27,6 +37,7 @@ LintConfigLayer :: struct {
 LintProjectConfig :: struct {
 	directory: string,
 	hooks: LintHookConfig,
+	categories: LintCategoryConfig,
 	globals: LintGlobalConfig,
 	dialect: LintConfigDialect,
 	// Parents precede children. Globs run after all base settings.
@@ -184,6 +195,7 @@ lint_config_load :: proc(store: ^LintConfigStore, requested: string) -> (^LintPr
 			if layer.hooks.react { config.hooks.react = true }
 			if layer.hooks.correctness != "" { config.hooks.correctness = layer.hooks.correctness }
 			if layer.hooks.pedantic != "" { config.hooks.pedantic = layer.hooks.pedantic }
+			lint_category_config_merge(&config.categories, layer.categories)
 		}
 		// Oxlint takes the selected file's top-level globals and env, even
 		// when it inherits rules and per-file overrides from another file.
@@ -249,7 +261,12 @@ lint_config_parse_fields :: proc(obj: json.Object, layer: ^LintConfigLayer) -> b
 	if categories, ok := obj["categories"].(json.Object); ok {
 		layer.hooks.correctness, _ = lint_config_level(categories["correctness"])
 		layer.hooks.pedantic, _ = lint_config_level(categories["pedantic"])
+		for category in LintCategory {
+			if category == .None { continue }
+			layer.categories.levels[category], _ = lint_config_level(categories[lint_category_key(category)])
+		}
 	}
+	lint_category_plugins(obj, &layer.categories)
 	if options, found := obj["options"].(json.Object); found {
 		if setting, present := options["reportUnusedDisableDirectives"]; present {
 			level, is_string := setting.(json.String)
@@ -296,6 +313,71 @@ lint_config_react_plugin :: proc(obj: json.Object) -> bool {
 		}
 	}
 	return false
+}
+
+lint_category_key :: proc(category: LintCategory) -> string {
+	switch category {
+	case .Correctness: return "correctness"
+	case .Suspicious:  return "suspicious"
+	case .Pedantic:    return "pedantic"
+	case .Perf:        return "perf"
+	case .Style:       return "style"
+	case .Restriction: return "restriction"
+	case .Nursery:     return "nursery"
+	case .None:
+	}
+	return ""
+}
+
+lint_category_plugins :: proc(obj: json.Object, config: ^LintCategoryConfig) {
+	plugins, listed := obj["plugins"].(json.Array)
+	if !listed { return }
+	config.plugins_listed = true
+	for plugin in plugins {
+		name, named := plugin.(json.String)
+		if !named { continue }
+		switch string(name) {
+		case "typescript", "@typescript-eslint": config.typescript = true
+		case "unicorn":                          config.unicorn = true
+		case "oxc":                              config.oxc = true
+		}
+	}
+}
+
+// A later file replaces the plugin list and each category it mentions.
+lint_category_config_merge :: proc(target: ^LintCategoryConfig, layer: LintCategoryConfig) {
+	for level, category in layer.levels {
+		if level != "" { target.levels[category] = level }
+	}
+	if !layer.plugins_listed { return }
+	target.plugins_listed = true
+	target.typescript, target.unicorn, target.oxc = layer.typescript, layer.unicorn, layer.oxc
+}
+
+lint_category_plugin_enabled :: proc(config: LintCategoryConfig, plugin: string) -> bool {
+	switch plugin {
+	case "eslint":     return true
+	case "typescript": return config.typescript || !config.plugins_listed
+	case "unicorn":    return config.unicorn || !config.plugins_listed
+	case "oxc":        return config.oxc || !config.plugins_listed
+	}
+	return false
+}
+
+// Oxlint runs the `correctness` category by default and each other category
+// only when the config raises it. These defaults precede explicit rule
+// settings. Rules without a recorded category keep Kessel's own default.
+lint_config_category_defaults :: proc(rules: ^[dynamic]LintOverride, config: LintCategoryConfig) {
+	for rule in LintRule {
+		category := lint_rule_category(rule)
+		if category == .None { continue }
+		level := config.levels[category]
+		if level == "" { level = "warn" if category == .Correctness else "off" }
+		if !lint_category_plugin_enabled(config, lint_rule_plugin(rule)) { level = "off" }
+		override, valid := lint_override_from_level(rule, level)
+		assert(valid)
+		append(rules, override)
+	}
 }
 
 // Oxlint classifies exhaustive-deps as correctness and rules-of-hooks as
@@ -349,6 +431,7 @@ lint_config_effective :: proc(store: ^LintConfigStore, config: ^LintProjectConfi
 		copied_globals := false
 		path := lint_config_relative_path(config, input)
 		react := config.hooks.react
+		if globals.oxlint { lint_config_category_defaults(rules, config.categories) }
 		if react { lint_config_hook_defaults(rules, config.hooks) }
 		for layer in config.layers { append(rules, ..layer.rules[:]) }
 		for layer in config.layers {

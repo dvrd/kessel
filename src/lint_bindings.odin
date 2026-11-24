@@ -16,6 +16,9 @@ lint_check_semantic_rules :: proc(l: ^Linter, ctx: ^LintContext, program: ^Progr
 	prefer_const := lint_rule_enabled(l, .L4012_PreferConst)
 	needed := globals || undef || unused || shadow || prefer_const || len(l.regexp_calls) != 0
 	if len(l.console_members) > 0 || len(l.getter_descriptors) > 0 { needed = true }
+	if len(l.global_reports) > 0 || len(l.object_calls) > 0 || len(l.replace_all_calls) > 0 { needed = true }
+	if len(l.then_references) > 0 || len(l.unassigned) > 0 || len(l.set_sizes) > 0 { needed = true }
+	if lint_rule_enabled(l, .L2056_NoShadowRestrictedNames) { needed = true }
 	hooks := ctx.dependencies != nil && len(ctx.dependencies.calls) > 0
 	if hooks { needed = true }
 	for &rule in by_kind {
@@ -33,6 +36,9 @@ lint_check_semantic_rules :: proc(l: ^Linter, ctx: ^LintContext, program: ^Progr
 	if prefer_const { lint_check_prefer_const(l, &model, let_sites) }
 	if hooks { lint_check_hook_dependencies(l, &model, ctx.dependencies) }
 	for ref in model.refs {
+		if len(l.global_reports) > 0 && ref.resolved == SYMBOL_UNRESOLVED {
+			lint_flush_global_reports(l, ref.start)
+		}
 		if len(l.getter_descriptors) > 0 && ref.resolved == SYMBOL_UNRESOLVED {
 			if entry, found := l.getter_descriptors[ref.start]; found { lint_getter_check_descriptors(l, entry) }
 		}
@@ -56,9 +62,15 @@ lint_check_semantic_rules :: proc(l: ^Linter, ctx: ^LintContext, program: ^Progr
 			if rule == .None { continue }
 			// TypeScript import-equals declarations have their own assignment semantics.
 			if kind == .Import && .Readonly not_in symbol.flags { continue }
-			lint_report(l, ref.start, ref.end, rule, lint_rule_info(rule).default_message)
+			// The class and const rules label the declaration first, then the write.
+			start, end := ref.start, ref.end
+			if rule == .L2049_NoClassAssign || rule == .L2055_NoConstAssign {
+				start, end = symbol.decl_start, symbol.decl_end
+			}
+			lint_report(l, start, end, rule, lint_rule_info(rule).default_message)
 		}
 	}
+	lint_parity_semantic(l, &model)
 	if sites != nil { lint_check_namespace_mutations(l, &model, sites) }
 	if len(l.regexp_calls) != 0 { lint_check_regexp_calls(l, &model) }
 	if undef || unused || shadow { lint_scope_pass(l, &model, ctx.lang, undef, unused, shadow) }
