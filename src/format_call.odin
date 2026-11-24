@@ -729,6 +729,10 @@ format_call_arguments :: proc(f: ^FormatContext, parts: FormatCallParts) -> Doc 
 			printed[index] = fc(f, doc, ft(f, ","), doc_line())
 		}
 	}
+	// The layout rules below walk the arguments again, and some follow a
+	// member chain by recursion. An argument too deep to print has already
+	// failed the statement, so they must not look at it.
+	if f.failed {return nil}
 	trailing_comma: Doc
 	if !parts.is_import && f.options.trailing_comma && !f.options.trailing_comma_es5 {
 		trailing_comma = ft(f, ",")
