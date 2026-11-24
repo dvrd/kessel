@@ -284,13 +284,14 @@ to type-check. Some computed class members and inferred types remain in developm
 ### Formatting
 
 `formatSync(filename, source, options?)` returns a string. The filename selects
-the JavaScript or TypeScript grammar. Imports, named re-exports and export lists
-support width-aware layout. Nested object and array literals also use this layout
-in single-name variable declarations and default exports, including sparse arrays,
-numeric rows, computed keys and TypeScript annotations such as
-`as const satisfies Project.Config`. Unsupported
-statements, statements with internal comments and `prettier-ignore` targets retain
-their original spelling.
+the JavaScript or TypeScript grammar. JavaScript statements, expressions and
+classes print in the layout of Prettier 3.8.3, as do comments that stand between
+statements, class members, object properties and switch cases. In TypeScript
+files, data declarations may carry simple annotations such as
+`as const satisfies Project.Config`. A statement retains its original spelling
+when it uses other TypeScript syntax, JSX, decorators, a comment inside an
+expression or a `prettier-ignore` directive, or when Prettier's layout for it
+would change on a second run. Formatting the result again returns it unchanged.
 A parse error throws a `SyntaxError` with a UTF-8 byte `offset`.
 
 ```js

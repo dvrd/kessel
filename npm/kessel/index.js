@@ -864,7 +864,7 @@ function formatSync(filename, source, options = {}) {
     throw new TypeError('kessel: endOfLine must be lf, crlf, cr or auto');
   }
   const settings = { print_width: printWidth, tab_width: tabWidth, use_tabs: useTabs,
-    single_quote: singleQuote, bracket_spacing: bracketSpacing, trailing_comma: trailingComma !== 'none',
+    single_quote: singleQuote, bracket_spacing: bracketSpacing, trailing_comma: trailingComma !== 'none', trailing_comma_es5: trailingComma === 'es5',
     end_of_line: endOfLine };
   return readToolResult(_format, 'formatSync', toolInput(filename, 'filename'),
     toolInput(source, 'source'), Buffer.from(JSON.stringify(settings)));

@@ -13,23 +13,57 @@ const bench = createRequire(path.join(root, 'bench/package.json'));
 const { parseSync } = bench('oxc-parser');
 const corpus = path.resolve(root, process.env.KESSEL_REAL_WORLD_ROOT || 'bench/real_world');
 
-// Quoted and unquoted property names can refer to the same key. Keep computed
-// keys, shorthand and methods distinct because they can change evaluation.
+// The formatter may change how a program is spelled but never what it means.
+// The comparison therefore ignores exactly the spellings that Prettier
+// normalises: positions, literal text, redundant parentheses, stray empty
+// statements, the order of regular expression flags and the quoting of
+// property names.
+const STATEMENT_LISTS = { Program: 'body', BlockStatement: 'body', StaticBlock: 'body', SwitchCase: 'consequent' };
+
 function syntaxField(key, node) {
   if (key === 'start' || key === 'end') return undefined;
   // A string literal can change its delimiters. A tagged template can observe
   // the raw spelling of its elements, so keep those strings in the comparison.
   if (key === 'raw' && this.type === 'Literal') return undefined;
   if (typeof node === 'bigint') return String(node);
+  // Comments keep their text, apart from the whitespace that Prettier
+  // normalises: line endings, spaces at the end of a line comment, and the
+  // indentation of a block comment whose lines all start with `*`, which is
+  // re-indented with the code around it.
+  if (node?.type === 'Line' && typeof node.value === 'string') {
+    return { ...node, value: node.value.trimEnd() };
+  }
+  if (node?.type === 'Block' && typeof node.value === 'string') {
+    const lines = node.value.replace(/\r\n?/g, '\n').split('\n');
+    const aligned = lines.length > 1 && lines.slice(1).every((line, index) =>
+      line.trimStart().startsWith('*') || (index === lines.length - 2 && line.trim() === ''));
+    return { ...node, value: (aligned ? lines.map(line => line.trim()) : lines).join('\n') };
+  }
+  if (key === 'regex' && node && typeof node.flags === 'string') {
+    return { ...node, flags: [...node.flags].sort().join('') };
+  }
+  // A `;` on its own in a statement list does nothing, and Prettier drops it.
+  // An empty statement that is the body of a loop or branch stays compared.
+  const list = node && STATEMENT_LISTS[node.type];
+  if (list && node[list].some(statement => statement.type === 'EmptyStatement')) {
+    return { ...node, [list]: node[list].filter(statement => statement.type !== 'EmptyStatement') };
+  }
+  // Quoted and unquoted property names can refer to the same key. Keep computed
+  // keys, shorthand and methods distinct because they can change evaluation.
   if (node?.type !== 'Property' && node?.type !== 'ImportAttribute') return node;
   if (node.computed || node.shorthand || node.method) return node;
   if (node.key.type === 'Identifier') return { ...node, key: node.key.name };
   if (typeof node.key.value === 'string') return { ...node, key: node.key.value };
+  // `{ "1": a }` and `{ 1: a }` name the same property.
+  if (typeof node.key.value === 'number') return { ...node, key: String(node.key.value) };
   return node;
 }
 
+// Parentheses that only group are not part of the tree, so the parser is
+// asked not to record them. A change that regroups operands still shows up
+// as a different tree.
 function syntaxDigest(filename, source) {
-  const { program, comments, errors } = parseSync(filename, source, { preserveParens: true });
+  const { program, comments, errors } = parseSync(filename, source, { preserveParens: false });
   assert.deepEqual(errors, [], filename);
   return checksum(JSON.stringify([program, comments], syntaxField));
 }

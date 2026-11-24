@@ -667,7 +667,7 @@ print_usage :: proc() {
 	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
 	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
 	out_println("  dts <file.ts>                   Emit isolated TypeScript declarations to stdout.")
-	out_println("  fmt <file>                      Format module imports and exports to stdout.")
+	out_println("  fmt <file>                      Format a file in Prettier's layout to stdout.")
 	out_println("  resolve <specifier> --from F   Resolve a module and print its path as JSON.")
 	out_println("  bundle <entry> [--outfile F]    Bundle a module graph into one file (esm, cjs or iife).")
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")

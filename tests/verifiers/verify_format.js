@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const fixtures = [...require('../format/modules.json'), ...require('../format/data.json')];
+const fixtures = [...require('../format/modules.json'), ...require('../format/data.json'),
+  ...require('../format/statements.json')];
 const { prettier_npm } = require('../../OXC_ORACLE.json');
 
 const binary = process.env.KESSEL_BIN || path.resolve(__dirname, '../../bin/kessel');
@@ -57,22 +58,43 @@ async function main() {
     }
     console.log(`Matched the installed Prettier ${oracle.version} on ${comparisons} width and style combinations.`);
   }
+  // Statements that the printers do not cover keep their original text:
+  // comments inside an expression, ignore directives, TypeScript and JSX syntax,
+  // and the few shapes whose Prettier layout would regroup operands or depend
+  // on parentheses that the parser does not record.
   const preserved = [
-    'const record={ first: 1, method() { return 2 } };',
-    'export default { key : a + b };',
     'const flags={ enabled: /* configured */ true };',
     '// prettier-ignore\nconst data = [  [1,  2], [3,4] ];',
-    'const [value] = [ 1 ];',
-    'const first=[ 1 ], second={ foo: 2 };',
     '// prettier-ignore\nimport { x,  y }from\'p\';',
     '/* prettier-ignore */\n/* reason */\nexport {x,  y}from\'p\';',
     'import { x, /* grouped names */ y }from\'p\';',
-    'export const   result = (a) => a +  3;',
     'import "line\\\ncontinuation";',
-    'const el =  23; // comment at EOF',
-    "'use strict';\nconst a = 1;",
+    'function  f( a /* first */ ){ return  a }',
+    'const  total = first + /* why */ second;',
+    'var  count = 3 /* three */;',
+    'interface  Shape { area():number }',
+    'type  Pair<T>=[T,T];',
+    'enum  Color { Red, Green }',
+    'function  typed( a:number ):number { return a }',
+    'const  cast = <Shape>value;',
+    'const  sure = value!.field as  Shape;',
+    'abstract  class  Base { abstract run():void }',
+    '@decorated  class  Marked {}',
+    'const  nested = a||(b||c);',
+    'export  default  (function(){ return 1 });',
+    'const  styles = css`color:red;`;',
+    'register( { "ключ": 1 } );',
   ];
   for (const source of preserved) verify('preserve original spelling', source, {}, source);
+  // Prettier's layout of this statement changes when it is formatted a second
+  // time: the object it expands then counts as written expanded, and the call
+  // chain stays on one line. Output that is not stable is not emitted.
+  const unstable = 'x={args:s.array().items(s.string(),s.object({name:s.string().pattern(n.nameRx).required(),ref:s.boolean(),assert:s.alternatives([s.function(),s.object().schema()]).conditional("ref",{is:!0,then:s.required()})}))};';
+  if (oracle) {
+    const once = await oracle.format(unstable, {parser: 'typescript'});
+    assert.notEqual(await oracle.format(once, {parser: 'typescript'}), once);
+  }
+  verify('preserve a statement with no stable layout', unstable, {}, unstable);
   // A long property name can open one more layout group inside the last data
   // container. Crossing the stack bound must preserve the whole statement.
   for (const depth of [254, 255]) {
@@ -95,12 +117,23 @@ async function main() {
       verify('module line endings ' + endOfLine, source, {endOfLine}, expected);
     }
   }
+  // Line breaks inside a template literal follow the chosen line ending,
+  // as they do in Prettier. A template's raw value never contains a CR.
   const tagged = 'const text = tag`first\nsecond\r\nlast`;\r\n';
-  verify('raw template lines and generated module lines', tagged + "import'pkg';",
-    {endOfLine:'auto'}, tagged + 'import "pkg";\r\n');
-  verify('preserve comments and surrounding code',
-    "const    a=1;\nimport{b}from'm'; // public\nexport const f=()=>  1;",
-    {}, 'const    a=1;\nimport { b } from "m"; // public\nexport const f=()=>  1;');
+  const taggedExpected = 'const text = tag`first\r\nsecond\r\nlast`;\r\nimport "pkg";\r\n';
+  if (oracle) {
+    assert.equal(await oracle.format(tagged + "import'pkg';", {parser:'typescript', endOfLine:'auto'}), taggedExpected);
+  }
+  verify('template lines and generated module lines', tagged + "import'pkg';", {endOfLine:'auto'}, taggedExpected);
+  // Comments around top-level statements take Prettier's spacing. A comment
+  // beside a statement that keeps its text keeps its own text too.
+  const around = "/**\n    * Header.\n  */\n\n\n   // leading\nconst    a=1;    /* one */    // two\nimport{b}from'm';   // public\ninterface  I {}   // kept\n// last";
+  const aroundExpected = '/**\n * Header.\n */\n\n// leading\nconst a = 1; /* one */ // two\nimport { b } from "m";   // public\ninterface  I {}   // kept\n// last';
+  verify('comments around top-level statements', around, {}, aroundExpected);
+  if (oracle) {
+    const plain = around.replace("interface  I {}   // kept\n", '').replace("import{b}from'm';   // public\n", '');
+    verify('comments around top-level statements', plain, {}, await oracle.format(plain, {parser: 'typescript'}));
+  }
   const malformed = run("import 'a';\nimport {");
   assert.equal(malformed.status, 1);
   assert.equal(malformed.stdout, '');
