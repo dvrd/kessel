@@ -594,7 +594,11 @@ try {
       oxlintOnly: corpus.oxlintOnly } : row];
   })));
   if (flags.has('--update')) {
-    for (const id of ids) manifest.rules[id] = { ...manifest.rules[id], ...measured[id] };
+    for (const id of ids) {
+      // Without fixtures only the corpus numbers were measured.
+      manifest.rules[id] = flags.has('--no-fixtures') ? { ...manifest.rules[id], corpus: measured[id].corpus }
+        : { ...manifest.rules[id], ...measured[id] };
+    }
     const sorted = Object.keys(manifest.rules).sort();
     const rows = sorted.map(id => '    ' + JSON.stringify(id) + ': ' + JSON.stringify(manifest.rules[id])).join(',\n');
     // `notes` explains, per rule, a difference from oxlint that Kessel keeps on purpose.

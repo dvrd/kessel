@@ -187,6 +187,10 @@ lint_parity_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		lint_check_unnecessary_await(l, node)
 	case ^ObjectExpression:
 		lint_check_thenable_object(l, node)
+		// The walk skips plain keys, and a quoted key is a string literal too.
+		for prop in node.properties {
+			if prop.key != nil && !prop.computed { lint_check_no_script_url(l, prop.key) }
+		}
 	case ^ClassExpression:
 		lint_check_thenable_class(l, node)
 	case ^BinaryExpression:

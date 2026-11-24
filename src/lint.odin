@@ -3203,7 +3203,8 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
-			lint_check_sparse_array(l, e)
+			// A hole in a destructuring target skips a value. It is not a sparse array.
+			if !binding.assignment_pattern { lint_check_sparse_array(l, e) }
 			for el in e.elements {
 				if inner, ok := el.(^Expression); ok && inner != nil {
 					lint_walk_expr(l, ctx, inner, {owner=.Anonymous, assignment_pattern=binding.assignment_pattern})
