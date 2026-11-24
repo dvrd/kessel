@@ -41,6 +41,28 @@ try {
   const local = value.exports[0].local_span;
   assert.equal(source.subarray(local.start, local.end).toString(), 'label');
 
+  // The bundler reads these records: the original fields must stay first and
+  // unchanged, with the es-module-lexer equivalents appended after them.
+  assert.deepEqual(Object.keys(value), [
+    'dependencies', 'exports', 'has_module_syntax', 'facade', 'has_commonjs_syntax', 'format',
+  ]);
+  assert.deepEqual(Object.keys(value.dependencies[0]), [
+    'kind', 'phase', 'statement', 'request', 'attributes', 'type_only', 'name',
+    'import_type', 'clause_end', 'arguments_start', 'attribute_entries',
+  ]);
+  assert.deepEqual(Object.keys(value.exports[0]), [
+    'name', 'span', 'local_name', 'local_span', 'type_only', 'name_is_string', 'local_is_string',
+  ]);
+  const [declared, , called] = value.dependencies;
+  const slice = (start, end) => source.subarray(start, end).toString();
+  assert.equal(declared.import_type, 'Static');
+  assert.equal(slice(declared.statement.start, declared.statement.end), "import label from 'π';");
+  assert.equal(slice(declared.statement.start, declared.clause_end), "import label from 'π'");
+  assert.equal(declared.arguments_start, null);
+  assert.equal(called.import_type, 'Dynamic');
+  assert.equal(slice(called.arguments_start, called.clause_end), "('./lazy.js')");
+  assert.deepEqual([value.facade, value.has_commonjs_syntax, value.format], [false, false, 'ESM']);
+
   function scan(source) {
     fs.writeFileSync(file, source);
     const result = spawnSync(binary, ['module-lex', file], { encoding: 'utf8' });
@@ -56,11 +78,21 @@ try {
     const guarded = object?.if(ok) / import('optional-divisor') / total;
     import('visible');`);
   assert.deepEqual(ambiguous.dependencies.map(entry => entry.name), ['else-divisor', 'call-divisor', 'optional-divisor', 'visible']);
+  const attributed = scan("import data from './data.json'\nwith { type: 'json' };\n" +
+    "export { data as 'string name' };");
+  assert.deepEqual(attributed.dependencies[0].attribute_entries.map(pair => [pair.key, pair.value]),
+    [['type', 'json']]);
+  assert.equal(attributed.exports[0].name_is_string, true);
+  assert.equal(attributed.facade, true);
+  const commonjs = scan("module.exports = require('./dependency.js');");
+  assert.deepEqual([commonjs.has_module_syntax, commonjs.has_commonjs_syntax, commonjs.format],
+    [false, true, 'CJS']);
+  assert.equal(scan('compute();').format, 'Unknown');
   fs.writeFileSync(file, "import('missing closing parenthesis'");
   const invalid = spawnSync(binary, ['module-lex', file], { encoding: 'utf8' });
   assert.equal(invalid.status, 1);
   assert.match(invalid.stderr, /Invalid_Syntax/);
-  console.log('Module lexer CLI passed UTF-8 span, import, export, and error cases');
+  console.log('Module lexer CLI passed UTF-8 span, import, export, reference field, and error cases');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }

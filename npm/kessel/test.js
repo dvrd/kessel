@@ -999,6 +999,27 @@ try {
     const span = scan.exports[0].span;
     assert.equal(Buffer.from(source).subarray(span.start, span.end).toString(), 'primary');
     assert.deepEqual(scanModuleSync('').dependencies, []);
+    // es-module-lexer equivalents: t, se, d, attribute pairs, facade, format.
+    const lexed = scanModuleSync("/* π */ import a from 'a' with { type: 'json' };\n" +
+      "export { a as 'b' }; import.source('c');");
+    const [declared, called] = lexed.dependencies;
+    const bytes = Buffer.from("/* π */ import a from 'a' with { type: 'json' };");
+    assert.equal(declared.import_type, 'Static');
+    assert.equal(bytes.subarray(declared.statement.start, declared.clause_end).toString(),
+      "import a from 'a' with { type: 'json' }");
+    assert.equal(declared.arguments_start, null);
+    assert.deepEqual(declared.attribute_entries.map(pair => [pair.key, pair.value]),
+      [['type', 'json']]);
+    assert.equal(called.import_type, 'Dynamic_Source_Phase');
+    assert.equal(called.arguments_start, called.request.start - 1);
+    assert.equal(lexed.exports[0].name_is_string, true);
+    assert.equal(lexed.facade, false);
+    assert.equal(lexed.format, 'ESM');
+    assert.equal(scanModuleSync("export * from 'a';").facade, true);
+    const commonjs = scanModuleSync("module.exports = require('a');");
+    assert.deepEqual([commonjs.format, commonjs.has_commonjs_syntax, commonjs.has_module_syntax],
+      ['CJS', true, false]);
+    assert.equal(scanModuleSync('f();').format, 'Unknown');
     assert.throws(() => scanModuleSync("import('incomplete'"), { name: 'SyntaxError', code: 'Invalid_Syntax' });
     passed++;
   } catch (e) { console.error('FAIL: scanModuleSync:', e.message); failed++; }

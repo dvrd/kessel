@@ -39,6 +39,14 @@ ModuleDependency :: struct {
 	attributes: Maybe(Loc),
 	type_only: bool,
 	name: Maybe(string),
+	// Additive es-module-lexer equivalents, see module_lexer_records.odin.
+	import_type: ModuleImportType,
+	// End of the specifier or its attributes clause: `statement` without the
+	// optional semicolon. Equals statement.end for dynamic imports.
+	clause_end: u32,
+	// Offset of the `(` of a dynamic import call, nil for every other kind.
+	arguments_start: Maybe(u32),
+	attribute_entries: [dynamic]ModuleImportAttribute,
 }
 
 ModuleLexExport :: struct {
@@ -47,6 +55,10 @@ ModuleLexExport :: struct {
 	local_name: Maybe(string),
 	local_span: Maybe(Loc),
 	type_only: bool,
+	// True when the name is written as a string literal; `span` and
+	// `local_span` then exclude the quotes, which sit one byte either side.
+	name_is_string: bool,
+	local_is_string: bool,
 }
 
 ModuleLexName :: struct {
@@ -58,6 +70,11 @@ ModuleLexResult :: struct {
 	dependencies: [dynamic]ModuleDependency,
 	exports: [dynamic]ModuleLexExport,
 	has_module_syntax: bool,
+	// True when the module holds only import declarations, `export ... from`
+	// and `export {...}` lists: nothing that evaluates in the module itself.
+	facade: bool,
+	has_commonjs_syntax: bool,
+	format: ModuleFormat,
 }
 
 ModuleLexError :: enum { None, Invalid_Syntax, Depth_Limit, Source_Too_Large, Allocation_Error }
@@ -75,6 +92,9 @@ ModuleLexScanner :: struct {
 	result: ModuleLexResult,
 	allocator: mem.Allocator,
 	bindings: ModuleLexBindings,
+	facade_broken: bool,
+	commonjs_found: bool,
+	commonjs_state: ModuleLexCommonJSState,
 }
 
 // Scan module dependencies without building an AST. Spans are UTF-8 byte
@@ -102,8 +122,9 @@ module_lex_dependencies :: proc(source: string, allocator: mem.Allocator) -> (Mo
 
 module_lex_destroy :: proc(result: ^ModuleLexResult) {
 	allocator := result.dependencies.allocator
-	for item in result.dependencies {
+	for &item in result.dependencies {
 		if name, ok := item.name.?; ok { delete(name, allocator) }
+		module_lex_attributes_destroy(&item)
 	}
 	delete(result.dependencies)
 	for item in result.exports {
@@ -114,14 +135,14 @@ module_lex_destroy :: proc(result: ^ModuleLexResult) {
 	result^ = {}
 }
 
-@(private="file")
+@(private)
 module_lex_advance :: proc(l: ^Lexer) {
 	assert(!l.nxt_valid)
 	l.cur = lex_token(l)
 	l.lit_write_idx ~= 1
 }
 
-@(private="file")
+@(private)
 module_lex_string :: proc(l: ^Lexer) -> string {
 	token := l.cur
 	assert(token.kind == .String)
@@ -168,6 +189,7 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		control_keyword = !member && module_lex_control(token.kind)
 		if token.kind == .Invalid { return .Invalid_Syntax }
 		if err := module_lex_binding_step(scan, depth, previous); err != .None { return err }
+		module_lex_commonjs_step(scan, previous)
 
 		if token.kind == .Import && !member {
 			pending, err := module_lex_import(scan, depth == 0)
@@ -203,6 +225,8 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 				if depth > 0 { module_lex_note_nested_end(scan, &frames[depth - 1], token) }
 			}
 		}
+		// Only declarations handled above and empty statements keep a facade.
+		if token.kind != .Semi { scan.facade_broken = true }
 		if close, ok := module_lex_close_for(token.kind); ok {
 			if depth == len(frames) { return .Depth_Limit }
 			frames[depth] = {close = close, control = control_paren}
@@ -216,7 +240,7 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 	}
 	if depth != 0 || len(l.lexer_errors) != 0 { return .Invalid_Syntax }
 	module_lex_remove_methods(scan)
-	return .None
+	return module_lex_finish(scan)
 }
 
 @(private="file")
@@ -268,6 +292,9 @@ module_lex_import :: proc(scan: ^ModuleLexScanner, top_level: bool) -> (Maybe(in
 	l := &scan.lexer
 	keyword := l.cur
 	module_lex_advance(l)
+	// Everything but a top-level import declaration is an expression.
+	declaration := top_level && l.cur.kind != .LParen && l.cur.kind != .Dot && l.cur.kind != .Colon
+	if !declaration { scan.facade_broken = true }
 	if l.cur.kind == .LParen {
 		return module_lex_dynamic_record(scan, keyword.start, .Evaluation)
 	}
@@ -300,7 +327,13 @@ module_lex_import :: proc(scan: ^ModuleLexScanner, top_level: bool) -> (Maybe(in
 
 @(private="file")
 module_lex_dynamic_record :: proc(scan: ^ModuleLexScanner, start: u32, phase: ModuleImportPhase) -> (Maybe(int), ModuleLexError) {
-	entry := ModuleDependency{kind = .Dynamic, phase = phase, statement = {start = start}}
+	assert(scan.lexer.cur.kind == .LParen)
+	entry := ModuleDependency{
+		kind = .Dynamic,
+		phase = phase,
+		statement = {start = start},
+		arguments_start = scan.lexer.cur.start,
+	}
 	index := len(scan.result.dependencies)
 	return index, module_lex_add(scan, entry)
 }
@@ -347,6 +380,7 @@ module_lex_export :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		for &entry in scan.result.exports[start:] {
 			if name, ok := entry.local_name.?; ok { delete(name, scan.allocator) }
 			entry.local_name, entry.local_span = nil, nil
+			entry.local_is_string = false
 		}
 		return module_lex_static(scan, .Reexport, keyword.start, type_only)
 	case .Mul:
@@ -359,6 +393,7 @@ module_lex_export :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		}
 		return module_lex_static(scan, .Reexport, keyword.start, type_only)
 	case .Import:
+		scan.facade_broken = true
 		module_lex_advance(l)
 		if !can_be_binding_identifier(l.cur.kind) { return .Invalid_Syntax }
 		name, span := module_lex_export_name(l)
@@ -368,11 +403,13 @@ module_lex_export :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		module_lex_advance(l)
 		return module_lex_import_equals(scan, keyword.start, type_only)
 	case .Default:
+		scan.facade_broken = true
 		name, span := module_lex_export_name(l)
 		module_lex_advance(l)
 		local := module_lex_function_or_class_name(l)
 		return module_lex_append_export(scan, name, span, type_only, local)
 	}
+	scan.facade_broken = true
 	return module_lex_declaration_export(scan, type_only)
 }
 
@@ -465,14 +502,14 @@ module_lex_function_or_class_name :: proc(l: ^Lexer) -> Maybe(ModuleLexName) {
 	return ModuleLexName{name, span}
 }
 
-@(private="file")
+@(private)
 module_lex_is_name :: proc(kind: TokenType) -> bool {
 	// ModuleExportName accepts IdentifierName, including literal keywords.
 	if kind == .Null || kind == .True || kind == .False { return true }
 	return kind == .String || (.Break <= kind && kind <= .Identifier)
 }
 
-@(private="file")
+@(private)
 module_lex_export_name :: proc(l: ^Lexer) -> (string, Loc) {
 	token := l.cur
 	if token.kind == .String {
@@ -502,7 +539,9 @@ module_lex_append_export :: proc(
 	owned, clone_err := strings.clone(name, scan.allocator)
 	if clone_err != nil { return .Allocation_Error }
 	entry := ModuleLexExport{name = owned, span = span, type_only = type_only}
+	entry.name_is_string = module_lex_span_quoted(scan.lexer.source, span)
 	if binding, ok := local.?; ok {
+		entry.local_is_string = module_lex_span_quoted(scan.lexer.source, binding.span)
 		local_name, err := strings.clone(binding.text, scan.allocator)
 		if err != nil {
 			delete(owned, scan.allocator)
@@ -544,6 +583,7 @@ module_lex_static :: proc(scan: ^ModuleLexScanner, kind: ModuleDependencyKind, s
 @(private="file")
 module_lex_import_equals :: proc(scan: ^ModuleLexScanner, start: u32, type_only: bool) -> ModuleLexError {
 	l := &scan.lexer
+	scan.facade_broken = true
 	if l.cur.kind != .Assign { return .Invalid_Syntax }
 	module_lex_advance(l)
 	if !module_lex_is_name(l.cur.kind) { return .Invalid_Syntax }
@@ -563,6 +603,7 @@ module_lex_import_equals :: proc(scan: ^ModuleLexScanner, start: u32, type_only:
 		module_lex_advance(l)
 		if l.cur.kind != .RParen { return .Invalid_Syntax }
 		entry.statement.end = l.cur.end
+		entry.clause_end = l.cur.end
 		module_lex_advance(l)
 		if l.cur.kind == .Semi {
 			entry.statement.end = l.cur.end
@@ -590,9 +631,13 @@ module_lex_static_name :: proc(scan: ^ModuleLexScanner, kind: ModuleDependencyKi
 		request = {start = source.start + 1, end = source.end - 1},
 		name = module_lex_string(l),
 		type_only = type_only,
+		clause_end = source.end,
 	}
 	module_lex_advance(l)
-	if (l.cur.kind == .With || l.cur.kind == .Assert) && l.cur.flags & FLAG_NEW_LINE == 0 {
+	// Only the legacy `assert` keyword carries [no LineTerminator here]; a
+	// `with` clause may start on the next line (ECMA-262 WithClause).
+	same_line := l.cur.flags & FLAG_NEW_LINE == 0
+	if l.cur.kind == .With || (l.cur.kind == .Assert && same_line) {
 		module_lex_advance(l)
 		if l.cur.kind != .LBrace { return .Invalid_Syntax }
 		block_start := l.cur.start
@@ -603,6 +648,7 @@ module_lex_static_name :: proc(scan: ^ModuleLexScanner, kind: ModuleDependencyKi
 		}
 		entry.attributes = Loc{start = block_start, end = l.cur.end}
 		entry.statement.end = l.cur.end
+		entry.clause_end = l.cur.end
 		module_lex_advance(l)
 	}
 	if l.cur.kind == .Semi {
@@ -904,4 +950,17 @@ module_lex_expression_continues :: proc(kind: TokenType) -> bool {
 		return true
 	}
 	return is_assignment_operator(kind)
+}
+
+// A string-literal export name is recorded without its quotes, so the quote
+// bytes sit directly outside the span. An identifier name can never have a
+// quote on both sides: `'a'b'c'` is not a valid specifier.
+@(private="file")
+module_lex_span_quoted :: proc(source: string, span: Loc) -> bool {
+	assert(span.start <= span.end)
+	assert(int(span.end) <= len(source))
+	if span.start == 0 || int(span.end) == len(source) { return false }
+	quote := source[span.start - 1]
+	if quote != '\'' && quote != '"' { return false }
+	return source[span.end] == quote
 }
