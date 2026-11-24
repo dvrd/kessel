@@ -102,6 +102,24 @@ const positive = [
   'import {} from "polyfill";',
   'import T = require("example"); export = T;',
   'const value = 1; export = { answer: 42 };',
+  // One direct return is inferred wherever it sits in the body.
+  'export function pick() { if (ready) { log() } return 1; cleanup(); }',
+  'import fs = require("fs"); var hidden = compute(); export const size: number = 1;',
+  'export class Nil extends null {}',
+  'export class Secret { private get key() { return 1 } private set key(v) {} private run(): void; private run(x?: any) {} }',
+  'export class Point { constructor(public x?: string, private y?: number, readonly z: number = 1) {} }',
+  'export const table = {"a-b": 1, "ok": 2, 0x10: 3, a: 6, "a": "x", [true]: 4};',
+  'declare namespace N { enum E { A, B = 5, C } const enum F { A, B } }',
+  'declare module "m" { export enum E { A = 0, B = A + 1 } }',
+  'declare module "m" { export default class C {} }',
+  'export enum Big { a = 1 / 0, b = -1 / 0, c = 0 / 0 }',
+  'interface Shape { side: number } export default Shape;',
+  'type Foo = number; export const Foo = 1; export default Foo;',
+  'import x from "y"; declare module "express" { interface Request { id: number } }',
+  'import {key} from "./keys"; export function read({ [key]: value }: any): string { return "" }',
+  'import * as E from "effects"; export const run = <E>(input: () => E.Result<E>): E.Result<E> => input();',
+  'declare module "m" { import unused = require("fs"); import used = require("g"); export const x: used.T; }',
+  'export * from "pkg" with { type: "json" }; export type { R } from "types" with { "resolution-mode": "import" };',
 ];
 const negative = [
   'export const api={get v():number{return 1},set v({x}: {x:number}){}};',
@@ -160,7 +178,47 @@ const negative = [
   'export namespace N { export const fn=(x:number) => /* => */ {\n    return lookup(x);\n}; }',
   'export const f=(x:number) => // =>\r\n{ return unknown(x) }',
   'export = read();',
+  'export function pick() { if (ready) { return 1 } }',
+  'export const a = 10 satisfies number;',
+  'export function f(a = 1 /* s */ satisfies number): void {}',
+  'var x = 10; var x = 10;',
+  'export enum E { a } export enum E { c = a }',
+  'export const f: (a, b?) => void = null!;',
+  'export function f(d?, ...rest): void {}',
+  'export function f({x} = {x: 10}, [a] = [1, 2], {b}): void {}',
+  'type U = number; export class C { constructor(public x?: U) {} }',
+  'export class C extends class {} {}',
+  'export const f = async function () {};',
+  'declare var p: number | number[]; declare var s: string; export class C { [p]() {} [s]() {} }',
+  'export const o = { [true]: lookup() };',
+  'const key = make(); export class C { [key]: number }',
 ];
+// Differences from TypeScript that are intended. Each entry is a fixture that
+// must still differ: a fixed or newly broken fixture fails the comparison.
+const PARSER_EARLY_ERROR = 'Kessel reports an early error and emits nothing. tsc rejects the same ' +
+  'program (TS2464, TS2466, TS1102, TS2393 or TS1049) but transpileDeclaration skips those checks.';
+const CHECKER_FALLBACK = 'Both tools reject the file with TS9038. TypeScript adds or drops TS9008 on ' +
+  'sibling methods after its checker merges their inferred types, which needs type information.';
+const INVALID_NAMESPACE = 'A deliberately invalid input that Kessel rejects; transpileDeclaration ' +
+  'emits declarations for it. oxc 0.127.0 also reports errors for this file.';
+const documented = {
+  'conformance/internalModules': {
+    'moduleBody/invalidModuleWithStatementsOfEveryKind.ts / moduleBody/invalidModuleWithStatementsOfEveryKind.ts': INVALID_NAMESPACE,
+    'moduleBody/invalidModuleWithVarStatements.ts / moduleBody/invalidModuleWithVarStatements.ts': INVALID_NAMESPACE,
+  },
+  'conformance/es6/computedProperties': {},
+};
+for (const target of ['ES5', 'ES6']) {
+  const computed = documented['conformance/es6/computedProperties'];
+  for (const id of [3, 14, 17, 24, 26, 27, 40, 49, 50]) {
+    const name = 'computedPropertyNames' + id + '_' + target + '.ts';
+    computed[name + ' / ' + name] = PARSER_EARLY_ERROR;
+  }
+  for (const stem of ['computedPropertyNames10', 'computedPropertyNames13', 'computedPropertyNamesDeclarationEmit5']) {
+    const name = stem + '_' + target + '.ts';
+    computed[name + ' / ' + name] = CHECKER_FALLBACK;
+  }
+}
 function tree(text) {
   const file = ts.createSourceFile('out.d.ts', text, ts.ScriptTarget.Latest, true);
   assert.equal(file.parseDiagnostics.length, 0, text);
@@ -261,24 +319,36 @@ function checkAccessorConsumer() {
   ].join('\n'));
   return consumer;
 }
-function checkUpstream(directory) {
+// TypeScript's own output for an invalid input is not always parseable. Such
+// text only matches byte for byte, so unparseable Kessel output never matches.
+function looseTree(text) {
+  try { return tree(text); } catch (error) { return ['unparseable', text]; }
+}
+// Compare every TypeScript input under a fixture directory. Each difference is
+// classified so that parser rejections stay separate from emitter differences.
+function compareUpstream(directory) {
   const corpus = path.resolve('tests/vendor/typescript/tests/cases', directory);
-  const filenames = directory === 'compiler'
-    ? fs.readdirSync(corpus).filter(name => /^isolatedDeclaration.*\.tsx?$/.test(name))
+  const filenames = directory === 'compiler/isolatedDeclarations'
+    ? fs.readdirSync(path.dirname(corpus)).filter(name => /^isolatedDeclaration.*\.tsx?$/.test(name))
     : fs.readdirSync(corpus, { recursive: true }).filter(name => /\.tsx?$/.test(name) && !/\.d\.ts$/.test(name));
-  let count = 0;
-  let matchingDiagnostics = 0;
-  let matchingOutput = 0;
-  let valid = 0;
-  const gaps = [];
+  const root = directory === 'compiler/isolatedDeclarations' ? path.dirname(corpus) : corpus;
+  const result = { count: 0, matchingDiagnostics: 0, matchingOutput: 0, valid: 0, unavailable: 0, gaps: [] };
   for (const filename of filenames.sort()) {
-    const text = fs.readFileSync(path.join(corpus, filename), 'utf8');
+    const text = fs.readFileSync(path.join(root, filename), 'utf8');
     const split = text.split(/^\s*\/\/\s*@filename:\s*(.+?)\s*$/gmi);
     const units = split.length === 1 ? [[filename, text]] : [];
     for (let i = 1; i < split.length; i += 2) units.push([split[i], split[i + 1]]);
     for (const [name, source] of units) {
       if (!/\.tsx?$/.test(name) || /\.d\.ts$/.test(name)) continue;
-      const reference = ts.transpileDeclaration(source, {fileName: name, compilerOptions: options});
+      // A few fixtures crash TypeScript itself (a stack overflow or an internal
+      // TypeError). They have no reference, so they are counted and not compared.
+      let reference;
+      try {
+        reference = ts.transpileDeclaration(source, {fileName: name, compilerOptions: options});
+      } catch (error) {
+        result.unavailable++;
+        continue;
+      }
       const actual = isolatedDeclarationSync(name, source);
       const expected = reference.diagnostics.map(d => [
         'TS' + d.code, Buffer.byteLength(source.slice(0, d.start)),
@@ -286,21 +356,74 @@ function checkUpstream(directory) {
       ].join('|')).sort();
       const got = actual.errors.map(e => [e.code, e.start, e.end, e.message].join('|')).sort();
       const matches = JSON.stringify(expected) === JSON.stringify(got);
-      if (matches) matchingDiagnostics++;
+      if (matches) result.matchingDiagnostics++;
       let outputMatches = true;
       if (expected.length === 0) {
-        valid++;
-        outputMatches = got.length === 0 && JSON.stringify(tree(reference.outputText)) === JSON.stringify(tree(actual.output));
-        if (outputMatches) matchingOutput++;
+        result.valid++;
+        outputMatches = got.length === 0 && JSON.stringify(looseTree(reference.outputText)) === JSON.stringify(looseTree(actual.output));
+        if (outputMatches) result.matchingOutput++;
       }
-      if (!matches || !outputMatches) gaps.push(filename + ' / ' + name);
-      count++;
+      result.count++;
+      if (matches && outputMatches) continue;
+      let category = 'output';
+      if (actual.errors.some(e => e.code === 'Invalid_Syntax')) {
+        const kind = /\.tsx$/.test(name) ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+        const parsed = ts.createSourceFile(name, source, ts.ScriptTarget.ESNext, false, kind);
+        category = parsed.parseDiagnostics.length ? 'parser-syntax' : 'parser-early-error';
+      } else if (!matches) {
+        category = expected.length === 0 ? 'kessel-rejects' : got.length === 0 ? 'kessel-accepts' : 'diagnostics';
+      }
+      result.gaps.push({ key: filename + ' / ' + name, category });
     }
   }
-  assert.ok(count > 0, 'TypeScript declaration compiler fixtures are required');
-  console.log(count + ' compiler inputs, ' + matchingDiagnostics + ' exact diagnostic sets, ' + matchingOutput + '/' + valid + ' declaration ASTs matched.');
-  for (const gap of gaps) console.log('Difference in ' + gap);
-  return gaps.length === 0;
+  assert.ok(result.count > 0, 'TypeScript declaration compiler fixtures are required');
+  return result;
+}
+function checkUpstream(directory) {
+  const result = compareUpstream(directory);
+  const known = documented[directory] || {};
+  const gaps = result.gaps.map(gap => gap.key);
+  const unexpected = gaps.filter(gap => !(gap in known));
+  const stale = Object.keys(known).filter(gap => !gaps.includes(gap));
+  console.log(result.count + ' compiler inputs, ' + result.matchingDiagnostics + ' exact diagnostic sets, ' +
+    result.matchingOutput + '/' + result.valid + ' declaration ASTs matched, ' +
+    (gaps.length - unexpected.length) + ' documented differences.');
+  for (const gap of unexpected) console.log('Difference in ' + gap);
+  for (const gap of stale) console.log('Documented difference no longer occurs in ' + gap);
+  return unexpected.length === 0 && stale.length === 0;
+}
+// The whole compiler and conformance directories are far larger than the
+// focused suites. A checked-in list names every input where the emitter (not
+// the parser) differs, so a regression or an unrecorded fix fails the run.
+// Parser rejections are counted but not listed: the parser is tested elsewhere.
+function checkBroad(update) {
+  const baseline = path.resolve('tests/baselines/dts_typescript_differences.txt');
+  const lines = [];
+  for (const directory of ['compiler', 'conformance']) {
+    const result = compareUpstream(directory);
+    const counts = {};
+    for (const gap of result.gaps) {
+      counts[gap.category] = (counts[gap.category] || 0) + 1;
+      if (!gap.category.startsWith('parser-')) lines.push([gap.category, directory, gap.key].join('\t'));
+    }
+    console.log(directory + ': ' + result.count + ' inputs, ' + result.matchingDiagnostics +
+      ' exact diagnostic sets, ' + result.matchingOutput + '/' + result.valid + ' declaration ASTs matched, ' +
+      result.unavailable + ' without a reference.');
+    console.log('  ' + Object.keys(counts).sort().map(name => name + ' ' + counts[name]).join(', '));
+  }
+  lines.sort();
+  if (update) {
+    fs.writeFileSync(baseline, lines.join('\n') + '\n');
+    console.log('Wrote ' + lines.length + ' emitter differences to ' + path.relative('.', baseline) + '.');
+    return true;
+  }
+  const recorded = fs.readFileSync(baseline, 'utf8').split('\n').filter(line => line !== '');
+  const added = lines.filter(line => !recorded.includes(line));
+  const removed = recorded.filter(line => !lines.includes(line));
+  for (const line of added) console.log('New difference: ' + line);
+  for (const line of removed) console.log('Recorded difference no longer occurs: ' + line);
+  console.log(lines.length + ' emitter differences, ' + recorded.length + ' recorded.');
+  return added.length === 0 && removed.length === 0;
 }
 try {
   assert.equal(ts.version, '5.9.3');
@@ -335,8 +458,9 @@ try {
   assert.deepEqual(ts.getPreEmitDiagnostics(program).map(d => ts.flattenDiagnosticMessageText(d.messageText, '\n')), []);
   if (process.argv.includes('--corpus')) {
     checkAccessorTypes();
-    if (!checkUpstream('compiler')) process.exitCode = 1;
+    if (!checkUpstream('compiler/isolatedDeclarations')) process.exitCode = 1;
   }
+  if (process.argv.includes('--broad') && !checkBroad(process.argv.includes('--update'))) process.exitCode = 1;
   if (process.argv.includes('--namespaces') && !checkUpstream('conformance/internalModules')) process.exitCode = 1;
   if (process.argv.includes('--computed') && !checkUpstream('conformance/es6/computedProperties')) process.exitCode = 1;
   console.log('Declaration CLI and SDK matched TypeScript ' + ts.version + ' on ' + (positive.length + negative.length + 2) + ' inputs.');

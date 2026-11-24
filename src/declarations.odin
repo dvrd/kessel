@@ -27,7 +27,7 @@ DeclarationItem :: struct {
 	errors: [dynamic]DeclarationDiagnostic,
 }
 
-DeclarationReference :: struct { name: string, loc: Loc, value: bool }
+DeclarationReference :: struct { name: string, loc: Loc, value, qualified: bool }
 DeclarationConditional :: struct { constraint, result: Loc }
 DeclarationScope :: struct { name: string, loc: Loc, value: bool }
 
@@ -35,6 +35,7 @@ DeclarationEmit :: struct {
 	writer: Codegen,
 	job: ^ParseJob,
 	enums: EnumConstants,
+	semantic: SemanticModel,
 	enum_scopes: map[u32]ScopeId,
 	external_enum_members: map[SemanticBindingKey]bool,
 	items: [dynamic]DeclarationItem,
@@ -69,7 +70,7 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 		state.output.output = string(job.source.data)
 		return state.output
 	}
-	state.module = job.program.type == .Module || job.is_commonjs
+	state.module = job.program.type == .Module || job.is_commonjs || dts_external_module(job)
 	codegen_init(&state.writer, {indent = "    "}, string(job.source.data), allocator)
 	dts_index_regions(&state)
 	state.default_name = "_default"
@@ -110,7 +111,32 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 		if a.code != b.code { return a.code < b.code }
 		return a.message < b.message
 	})
+	// One source construct can be printed twice, such as a parameter property
+	// and its constructor parameter. Report each distinct diagnostic once.
+	unique := 0
+	for diagnostic in state.output.errors {
+		if unique > 0 && diagnostic == state.output.errors[unique - 1] { continue }
+		state.output.errors[unique] = diagnostic
+		unique += 1
+	}
+	resize(&state.output.errors, unique)
 	return state.output
+}
+
+// `import x = require("m")` and `export =` make a file an external module even
+// when the parser classifies it as a script, so its locals are not global.
+@(private)
+dts_external_module :: proc(job: ^ParseJob) -> bool {
+	for stmt in job.program.body {
+		assert(stmt != nil)
+		#partial switch s in stmt^ {
+		case ^TSExportAssignment: return true
+		case ^TSImportEqualsDeclaration:
+			_, external := s.module_reference.(^TSExternalModuleReference)
+			if external { return true }
+		}
+	}
+	return false
 }
 
 @(private)
@@ -182,7 +208,10 @@ dts_index :: proc(state: ^DeclarationEmit, statement: Statement, group: int) {
 	case ^TSTypeAliasDeclaration: name = s.id.name
 	case ^TSInterfaceDeclaration: name = s.id.name
 	case ^TSEnumDeclaration: name = s.id.name
-	case ^TSImportEqualsDeclaration: name = s.id.name
+	case ^TSImportEqualsDeclaration:
+		name = s.id.name
+		// An unexported alias inside a namespace is private to that block.
+		if visibility == .Local && state.region != 0 { root = false }
 	case ^TSModuleDeclaration:
 		if id, ok := s.id^.(^Identifier); ok { name = id.name }
 		if s.global || name == "" { root = true }
@@ -247,8 +276,16 @@ dts_emit_item :: proc(state: ^DeclarationEmit, item: ^DeclarationItem) {
 				append(&state.references, DeclarationReference{name = local.name})
 			}
 		}
-		gen_statement(cg, item.statement)
-	case ^ExportAllDeclaration, ^TSNamespaceExportDeclaration: gen_statement(cg, item.statement)
+		clause := s^
+		clause.attributes = dts_declaration_attributes(s.attributes)
+		statement: Statement = &clause
+		gen_statement(cg, statement)
+	case ^ExportAllDeclaration:
+		clause := s^
+		clause.attributes = dts_declaration_attributes(s.attributes)
+		statement: Statement = &clause
+		gen_statement(cg, statement)
+	case ^TSNamespaceExportDeclaration: gen_statement(cg, item.statement)
 	case ^ExportDefaultDeclaration: dts_default(state, s.declaration^.(^Expression), "export default ")
 	case ^TSExportAssignment: dts_default(state, s.expression, "export = ")
 	case:

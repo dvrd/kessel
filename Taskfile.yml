@@ -267,6 +267,18 @@ tasks:
     cmds:
       - node tests/verifiers/verify_declarations.js --namespaces
 
+  test:dts:computed:
+    desc: Compare the upstream computed-property corpus with TypeScript, allowing only the documented differences.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --computed
+
+  test:dts:broad:
+    desc: Compare every TypeScript compiler and conformance input against the recorded list of emitter differences.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --broad {{.CLI_ARGS}}
+
   test:resolve:
     desc: Check native and CLI module resolution against filesystem fixtures.
     deps: [build]
