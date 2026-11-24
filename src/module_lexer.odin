@@ -191,7 +191,7 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		}
 		token := l.cur
 		member := previous == .Dot || previous == .OptionalChain
-		statement_follows = !member && (token.kind == .Do || token.kind == .Else)
+		statement_follows = !member && module_lex_operand_follows(token.kind)
 		control_paren := control_keyword && token.kind == .LParen
 		control_keyword = !member && module_lex_control(token.kind)
 		if token.kind == .Invalid { return .Invalid_Syntax }
@@ -303,6 +303,19 @@ module_lex_close_for :: proc(kind: TokenType) -> (TokenType, bool) {
 	case .TemplateHead: return .TemplateTail, true
 	}
 	return .EOF, false
+}
+
+// Keywords the lexer does not already treat as regex context but after which
+// an operand, not a division, follows: `do` and `else` start a statement,
+// and `yield` / `await` are operators in module code, where neither can be
+// an identifier.
+@(private="file")
+module_lex_operand_follows :: proc(kind: TokenType) -> bool {
+	#partial switch kind {
+	case .Do, .Else, .Yield, .Await:
+		return true
+	}
+	return false
 }
 
 // Whether a `{` after `previous` opens a statement block or function body

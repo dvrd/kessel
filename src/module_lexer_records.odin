@@ -163,7 +163,10 @@ module_lex_attribute_entries :: proc(
 	if entry.kind == .Dynamic {
 		if sub.cur.kind != .LBrace { return .None }
 		module_lex_advance(&sub)
-		if sub.cur.kind != .With && sub.cur.kind != .Assert { return .None }
+		// The options key may be written `with`, `assert` or as a string.
+		keyword := sub.cur.kind == .With || sub.cur.kind == .Assert
+		quoted := sub.cur.kind == .String && module_lex_string(&sub) == "with"
+		if !keyword && !quoted { return .None }
 		module_lex_advance(&sub)
 		if sub.cur.kind != .Colon { return .None }
 		module_lex_advance(&sub)

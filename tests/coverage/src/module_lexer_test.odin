@@ -296,7 +296,8 @@ test_module_lexer_attribute_entries :: proc(t: ^testing.T) {
 	          "import('g', { assert: { type: 'json', }, });\n" +
 	          "import('h', options);\n" +
 	          "import('i', { with: attributes });\n" +
-	          "import('j', { ...spread });\n"
+	          "import('j', { ...spread });\n" +
+	          "import('k', { 'with': { type: 'css' } });\n"
 	result, err := kessel.module_lex_dependencies(source, context.allocator)
 	if !testing.expect_value(t, err, .None) { return }
 	defer kessel.module_lex_destroy(&result)
@@ -315,6 +316,7 @@ test_module_lexer_attribute_entries :: proc(t: ^testing.T) {
 		{true, {}},
 		{true, {}},
 		{true, {}},
+		{true, {{"type", "css"}}},
 	}
 	if !testing.expect_value(t, len(result.dependencies), len(expected)) { return }
 	for item, index in expected {
@@ -399,13 +401,17 @@ test_module_lexer_scan_contexts :: proc(t: ^testing.T) {
 	          "if (c) {} /import('y')/.test(d);\n" +
 	          "for (;;) {} /import('z')/.test(e);\n" +
 	          "f = {} / g / import('object-divisor');\n" +
-	          "h = (i) / j / import('paren-divisor');\n"
+	          "h = (i) / j / import('paren-divisor');\n" +
+	          "function* k() { yield /import('yielded')/; }\n" +
+	          "await /import('awaited')/.test(l);\n" +
+	          "m.yield / n / import('member-divisor');\n"
 	scanned, blocks_err := kessel.module_lex_dependencies(blocks, context.allocator)
 	if !testing.expect_value(t, blocks_err, .None) { return }
 	defer kessel.module_lex_destroy(&scanned)
-	if !testing.expect_value(t, len(scanned.dependencies), 2) { return }
+	if !testing.expect_value(t, len(scanned.dependencies), 3) { return }
 	testing.expect_value(t, scanned.dependencies[0].name, Maybe(string)("object-divisor"))
 	testing.expect_value(t, scanned.dependencies[1].name, Maybe(string)("paren-divisor"))
+	testing.expect_value(t, scanned.dependencies[2].name, Maybe(string)("member-divisor"))
 }
 
 @(test)
