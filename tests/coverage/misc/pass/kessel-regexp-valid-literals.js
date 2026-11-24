@@ -11,3 +11,7 @@
 /(?<\u0061>a)\k<a>/;
 /[\!\#\%\,\:\;\<\=\>\@\~]/v;
 /(?<=a){,2}/;
+// Valid neighbours of the shapes that are now rejected: they must keep parsing.
+/x{2,3}/; /x{3,2/; /x{,2}/; /a*?/; /a{1,2}?/; /(?=a)*/;
+/[a-z]/; /[-a]/; /[a-]/; /[\d-a]/; /[\x41-Z]/; /[\u4e00-\u9fa5]/;
+/\k/; /[\k]/; /\p{Script=Greek}/u; /[a-b-c]/u; /[\B]/;

@@ -484,7 +484,7 @@ typescript/tests/cases/compiler/recursiveTypeRelations.ts:8:5: Function implemen
 typescript/tests/cases/compiler/redeclareParameterInCatchBlock.ts:4:5: Catch parameter 'e' cannot be redeclared with let/const in catch block
 typescript/tests/cases/compiler/regExpWithOpenBracketInCharClass.ts:4:5: Invalid unescaped character in v-mode character class
 typescript/tests/cases/compiler/regularExpressionAnnexB.ts:7:4: Invalid identity escape '\q' (v-flag only)
-typescript/tests/cases/compiler/regularExpressionCharacterClassRangeOrder.ts:8:15: Range out of order in character class
+typescript/tests/cases/compiler/regularExpressionCharacterClassRangeOrder.ts:7:8: Character class range is reversed
 typescript/tests/cases/compiler/regularExpressionGroupNameSuggestions.ts:1:27: Invalid named capture reference
 typescript/tests/cases/compiler/regularExpressionScanning.ts:3:11: Invalid regular expression flag
 typescript/tests/cases/compiler/regularExpressionUnicodePropertyValueExpressionSuggestions.ts:1:16: Invalid Unicode property escape: unknown lone property name
