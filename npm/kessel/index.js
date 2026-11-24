@@ -974,8 +974,11 @@ function bundleSync(options) {
   }
   const { entry, format = 'esm', platform = 'node', external = [], conditions = [], mainFields = [],
     tsconfig, globalName, outdir, minify = false, sourceMap = false, treeShaking = true,
-    jsx = 'classic', define } = options;
-  if (typeof entry !== 'string' || entry.length === 0) throw new TypeError('kessel: entry must be a file path');
+    splitting = false, jsx = 'classic', define } = options;
+  const entries = Array.isArray(entry) ? entry : [entry];
+  if (entries.length === 0 || entries.some(item => typeof item !== 'string' || item.length === 0)) {
+    throw new TypeError('kessel: entry must be a file path or a non-empty array of file paths');
+  }
   if (!['esm', 'cjs', 'iife'].includes(format)) throw new TypeError('kessel: format must be esm, cjs or iife');
   if (!['node', 'browser'].includes(platform)) throw new TypeError('kessel: platform must be node or browser');
   for (const [name, list] of Object.entries({ external, conditions, mainFields })) {
@@ -988,8 +991,8 @@ function bundleSync(options) {
       throw new TypeError(`kessel: ${name} must be a non-empty string`);
     }
   }
-  if ([minify, sourceMap, treeShaking].some(value => typeof value !== 'boolean')) {
-    throw new TypeError('kessel: minify, sourceMap and treeShaking must be booleans');
+  if ([minify, sourceMap, treeShaking, splitting].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: minify, sourceMap, treeShaking and splitting must be booleans');
   }
   if (define !== undefined && (define === null || typeof define !== 'object' ||
       ![Object.prototype, null].includes(Object.getPrototypeOf(define)) ||
@@ -1008,7 +1011,7 @@ function bundleSync(options) {
   if (typeof development !== 'boolean') throw new TypeError('kessel: jsx.development must be a boolean');
   const lowering = transformLoweringSettings(options);
   const request = JSON.stringify({
-    entry: path.resolve(entry), format, platform, externals: external, conditions, main_fields: mainFields,
+    entries: entries.map(item => path.resolve(item)), splitting, format, platform, externals: external, conditions, main_fields: mainFields,
     tsconfig, global_name: globalName, map_directory: outdir === undefined ? undefined : path.resolve(outdir),
     jsx: runtime, jsx_import_source: importSource, jsx_factory: pragma, jsx_fragment: pragmaFrag,
     jsx_development: development, define, target: lowering.target === 'esnext' ? '' : lowering.target,

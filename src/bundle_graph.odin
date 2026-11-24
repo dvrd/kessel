@@ -23,12 +23,21 @@ BUNDLE_IGNORED_PREFIX :: "\x00ignored:"
 // The module list doubles as the work queue: loading module i appends the
 // modules it reaches, and bundle_module_add refuses to grow past the bound.
 bundle_graph_load :: proc(g: ^BundleGraph) {
-	entry, abs_err := filepath.abs(g.options.entry, g.alloc)
-	if abs_err != nil || !os.is_file(entry) {
-		bundle_error(g, nil, nil, "cannot read entry file '%s'", g.options.entry)
-		return
+	for name in g.options.entries {
+		entry, abs_err := filepath.abs(name, g.alloc)
+		if abs_err != nil || !os.is_file(entry) {
+			bundle_error(g, nil, nil, "cannot read entry file '%s'", name)
+			return
+		}
+		index := bundle_module_add(g, entry)
+		if index < 0 { return }
+		if g.modules[index].is_entry {
+			bundle_error(g, nil, nil, "entry file '%s' is listed twice", name)
+			return
+		}
+		g.modules[index].is_entry = true
+		append(&g.entries, index)
 	}
-	bundle_module_add(g, entry)
 	for index := 0; index < len(g.modules); index += 1 {
 		assert(index < BUNDLE_MODULES_MAX)
 		module := g.modules[index]

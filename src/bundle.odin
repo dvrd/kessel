@@ -50,8 +50,18 @@ package kessel
 //   • BUNDLE_RESOLVE_DEPTH_MAX hops when following re-export chains.
 //   • BUNDLE_AST_DEPTH_MAX nested expressions in the bundler's own AST walk.
 //
+// Chunks. Each user entry, and with `splitting` each dynamically imported
+// module, is a root. Modules reached by the same set of roots share a chunk
+// (one output file). A module imported from another chunk is wrapped like any
+// other lazy module and started at the importing position, which is what keeps
+// evaluation order identical to the unbundled graph: a chunk file only defines
+// its modules when it is loaded and never runs them. Only an entry's private
+// modules are scope-hoisted. Helpers move to a shared runtime chunk so that
+// interop caches are the same object everywhere.
+//
 // Not supported yet. Each is reported as an error rather than bundled wrongly:
-// code splitting and multiple entries; top-level await outside the entry;
+// more than one output file outside esm; top-level await outside an entry;
+// an entry with exports that another chunk imports;
 // `export *` from a CommonJS module; a namespace object over a module that
 // uses `export *` from an external; direct eval in an ES module; `import.meta`
 // outside ESM output; TypeScript `import x = require()` and `export =`;
@@ -94,7 +104,10 @@ BundleFormat   :: enum u8 { ESM, CJS, IIFE }
 BundlePlatform :: enum u8 { Node, Browser }
 
 BundleOptions :: struct {
-	entry:        string,
+	entries:      []string, // at least one; each becomes an output file
+	// Give every dynamically imported module its own chunk instead of
+	// keeping it in the importing file. Requires the esm format.
+	splitting:    bool,
 	format:       BundleFormat,
 	platform:     BundlePlatform,
 	externals:    []string,
@@ -203,6 +216,10 @@ BundleModule :: struct {
 	direct_eval: Maybe(u32), // offset of a direct eval() call, which reads bindings by name
 	uses_commonjs_objects: bool, // reads a free `module` or `exports`
 	lazy: bool, // required or imported dynamically somewhere
+	is_entry: bool,    // named by the user; gets an output file of its own
+	chunk: i32,        // index of the chunk that holds this module's code
+	root_key: string,  // which roots reach this module; equal keys share a chunk
+	cross_chunk: bool, // statically imported by a module in another chunk
 
 	records: [dynamic]BundleRecord,
 	imports: map[string]BundleImport,
@@ -251,11 +268,22 @@ BundleGraph :: struct {
 	source_bytes: int,
 	working_dir: string,
 
-	externals:      [dynamic]BundleExternalImport,
-	external_index: map[string]i32,
 	names:          BundleNames,
 	helpers:        BundleHelpers,
+	entries:        [dynamic]i32,
+	chunks:         [dynamic]BundleChunk,
+	entry_files:    map[i32]string, // entry module to its output file name
+	runtime_name:   string,         // file that holds the shared helpers
+
+	// State of the chunk being ordered or printed. bundle_chunk_enter loads
+	// it and bundle_chunk_leave stores it back, so the code that prints a
+	// module does not need to know which file it is printing into.
+	current:        i32,
+	externals:      [dynamic]BundleExternalImport,
+	external_index: map[string]i32,
 	order:          [dynamic]BundleEvent,
+	interop_used:   [dynamic]string,
+	chunk_imports:  map[string]i32, // binding defined in another chunk, to that chunk
 }
 
 // One file of the bundle. A build without code splitting produces exactly one.
@@ -274,7 +302,7 @@ BundleOutput :: struct {
 // reads diagnostics from the graph and must call bundle_destroy afterwards.
 // Failure is reported through `ok`; no partial output is ever returned.
 bundle_run :: proc(g: ^BundleGraph, options: BundleOptions) -> (output: BundleOutput, ok: bool) {
-	assert(options.entry != "")
+	assert(len(options.entries) != 0)
 	g.options = options
 	if err := mvirtual.arena_init_growing(&g.arena); err != nil { return {}, false }
 	g.alloc = mvirtual.arena_allocator(&g.arena)
@@ -283,21 +311,23 @@ bundle_run :: proc(g: ^BundleGraph, options: BundleOptions) -> (output: BundleOu
 	g.by_path = make(map[string]i32, g.alloc)
 	g.packages = make(map[string]BundlePackage, g.alloc)
 	g.diagnostics = make([dynamic]BundleDiagnostic, g.alloc)
-	g.externals = make([dynamic]BundleExternalImport, g.alloc)
-	g.external_index = make(map[string]i32, g.alloc)
-	g.order = make([dynamic]BundleEvent, g.alloc)
+	g.entries = make([dynamic]i32, g.alloc)
+	g.chunks = make([dynamic]BundleChunk, g.alloc)
+	g.entry_files = make(map[i32]string, g.alloc)
 	if cwd, err := os.get_working_directory(g.alloc); err == nil { g.working_dir = cwd }
 
 	// Each phase depends on the previous one being error-free: linking a
 	// graph with a missing module would only produce follow-on noise.
 	bundle_graph_load(g)
 	if g.error_count != 0 { return {}, false }
+	bundle_chunks_assign(g)
 	bundle_link(g)
 	if g.error_count != 0 { return {}, false }
 	bundle_shake(g)
 	bundle_order(g)
 	if g.error_count != 0 { return {}, false }
 	bundle_names_assign(g)
+	bundle_chunks_name(g)
 	output = bundle_emit(g)
 	if g.error_count != 0 { return {}, false }
 	return output, true

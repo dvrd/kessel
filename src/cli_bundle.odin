@@ -7,7 +7,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 
-CLI_BUNDLE_USAGE :: `Usage: kessel bundle <entry> [options]
+CLI_BUNDLE_USAGE :: `Usage: kessel bundle <entry>... [options]
   --outfile <file> | --outdir <directory>   where to write (default: stdout)
   --format esm|cjs|iife                     output format (default: esm)
   --platform node|browser                   resolution and builtins (default: node)
@@ -23,13 +23,15 @@ CLI_BUNDLE_USAGE :: `Usage: kessel bundle <entry> [options]
   --define NAME=EXPRESSION                  replace a global or member name; repeatable
   --target es2015..es2024                   lower newer syntax in the inputs
   --decorators legacy [--emit-decorator-metadata]   lower TypeScript experimental decorators
-  --no-tree-shaking                         keep unused statements and modules`
+  --no-tree-shaking                         keep unused statements and modules
+  --splitting                               esm: put each import() target in a chunk of its own
+Several entries share their common modules through chunk files in --outdir.`
 
 @(private="file")
 CLIBundleArguments :: struct {
 	options: BundleOptions,
 	outfile, outdir: string,
-	externals, conditions, main_fields: [dynamic]string,
+	entries, externals, conditions, main_fields: [dynamic]string,
 }
 
 @(private)
@@ -45,6 +47,7 @@ cli_bundle :: proc(args: []string) -> int {
 	arguments := CLIBundleArguments{options = {tree_shaking = true}}
 	if !cli_bundle_arguments(args, &arguments) { return 2 }
 	options := arguments.options
+	options.entries = arguments.entries[:]
 	options.externals = arguments.externals[:]
 	options.conditions = arguments.conditions[:]
 	options.main_fields = arguments.main_fields[:]
@@ -84,6 +87,7 @@ cli_bundle_arguments :: proc(args: []string, arguments: ^CLIBundleArguments) -> 
 		case "--minify":          options.minify = true
 		case "--sourcemap":       options.source_map = true
 		case "--no-tree-shaking": options.tree_shaking = false
+		case "--splitting":       options.splitting = true
 		case "--jsx-development": options.jsx_development = true
 		case "--emit-decorator-metadata": options.emit_decorator_metadata = true
 		case "--outfile", "--outdir", "--format", "--platform", "--external", "--global-name",
@@ -103,15 +107,16 @@ cli_bundle_arguments :: proc(args: []string, arguments: ^CLIBundleArguments) -> 
 				fmt.eprintf("Error: unknown bundle option '%s'\n", args[i])
 				return false
 			}
-			if options.entry != "" {
-				fmt.eprintln("Error: bundle accepts exactly one entry file")
-				return false
-			}
-			options.entry = args[i]
+			append(&arguments.entries, args[i])
 		}
 	}
-	if options.entry == "" {
+	if len(arguments.entries) == 0 {
 		fmt.eprintln("Error: bundle requires an entry file")
+		return false
+	}
+	// Several entries, or split chunks, are several files in one directory.
+	if (len(arguments.entries) > 1 || options.splitting) && arguments.outdir == "" {
+		fmt.eprintln("Error: several entries and --splitting require --outdir")
 		return false
 	}
 	if arguments.outfile != "" && arguments.outdir != "" {
@@ -136,7 +141,7 @@ cli_bundle_value :: proc(arguments: ^CLIBundleArguments, flag, value: string) ->
 	case "--main-field":  append(&arguments.main_fields, value)
 	case "--tsconfig":    options.tsconfig = value
 	case "--jsx-import-source": options.jsx_import_source = value
-	case "--define", "--target", "--decorators":
+	case "--define", "--target", "--decorators", "--jsx-factory", "--jsx-fragment":
 		return cli_bundle_transform_value(options, flag, value)
 	case "--global-name":
 		if !bundle_is_identifier(value) {
@@ -228,7 +233,7 @@ cli_bundle_report :: proc(diagnostic: BundleDiagnostic) {
 @(private="file")
 cli_bundle_outfile :: proc(arguments: CLIBundleArguments) -> string {
 	if arguments.outdir == "" { return arguments.outfile }
-	base := filepath.stem(filepath.base(arguments.options.entry))
+	base := filepath.stem(filepath.base(arguments.entries[0]))
 	extension := ".js"
 	switch arguments.options.format {
 	case .ESM:  extension = ".mjs"
@@ -240,10 +245,11 @@ cli_bundle_outfile :: proc(arguments: CLIBundleArguments) -> string {
 
 @(private="file")
 cli_bundle_write :: proc(arguments: CLIBundleArguments, result: BundleOutput) -> int {
-	assert(len(result.files) == 1)
-	output := result.files[0]
-	outfile := cli_bundle_outfile(arguments)
-	if outfile == "" {
+	assert(len(result.files) != 0)
+	if len(result.files) == 1 && result.files[0].name == "" {
+		output := result.files[0]
+		outfile := cli_bundle_outfile(arguments)
+		if outfile != "" { return cli_bundle_write_file(outfile, output) }
 		// Without a destination there is nowhere to put a separate map file.
 		if output.map_json != "" {
 			fmt.eprintln("warning: --sourcemap needs --outfile or --outdir; no map was written")
@@ -251,6 +257,17 @@ cli_bundle_write :: proc(arguments: CLIBundleArguments, result: BundleOutput) ->
 		out_printf("%s", output.code)
 		return 0
 	}
+	assert(arguments.outdir != "", "argument checking requires --outdir for several files")
+	for file in result.files {
+		assert(file.name != "")
+		path := strings.concatenate({arguments.outdir, "/", file.name}, context.temp_allocator)
+		if status := cli_bundle_write_file(path, file); status != 0 { return status }
+	}
+	return 0
+}
+
+@(private="file")
+cli_bundle_write_file :: proc(outfile: string, output: BundleFile) -> int {
 	directory := filepath.dir(outfile)
 	if directory != "" && directory != "." && !os.is_dir(directory) {
 		if err := os.make_directory_all(directory); err != nil {

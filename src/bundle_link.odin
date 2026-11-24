@@ -24,6 +24,9 @@ bundle_link_wrap :: proc(g: ^BundleGraph) {
 	pending := make([dynamic]i32, g.alloc)
 	for module in g.modules {
 		if module.kind == .CJS { module.wrap = .CJS } else if module.lazy { module.wrap = .ESM }
+		// A module imported from another output file must not run when that
+		// file is loaded, only when its importer reaches the import.
+		if module.kind == .ESM && bundle_imported_across_chunks(g, module) { module.wrap = .ESM }
 		if module.wrap != .None { append(&pending, module.index) }
 	}
 	// Each module enters the list at most once, when its wrap first changes.
@@ -46,7 +49,7 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 		// A module that awaits lets its siblings run in the meantime. A
 		// single-file bundle is sequential, so only the entry, which runs
 		// last, keeps its order.
-		if module.index != 0 {
+		if !module.is_entry {
 			bundle_error(g, module, nil, "top-level await is only supported in the entry module")
 		} else if module.wrap != .None {
 			bundle_error(g, module, nil,
@@ -82,7 +85,7 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 			if module.wrap != .None {
 				bundle_error(g, module, record.loc.start,
 					"'export *' from an external module is not supported in a lazily loaded module")
-			} else if module.index == 0 && g.options.format != .ESM {
+			} else if module.is_entry && g.options.format != .ESM {
 				bundle_error(g, module, record.loc.start,
 					"'export *' from an external module in the entry requires esm output")
 			}
@@ -92,9 +95,9 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 		}
 	}
 	exports := len(module.export_order) + len(module.stars)
-	if module.index == 0 && module.wrap == .ESM && exports != 0 {
+	if module.is_entry && module.wrap == .ESM && exports != 0 {
 		bundle_error(g, module, nil,
-			"an entry module with exports cannot also be required or imported dynamically")
+			"an entry with exports cannot also be imported or required by other bundled code")
 	}
 }
 

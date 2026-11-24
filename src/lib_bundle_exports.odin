@@ -12,7 +12,9 @@ import "core:strings"
 // Field names are the wire format. Enumerations travel as strings so that an
 // unknown value is a reported error rather than a silent default.
 KesselBundleRequest :: struct {
-	entry, format, platform: string,
+	entries: []string,
+	format, platform: string,
+	splitting: bool,
 	externals, conditions, main_fields: []string,
 	tsconfig, global_name, map_directory: string,
 	jsx, jsx_import_source, jsx_factory, jsx_fragment: string,
@@ -90,9 +92,10 @@ kessel_bundle_json :: proc(reply: KesselBundleReply) -> KesselParseResult {
 // Translate the request. The returned message is empty when it is valid.
 @(private="file")
 kessel_bundle_options :: proc(request: KesselBundleRequest) -> (options: BundleOptions, problem: string) {
-	if request.entry == "" { return {}, "bundle requires an entry file" }
+	if len(request.entries) == 0 { return {}, "bundle requires an entry file" }
 	options = BundleOptions{
-		entry = request.entry, externals = request.externals, conditions = request.conditions,
+		entries = request.entries, splitting = request.splitting,
+		externals = request.externals, conditions = request.conditions,
 		main_fields = request.main_fields, tsconfig = request.tsconfig,
 		global_name = request.global_name, map_directory = request.map_directory,
 		jsx = request.jsx, jsx_import_source = request.jsx_import_source,

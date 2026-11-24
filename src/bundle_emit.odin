@@ -6,18 +6,62 @@ package kessel
 // the header that declares them is generated afterwards and prepended.
 
 import "core:fmt"
+import "core:slice"
 import "core:strings"
 
 bundle_emit :: proc(g: ^BundleGraph) -> BundleOutput {
+	// Bodies first: printing a chunk is what discovers the bindings it needs
+	// from other chunks, and therefore what those chunks must export.
+	runtime_used: bit_set[BundleHelper; u16]
+	for &chunk in g.chunks {
+		if !bundle_chunk_included(g, &chunk) { continue }
+		bundle_chunk_enter(g, chunk.index)
+		bundle_emit_body(g, &chunk)
+		bundle_chunk_leave(g)
+		runtime_used += chunk.helpers_used
+	}
+	files := make([dynamic]BundleFile, g.alloc)
+	split := len(g.chunks) > 1
+	// A wrapped entry is started from a file of its own, which imports the
+	// initializer from the chunk that defines the entry.
+	for index in g.entries {
+		entry := g.modules[index]
+		if split && entry.wrap != .None { g.chunks[entry.chunk].exports[entry.wrapper_name] = true }
+	}
+	for &chunk in g.chunks {
+		if !bundle_chunk_included(g, &chunk) { continue }
+		bundle_chunk_enter(g, chunk.index)
+		file := bundle_emit_file(g, &chunk, split)
+		bundle_chunk_leave(g)
+		append(&files, file)
+	}
+	if split {
+		bundle_emit_facades(g, &files)
+		append(&files, bundle_emit_runtime(g, runtime_used))
+	}
+	return {files = files[:]}
+}
+
+@(private="file")
+bundle_chunk_included :: proc(g: ^BundleGraph, chunk: ^BundleChunk) -> bool {
+	for index in chunk.modules {
+		if g.modules[index].included { return true }
+	}
+	return false
+}
+
+// Print everything of the current chunk that does not depend on what other
+// chunks will ask of it.
+@(private="file")
+bundle_emit_body :: proc(g: ^BundleGraph, chunk: ^BundleChunk) {
 	e := BundleEmit{g = g}
 	e.body = strings.builder_make(g.alloc)
 	e.segments = make([dynamic]BundleSegment, g.alloc)
-	entry := g.modules[0]
-
-	for module in g.modules {
+	for index in chunk.modules {
+		module := g.modules[index]
 		if module.included && module.wrap != .None { bundle_emit_wrapped(&e, module) }
 	}
-	bundle_emit_namespaces(&e)
+	bundle_emit_namespaces(&e, chunk)
 	for event in g.order {
 		module := g.modules[event.module]
 		switch event.kind {
@@ -29,32 +73,96 @@ bundle_emit :: proc(g: ^BundleGraph) -> BundleOutput {
 			bundle_print_module(&e, module, 0)
 		}
 	}
-	bundle_emit_tail(&e, entry)
+	// In a single file a wrapped entry is started by that file. With several
+	// files it gets a file of its own, so loading the chunk never runs it.
+	if chunk.entry >= 0 {
+		entry := g.modules[chunk.entry]
+		if entry.wrap == .None || len(g.chunks) == 1 { bundle_emit_tail(&e, entry) }
+	}
+	chunk.body = strings.to_string(e.body)
+	chunk.segments = e.segments[:]
+}
+
+// Put the header that the body turned out to need in front of it, add the
+// exports other chunks asked for, then validate or minify the file.
+@(private="file")
+bundle_emit_file :: proc(g: ^BundleGraph, chunk: ^BundleChunk, split: bool) -> BundleFile {
+	e := BundleEmit{g = g, segments = make([dynamic]BundleSegment, g.alloc)}
+	append(&e.segments, ..chunk.segments)
+	entry: ^BundleModule
+	if chunk.entry >= 0 && g.modules[chunk.entry].wrap == .None { entry = g.modules[chunk.entry] }
+	if chunk.entry >= 0 && len(g.chunks) == 1 { entry = g.modules[chunk.entry] }
 
 	header := strings.builder_make(g.alloc)
-	bundle_emit_header(&e, &header, entry)
+	bundle_emit_header(&e, &header, chunk, entry, split)
 	shift := u32(strings.builder_len(header))
-	strings.write_string(&header, strings.to_string(e.body))
+	strings.write_string(&header, chunk.body)
+	if len(chunk.exports) != 0 {
+		names := make([dynamic]string, g.alloc)
+		for name in chunk.exports { append(&names, name) }
+		slice.sort(names[:])
+		bundle_template(&header, "export { @0 };\n", strings.join(names[:], ", ", g.alloc))
+	}
 	if g.options.format == .IIFE { strings.write_string(&header, "})();\n") }
-	output := BundleFile{code = strings.to_string(header), entry = true}
+	output := BundleFile{name = chunk.name, code = strings.to_string(header), entry = entry != nil}
+	bundle_emit_finish(&e, &output, shift)
+	return output
+}
 
+@(private="file")
+bundle_emit_finish :: proc(e: ^BundleEmit, output: ^BundleFile, shift: u32) {
+	g := e.g
 	mappings: []BundleMapping
 	if g.options.source_map { mappings = bundle_map_collect(g, e.segments[:], shift) }
 	if g.options.minify {
-		output.code, mappings = bundle_emit_minify(&e, output.code, shift, mappings)
+		output.code, mappings = bundle_emit_minify(e, output.code, shift, mappings)
 	} else {
-		bundle_emit_validate(&e, output.code, shift)
+		bundle_emit_validate(e, output.code, shift)
 	}
-	if g.error_count == 0 && g.options.source_map {
+	if g.error_count == 0 && g.options.source_map && len(mappings) != 0 {
 		output.map_json = bundle_map_json(g, mappings, output.code)
 	}
-	files := make([]BundleFile, 1, g.alloc)
-	files[0] = output
-	return {files = files}
 }
 
-// A wrapped module's definition. Definitions only create functions, so their
-// position does not affect evaluation order; they sit above all module code.
+// A wrapped entry's own file: it loads the chunk that defines the entry and
+// starts it. The entry cannot have exports here; linking rejected that.
+@(private="file")
+bundle_emit_facades :: proc(g: ^BundleGraph, files: ^[dynamic]BundleFile) {
+	for index in g.entries {
+		entry := g.modules[index]
+		if entry.wrap == .None { continue }
+		builder := strings.builder_make(g.alloc)
+		if entry.has_hashbang { fmt.sbprintf(&builder, "#!%s\n", entry.job.lexer.hashbang_value) }
+		bundle_template(&builder, "import { @0 } from \"./@1\";\n", entry.wrapper_name,
+			g.chunks[entry.chunk].name)
+		if entry.wrap == .CJS {
+			fmt.sbprintf(&builder, "export default %s();\n", entry.wrapper_name)
+		} else {
+			fmt.sbprintf(&builder, "%s();\n", entry.wrapper_name)
+		}
+		append(files, BundleFile{
+			name = g.entry_files[index], code = strings.to_string(builder), entry = true,
+		})
+	}
+}
+
+// The helpers every chunk shares. They live in one file so that the interop
+// caches inside them are the same objects for every importer.
+@(private="file")
+bundle_emit_runtime :: proc(g: ^BundleGraph, used: bit_set[BundleHelper; u16]) -> BundleFile {
+	builder := strings.builder_make(g.alloc)
+	g.helpers.used = used
+	bundle_emit_helper_text(g, &builder)
+	names := make([dynamic]string, g.alloc)
+	for helper in BundleHelper {
+		if helper in used { append(&names, g.helpers.names[helper]) }
+	}
+	if len(names) != 0 {
+		bundle_template(&builder, "export { @0 };\n", strings.join(names[:], ", ", g.alloc))
+	}
+	return {name = g.runtime_name, code = strings.to_string(builder)}
+}
+
 // Write `template`, replacing `@0`..`@9` with the matching argument. The
 // formatter in core:fmt gives braces a meaning, which JavaScript text is full of.
 bundle_template :: proc(builder: ^strings.Builder, template: string, args: ..string) {
@@ -107,22 +215,22 @@ bundle_emit_wrapped :: proc(e: ^BundleEmit, module: ^BundleModule) {
 // reading a not-yet-initialised export through it must throw a TDZ error
 // rather than find `undefined`.
 @(private="file")
-bundle_emit_namespaces :: proc(e: ^BundleEmit) {
+bundle_emit_namespaces :: proc(e: ^BundleEmit, chunk: ^BundleChunk) {
 	g := e.g
 	helpers := &g.helpers
-	for module in g.modules {
+	for index in chunk.modules {
+		module := g.modules[index]
 		if !module.included || module.wrap != .None || !module.needs_namespace { continue }
 		helpers.used += {.Export, .Namespace, .DefProp}
 		fmt.sbprintf(&e.body, "var %s = %s(%s(), ", module.namespace_name, helpers.names[.Export],
 			helpers.names[.Namespace])
 		bundle_write_export_getters(g, &e.body, module, "")
 		strings.write_string(&e.body, ");\n")
-	}
-	entry := g.modules[0]
-	if g.options.format == .CJS && entry.wrap == .None && entry.needs_namespace {
-		helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
-		fmt.sbprintf(&e.body, "module.exports = %s(%s);\n", helpers.names[.ToCommonJS],
-			entry.namespace_name)
+		if module.is_entry && g.options.format == .CJS {
+			helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
+			fmt.sbprintf(&e.body, "module.exports = %s(%s);\n", helpers.names[.ToCommonJS],
+				module.namespace_name)
+		}
 	}
 }
 
@@ -184,9 +292,17 @@ bundle_emit_tail :: proc(e: ^BundleEmit, entry: ^BundleModule) {
 }
 
 @(private="file")
-bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^BundleModule) {
+bundle_emit_header :: proc(
+	e: ^BundleEmit,
+	header: ^strings.Builder,
+	chunk: ^BundleChunk,
+	entry: ^BundleModule, // nil for a chunk that only defines modules
+	split: bool,
+) {
 	g := e.g
-	if entry.has_hashbang { fmt.sbprintf(header, "#!%s\n", entry.job.lexer.hashbang_value) }
+	if entry != nil && entry.has_hashbang {
+		fmt.sbprintf(header, "#!%s\n", entry.job.lexer.hashbang_value)
+	}
 	switch g.options.format {
 	case .ESM:
 	case .CJS: strings.write_string(header, "\"use strict\";\n")
@@ -196,20 +312,48 @@ bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^Bun
 		strings.write_string(header, "(function () {\n\"use strict\";\n")
 	}
 	if g.options.format == .ESM { bundle_emit_external_imports(g, header) }
-	bundle_emit_file_paths(g, header)
-	bundle_emit_helpers(g, header)
+	bundle_emit_file_paths(g, header, chunk)
+	if split {
+		bundle_emit_chunk_imports(g, header)
+	} else {
+		bundle_emit_helper_text(g, header)
+	}
 	if g.options.format != .ESM { bundle_emit_external_requires(g, header) }
 	// An interop object is bound where its importer runs. A module earlier in
 	// a cycle can read through it before that; Node hands such a reader
 	// `undefined` for every CommonJS export, and an empty object does the same.
 	interop := make([dynamic]string, g.alloc)
-	for module in g.modules {
-		for name in module.interop_names {
-			if name != "" { append(&interop, fmt.aprintf("%s = {{}}", name, allocator = g.alloc)) }
-		}
+	for name in g.interop_used {
+		append(&interop, fmt.aprintf("%s = {{}}", name, allocator = g.alloc))
 	}
 	if len(interop) != 0 {
 		fmt.sbprintf(header, "var %s;\n", strings.join(interop[:], ", ", g.alloc))
+	}
+}
+
+// Imports of the current chunk from the runtime chunk and from the chunks
+// that define the modules it mentions, one statement per file, sorted so the
+// output does not depend on map iteration order.
+@(private="file")
+bundle_emit_chunk_imports :: proc(g: ^BundleGraph, header: ^strings.Builder) {
+	bundle_helpers_close(g)
+	names := make([dynamic]string, g.alloc)
+	for helper in BundleHelper {
+		if helper in g.helpers.used { append(&names, g.helpers.names[helper]) }
+	}
+	if len(names) != 0 {
+		bundle_template(header, "import { @0 } from \"./@1\";\n",
+			strings.join(names[:], ", ", g.alloc), g.runtime_name)
+	}
+	for &other in g.chunks {
+		clear(&names)
+		for name, owner in g.chunk_imports {
+			if owner == other.index { append(&names, name) }
+		}
+		if len(names) == 0 { continue }
+		slice.sort(names[:])
+		bundle_template(header, "import { @0 } from \"./@1\";\n",
+			strings.join(names[:], ", ", g.alloc), other.name)
 	}
 }
 
@@ -217,10 +361,11 @@ bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^Bun
 // file there is to name is the bundle, which is what CommonJS output gives for
 // free; ESM output for Node derives the same values from import.meta.url.
 @(private="file")
-bundle_emit_file_paths :: proc(g: ^BundleGraph, header: ^strings.Builder) {
+bundle_emit_file_paths :: proc(g: ^BundleGraph, header: ^strings.Builder, chunk: ^BundleChunk) {
 	if g.options.format == .CJS { return }
 	user: ^BundleModule
-	for module in g.modules {
+	for index in chunk.modules {
+		module := g.modules[index]
 		if !module.included || user != nil { continue }
 		for ref in module.model.refs {
 			if ref.resolved != SYMBOL_UNRESOLVED { continue }
@@ -299,16 +444,23 @@ bundle_emit_external_requires :: proc(g: ^BundleGraph, header: ^strings.Builder)
 	}
 }
 
+// Helpers that the generated glue needs beyond the ones printing asked for.
 @(private="file")
-bundle_emit_helpers :: proc(g: ^BundleGraph, header: ^strings.Builder) {
+bundle_helpers_close :: proc(g: ^BundleGraph) {
 	helpers := &g.helpers
-	n := helpers.names
 	for &external in g.externals {
 		bound := external.interop_names[0] != "" || external.interop_names[1] != ""
 		if g.options.format != .ESM && bound {
 			helpers.used += {.ToESM, .CopyProps, .DefProp}
 		}
 	}
+}
+
+@(private="file")
+bundle_emit_helper_text :: proc(g: ^BundleGraph, header: ^strings.Builder) {
+	bundle_helpers_close(g)
+	helpers := &g.helpers
+	n := helpers.names
 	used := helpers.used
 	if .DefProp in used { fmt.sbprintf(header, "var %s = Object.defineProperty;\n", n[.DefProp]) }
 	if .CopyProps in used {

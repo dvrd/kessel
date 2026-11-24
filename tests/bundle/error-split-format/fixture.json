@@ -1,0 +1,11 @@
+{
+  "entries": [
+    "a.mjs",
+    "b.mjs"
+  ],
+  "args": [
+    "--format",
+    "cjs"
+  ],
+  "error": "more than one output file requires the esm format"
+}

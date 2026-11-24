@@ -1,0 +1,7 @@
+{
+  "entries": [
+    "a.mjs",
+    "b.mjs"
+  ],
+  "error": "an entry with exports cannot also be imported"
+}

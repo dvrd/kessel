@@ -1,0 +1,9 @@
+{
+  "entries": [
+    "left.mjs",
+    "right.mjs"
+  ],
+  "once": [
+    "console.log('model evaluated'"
+  ]
+}

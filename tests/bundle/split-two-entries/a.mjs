@@ -1,0 +1,10 @@
+console.log('a start');
+import './only-a.mjs';
+import { shared, bump } from './shared.mjs';
+import './only-a-2.mjs';
+import cjs from './util.cjs';
+bump();
+console.log('a', shared.count, cjs.name);
+const lazy = await import('./lazy.mjs');
+console.log('a lazy', lazy.value, lazy.default());
+export const fromA = 'A';

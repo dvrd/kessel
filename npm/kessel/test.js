@@ -1475,6 +1475,25 @@ try {
 
     assert.throws(() => bundleSync(), TypeError);
     assert.throws(() => bundleSync({}), /entry must be a file path/);
+    assert.throws(() => bundleSync({ entry: [] }), /entry must be a file path/);
+
+    write('page.mjs', "import { twice } from './math.ts';\nexport const page = twice(4);\n");
+    write('app.mjs', "import { twice } from './math.ts';\nexport const load = () => import('./page.mjs');\nexport const two = twice(1);\n");
+    write('admin.mjs', "import { twice } from './math.ts';\nexport const four = twice(2);\n");
+    const split = bundleSync({ entry: [path.join(bundleDir, 'app.mjs'), path.join(bundleDir, 'admin.mjs')], splitting: true });
+    assert.deepEqual(split.errors, []);
+    assert.deepEqual(split.outputs.filter(file => file.entry).map(file => file.fileName), ['app.mjs', 'admin.mjs']);
+    assert.ok(split.outputs.some(file => file.fileName === 'chunk-page.mjs'));
+    assert.ok(split.outputs.every(file => typeof file.fileName === 'string' && file.code.length > 0));
+    const splitDir = path.join(bundleDir, 'split');
+    mkdirSync(splitDir);
+    for (const file of split.outputs) writeFileSync(path.join(splitDir, file.fileName), file.code);
+    const checked = spawnSync(process.execPath, ['--input-type=module', '-e',
+      "const app = await import('./app.mjs'); const admin = await import('./admin.mjs');" +
+      "console.log(app.two, admin.four, (await app.load()).page);"], { cwd: splitDir, encoding: 'utf8' });
+    assert.equal(checked.stdout, '2 4 8\n', checked.stderr);
+    assert.match(bundleSync({ entry: [path.join(bundleDir, 'app.mjs'), path.join(bundleDir, 'admin.mjs')], format: 'cjs' }).errors[0].message,
+      /more than one output file requires the esm format/);
     assert.throws(() => bundleSync({ entry, format: 'umd' }), /format must be/);
     assert.throws(() => bundleSync({ entry, platform: 'deno' }), /platform must be/);
     assert.throws(() => bundleSync({ entry, external: 'react' }), /external must be an array/);

@@ -319,8 +319,13 @@ export interface MinifyOptions {
 export function minifySync(filename: string, source: string, options?: MinifyOptions): GeneratedCode;
 
 export interface BundleOptions {
-  /** Entry file. A relative path is resolved against the working directory. */
-  entry: string;
+  /**
+   * Entry file, or several. Relative paths are resolved against the working directory.
+   * Several entries share their common modules through chunk files; that requires 'esm'.
+   */
+  entry: string | string[];
+  /** Give each `import()` target a chunk of its own instead of inlining it. Requires 'esm'. Default false. */
+  splitting?: boolean;
   /** Output format. Default 'esm'. */
   format?: 'esm' | 'cjs' | 'iife';
   /** Resolution rules and builtins. Default 'node'. */
@@ -367,10 +372,11 @@ export interface BundleDiagnostic {
 }
 
 export interface BundleOutputFile {
-  /** Name relative to the output directory; null when the build has a single output. */
+  /** Name relative to the output directory; null when the build has a single output and the caller names it. */
   fileName: string | null;
   code: string;
   map: SourceMap | null;
+  /** True for the file of an entry; false for shared chunks and the helper chunk. */
   entry: boolean;
 }
 
