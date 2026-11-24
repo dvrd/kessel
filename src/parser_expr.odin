@@ -1995,10 +1995,11 @@ parse_primary_async :: proc(p: ^Parser) -> ^Expression {
 			// `async functionX ()` loses `functionX` entirely.
 			snap_async := lexer_snapshot(p)
 			snap_errs := len(p.errors)
+			async_start := cur_offset(p)
 			eat(p) // consume async
 			param_ident := parse_identifier(p)
 			if is_token(p, .Arrow) {
-				return parse_async_arrow_function(p, param_ident)
+				return parse_async_arrow_function(p, param_ident, async_start)
 			}
 			// Not an arrow — roll back to just after `async`, let the
 			// LHS-tail / expression parser handle the next tokens.

@@ -2181,8 +2181,11 @@ check_arrow_body_strict_prologue :: proc(p: ^Parser, body: []^Statement) {
 // Async Arrow Function Helpers
 // ============================================================================
 
-parse_async_arrow_function :: proc(p: ^Parser, param: Identifier) -> ^Expression {
+parse_async_arrow_function :: proc(p: ^Parser, param: Identifier, async_start: u32) -> ^Expression {
+	// The arrow's span begins at `async`, as it does for `async (x) => x`.
+	assert(async_start < param.loc.start)
 	start := param.loc
+	start.start = async_start
 
 	if param.name == "await" {
 		report_error_coded(p, .K3010_AwaitYieldAsBindingName,

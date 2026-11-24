@@ -2645,8 +2645,12 @@ parse_function_param_rest :: proc(p: ^Parser, param: ^FunctionParameter) -> ^Fun
 		// extend the RestElement span to cover the annotation.
 		if is_token(p, .Colon) && allow_ts_mode(p) {
 			ann := parse_ts_type_annotation(p)
-			if ident, ok := arg_pattern.(^Identifier); ok {
-				ident.type_annotation = ann
+			// A destructured rest (`...[a, b]: T[]`) keeps its annotation on
+			// the pattern node, like a destructured ordinary parameter.
+			#partial switch target in arg_pattern {
+			case ^Identifier: target.type_annotation = ann
+			case ^ObjectPattern: target.type_annotation = ann
+			case ^ArrayPattern: target.type_annotation = ann
 			}
 		}
 		rest.loc.end = prev_end_offset(p)
