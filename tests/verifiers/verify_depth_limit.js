@@ -452,8 +452,24 @@ async function section_chains(build) {
       expect(checked.status === 0, `${label}: expected exit 0, got ${checked.status}: ${checked.stderr.slice(0, 200)}`);
       expect(error_headers(checked.stderr) === 0, `${label}: valid chain reported a diagnostic`);
     }
-    await run_all_tools(build, source, label, job.tools.filter(t => t !== 'check'));
+    await run_all_tools(build, source, label, job.tools.filter(t => t !== 'check' && t !== 'dts'));
     release_source(source);
+
+    // Declaration emit only accepts TypeScript, so it gets the chain as an
+    // annotated export (emitted as-is: exit 0) and as an unannotated one
+    // (the initializer is inspected for inference, then reported).
+    if (job.tools.includes('dts')) {
+      const chain = CHAIN[job.name](job.terms);
+      const annotated = write_source('ts', `export const x: number = ${chain};`);
+      const emitted = await run(build.bin, TOOLS.dts(annotated.file, annotated.dir));
+      if (expect_survived(emitted, `${label} dts annotated`)) {
+        expect(emitted.status === 0, `${label}: dts of an annotated export should exit 0`);
+      }
+      release_source(annotated);
+      const inferred = write_source('ts', `export const x = ${chain};\nexport function f() { return ${chain}; }`);
+      expect_survived(await run(build.bin, TOOLS.dts(inferred.file, inferred.dir)), `${label} dts inferred`);
+      release_source(inferred);
+    }
     if (VERBOSE) console.log(`  ${label} ${checked.ms} ms`);
   });
 
