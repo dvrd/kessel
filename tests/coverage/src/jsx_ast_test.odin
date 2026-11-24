@@ -6,6 +6,7 @@
 // moved. Covered:
 //
 //   * a mismatched closing tag is reported on the closing tag's name;
+//   * `{...xs}` in child position is a `JSXSpreadChild`;
 //
 // tests/verifiers/verify_jsx_ast.js checks the same contract against the
 // pinned reference parsers.
@@ -64,5 +65,35 @@ test_jsx_error_spans :: proc(t: ^testing.T) {
 			error_case.source, first.start, first.end, error_case.start, error_case.end,
 		)
 		testing.expect_value(t, first.code, error_case.code)
+	}
+}
+
+@(test)
+test_jsx_spread_child_node :: proc(t: ^testing.T) {
+	source := "<a>{...xs}{ys}{}</a>;"
+	job: kessel.ParseJob
+	element := jsx_open(t, &job, source)
+	defer kessel.parse_job_close(&job)
+	if !testing.expect(t, element != nil) { return }
+	testing.expect_value(t, len(job.parser.errors), 0)
+	if !testing.expect_value(t, len(element.children), 3) { return }
+
+	spread, is_spread := element.children[0].(^kessel.JSXSpreadChild)
+	if !testing.expect(t, is_spread, "`{...xs}` must be a JSXSpreadChild") { return }
+	// The span covers both braces; the operand is the bare expression.
+	testing.expect_value(t, spread.loc, kessel.Loc{start = 3, end = 10})
+	operand, is_identifier := spread.expression.(^kessel.Identifier)
+	if testing.expect(t, is_identifier, "operand must not be wrapped in a SpreadElement") {
+		testing.expect_value(t, operand.name, "xs")
+		testing.expect_value(t, operand.loc, kessel.Loc{start = 7, end = 9})
+	}
+
+	// Neighbouring containers are unchanged.
+	_, is_container := element.children[1].(^kessel.JSXExpressionContainer)
+	testing.expect(t, is_container)
+	empty, is_empty_container := element.children[2].(^kessel.JSXExpressionContainer)
+	if testing.expect(t, is_empty_container) {
+		_, is_empty := empty.expression.(^kessel.JSXEmptyExpression)
+		testing.expect(t, is_empty)
 	}
 }

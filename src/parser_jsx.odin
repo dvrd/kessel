@@ -408,20 +408,36 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 			prev_cond_depth := p.conditional_depth
 			p.conditional_depth = 0
 			expr: ^Expression = nil
-			if !is_token(p, .RBrace) { expr = parse_assignment_expression(p) }
+			is_spread := is_token(p, .Dot3)
+			if is_spread {
+				eat(p)
+				expr = parse_assignment_expression(p)
+			} else if !is_token(p, .RBrace) {
+				expr = parse_assignment_expression(p)
+			}
 			p.conditional_depth = prev_cond_depth
 			rbrace_start := u32(cur_offset(p))
 			expect_token(p, .RBrace)
-			container := new_node(p, JSXExpressionContainer)
-			container.loc = start
-			if expr != nil { container.expression = expr
+			if is_spread {
+				// `{...xs}` is a JSXSpreadChild whose span includes both
+				// braces, as in OXC and Babel; it is not an expression
+				// container holding a SpreadElement.
+				spread := new_node(p, JSXSpreadChild)
+				spread.loc = start; spread.expression = expr
+				spread.loc.end = prev_end_offset(p)
+				bump_append(&children, spread)
 			} else {
-				empty, empty_e := new_expr(p, JSXEmptyExpression)
-				empty.loc = Loc{start = empty_start, end = rbrace_start}
-				container.expression = empty_e
+				container := new_node(p, JSXExpressionContainer)
+				container.loc = start
+				if expr != nil { container.expression = expr
+				} else {
+					empty, empty_e := new_expr(p, JSXEmptyExpression)
+					empty.loc = Loc{start = empty_start, end = rbrace_start}
+					container.expression = empty_e
+				}
+				container.loc.end = prev_end_offset(p)
+				bump_append(&children, container)
 			}
-			container.loc.end = prev_end_offset(p)
-			bump_append(&children, container)
 		}
 		// Progress guard: if no iteration advanced the cursor (e.g. malformed
 		// input where parse_jsx_element_or_fragment returned without consuming,

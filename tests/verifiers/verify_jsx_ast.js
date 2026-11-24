@@ -4,6 +4,7 @@
 // hand-written expectations.
 //
 //   * A mismatched closing tag is an error on oxc-parser's span.
+//   * `{...xs}` children are JSXSpreadChild nodes with oxc-parser's spans.
 //
 // Method: each case is one JSX source. It is parsed by `kessel parse --json`
 // and by the reference parsers, and the same projection of each result is
@@ -50,6 +51,34 @@ for (const source of ERROR_CASES) {
     // typed AST in tests/coverage/src/jsx_ast_test.odin.
     const label = oxc.errors[0].labels[0];
     assert.equal(kessel.errors[0].offset, label.start, 'error offset vs oxc-parser');
+  });
+}
+
+// Collect [type, start, end, expression type] for every JSX child container.
+function containers(node, out = []) {
+  if (node === null || typeof node !== 'object') return out;
+  if (Array.isArray(node)) { for (const item of node) containers(item, out); return out; }
+  if (node.type === 'JSXSpreadChild' || node.type === 'JSXExpressionContainer') {
+    out.push([node.type, node.start, node.end, node.expression.type]);
+  }
+  for (const key of Object.keys(node)) if (key !== 'loc') containers(node[key], out);
+  return out;
+}
+
+const SPREAD_CASES = [
+  '<a>{...xs}</a>;',
+  '<a>text{...xs}{y}{}{...c ? l : r}</a>;',
+  '<>{...xs}{...[1, 2]}</>;',
+  '<a><b>{ ...xs }</b></a>;',
+];
+for (const source of SPREAD_CASES) {
+  check(`spread child ${JSON.stringify(source)}`, () => {
+    const kessel = kesselParse(source);
+    assert.deepEqual(kessel.errors ?? [], []);
+    const oxc = parseSync('case.jsx', source);
+    assert.deepEqual(oxc.errors, []);
+    assert.deepEqual(containers(kessel), containers(oxc.program));
+    assert.ok(containers(kessel).some(item => item[0] === 'JSXSpreadChild'));
   });
 }
 

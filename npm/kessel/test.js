@@ -292,6 +292,17 @@ try {
   else { console.error('FAIL: JSX parse'); failed++; }
 } catch (e) { console.error('CRASH: JSX', e.message); failed++; }
 
+// `{...xs}` in child position is a JSXSpreadChild spanning both braces.
+try {
+  const { program, errors } = parseSync('spread.jsx', '<a>{...xs}{y}</a>;');
+  const [spread, container] = program.body[0].expression.children;
+  if (errors.length === 0 && spread.type === 'JSXSpreadChild' &&
+      spread.start === 3 && spread.end === 10 &&
+      spread.expression.type === 'Identifier' && spread.expression.name === 'xs' &&
+      container.type === 'JSXExpressionContainer') passed++;
+  else { console.error('FAIL: JSXSpreadChild', JSON.stringify([spread, container])); failed++; }
+} catch (e) { console.error('CRASH: JSXSpreadChild', e.message); failed++; }
+
 // A mismatched closing tag is reported on the closing tag's name.
 try {
   const errors = parseSync('mismatch.jsx', '<p></div>;').errors;
