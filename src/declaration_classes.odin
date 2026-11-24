@@ -33,7 +33,13 @@ dts_class :: proc(state: ^DeclarationEmit, s: ^ClassDeclaration) {
 			_, named := root^.(^Identifier)
 			_, null := root^.(^NullLiteral)
 			if !named && !(null && root == base) {
-				dts_error(state, "TS9021", "Extends clause can't contain an expression with --isolatedDeclarations.", get_expression_loc(base))
+				// A class expression is reported at its name or `class` keyword.
+				span := get_expression_loc(base)
+				if class, anonymous := base^.(^ClassExpression); anonymous {
+					span = {class.loc.start, class.loc.start + u32(len("class"))}
+					if id, has_name := class.id.?; has_name { span = id.loc }
+				}
+				dts_error(state, "TS9021", "Extends clause can't contain an expression with --isolatedDeclarations.", span)
 			}
 			break
 		}

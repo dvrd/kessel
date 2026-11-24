@@ -186,15 +186,26 @@ dts_parameter_type :: proc(
 	span := parameter.loc
 	if parameter.modifier_start != 0 { span.start = parameter.modifier_start }
 	assert(span.start <= span.end)
+	// A destructuring pattern never takes its type from a default value.
+	binding := parameter.pattern
+	if assignment, assigned := binding.(^AssignmentPattern); assigned { binding = assignment.left }
+	_, object_pattern := binding.(^ObjectPattern)
+	_, array_pattern := binding.(^ArrayPattern)
+	destructured := object_pattern || array_pattern
 	type_start := cg.pos
 	if ty, ok := annotation.?; ok {
 		gen_ts_type(cg, ty.type_annotation)
 	} else if init == nil && implicit_undefined {
 		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
 		return
-	} else if !dts_infer(state, init, false, depth + 1) {
-		error_location := location
-		if init != nil { error_location = get_expression_loc(init) }
+	} else if destructured && implicit_undefined {
+		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
+		return
+	} else if destructured || !dts_infer(state, init, false, depth + 1) {
+		// Without an initializer the whole parameter is reported, including
+		// its modifiers and its `...` or `?` marker.
+		error_location := span
+		if init != nil { error_location = dts_expression_span(state, init) }
 		dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", error_location)
 	}
 	if implicit_undefined {

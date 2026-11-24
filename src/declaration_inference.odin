@@ -15,6 +15,12 @@ dts_variable :: proc(state: ^DeclarationEmit, decl: ^VariableDeclaration, part: 
 		gen_ts_type(cg, annotation.type_annotation)
 		return
 	}
+	if dts_redeclared_variable(state, id.name) {
+		// TypeScript merges the declarations of one variable and takes its type
+		// from the checker, which an isolated emitter does not have.
+		dts_error(state, "TS9010", "Variable must have an explicit type annotation with --isolatedDeclarations.", id.loc)
+		return
+	}
 	init := entry.init.? or_else nil
 	kind := dts_primitive_type(init)
 	literal := decl.kind == .Const && kind != "" && kind != "null" && kind != "undefined"
@@ -24,6 +30,18 @@ dts_variable :: proc(state: ^DeclarationEmit, decl: ^VariableDeclaration, part: 
 	if (decl.kind == .Const && dynamic_template) || !dts_infer(state, init, literal, 0) {
 		dts_error(state, "TS9010", "Variable must have an explicit type annotation with --isolatedDeclarations.", id.loc)
 	}
+}
+
+@(private)
+dts_redeclared_variable :: proc(state: ^DeclarationEmit, name: string) -> bool {
+	declarations := 0
+	for index in state.regions[state.region].bindings[name] {
+		if _, variable := state.items[index].statement.(^VariableDeclaration); variable {
+			declarations += 1
+		}
+	}
+	assert(declarations >= 1)
+	return declarations > 1
 }
 
 @(private)
@@ -103,7 +121,9 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 	case ^TemplateLiteral:
 		if literal { return false }; cg_str(cg, "string"); return true
 	case ^ParenthesizedExpression: return dts_infer(state, e.expression, literal, depth + 1)
-	case ^TSSatisfiesExpression: return dts_infer(state, e.expression, literal, depth + 1)
+	// `satisfies` checks an expression without declaring its type, so TypeScript
+	// does not infer through it: the declaration still needs an annotation.
+	case ^TSSatisfiesExpression: return false
 	case ^TSAsExpression: return dts_assertion(state, e.expression, e.type_annotation, literal, depth)
 	case ^TSTypeAssertion: return dts_assertion(state, e.expression, e.type_annotation, literal, depth)
 	case ^ArrayExpression:
@@ -134,7 +154,8 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 		dts_error(state, "TS9022", "Inference from class expressions is not supported with --isolatedDeclarations.", loc)
 		return true
 	case ^FunctionExpression:
-		loc := Loc{e.loc.start, e.loc.start + 8}
+		// An anonymous function is reported at its first keyword.
+		loc := Loc{e.loc.start, e.loc.start + u32(len("async" if e.async else "function"))}
 		if id, ok := e.id.?; ok { loc = id.loc }
 		dts_signature(state, e.params[:], e.type_parameters, e.return_type, dts_return_expression(e.body.body[:]), e.loc, loc, e.async || e.generator, true, depth + 1)
 		return true
@@ -173,7 +194,32 @@ dts_is_const_type :: proc(ty: ^TSType) -> bool {
 
 @(private)
 dts_expression_error :: proc(state: ^DeclarationEmit, expr: ^Expression) {
-	dts_error(state, "TS9013", "Expression type can't be inferred with --isolatedDeclarations.", get_expression_loc(expr))
+	dts_error(state, "TS9013", "Expression type can't be inferred with --isolatedDeclarations.", dts_expression_span(state, expr))
+}
+
+// TypeScript reports a `satisfies` expression at its operator, not at the
+// whole expression. Comments may separate the operand from the keyword.
+@(private)
+dts_expression_span :: proc(state: ^DeclarationEmit, expr: ^Expression) -> Loc {
+	assert(expr != nil)
+	loc := get_expression_loc(expr)
+	node, satisfies := expr^.(^TSSatisfiesExpression)
+	if !satisfies { return loc }
+	source := state.writer.source
+	comments := state.job.lexer.comments[:]
+	offset := get_expression_loc(node.expression).end
+	comment := codegen_comment_lower_bound(comments, offset)
+	for offset < loc.end {
+		if comment < len(comments) && comments[comment].start == offset {
+			offset = comments[comment].end
+			comment += 1
+		} else if source[offset] == 's' {
+			return {offset, offset + u32(len("satisfies"))}
+		} else {
+			offset += 1
+		}
+	}
+	return loc
 }
 
 @(private)
@@ -308,7 +354,7 @@ dts_default :: proc(state: ^DeclarationEmit, expr: ^Expression, keyword: string)
 	cg_str(cg, ": ")
 	_, grouped := expr^.(^ParenthesizedExpression)
 	if !dts_infer(state, expr, !grouped && dts_primitive_type(expr) != "", 0) {
-		dts_error(state, "TS9037", "Default exports can't be inferred with --isolatedDeclarations.", get_expression_loc(expr))
+		dts_error(state, "TS9037", "Default exports can't be inferred with --isolatedDeclarations.", dts_expression_span(state, expr))
 	}
 	cg_str(cg, ";\n"); cg_str(cg, keyword)
 	cg_str(cg, state.default_name)

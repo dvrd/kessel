@@ -89,10 +89,10 @@ dts_track_type :: proc(state: ^DeclarationEmit, ty: ^TSType) {
 		if t, ok := v.type_annotation.?; ok { append(&state.scopes, DeclarationScope{v.type_parameter.name.name, get_ts_type_loc(t)^, false}) }
 	case ^TSFunctionType:
 		dts_type_parameters(state, v.type_parameters, v.loc)
-		for p in v.params { dts_parameter_scope(state, p.pattern, v.loc) }
+		dts_signature_params(state, v.params[:], v.loc)
 	case ^TSConstructorType:
 		dts_type_parameters(state, v.type_parameters, v.loc)
-		for p in v.params { dts_parameter_scope(state, p.pattern, v.loc) }
+		dts_signature_params(state, v.params[:], v.loc)
 	}
 }
 
@@ -172,7 +172,8 @@ dts_signature_params :: proc(state: ^DeclarationEmit, params: []TSFunctionParam,
 		dts_parameter_scope(state, p.pattern, loc)
 		if p.type_annotation == nil {
 			if id, ok := p.pattern.(^Identifier); ok && id.type_annotation != nil { continue }
-			dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", get_pattern_loc(p.pattern))
+			// The reported parameter includes its `?` or `...` marker.
+			dts_error(state, "TS9011", "Parameter must have an explicit type annotation with --isolatedDeclarations.", p.loc)
 		}
 	}
 }

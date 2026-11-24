@@ -1,5 +1,7 @@
 package kessel
 
+import "core:math"
+
 @(private)
 dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 	if state.enums.allocator.procedure == nil {
@@ -25,7 +27,7 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 		gen_expression(cg, member.id, PREC_ASSIGN)
 		name, valid := enum_member_name(member.id)
 		init, explicit := member.initializer.?
-		if explicit && dts_enum_external(state, init, scope, decl.id.name) {
+		if explicit && dts_enum_external(state, init, scope, decl) {
 			state.external_enum_members[{scope, name}] = true
 			dts_error(state, "TS9020", "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.", get_expression_loc(member.id))
 		}
@@ -47,6 +49,8 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 		if !explicit && !numbered { value = nil }
 		#partial switch constant in value {
 		case f64:
+			// Infinity and NaN have no literal spelling in a declaration file.
+			if math.is_inf(constant) || math.is_nan(constant) { break }
 			buf: [64]byte
 			cg_str(cg, " = "); cg_str(cg, enum_number_string(buf[:], constant))
 		case string: cg_str(cg, " = "); gen_string_quoted(cg, constant)
@@ -57,8 +61,19 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 	cg_newline(cg); cg_byte(cg, '}')
 }
 
+// A member of another declaration of the same merged enum is as external as a
+// member of a different enum: its value is not visible in this declaration.
 @(private)
-dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: ScopeId, owner: string) -> bool {
+dts_enum_declares :: proc(decl: ^TSEnumDeclaration, name: string) -> bool {
+	for member in decl.body.members {
+		if declared, valid := enum_member_name(member.id); valid && declared == name { return true }
+	}
+	return false
+}
+
+@(private)
+dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: ScopeId, decl: ^TSEnumDeclaration) -> bool {
+	owner := decl.id.name
 	pending: [dynamic]^Expression
 	append(&pending, expr)
 	for len(pending) > 0 {
@@ -66,7 +81,10 @@ dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: Sco
 		#partial switch e in node^ {
 		case ^Identifier:
 			if state.external_enum_members[{scope, e.name}] { return true }
-			if state.enums.values[{scope, e.name}] != nil { continue }
+			if state.enums.values[{scope, e.name}] != nil {
+				if dts_enum_declares(decl, e.name) { continue }
+				return true
+			}
 			for index in dts_lookup(state, e.name, .Either) {
 				item := state.items[index]
 				if d, ok := item.statement.(^VariableDeclaration); ok && d.kind == .Const {
@@ -76,6 +94,9 @@ dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: Sco
 		case ^MemberExpression:
 			id, name, known := enum_static_member(e)
 			if known && id.name == owner && state.external_enum_members[{scope, name}] { return true }
+			if known && id.name == owner && state.enums.values[{scope, name}] != nil {
+				if !dts_enum_declares(decl, name) { return true }
+			}
 			if known && id.name != owner {
 				for index in dts_lookup(state, id.name, .Either) { if _, is_enum := state.items[index].statement.(^TSEnumDeclaration); is_enum { return true } }
 			}
