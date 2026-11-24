@@ -26,7 +26,9 @@ bundle_emit :: proc(g: ^BundleGraph) -> BundleOutput {
 	// initializer from the chunk that defines the entry.
 	for index in g.entries {
 		entry := g.modules[index]
-		if split && entry.wrap != .None { g.chunks[entry.chunk].exports[entry.wrapper_name] = true }
+		if !split || entry.wrap == .None { continue }
+		g.chunks[entry.chunk].exports[entry.wrapper_name] = true
+		if entry.wrap == .ESM { g.chunks[entry.chunk].exports[entry.namespace_name] = true }
 	}
 	for &chunk in g.chunks {
 		if !bundle_chunk_included(g, &chunk) { continue }
@@ -138,11 +140,54 @@ bundle_emit_facades :: proc(g: ^BundleGraph, files: ^[dynamic]BundleFile) {
 		if entry.wrap == .CJS {
 			fmt.sbprintf(&builder, "export default %s();\n", entry.wrapper_name)
 		} else {
-			fmt.sbprintf(&builder, "%s();\n", entry.wrapper_name)
+			bundle_template(&builder, "import { @0 } from \"./@1\";\n", entry.namespace_name,
+				g.chunks[entry.chunk].name)
+			bundle_emit_lazy_entry(g, &builder, entry)
 		}
 		append(files, BundleFile{
 			name = g.entry_files[index], code = strings.to_string(builder), entry = true,
 		})
+	}
+}
+
+// Start a wrapped ES entry and pass its exports on. CommonJS and IIFE output
+// hand over the live namespace. ESM output exports copies, which linking has
+// checked to be bindings that never change.
+@(private="file")
+bundle_emit_lazy_entry :: proc(g: ^BundleGraph, builder: ^strings.Builder, entry: ^BundleModule) {
+	helpers := &g.helpers
+	names := bundle_export_names(g, entry)
+	if g.options.format != .ESM {
+		wanted := len(names) != 0 if g.options.format == .CJS else g.options.global_name != ""
+		if !wanted {
+			fmt.sbprintf(builder, "%s();\n", entry.wrapper_name)
+			return
+		}
+		helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
+		prefix := "module.exports =" if g.options.format == .CJS else "return"
+		fmt.sbprintf(builder, "%s %s(%s());\n", prefix, helpers.names[.ToCommonJS],
+			entry.wrapper_name)
+		return
+	}
+	fmt.sbprintf(builder, "%s();\n", entry.wrapper_name)
+	specifiers := make([dynamic]string, g.alloc)
+	for name in names {
+		binding := bundle_unique_name(g, "export_value")
+		accessor := strings.builder_make(g.alloc)
+		bundle_write_accessor(&accessor, name)
+		fmt.sbprintf(builder, "var %s = %s%s;\n", binding, entry.namespace_name,
+			strings.to_string(accessor))
+		exported := strings.builder_make(g.alloc)
+		if bundle_is_identifier(name) {
+			strings.write_string(&exported, name)
+		} else {
+			write_json_string(&exported, name)
+		}
+		append(&specifiers,
+			fmt.aprintf("%s as %s", binding, strings.to_string(exported), allocator = g.alloc))
+	}
+	if len(specifiers) != 0 {
+		bundle_template(builder, "export { @0 };\n", strings.join(specifiers[:], ", ", g.alloc))
 	}
 }
 
@@ -240,8 +285,11 @@ bundle_emit_tail :: proc(e: ^BundleEmit, entry: ^BundleModule) {
 	helpers := &g.helpers
 	if entry.wrap != .None {
 		call := fmt.aprintf("%s()", entry.wrapper_name, allocator = g.alloc)
+		if entry.wrap == .ESM {
+			bundle_emit_lazy_entry(g, &e.body, entry)
+			return
+		}
 		switch {
-		case entry.wrap == .ESM:          fmt.sbprintf(&e.body, "%s;\n", call)
 		case g.options.format == .ESM:    fmt.sbprintf(&e.body, "export default %s;\n", call)
 		case g.options.format == .CJS:    fmt.sbprintf(&e.body, "module.exports = %s;\n", call)
 		case g.options.global_name != "": fmt.sbprintf(&e.body, "return %s;\n", call)

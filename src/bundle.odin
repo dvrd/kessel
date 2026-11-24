@@ -61,7 +61,8 @@ package kessel
 //
 // Not supported yet. Each is reported as an error rather than bundled wrongly:
 // more than one output file outside esm; top-level await outside an entry;
-// an entry with exports that another chunk imports;
+// an entry that other bundled code imports and that exports a binding which
+// is assigned after it ran; entries that import each other in a cycle;
 // `export *` from a CommonJS module; a namespace object over a module that
 // uses `export *` from an external; direct eval in an ES module; `import.meta`
 // outside ESM output; TypeScript `import x = require()` and `export =`;

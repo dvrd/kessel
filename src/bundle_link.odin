@@ -94,10 +94,35 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 				"'export *' from a CommonJS module is not supported")
 		}
 	}
-	exports := len(module.export_order) + len(module.stars)
-	if module.is_entry && module.wrap == .ESM && exports != 0 {
-		bundle_error(g, module, nil,
-			"an entry with exports cannot also be imported or required by other bundled code")
+	if module.is_entry && module.wrap == .ESM && g.options.format == .ESM {
+		bundle_link_check_lazy_entry(g, module)
+	}
+}
+
+// An entry that other bundled code imports is wrapped, and its file hands
+// its exports on as copies taken once it has run: an export clause cannot
+// name a property of the namespace object. A copy equals a live binding
+// only for a binding that is never assigned again, so anything else is
+// refused rather than exported stale.
+@(private="file")
+bundle_link_check_lazy_entry :: proc(g: ^BundleGraph, entry: ^BundleModule) {
+	for name in bundle_export_names(g, entry) {
+		target := bundle_resolve_hoisted(g, entry, name, 0)
+		constant := target.kind == .Namespace
+		if target.kind == .Symbol {
+			owner := g.modules[target.module]
+			constant = true
+			for ref in owner.model.refs {
+				if ref.kind == .Read || ref.name != target.name { continue }
+				if ref.resolved == SYMBOL_UNRESOLVED { continue }
+				if owner.model.symbols[ref.resolved].scope == SCOPE_ROOT { constant = false }
+			}
+		}
+		if !constant {
+			bundle_error(g, entry, nil,
+				"export '%s' can change after the entry has run, which an entry that other " +
+				"bundled code imports cannot express", name)
+		}
 	}
 }
 

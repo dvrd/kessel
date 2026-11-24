@@ -3,5 +3,5 @@
     "a.mjs",
     "b.mjs"
   ],
-  "error": "an entry with exports cannot also be imported"
+  "error": "export 'value' can change after the entry has run"
 }
