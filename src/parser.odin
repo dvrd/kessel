@@ -216,6 +216,17 @@ Parser :: struct {
 	// position 0 (file start) is a valid stamped value.
 	pending_paren_start: u32,
 
+	// Recursion budget still available: `depth_max` minus the number of
+	// nested grammar productions currently open. Every recursive entry
+	// point (expression, prefix operator, statement, type, binding
+	// pattern, JSX element, class heritage, decorator) takes one level
+	// via parser_depth_enter and gives it back on exit, so a hostile or
+	// generated input reports K2081 instead of overflowing the native
+	// stack. A countdown needs one load, one compare with zero and one
+	// store on the hottest path in the project; it lives here because
+	// this cache line is already resident for every token.
+	depth_left: u32,
+
 	// Pointer to the most recent expression that came directly out of a
 	// `(...)` group (i.e. ParenthesizedExpression with the parens stripped
 	// in the default --no-preserve-parens shape). Used by
@@ -477,6 +488,17 @@ Parser :: struct {
 	// prefix so the parser's allocation and token fields retain their
 	// cache-line layout.
 	resource_budget: ParseResourceBudget,
+
+	// Nesting limit state (cold). `depth_max` is the configured limit
+	// that `depth_left` counts down from. Once the limit is hit
+	// `depth_exceeded` latches: the lexer is parked at end of input,
+	// further diagnostics are dropped, and parse_program reports exactly
+	// `depth_error` after the `depth_errors_kept` diagnostics that were
+	// already reported before the limit was reached.
+	depth_max:         u32,
+	depth_exceeded:    bool,
+	depth_errors_kept: int,
+	depth_error:       ParseError,
 }
 
 ParserProfile :: struct {
@@ -628,6 +650,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.allocator = alloc
 	p.source_len = len(lexer.source)
 	p.resource_budget = parse_resource_budget_default()
+	parser_depth_configure(p, 0)
 	p.errors = make([dynamic]ParseError, alloc)
 	p.pending_cover_inits = make([dynamic]u32, 0, 4, alloc)
 	p.pending_proto_dups = make([dynamic]u32, 0, 4, alloc)
@@ -1101,6 +1124,7 @@ using_starts_decl :: proc(p: ^Parser) -> bool {
 // caret at .start; renderers that want an underline get the full extent
 // for free. End-of-source errors trivially collapse to start == end.
 report_error :: proc(p: ^Parser, message: string) {
+	if p.depth_exceeded { return }
 	bump_append(&p.errors, ParseError{
 		start   = cur_offset(p),
 		end     = cur_raw_end(p),
@@ -1116,12 +1140,14 @@ report_error :: proc(p: ^Parser, message: string) {
 // prior token boundary) but no matching end — a future pass can widen
 // these by passing a real span via report_error_span.
 report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
+	if p.depth_exceeded { return }
 	bump_append(&p.errors, ParseError{start = u32(loc), end = u32(loc), message = message})
 }
 
 // report_error_span is the explicit-span variant. Prefer this whenever a
 // caller has both ends of the offending range.
 report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: string) {
+	if p.depth_exceeded { return }
 	bump_append(&p.errors, ParseError{start = start, end = end, message = message})
 }
 
@@ -1133,6 +1159,7 @@ report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: st
 // callers that quote source text build a richer string here and still
 // pass the code so tooling can group / suppress / look it up.
 report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
+	if p.depth_exceeded { return }
 	info := error_info(code)
 	bump_append(&p.errors, ParseError{
 		start    = cur_offset(p),
@@ -1150,6 +1177,7 @@ report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
 // when both ends of the offending range are known (e.g. a saved token
 // span from before a recovery rollback) and a stable code applies.
 report_error_coded_span :: #force_inline proc(p: ^Parser, code: ErrorCode, start, end: u32, message: string) {
+	if p.depth_exceeded { return }
 	info := error_info(code)
 	bump_append(&p.errors, ParseError{
 		start    = start,
@@ -1158,6 +1186,129 @@ report_error_coded_span :: #force_inline proc(p: ^Parser, code: ErrorCode, start
 		code     = code,
 		severity = info.severity,
 	})
+}
+
+// ============================================================================
+// Nesting depth limit
+// ============================================================================
+//
+// The parser is recursive descent, so source nesting is native stack
+// depth. An embedder that parses untrusted or generated input in-process
+// cannot afford a stack overflow, so recursion is bounded by a budget:
+//
+//   * parser_depth_enter takes one level at every recursive grammar entry
+//     point. The caller restores the returned value with `defer`, which
+//     also refunds anything parser_depth_charge took in between.
+//   * parser_depth_charge takes one level for a wrapper node that is built
+//     in a loop yet is not one of the four chains tree walkers iterate
+//     over (binary, logical, member, call): `a!`, `a as T`, tag`x`,
+//     `a<T>`, `T[]`, `T[K]`, `A.B` type names. Charging keeps the depth of
+//     the finished tree, measured over every edge except those four,
+//     within a constant factor of `depth_max`, which is what bounds the
+//     recursion of the checker, emitters and other walkers.
+//
+// Binary, logical, member and call chains are built iteratively, cost no
+// stack here, and are deliberately not limited: a million-term `a+a+...`
+// is valid code and must parse. Walkers handle those chains with loops.
+//
+// When the budget is exhausted the parser reports K2081 once and parks
+// the lexer at end of input. Every grammar loop already terminates on
+// EOF, so the open frames unwind in bounded time without rescanning.
+
+// parser_depth_configure sets the nesting limit. Zero or negative selects
+// the default (PARSE_RESOURCE_AST_DEPTH); there is no "unlimited" value
+// because an unlimited parser is exactly the stack overflow this guards
+// against. Called before the first parse_* call.
+parser_depth_configure :: proc(p: ^Parser, depth_max: int) {
+	limit := depth_max
+	if limit <= 0 { limit = PARSE_RESOURCE_AST_DEPTH }
+	if limit > PARSE_DEPTH_MAX_CEILING { limit = PARSE_DEPTH_MAX_CEILING }
+	assert(limit > 0)
+	p.depth_max  = u32(limit)
+	p.depth_left = u32(limit)
+}
+
+// parser_depth_enter takes one nesting level. `ok` is false when the
+// budget is exhausted; the caller must then return its empty value
+// without parsing. Usage, in exactly this order:
+//
+//   depth_saved, depth_ok := parser_depth_enter(p)
+//   defer p.depth_left = depth_saved
+//   if !depth_ok { return nil }
+parser_depth_enter :: #force_inline proc(p: ^Parser) -> (saved: u32, ok: bool) {
+	saved = p.depth_left
+	if saved == 0 {
+		parser_depth_abort(p)
+		return saved, false
+	}
+	p.depth_left = saved - 1
+	return saved, true
+}
+
+// parser_depth_charge takes one nesting level without a matching exit;
+// the enclosing parser_depth_enter frame refunds it. Returns false when
+// the budget is exhausted (the caller stops extending its chain).
+parser_depth_charge :: #force_inline proc(p: ^Parser) -> bool {
+	if p.depth_left == 0 {
+		parser_depth_abort(p)
+		return false
+	}
+	p.depth_left -= 1
+	return true
+}
+
+// parser_depth_abort latches the limit: record the single diagnostic,
+// then park the lexer at end of input so the open frames unwind. It is
+// idempotent because unwinding frames may reach a depth check again.
+// Kept out of line: this is the cold half of the hottest check.
+parser_depth_abort :: #force_no_inline proc(p: ^Parser) {
+	assert(p.depth_left == 0)
+	if !p.depth_exceeded {
+		info := error_info(.K2081_NestingTooDeep)
+		p.depth_error = ParseError{
+			start    = cur_offset(p),
+			end      = cur_raw_end(p),
+			message  = fmt.aprintf(
+				"Maximum nesting depth exceeded (limit %d)", p.depth_max,
+				allocator = p.allocator,
+			),
+			code     = .K2081_NestingTooDeep,
+			severity = info.severity,
+		}
+		p.depth_errors_kept = len(p.errors)
+		// The diagnostic also goes into the live list so a speculative
+		// parse in an enclosing frame sees a failure and stops retrying.
+		bump_append(&p.errors, p.depth_error)
+		p.depth_exceeded = true
+	}
+	parser_park_at_eof(p)
+}
+
+// parser_park_at_eof makes EOF the current and every following token.
+// prev_token_end moves too, so re-scans that start from the previous
+// token (JSX text, regex re-lex) find nothing left to scan.
+parser_park_at_eof :: proc(p: ^Parser) {
+	l := p.lexer
+	if l == nil { return }
+	source_end := u32(len(l.source_bytes))
+	l.offset         = int(source_end)
+	l.cur            = FastToken{start = source_end, end = source_end, kind = .EOF}
+	l.nxt_valid      = false
+	l.template_depth = 0
+	p.cur_type       = .EOF
+	p.prev_token_end = source_end
+}
+
+// parser_depth_finish runs once at the end of parse_program after the
+// limit was hit. It leaves the diagnostics reported before the limit,
+// followed by the one K2081: everything later came from frames unwinding
+// over a truncated token stream and would only bury the real cause.
+parser_depth_finish :: proc(p: ^Parser) {
+	assert(p.depth_exceeded)
+	assert(p.depth_error.code == .K2081_NestingTooDeep)
+	kept := min(p.depth_errors_kept, len(p.errors))
+	resize(&p.errors, kept)
+	bump_append(&p.errors, p.depth_error)
 }
 
 enable_profiling :: proc(p: ^Parser) {
@@ -1530,6 +1681,12 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	no_progress_count := 0
 	for !is_token(p, .EOF) {
 		loop_start_offset := int(cur_offset(p))
+		// Each top-level item starts with the full nesting budget. This
+		// is the outermost refund for parser_depth_charge: a charge taken
+		// outside any parser_depth_enter frame must not leak into the
+		// next item.
+		if !p.depth_exceeded { p.depth_left = p.depth_max }
+		body_count_before := len(program.body)
 
 		if is_token(p, .String) && string_literal_can_be_directive(p) {
 			// Check for "use strict" directive.
@@ -1575,6 +1732,17 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 			}
 		} else {
 			parse_program_item(p, &program.body, loop_start_offset)
+		}
+
+		if p.depth_exceeded {
+			// Drop the item the limit was hit in. It is cut off at an
+			// arbitrary point and is as deep as the limit allows, so
+			// keeping it would hand every consumer a maximally deep,
+			// structurally incomplete tree for input already rejected.
+			// Items before it are complete and stay.
+			assert(body_count_before <= len(program.body))
+			resize(&program.body, body_count_before)
+			break
 		}
 
 		if int(cur_offset(p)) == loop_start_offset {
@@ -1634,6 +1802,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 				if program.type == .Module { break }
 			}
 		}
+	}
+
+	// The tree is truncated where the nesting limit was hit; the
+	// whole-program validations below would only report artefacts of
+	// that truncation.
+	if p.depth_exceeded {
+		parser_depth_finish(p)
+		return program
 	}
 
 	// ECMA-262 §B.1.3: Annex B HTML-like comments (`<!--`, `-->`) are
@@ -2209,6 +2385,9 @@ parse_import_attributes :: proc(p: ^Parser) -> [dynamic]ImportAttribute {
 // restricted grammar so `@dec ["method"]() {}` parses as decorator +
 // computed-key method.
 parse_decorator_expression :: proc(p: ^Parser) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	expr: ^Expression
 	if is_token(p, .LParen) {
@@ -2369,6 +2548,7 @@ parse_decorator_suffixes :: proc(p: ^Parser, expr: ^Expression, start: Loc) -> ^
 		} else if allow_ts_mode(p) && (is_token(p, .Template) || is_token(p, .TemplateHead)) {
 			// Tagged template in TS decorator: `@x\`\``, `@x.y\`\`()`.
 			// OXC's parser accepts these; tsc reports TS1497 (semantic).
+			if !parser_depth_charge(p) { break }
 			tagged, tagged_e := new_expr(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
@@ -2378,6 +2558,7 @@ parse_decorator_suffixes :: proc(p: ^Parser, expr: ^Expression, start: Loc) -> ^
 		} else if allow_ts_mode(p) && is_token(p, .Not) && !cur_has_newline(p) {
 			// TS non-null assertion postfix: `@x!`, `@x.y!`.
 			eat(p)
+			if !parser_depth_charge(p) { break }
 			nna, nna_e := new_expr(p, TSNonNullExpression)
 			nna.loc = start
 			nna.expression = expr

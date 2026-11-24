@@ -122,6 +122,18 @@ ParseConfig :: struct {
 	// Shared guardrails for malformed input. Zero-valued fields use the
 	// defaults from resource_budget.odin.
 	resource_budget: ParseResourceBudget,
+
+	// Maximum nesting depth of the source (parentheses, brackets, blocks,
+	// prefix operators, nested functions, types, JSX elements, ...).
+	// Deeper input is rejected with one K2081 diagnostic instead of
+	// overflowing the native stack. Zero (the default) or a negative
+	// value means "use resource_budget.ast_depth", which itself defaults
+	// to PARSE_RESOURCE_AST_DEPTH (512); there is no way to disable the
+	// limit. Chains the parser builds iteratively (`a+b+c`, `a&&b`,
+	// `a.b.c`, `a()()`) do not count and may be arbitrarily long.
+	// The default is sized for an 8 MB stack on an unoptimised build;
+	// a caller that raises it must provide proportionally more stack.
+	max_depth: int,
 }
 
 // Snapshot a CliConfig into a ParseConfig. Called once per parse job
@@ -145,6 +157,7 @@ parse_config_from_cli :: proc(cli: CliConfig) -> ParseConfig {
 		ast_only               = false,
 		source_is_dts_override = nil,
 		resource_budget         = parse_resource_budget_default(),
+		max_depth               = cli.max_depth,
 	}
 }
 
@@ -402,6 +415,9 @@ parse_job_run :: proc(job: ^ParseJob) {
 	job.parser.allow_legacy_module_names = job.config.allow_legacy_module_names
 	job.parser.ast_only         = job.config.ast_only
 	job.parser.resource_budget  = parse_resource_budget_normalize(job.config.resource_budget)
+	depth_max := job.config.max_depth
+	if depth_max <= 0 { depth_max = job.parser.resource_budget.ast_depth }
+	parser_depth_configure(&job.parser, depth_max)
 	job.lexer.skip_regex_validation = job.config.ast_only
 	job.parser.is_commonjs      = job.is_commonjs
 	job.parser.is_node_ts_module = strings.has_suffix(job.source_path, ".cts") ||

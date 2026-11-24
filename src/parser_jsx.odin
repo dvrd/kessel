@@ -12,6 +12,10 @@ is_jsx_identifier_token :: proc(p: ^Parser) -> bool {
 }
 
 parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
+	// Child elements re-enter here from parse_jsx_children.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	eat(p)
 	// `</>` (lone closing fragment) at expression position has no
@@ -115,6 +119,9 @@ parse_jsx_element_name :: proc(p: ^Parser) -> JSXElementName {
 			report_error_coded(p, .K3063_JSXInvalid, "Identifiers in JSX cannot contain hyphens")
 		}
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			prop := parse_jsx_identifier(p)
 			if strings.contains(prop.name, "-") {

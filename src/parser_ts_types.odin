@@ -351,6 +351,11 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 }
 
 parse_ts_type :: proc(p: ^Parser) -> ^TSType {
+	// Conditional types recurse here for the false branch after the
+	// check type's own frames have returned, so this needs its own level.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	check := parse_ts_union_type(p)
 	if check == nil { return nil }
 	// Conditional type: `T extends U ? X : Y`
@@ -830,6 +835,9 @@ parse_ts_import_type :: proc(p: ^Parser, start: Loc, is_typeof := false) -> ^TST
 		id_node^ = qual_id
 		cur_qual := id_node_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			prop_id := parse_identifier(p)
 			prop_node, prop_node_e := new_expr(p, Identifier)
@@ -888,6 +896,9 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		eat(p)
 		tq_expr = tq_id_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			// `typeof A.` (trailing dot without property) is a
 			// SyntaxError. Check that an identifier follows.
@@ -916,6 +927,10 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 }
 
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
+	// Type operators (`keyof keyof T`) recurse here directly.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	// `abstract new(...) => T` - TS abstract constructor type. `abstract`
 	// lexes as .Identifier (contextual keyword); we require the next token
@@ -1408,6 +1423,9 @@ parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	// A line terminator before the opening bracket ends a postfix type. In
 	// a member list the bracket can start a computed property or a method.
 	for is_token(p, .LBracket) && !cur_has_newline(p) {
+		// `T[][]...` and `T[K][K]...` wrap in a loop; walkers recurse
+		// through each wrapper, so each one takes a nesting level.
+		if !parser_depth_charge(p) { return result }
 		if is_next_token(p, .RBracket) {
 			// Array type: `T[]`.
 			eat(p); eat(p)
@@ -1463,6 +1481,9 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 	id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value; eat(p)
 	id_expr := id_e
 	for is_token(p, .Dot) {
+		// Dotted names are built in a loop but walked by recursion,
+		// so each segment takes a nesting level.
+		if !parser_depth_charge(p) { break }
 		eat(p); prop := parse_identifier_name(p)
 		mem := new_node(p, MemberExpression); mem.loc = start; mem.object = id_expr
 		pid, pid_e := new_expr(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
@@ -1712,6 +1733,10 @@ build_ts_type_assertion :: proc(p: ^Parser, start: Loc, type_ann: ^TSType, expr:
 }
 
 parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
+	// `<A><B><C>x` recurses through parse_unary_expr.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	assert(p.cur_type == .LAngle)
 
@@ -1836,6 +1861,14 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 }
 
 lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
+	// After the nesting limit the lexer stays parked at end of input:
+	// rewinding would let the enclosing frames re-parse the same deep
+	// input once per speculation point. Only the speculative
+	// diagnostics are dropped.
+	if p.depth_exceeded {
+		if len(p.errors) > s.errors_len { resize(&p.errors, s.errors_len) }
+		return
+	}
 	l := p.lexer
 	l.offset                 = s.lex_offset
 	l.had_line_terminator    = s.lex_had_line_terminator
@@ -1858,6 +1891,9 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 // caller has already confirmed (by 1-token lookahead) that the `<` opens a
 // type parameter list. We're still positioned AT the `<`.
 parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	type_params := parse_ts_type_parameters(p)
 
 	// After the type params we must see `(` for the arrow's parameters.
@@ -3262,6 +3298,9 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 		id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)
 		expr := id_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			prop := parse_identifier_name(p)
 			mem := new_node(p, MemberExpression); mem.loc = entry_start; mem.object = expr
@@ -3705,6 +3744,10 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 // Parse the name + body portion of a nested namespace declaration.
 // Called AFTER the outer `.` is consumed, so current token is the next name.
 parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSModuleDeclaration {
+	// `namespace A.B.C.D` recurses here once per dotted name.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	cur := snap_current(p)
 	id_ident, id_ident_e := new_expr(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 	check_strict_ts_decl_name(p, id_ident.name, id_ident.loc)
