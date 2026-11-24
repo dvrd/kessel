@@ -3,11 +3,19 @@ package kessel
 @(private)
 dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 	if state.enums.allocator.procedure == nil {
-		model := semantic_build(state.job.program, state.writer.source, state.job.lang, context.allocator, enum_constants = &state.enums)
-		state.enum_scopes = model.enum_declarations
+		state.semantic = semantic_build(state.job.program, state.writer.source, state.job.lang, context.allocator, enum_constants = &state.enums)
+		state.enum_scopes = state.semantic.enum_declarations
 		state.external_enum_members = make(map[SemanticBindingKey]bool)
 	}
-	scope := state.enum_scopes[decl.loc.start]
+	// The semantic model skips ambient namespaces. Their enums are evaluated
+	// here against the root scope, with member values kept only for this enum.
+	scope, registered := state.enum_scopes[decl.loc.start]
+	// Members of an ambient non-const enum have a value only when they have an
+	// initializer. TypeScript treats the others as computed, not auto-numbered.
+	ambient := decl.declare || state.regions[state.region].ambient
+	numbered := decl.const_ || !ambient
+	local_names := make([dynamic]string, 0, len(decl.body.members))
+	previous: EnumConstant = f64(-1)
 	cg := &state.writer
 	if decl.const_ { cg_str(cg, "const ") }
 	cg_str(cg, "enum "); cg_str(cg, decl.id.name); cg_str(cg, " {")
@@ -16,20 +24,36 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 		cg_newline(cg); cg.depth += 1
 		gen_expression(cg, member.id, PREC_ASSIGN)
 		name, valid := enum_member_name(member.id)
-		if init, ok := member.initializer.?; ok && dts_enum_external(state, init, scope, decl.id.name) {
+		init, explicit := member.initializer.?
+		if explicit && dts_enum_external(state, init, scope, decl.id.name) {
 			state.external_enum_members[{scope, name}] = true
 			dts_error(state, "TS9020", "Enum member initializers must be computable without references to external symbols with --isolatedDeclarations.", get_expression_loc(member.id))
 		}
-		if valid {
-			#partial switch value in state.enums.values[{scope, name}] {
-			case f64:
-				buf: [64]byte
-				cg_str(cg, " = "); cg_str(cg, enum_number_string(buf[:], value))
-			case string: cg_str(cg, " = "); gen_string_quoted(cg, value)
+		value: EnumConstant
+		if registered {
+			if valid { value = state.enums.values[{scope, name}] }
+		} else {
+			if explicit {
+				value = enum_constant_expression(&state.enums, &state.semantic, scope, init, 0)
+			} else if number, numeric := previous.(f64); numeric {
+				value = number + 1
 			}
+			previous = value
+			if valid && value != nil {
+				state.enums.values[{scope, name}] = value
+				append(&local_names, name)
+			}
+		}
+		if !explicit && !numbered { value = nil }
+		#partial switch constant in value {
+		case f64:
+			buf: [64]byte
+			cg_str(cg, " = "); cg_str(cg, enum_number_string(buf[:], constant))
+		case string: cg_str(cg, " = "); gen_string_quoted(cg, constant)
 		}
 		cg.depth -= 1
 	}
+	for name in local_names { delete_key(&state.enums.values, SemanticBindingKey{scope, name}) }
 	cg_newline(cg); cg_byte(cg, '}')
 }
 

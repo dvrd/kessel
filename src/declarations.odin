@@ -27,7 +27,7 @@ DeclarationItem :: struct {
 	errors: [dynamic]DeclarationDiagnostic,
 }
 
-DeclarationReference :: struct { name: string, loc: Loc, value: bool }
+DeclarationReference :: struct { name: string, loc: Loc, value, qualified: bool }
 DeclarationConditional :: struct { constraint, result: Loc }
 DeclarationScope :: struct { name: string, loc: Loc, value: bool }
 
@@ -35,6 +35,7 @@ DeclarationEmit :: struct {
 	writer: Codegen,
 	job: ^ParseJob,
 	enums: EnumConstants,
+	semantic: SemanticModel,
 	enum_scopes: map[u32]ScopeId,
 	external_enum_members: map[SemanticBindingKey]bool,
 	items: [dynamic]DeclarationItem,
@@ -206,7 +207,10 @@ dts_index :: proc(state: ^DeclarationEmit, statement: Statement, group: int) {
 	case ^TSTypeAliasDeclaration: name = s.id.name
 	case ^TSInterfaceDeclaration: name = s.id.name
 	case ^TSEnumDeclaration: name = s.id.name
-	case ^TSImportEqualsDeclaration: name = s.id.name
+	case ^TSImportEqualsDeclaration:
+		name = s.id.name
+		// An unexported alias inside a namespace is private to that block.
+		if visibility == .Local && state.region != 0 { root = false }
 	case ^TSModuleDeclaration:
 		if id, ok := s.id^.(^Identifier); ok { name = id.name }
 		if s.global || name == "" { root = true }

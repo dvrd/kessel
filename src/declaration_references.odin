@@ -1,12 +1,12 @@
 package kessel
 
 @(private)
-dts_reference :: proc(state: ^DeclarationEmit, expr: ^Expression, value: bool) {
+dts_reference :: proc(state: ^DeclarationEmit, expr: ^Expression, value: bool, qualified := false) {
 	root := expr
 	for root != nil {
 		#partial switch node in root^ {
 		case ^Identifier:
-			append(&state.references, DeclarationReference{node.name, node.loc, value})
+			append(&state.references, DeclarationReference{node.name, node.loc, value, qualified})
 			return
 		case ^MemberExpression: root = node.object
 		case: return
@@ -16,6 +16,8 @@ dts_reference :: proc(state: ^DeclarationEmit, expr: ^Expression, value: bool) {
 
 @(private)
 dts_reference_is_local :: proc(state: ^DeclarationEmit, ref: DeclarationReference) -> bool {
+	// `E.Member` in a type names a namespace. Type parameters cannot shadow it.
+	if ref.qualified && !ref.value { return false }
 	for scope in state.scopes {
 		if scope.value == ref.value && scope.name == ref.name && scope.loc.start <= ref.loc.start && ref.loc.end <= scope.loc.end { return true }
 	}
@@ -36,10 +38,40 @@ dts_parameter_scope :: proc(state: ^DeclarationEmit, pattern: Pattern, loc: Loc)
 	for name in names { append(&state.scopes, DeclarationScope{name, loc, true}) }
 }
 
+// A destructured parameter is printed as written, so a computed key keeps the
+// binding it names alive. Nested patterns are visited without recursion.
+@(private)
+dts_pattern_references :: proc(state: ^DeclarationEmit, pattern: Pattern) {
+	pending: [dynamic]Pattern
+	append(&pending, pattern)
+	for len(pending) > 0 {
+		#partial switch p in pop(&pending) {
+		case ^ObjectPattern:
+			for property in p.properties {
+				append(&pending, property.value)
+				if !property.computed { continue }
+				if key, ok := property.key.?; ok {
+					if expr, dynamic_key := key.(^Expression); dynamic_key {
+						if root := dts_entity_name_root(expr); root != nil {
+							dts_reference(state, root, true)
+						}
+					}
+				}
+			}
+		case ^ArrayPattern:
+			for element in p.elements { if inner, ok := element.?; ok { append(&pending, inner) } }
+		case ^AssignmentPattern: append(&pending, p.left)
+		case ^RestElement: append(&pending, p.argument)
+		}
+	}
+}
+
 @(private)
 dts_track_type :: proc(state: ^DeclarationEmit, ty: ^TSType) {
 	#partial switch v in ty^ {
-	case ^TSTypeReference: dts_reference(state, v.type_name, false)
+	case ^TSTypeReference:
+		_, qualified := v.type_name^.(^MemberExpression)
+		dts_reference(state, v.type_name, false, qualified)
 	case ^TSTypeQuery: dts_reference(state, v.expr_name, true)
 	case ^TSConditionalType:
 		append(&state.conditionals, DeclarationConditional{get_ts_type_loc(v.extends_type)^, get_ts_type_loc(v.true_type)^})

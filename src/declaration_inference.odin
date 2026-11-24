@@ -146,7 +146,7 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 dts_assertion :: proc(state: ^DeclarationEmit, expr: ^Expression, ty: ^TSType, literal: bool, depth: int) -> bool {
 	if dts_is_const_type(ty) { return dts_infer(state, expr, true, depth + 1) }
 	if ref, named := ty^.(^TSTypeReference); literal && named && ref.type_parameters == nil {
-		if id, simple := ref.type_name^.(^Identifier); simple && !dts_reference_is_local(state, {id.name, id.loc, false}) {
+		if id, simple := ref.type_name^.(^Identifier); simple && !dts_reference_is_local(state, {id.name, id.loc, false, false}) {
 			for index in dts_lookup(state, id.name, .Either) {
 				if alias, found := state.items[index].statement.(^TSTypeAliasDeclaration); found && alias.type_parameters == nil {
 					#partial switch _ in alias.type_annotation^ {
@@ -295,7 +295,9 @@ dts_member_key :: proc(expr: ^Expression, computed: bool) -> DeclarationProperty
 dts_default :: proc(state: ^DeclarationEmit, expr: ^Expression, keyword: string) {
 	cg := &state.writer
 	if id, ok := expr^.(^Identifier); ok {
-		dts_reference(state, expr, true)
+		// An exported name carries its value, type and namespace meanings, so
+		// a merged interface or type alias is retained with the value.
+		append(&state.references, DeclarationReference{name = id.name})
 		cg_str(cg, keyword)
 		cg_str(cg, id.name)
 		cg_byte(cg, ';')

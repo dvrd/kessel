@@ -152,11 +152,13 @@ dts_parameter :: proc(state: ^DeclarationEmit, parameter: FunctionParameter, tra
 		annotation = p.type_annotation
 		optional = p.optional
 	case ^ObjectPattern:
+		dts_pattern_references(state, pattern)
 		local := p^
 		annotation = p.type_annotation
 		local.type_annotation = nil
 		gen_pattern(cg, &local)
 	case ^ArrayPattern:
+		dts_pattern_references(state, pattern)
 		local := p^
 		annotation = p.type_annotation
 		local.type_annotation = nil
@@ -379,7 +381,7 @@ dts_parameter_undefined :: proc(state: ^DeclarationEmit, annotation: Maybe(^TSTy
 				for index in dts_lookup(state, id.name, .Either) {
 					if alias, ok := state.items[index].statement.(^TSTypeAliasDeclaration); ok && dts_type_has_undefined(alias.type_annotation) { return }
 				}
-				if len(dts_lookup(state, id.name, .Type)) == 0 && !dts_reference_is_local(state, {id.name, id.loc, false}) { return }
+				if len(dts_lookup(state, id.name, .Type)) == 0 && !dts_reference_is_local(state, {id.name, id.loc, false, false}) { return }
 				dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, parameter)
 				return
 			}
