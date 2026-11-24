@@ -10,6 +10,8 @@ TransformOptions :: struct {
 	decorators: string, // "", "preserve", "legacy" or "standard"
 	emit_decorator_metadata: bool,
 	target: string, // "es2015" to "es2024", or "esnext"; empty means esnext
+	refresh, refresh_full_signatures: bool,
+	refresh_reg, refresh_sig: string, // Runtime bindings; $RefreshReg$ and $RefreshSig$ when empty
 }
 
 // The caller owns the codegen buffer and optional source map. All lowering
@@ -41,6 +43,7 @@ transform_generate :: proc(job: ^ParseJob, cg: ^Codegen, options: TransformOptio
 		jsx.filename = job.source_path
 		cg.cfg.jsx = jsx
 	}
+	if !job.source_is_dts { transform_refresh_program(cg, job.program, job.lexer.comments[:]) }
 	if job.lexer.has_hashbang {
 		cg_str(cg, "#!")
 		cg_str(cg, job.lexer.hashbang_value)

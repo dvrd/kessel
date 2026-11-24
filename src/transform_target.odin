@@ -402,9 +402,8 @@ target_chain_call :: proc(
 	node.optional = false
 	node.callee = callee
 	if receiver != nil {
-		name := new(Identifier, state.allocator)
-		name^ = {loc = {loc.end, loc.end}, name = "call"}
-		node.callee = target_member(state, callee, transform_expression(state, name), false, loc)
+		name := transform_identifier(state, "call", loc.end)
+		node.callee = target_member(state, callee, name, false, loc)
 		node.arguments = make([dynamic]^Expression, 0, len(call.arguments) + 1, state.allocator)
 		append(&node.arguments, receiver)
 		append(&node.arguments, ..call.arguments[:])
@@ -613,10 +612,31 @@ target_check_pattern :: proc(cg: ^Codegen, pattern: Pattern) {
 // the statement in place before it prints.
 transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	state := cg.transform
-	if state == nil || state.target >= .ES2020 { return }
+	if state == nil || state.target >= .ES2022 { return }
+	what_names :: "string names in import and export lists cannot be lowered"
 	#partial switch node in stmt {
 	case ^ExportAllDeclaration:
-		if node.exported != nil { target_require(cg, node.loc, .ES2020, "export * as cannot be lowered") }
+		if name, renamed := node.exported.?; renamed {
+			target_require(cg, node.loc, .ES2020, "export * as cannot be lowered")
+			if cg_name_is_quoted(cg, name.loc.start) { cg_strip_unsupported(cg, node.loc, what_names) }
+		}
+	case ^ExportNamedDeclaration:
+		for specifier in node.specifiers {
+			_, local_text := specifier.local.(^StringLiteral)
+			_, exported_text := specifier.exported.(^StringLiteral)
+			if local_text || exported_text { cg_strip_unsupported(cg, specifier.loc, what_names) }
+		}
+		if len(node.attributes) != 0 { cg_strip_unsupported(cg, node.loc, "import attributes cannot be lowered") }
+	case ^ImportDeclaration:
+		for item in node.specifiers {
+			if item == nil { continue }
+			if specifier, named := item^.(ImportSpecifier); named {
+				if cg_name_is_quoted(cg, specifier.imported.loc.start) {
+					cg_strip_unsupported(cg, specifier.loc, what_names)
+				}
+			}
+		}
+		if len(node.attributes) != 0 { cg_strip_unsupported(cg, node.loc, "import attributes cannot be lowered") }
 	case ^ForStatement:
 		if declaration, declared := node.init_decl.?; declared {
 			for declarator in declaration.declarations { target_check_pattern(cg, declarator.id) }
@@ -625,10 +645,8 @@ transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 		// `catch {` becomes `catch (unused) {`.
 		handler, present := &node.handler.?
 		if present && handler.param == nil && state.target < .ES2019 {
-			name := new(Identifier, state.allocator)
-			at := handler.loc.start
-			name^ = {loc = {at, at}, name = codegen_fresh_runtime_binding(cg, "unused")}
-			handler.param = name
+			unused := codegen_fresh_runtime_binding(cg, "unused")
+			handler.param = transform_identifier(state, unused, handler.loc.start)^.(^Identifier)
 		}
 		if present { if param, bound := handler.param.?; bound { target_check_pattern(cg, param) } }
 	case ^VariableDeclaration:

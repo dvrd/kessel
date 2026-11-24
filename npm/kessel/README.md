@@ -344,6 +344,25 @@ Assignments keep their original target when a replacement is a literal.
 A `with` body or a sloppy function containing direct `eval` keeps its dynamic
 name lookups.
 
+`target` lowers syntax newer than an ECMAScript edition, from `'es2015'` to
+`'es2024'`. Kessel lowers exponentiation, optional catch binding, optional
+chaining, nullish coalescing, logical assignment and numeric separators.
+Newer syntax it cannot lower, such as class fields below `es2022` or async
+functions below `es2017`, is reported in `errors` and no code is returned.
+
+```js
+transformSync('read.ts', 'export const read = (a?: Box) => a?.value ?? 0;', { target: 'es2019' });
+```
+
+`decorator: { legacy: true }` lowers TypeScript experimental decorators, in
+TypeScript's evaluation order. `emitDecoratorMetadata` adds the `design:type`,
+`design:paramtypes` and `design:returntype` records derived from annotations.
+Without a type checker a type alias is recorded as `Object`. Standard
+decorators are printed as written.
+
+`jsx.refresh` adds React Fast Refresh registrations and Hook signatures, with
+the same options as OXC: `refreshReg`, `refreshSig` and `emitFullSignatures`.
+
 The classic runtime honors leading `@jsx` and `@jsxFrag` comments. Set
 `pure: false` inside the JSX options when the factory itself has side effects.
 `throwIfNamespace: false` allows namespaced tags. A JSX prop named `__proto__`

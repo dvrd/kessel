@@ -165,6 +165,23 @@ function checkOlderTarget(binary, temp, run) {
   }
 }
 
+// The printer qualifies a namespace member by the offset of the identifier
+// that reads it. A temporary for a computed key that starts with such a read
+// must not be mistaken for it.
+function checkQualifiedKey(binary, temp, run) {
+  const directory = fs.mkdtempSync(path.join(temp, 'decorator-key-'));
+  const file = path.join(directory, 'key.ts');
+  fs.writeFileSync(file, 'const seen: string[] = [];\n' +
+    'function d(target: object, key: string): void { seen.push(key); }\n' +
+    'namespace N { export const key = "named";\n' +
+    '  export class K { @d [key](): void {} @d [key + "2"](): void {} } }\n' +
+    'console.log(seen.join(), Object.getOwnPropertyNames(N.K.prototype).join());');
+  for (const flags of [[], ['--minified']]) {
+    const code = run(binary, ['transform', file, '--decorators=legacy', ...flags]);
+    assert.equal(execute(directory, 'key.mjs', code).trim(), 'named,named2 constructor,named,named2');
+  }
+}
+
 module.exports = function verifyDecorators(binary, temp, run, oracle) {
   const directory = fs.mkdtempSync(path.join(temp, 'decorators-'));
   let references = 0;
@@ -202,6 +219,7 @@ module.exports = function verifyDecorators(binary, temp, run, oracle) {
   checkExports(binary, temp, run);
   checkSourceMap(binary, temp, run);
   checkOlderTarget(binary, temp, run);
+  checkQualifiedKey(binary, temp, run);
   const compared = oracle ? ` TypeScript matched ${references} in order and OXC as record sets, ` +
     `apart from ${excluded} documented records.` : '';
   console.log(`Legacy decorators passed ${names.length} runtime fixtures in both output modes, ` +

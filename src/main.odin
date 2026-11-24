@@ -583,6 +583,17 @@ main :: proc() {
 			case command == "transform" && strings.has_prefix(arg, "--target="):
 				transform_options.target = strings.trim_prefix(arg, "--target=")
 				i += 1
+			case command == "transform" && arg == "--react-refresh":
+				transform_options.refresh = true
+				i += 1
+			case command == "transform" && arg == "--refresh-full-signatures":
+				transform_options.refresh_full_signatures = true
+				i += 1
+			case command == "transform" && (strings.has_prefix(arg, "--refresh-reg=") || strings.has_prefix(arg, "--refresh-sig=")):
+				value := arg[len("--refresh-reg="):]
+				if !refresh_binding_valid(value) { fmt.eprintln("Error: invalid React Refresh runtime binding"); os.exit(2) }
+				if strings.has_prefix(arg, "--refresh-reg=") { transform_options.refresh_reg = value } else { transform_options.refresh_sig = value }
+				i += 1
 			case command == "transform" && arg == "--emit-decorator-metadata":
 				transform_options.emit_decorator_metadata = true
 				i += 1
@@ -663,6 +674,9 @@ print_usage :: proc() {
 	out_println("  strip-types <file> [--minified] Erase TypeScript types, emit plain JavaScript.")
 	out_println("  transform --lower-using          Lower explicit resource management declarations.")
 	out_println("  transform --optimize-const-enums Inline constant TypeScript enum members.")
+	out_println("  transform --target=es2015..es2024 Lower newer syntax; reject what cannot be lowered.")
+	out_println("  transform --decorators=legacy [--emit-decorator-metadata]  Lower TypeScript experimental decorators.")
+	out_println("  transform --react-refresh [--refresh-reg=X] [--refresh-sig=X] [--refresh-full-signatures]")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
 	out_println("  module-lex <file>               Scan module dependencies and exports.")
 	out_println("  regexp <pattern> [--flags F]    Build a regexp tree and print it as JSON.")

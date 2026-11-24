@@ -27,6 +27,7 @@ TransformState :: struct {
 	temp_scopes:   [dynamic][dynamic]string, // Per open function body; the program is first.
 	local_refs:    map[u32]bool,            // Identifier offsets bound to a declaration in the file.
 	math_checked:  bool,
+	refresh:       RefreshOptions,
 }
 
 // Reads of intrinsics inside a helper resolve in module scope, so a source
@@ -92,10 +93,18 @@ transform_state_init :: proc(
 	}
 	target, known := transform_target_parse(options.target)
 	if !known { return StripDiagnostic{what = "expected a target from es2015 to es2024, or esnext"} }
-	if decorators == .Preserve && target == .ESNext { return nil }
+	refresh := RefreshOptions{
+		enabled = options.refresh, emit_full_signatures = options.refresh_full_signatures,
+		reg = options.refresh_reg if options.refresh_reg != "" else "$RefreshReg$",
+		sig = options.refresh_sig if options.refresh_sig != "" else "$RefreshSig$",
+	}
+	if refresh.enabled && (!refresh_binding_valid(refresh.reg) || !refresh_binding_valid(refresh.sig)) {
+		return StripDiagnostic{what = "invalid React Refresh runtime binding"}
+	}
+	if decorators == .Preserve && target == .ESNext && !refresh.enabled { return nil }
 	state := new(TransformState, job.arena_alloc)
 	state^ = {
-		job = job, allocator = job.arena_alloc, target = target,
+		job = job, allocator = job.arena_alloc, target = target, refresh = refresh,
 		decorators = decorators, emit_metadata = options.emit_decorator_metadata,
 	}
 	state.temp_scopes = make([dynamic][dynamic]string, 0, 8, state.allocator)
@@ -157,11 +166,39 @@ transform_expression :: proc(state: ^TransformState, node: ^$T) -> ^Expression {
 	return expression
 }
 
+// The printer looks identifiers up by their source offset to rename them or
+// to qualify them with a namespace. A synthesized identifier must never
+// share an offset with one from the source, so it sits on the nearest byte
+// at or before `at` that cannot begin an identifier.
 transform_identifier :: proc(state: ^TransformState, name: string, at: u32) -> ^Expression {
+	source := string(state.job.source.data)
+	return transform_identifier_exact(state, name, transform_free_offset(source, at))
+}
+
+// For a synthesized use of a source binding, placed on the binding's own
+// declaration so the printer resolves it as it would any other use.
+transform_identifier_exact :: proc(state: ^TransformState, name: string, at: u32) -> ^Expression {
 	assert(name != "")
 	node := new(Identifier, state.allocator)
 	node^ = {loc = {at, at}, name = name}
 	return transform_expression(state, node)
+}
+
+transform_free_offset :: proc(source: string, at: u32) -> u32 {
+	if u64(at) >= u64(len(source)) { return u32(len(source)) }
+	for offset := int(at); offset >= 0; offset -= 1 {
+		if !transform_starts_identifier(source[offset]) { return u32(offset) }
+	}
+	// The file begins with an identifier that runs up to `at`. The end of
+	// the file is the one offset where nothing can start.
+	return u32(len(source))
+}
+
+transform_starts_identifier :: proc(c: u8) -> bool {
+	switch c {
+	case 'a'..='z', 'A'..='Z', '_', '$', '\\': return true
+	}
+	return c >= 0x80
 }
 
 transform_assignment :: proc(
