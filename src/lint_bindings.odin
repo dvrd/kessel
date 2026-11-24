@@ -62,12 +62,7 @@ lint_check_semantic_rules :: proc(l: ^Linter, ctx: ^LintContext, program: ^Progr
 			if rule == .None { continue }
 			// TypeScript import-equals declarations have their own assignment semantics.
 			if kind == .Import && .Readonly not_in symbol.flags { continue }
-			// The class and const rules label the declaration first, then the write.
-			start, end := ref.start, ref.end
-			if rule == .L2049_NoClassAssign || rule == .L2055_NoConstAssign {
-				start, end = symbol.decl_start, symbol.decl_end
-			}
-			lint_report(l, start, end, rule, lint_rule_info(rule).default_message)
+			lint_report(l, ref.start, ref.end, rule, lint_rule_info(rule).default_message)
 		}
 	}
 	lint_parity_semantic(l, &model)

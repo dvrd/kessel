@@ -372,8 +372,13 @@ lint_config_category_defaults :: proc(rules: ^[dynamic]LintOverride, config: Lin
 		category := lint_rule_category(rule)
 		if category == .None { continue }
 		level := config.levels[category]
-		if level == "" { level = "warn" if category == .Correctness else "off" }
-		if !lint_category_plugin_enabled(config, lint_rule_plugin(rule)) { level = "off" }
+		enabled := level != "off" if level != "" else category == .Correctness
+		if !lint_category_plugin_enabled(config, lint_rule_plugin(rule)) { enabled = false }
+		if !enabled || level == "" {
+			// An unmentioned category keeps each rule's own default severity.
+			append(rules, LintOverride{rule = rule, enabled = enabled})
+			continue
+		}
 		override, valid := lint_override_from_level(rule, level)
 		assert(valid)
 		append(rules, override)

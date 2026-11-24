@@ -332,7 +332,7 @@ function lintBoth(cwd, files, names) {
       const early = !diagnostic.code || /^TS\(\d+\)$/.test(diagnostic.code);
       if (early && diagnostic.severity === 'error') spans.rejected.add(file);
       if (!names(file).has(name) || diagnostic.labels.length === 0) continue;
-      const { offset, length } = diagnostic.labels[0].span;
+      const { offset, length } = primaryLabel(name, diagnostic.labels).span;
       spans.oxlint.get(file).push([name, offset, offset + length]);
     }
     const reports = run(binary, ['lint', '--format=json', ...batch], cwd, 'stderr');
@@ -350,6 +350,11 @@ function lintBoth(cwd, files, names) {
   }
   return spans;
 }
+
+// These rules label the declaration first and the offending write last.
+// Kessel reports the write, which is where the fix goes.
+const LAST_LABEL_RULES = new Set(['no-class-assign', 'no-const-assign']);
+const primaryLabel = (name, labels) => LAST_LABEL_RULES.has(name) ? labels.at(-1) : labels[0];
 
 const order = (a, b) => a[1] - b[1] || a[2] - b[2];
 const emptyResult = () => ({ fixtures: 0, skipped: 0, matched: 0, failTotal: 0, failMatched: 0, parseErrors: 0,
@@ -503,7 +508,7 @@ function corpusSpans(tool, ids, workspace) {
         assert.ok(diagnostic.code && !/^TS\(\d+\)$/.test(diagnostic.code),
           at(diagnostic.filename) + ': oxlint could not parse the file');
         if (!names.has(name) || diagnostic.labels.length === 0) continue;
-        const { offset, length } = diagnostic.labels[0].span;
+        const { offset, length } = primaryLabel(name, diagnostic.labels).span;
         result[at(diagnostic.filename)].push([name, offset, offset + length]);
       }
     } else {

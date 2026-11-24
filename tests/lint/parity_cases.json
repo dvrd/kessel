@@ -49,9 +49,9 @@
     {"source":"switch (a) { case 1: const x = 1; break; }","extension":"tsx","spans":[[21,26]]}
   ],
   "eslint/no-class-assign": [
-    {"source":"class A { } A = 0;","extension":"tsx","spans":[[6,7]]},
-    {"source":"class A { } ({A} = 0);","extension":"tsx","spans":[[6,7]]},
-    {"source":"class A { } ({b: A = 0} = {});","extension":"tsx","spans":[[6,7]]}
+    {"source":"class A { } A = 0;","extension":"tsx","spans":[[12,13]]},
+    {"source":"class A { } ({A} = 0);","extension":"tsx","spans":[[14,15]]},
+    {"source":"class A { } ({b: A = 0} = {});","extension":"tsx","spans":[[17,18]]}
   ],
   "eslint/no-compare-neg-zero": [
     {"source":"x === -0","extension":"tsx","spans":[[0,8]]},
@@ -69,9 +69,9 @@
     {"source":"console.log(foo)","extension":"tsx","spans":[[0,11]]}
   ],
   "eslint/no-const-assign": [
-    {"source":"const x = 0; x = 1;","extension":"tsx","spans":[[6,7]]},
-    {"source":"const {a: x} = {a: 0}; x = 1;","extension":"tsx","spans":[[10,11]]},
-    {"source":"const x = 0; ({x} = {x: 1});","extension":"tsx","spans":[[6,7]]}
+    {"source":"const x = 0; x = 1;","extension":"tsx","spans":[[13,14]]},
+    {"source":"const {a: x} = {a: 0}; x = 1;","extension":"tsx","spans":[[23,24]]},
+    {"source":"const x = 0; ({x} = {x: 1});","extension":"tsx","spans":[[15,16]]}
   ],
   "eslint/no-continue": [
     {"source":"var sum = 0, i; for(i = 0; i < 10; i++){ if(i <= 5) { continue; } sum += i; }","extension":"tsx","spans":[[54,62]]},
