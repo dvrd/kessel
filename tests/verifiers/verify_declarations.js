@@ -120,6 +120,11 @@ const positive = [
   'import * as E from "effects"; export const run = <E>(input: () => E.Result<E>): E.Result<E> => input();',
   'declare module "m" { import unused = require("fs"); import used = require("g"); export const x: used.T; }',
   'export * from "pkg" with { type: "json" }; export type { R } from "types" with { "resolution-mode": "import" };',
+  // Assignments inside a nested function or an object literal belong to that container.
+  'export function Foo(): void {} function g() { Foo.a = 1 } const z = { p: Foo.b = 2 }; Foo.c ||= 3;',
+  '{ let a = ""; function k() {} } export let b: typeof a; export let c: typeof k;',
+  'function g() { return import.meta.url } var hidden = compute(); export const size: number = 1;',
+  'export function pick<T>() { if (ready) { type U = number; } return null! as T | U }',
 ];
 const negative = [
   'export const api={get v():number{return 1},set v({x}: {x:number}){}};',
@@ -192,6 +197,17 @@ const negative = [
   'declare var p: number | number[]; declare var s: string; export class C { [p]() {} [s]() {} }',
   'export const o = { [true]: lookup() };',
   'const key = make(); export class C { [key]: number }',
+  // Names that exist in the source scope but not at the declaration's scope.
+  '{ var a = ""; } export let b: typeof a;',
+  'export function bar(): typeof b { var b = 1; return undefined; }',
+  'export function bar() { type T = number; return 1 as T }',
+  'export const o = { m() { type T = number; return (x: T) => 1 }, get g() { type U = 1; return 1 as U } };',
+  '{ var a = ""; } export class C { static m(q: typeof a): typeof a { return q } set s(v: typeof a) {} constructor(public d: typeof a) {} }',
+  '{ var a = class {}; } export class C extends a { p: typeof a; get g(): typeof a { return a } } export type T = typeof a;',
+  'export function Foo(): void {} if (ready) { Foo.a = 1 } call(Foo.b = 2); Foo.c = Foo.d = 3;',
+  'declare namespace app { function foo(): void; } app.foo.bar = 1; app.foo.bar = 2;',
+  'namespace M { export namespace N { export enum E1 { a = 1 } } } export enum E2 { b = M.N.E1.a, c = M.N.E1.a.a }',
+  'await ready; const arr = [load()];',
 ];
 // Differences from TypeScript that are intended. Each entry is a fixture that
 // must still differ: a fixed or newly broken fixture fails the comparison.

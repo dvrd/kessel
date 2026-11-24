@@ -43,7 +43,10 @@ dts_class :: proc(state: ^DeclarationEmit, s: ^ClassDeclaration) {
 			}
 			break
 		}
+		state.private_owner = .Extends
+		if id, ok := s.id.?; ok { state.private_name = id.name }
 		dts_reference(state, base, true)
+		state.private_owner = .Inferred
 		cg_str(cg, " extends "); gen_expression(cg, base, PREC_CALL)
 		gen_ts_type_arguments(cg, s.super_type_arguments)
 	}
@@ -117,7 +120,9 @@ dts_parameter_properties :: proc(state: ^DeclarationEmit, el: ClassElement) {
 			init := p.default_val.? or_else nil
 			if assign, assigned := p.pattern.(^AssignmentPattern); assigned { init = assign.right }
 			// The property is always present, so only `?` adds undefined to it.
+			state.private_owner = .Constructor
 			dts_parameter_type(state, p, id.type_annotation, init, id.optional, true, id.loc, 0)
+			state.private_owner = .Inferred
 		}
 		cg_byte(cg, ';'); cg_newline(cg)
 	}
@@ -144,6 +149,8 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 		members^[key] = entry
 	}
 	cg := &state.writer
+	state.private_owner, state.private_name = dts_member_owner(el), dts_member_name(el.key)
+	defer state.private_owner = .Inferred
 	dts_accessibility(cg, el.accessibility)
 	if el.static { cg_str(cg, "static ") }
 	if el.abstract { cg_str(cg, "abstract ") }
@@ -186,6 +193,19 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 }
 
 @(private)
+dts_member_owner :: proc(el: ClassElement) -> DeclarationPrivateOwner {
+	switch el.kind {
+	case .Constructor: return .Constructor
+	case .Set: return .Accessor
+	case .Get: return .StaticGetter if el.static else .Getter
+	case .Method: return .StaticMethod if el.static else .Method
+	case .Field: return .StaticProperty if el.static else .Property
+	case .StaticBlock, .IndexSignature:
+	}
+	return .Inferred
+}
+
+@(private)
 dts_accessor :: proc(state: ^DeclarationEmit, el: ClassElement, entry: DeclarationClassMember, loc: Loc, members: ^map[DeclarationMemberKey]DeclarationClassMember) {
 	cg := &state.writer
 	get_type, set_type: Maybe(^TSTypeAnnotation)
@@ -208,7 +228,13 @@ dts_accessor :: proc(state: ^DeclarationEmit, el: ClassElement, entry: Declarati
 	}
 	if ty, ok := chosen.?; ok { gen_ts_type(cg, ty.type_annotation) } else {
 		expr: ^Expression
-		if entry.getter != nil { expr = dts_return_expression(entry.getter.body.body[:]) }
+		body: []^Statement
+		if entry.getter != nil {
+			body = entry.getter.body.body[:]
+			expr = dts_return_expression(body)
+		}
+		private_mark := dts_private_push(state, body)
+		defer dts_private_pop(state, private_mark)
 		if !dts_infer(state, expr, false, 0) && !entry.accessor_error {
 			key := dts_class_key(el)
 			reported := entry
@@ -224,7 +250,7 @@ dts_accessor :: proc(state: ^DeclarationEmit, el: ClassElement, entry: Declarati
 
 @(private)
 dts_method_signature :: proc(state: ^DeclarationEmit, fn: ^FunctionExpression, loc: Loc, arrow: bool, depth: int, force_return: bool) {
-	dts_signature(state, fn.params[:], fn.type_parameters, fn.return_type, dts_return_expression(fn.body.body[:]), fn.loc, loc, force_return || fn.async || fn.generator, arrow, depth, method = true)
+	dts_signature(state, fn.params[:], fn.type_parameters, fn.return_type, dts_return_expression(fn.body.body[:]), fn.loc, loc, force_return || fn.async || fn.generator, arrow, depth, method = true, body = fn.body.body[:])
 }
 
 @(private)
@@ -428,10 +454,14 @@ dts_object_accessor :: proc(state: ^DeclarationEmit, property: Property, key: De
 	cg_str(cg, ": ")
 	ty: Maybe(^TSTypeAnnotation)
 	expr: ^Expression
+	getter_body: []^Statement
 	if entry.getter != nil {
 		ty = entry.getter.return_type
 		if !literal { expr = dts_return_expression(entry.getter.body.body[:]) }
+		getter_body = entry.getter.body.body[:]
 	}
+	private_mark := dts_private_push(state, getter_body)
+	defer dts_private_pop(state, private_mark)
 	loc := get_expression_loc(property.key)
 	if property.computed { loc = dts_computed_span(state, loc) }
 	if entry.setter != nil && len(entry.setter.params) > 0 {

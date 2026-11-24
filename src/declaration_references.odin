@@ -6,7 +6,9 @@ dts_reference :: proc(state: ^DeclarationEmit, expr: ^Expression, value: bool, q
 	for root != nil {
 		#partial switch node in root^ {
 		case ^Identifier:
-			append(&state.references, DeclarationReference{node.name, node.loc, value, qualified})
+			reference := DeclarationReference{node.name, node.loc, value, qualified}
+			append(&state.references, reference)
+			dts_private_check(state, reference)
 			return
 		case ^MemberExpression: root = node.object
 		case: return

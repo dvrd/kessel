@@ -29,7 +29,6 @@ diagnostics	compiler	cyclicGenericTypeInstantiationInference.ts / cyclicGenericT
 diagnostics	compiler	cyclicTypeInstantiation.ts / cyclicTypeInstantiation.ts
 diagnostics	compiler	declFileTypeAnnotationArrayType.ts / declFileTypeAnnotationArrayType.ts
 diagnostics	compiler	declFileTypeAnnotationParenType.ts / declFileTypeAnnotationParenType.ts
-diagnostics	compiler	declarationEmitBindingPatternsUnused.ts / declarationEmitBindingPatternsUnused.ts
 diagnostics	compiler	declarationEmitClassMemberWithComputedPropertyName.ts / declarationEmitClassMemberWithComputedPropertyName.ts
 diagnostics	compiler	declarationEmitExactOptionalPropertyTypesNodeNotReused.ts / declarationEmitExactOptionalPropertyTypesNodeNotReused.ts
 diagnostics	compiler	declarationEmitGenericTypeParamerSerialization.ts / declarationEmitGenericTypeParamerSerialization.ts
@@ -41,18 +40,18 @@ diagnostics	compiler	declarationEmitMixinPrivateProtected.ts / first.ts
 diagnostics	compiler	declarationEmitOptionalMappedTypePropertyNoStrictNullChecks4.ts / declarationEmitOptionalMappedTypePropertyNoStrictNullChecks4.ts
 diagnostics	compiler	declarationEmitOverloadedPrivateInference.ts / declarationEmitOverloadedPrivateInference.ts
 diagnostics	compiler	declarationEmitPrivateNameCausesError.ts / file.ts
-diagnostics	compiler	declarationEmitShadowing.ts / declarationEmitShadowing.ts
 diagnostics	compiler	declarationNoDanglingGenerics.ts / declarationNoDanglingGenerics.ts
 diagnostics	compiler	decoratorReferences.ts / decoratorReferences.ts
 diagnostics	compiler	decoratorUsedBeforeDeclaration.ts / decoratorUsedBeforeDeclaration.ts
 diagnostics	compiler	destructuredDeclarationEmit.ts / index.ts
 diagnostics	compiler	doubleMixinConditionalTypeBaseClassWorks.ts / doubleMixinConditionalTypeBaseClassWorks.ts
 diagnostics	compiler	duplicateIdentifiersAcrossContainerBoundaries.ts / duplicateIdentifiersAcrossContainerBoundaries.ts
+diagnostics	compiler	duplicateObjectLiteralProperty_computedNameNegative1.ts / duplicateObjectLiteralProperty_computedNameNegative1.ts
 diagnostics	compiler	dynamicNamesErrors.ts / dynamicNamesErrors.ts
 diagnostics	compiler	emitClassExpressionInDeclarationFile.ts / emitClassExpressionInDeclarationFile.ts
 diagnostics	compiler	emitClassExpressionInDeclarationFile2.ts / emitClassExpressionInDeclarationFile2.ts
 diagnostics	compiler	excessivelyLargeTupleSpread.ts / excessivelyLargeTupleSpread.ts
-diagnostics	compiler	expandoFunctionNestedAssigments.ts / expandoFunctionNestedAssigments.ts
+diagnostics	compiler	expandoFunctionBlockShadowing.ts / expandoFunctionBlockShadowing.ts
 diagnostics	compiler	exportSpecifierAndExportedMemberDeclaration.ts / exportSpecifierAndExportedMemberDeclaration.ts
 diagnostics	compiler	expressionWithJSDocTypeArguments.ts / expressionWithJSDocTypeArguments.ts
 diagnostics	compiler	freshLiteralInference.ts / freshLiteralInference.ts
@@ -182,7 +181,6 @@ diagnostics	conformance	functions/parameterInitializersForwardReferencing1.ts / 
 diagnostics	conformance	functions/parameterInitializersForwardReferencing1_es6.ts / functions/parameterInitializersForwardReferencing1_es6.ts
 diagnostics	conformance	override/override1.ts / override/override1.ts
 diagnostics	conformance	salsa/typeFromPropertyAssignment29.ts / salsa/typeFromPropertyAssignment29.ts
-diagnostics	conformance	salsa/typeFromPropertyAssignment36.ts / salsa/typeFromPropertyAssignment36.ts
 diagnostics	conformance	types/localTypes/localTypes1.ts / types/localTypes/localTypes1.ts
 diagnostics	conformance	types/mapped/mappedTypesArraysTuples.ts / types/mapped/mappedTypesArraysTuples.ts
 diagnostics	conformance	types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers.ts / types/objectTypeLiteral/callSignatures/callSignaturesWithParameterInitializers.ts
@@ -215,12 +213,6 @@ diagnostics	conformance	types/typeRelationships/typeInference/genericCallWithObj
 diagnostics	conformance	types/typeRelationships/typeInference/genericCallWithObjectTypeArgs2.ts / types/typeRelationships/typeInference/genericCallWithObjectTypeArgs2.ts
 diagnostics	conformance	types/typeRelationships/typeInference/genericCallWithObjectTypeArgsAndConstraints4.ts / types/typeRelationships/typeInference/genericCallWithObjectTypeArgsAndConstraints4.ts
 diagnostics	conformance	types/typeRelationships/typeInference/genericCallWithObjectTypeArgsAndConstraints5.ts / types/typeRelationships/typeInference/genericCallWithObjectTypeArgsAndConstraints5.ts
-kessel-accepts	compiler	contextualReturnTypeOfIIFE2.ts / contextualReturnTypeOfIIFE2.ts
-kessel-accepts	compiler	declarationEmitNestedAnonymousMappedType.ts / declarationEmitNestedAnonymousMappedType.ts
-kessel-accepts	compiler	declarationEmitVarInElidedBlock.ts / declarationEmitVarInElidedBlock.ts
-kessel-accepts	compiler	enumBasics3.ts / enumBasics3.ts
-kessel-accepts	compiler	functionVariableInReturnTypeAnnotation.ts / functionVariableInReturnTypeAnnotation.ts
-kessel-accepts	conformance	externalModules/topLevelAwaitNonModule.ts / externalModules/topLevelAwaitNonModule.ts
 kessel-rejects	compiler	forwardRefInEnum.ts / forwardRefInEnum.ts
 kessel-rejects	compiler	moduleAugmentationGlobal6_1.ts / moduleAugmentationGlobal6_1.ts
 kessel-rejects	compiler	moduleAugmentationGlobal7.ts / moduleAugmentationGlobal7.ts
@@ -245,7 +237,6 @@ output	compiler	noUsedBeforeDefinedErrorInTypeContext.ts / noUsedBeforeDefinedEr
 output	compiler	specializedLambdaTypeArguments.ts / specializedLambdaTypeArguments.ts
 output	compiler	templateLiteralsInTypes.ts / templateLiteralsInTypes.ts
 output	conformance	enums/enumConstantMembers.ts / enums/enumConstantMembers.ts
-output	conformance	es2019/globalThisGlobalExportAsGlobal.ts / es2019/globalThisGlobalExportAsGlobal.ts
 output	conformance	es6/Symbols/symbolDeclarationEmit1.ts / es6/Symbols/symbolDeclarationEmit1.ts
 output	conformance	es6/Symbols/symbolDeclarationEmit14.ts / es6/Symbols/symbolDeclarationEmit14.ts
 output	conformance	es6/Symbols/symbolDeclarationEmit2.ts / es6/Symbols/symbolDeclarationEmit2.ts
@@ -263,7 +254,6 @@ output	conformance	expressions/binaryOperators/instanceofOperator/instanceofOper
 output	conformance	externalModules/multipleExportDefault6.ts / externalModules/multipleExportDefault6.ts
 output	conformance	node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts / /other2.ts
 output	conformance	node/nodeModulesImportTypeModeDeclarationEmitErrors1.ts / /other5.ts
-output	conformance	parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock4.ts / parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock4.ts
 output	conformance	parser/ecmascript5/Symbols/parserES5SymbolProperty3.ts / parser/ecmascript5/Symbols/parserES5SymbolProperty3.ts
 output	conformance	parser/ecmascript5/Symbols/parserES5SymbolProperty4.ts / parser/ecmascript5/Symbols/parserES5SymbolProperty4.ts
 output	conformance	parser/ecmascript5/Symbols/parserES5SymbolProperty5.ts / parser/ecmascript5/Symbols/parserES5SymbolProperty5.ts

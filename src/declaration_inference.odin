@@ -12,7 +12,9 @@ dts_variable :: proc(state: ^DeclarationEmit, decl: ^VariableDeclaration, part: 
 	cg_str(cg, id.name)
 	if annotation, ok := id.type_annotation.?; ok {
 		cg_str(cg, ": ")
+		state.private_owner, state.private_name = .Variable, id.name
 		gen_ts_type(cg, annotation.type_annotation)
+		state.private_owner = .Inferred
 		return
 	}
 	if dts_redeclared_variable(state, id.name) {
@@ -112,6 +114,11 @@ dts_primitive_literal :: proc(cg: ^Codegen, node: ^Expression) {
 @(private)
 dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, depth: int) -> bool {
 	if expr == nil || depth >= 128 { return false }
+	// A type taken from an expression has no declaration to name in a
+	// private-name diagnostic, whatever declaration the expression sits in.
+	owner, parameter := state.private_owner, state.private_parameter
+	state.private_owner, state.private_parameter = .Inferred, ""
+	defer state.private_owner, state.private_parameter = owner, parameter
 	cg := &state.writer
 	if kind := dts_primitive_type(expr); kind != "" {
 		if literal { dts_primitive_literal(cg, expr) } else { cg_str(cg, kind) }
@@ -146,7 +153,8 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 	case ^ArrowFunctionExpression:
 		body, block := e.body.(^BlockStatement)
 		result := e.body.(^Expression) if !block else dts_return_expression(body.body[:])
-		dts_signature(state, e.params[:], e.type_parameters, e.return_type, result, e.loc, e.loc, e.async, true, depth + 1, arrow_node = e)
+		statements := body.body[:] if block else nil
+		dts_signature(state, e.params[:], e.type_parameters, e.return_type, result, e.loc, e.loc, e.async, true, depth + 1, arrow_node = e, body = statements)
 		return true
 	case ^ClassExpression:
 		loc := Loc{e.loc.start, e.loc.start + 5}
@@ -157,7 +165,7 @@ dts_infer :: proc(state: ^DeclarationEmit, expr: ^Expression, literal: bool, dep
 		// An anonymous function is reported at its first keyword.
 		loc := Loc{e.loc.start, e.loc.start + u32(len("async" if e.async else "function"))}
 		if id, ok := e.id.?; ok { loc = id.loc }
-		dts_signature(state, e.params[:], e.type_parameters, e.return_type, dts_return_expression(e.body.body[:]), e.loc, loc, e.async || e.generator, true, depth + 1)
+		dts_signature(state, e.params[:], e.type_parameters, e.return_type, dts_return_expression(e.body.body[:]), e.loc, loc, e.async || e.generator, true, depth + 1, body = e.body.body[:])
 		return true
 	}
 	return false

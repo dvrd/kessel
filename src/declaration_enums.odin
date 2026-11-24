@@ -67,6 +67,19 @@ dts_enum_declares :: proc(decl: ^TSEnumDeclaration, name: string) -> bool {
 	return false
 }
 
+// `ns.inner.Enum.member` reads another enum through its namespaces. The value
+// lives in a different declaration, so it is external like `Enum.member`.
+@(private)
+dts_enum_qualified_member :: proc(state: ^DeclarationEmit, member: ^MemberExpression, decl: ^TSEnumDeclaration) -> bool {
+	name, direct := dts_assigned_name(member)
+	if !direct { return false }
+	for index in dts_resolve_entity(state, member.object, lexical = true) {
+		other, is_enum := state.items[index].statement.(^TSEnumDeclaration)
+		if is_enum && other != decl && dts_enum_declares(other, name) { return true }
+	}
+	return false
+}
+
 @(private)
 dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: ScopeId, decl: ^TSEnumDeclaration) -> bool {
 	owner := decl.id.name
@@ -96,6 +109,7 @@ dts_enum_external :: proc(state: ^DeclarationEmit, expr: ^Expression, scope: Sco
 			if known && id.name != owner {
 				for index in dts_lookup(state, id.name, .Either) { if _, is_enum := state.items[index].statement.(^TSEnumDeclaration); is_enum { return true } }
 			}
+			if !known && dts_enum_qualified_member(state, e, decl) { return true }
 		case ^ParenthesizedExpression: append(&pending, e.expression)
 		case ^UnaryExpression: append(&pending, e.argument)
 		case ^BinaryExpression: append(&pending, e.left, e.right)

@@ -8,7 +8,9 @@ dts_function :: proc(state: ^DeclarationEmit, fn: ^FunctionDeclaration, statemen
 	cg_str(cg, "function ")
 	location := Loc{statement.start, statement.start + 6}
 	if id, ok := fn.id.?; ok { cg_str(cg, id.name); location = id.loc }
-	dts_signature(state, fn.params[:], fn.type_parameters, fn.return_type, dts_return_expression(fn.body.body[:]), fn.loc, location, fn.async || fn.generator, false, 0)
+	state.private_owner = .Function
+	dts_signature(state, fn.params[:], fn.type_parameters, fn.return_type, dts_return_expression(fn.body.body[:]), fn.loc, location, fn.async || fn.generator, false, 0, body = fn.body.body[:])
+	state.private_owner = .Inferred
 	cg_byte(cg, ';')
 }
 
@@ -64,8 +66,10 @@ dts_contains_return :: proc(root: ^Statement) -> bool {
 }
 
 @(private)
-dts_signature :: proc(state: ^DeclarationEmit, params: []FunctionParameter, generics: Maybe(^TSTypeParameterDeclaration), result: Maybe(^TSTypeAnnotation), returned: ^Expression, scope, location: Loc, requires_annotation, arrow: bool, depth: int, method := false, arrow_node: ^ArrowFunctionExpression = nil) {
+dts_signature :: proc(state: ^DeclarationEmit, params: []FunctionParameter, generics: Maybe(^TSTypeParameterDeclaration), result: Maybe(^TSTypeAnnotation), returned: ^Expression, scope, location: Loc, requires_annotation, arrow: bool, depth: int, method := false, arrow_node: ^ArrowFunctionExpression = nil, body: []^Statement = nil) {
 	cg := &state.writer
+	private_mark := dts_private_push(state, body)
+	defer dts_private_pop(state, private_mark)
 	dts_type_parameters(state, generics, scope)
 	for p in params { dts_parameter_scope(state, p.pattern, scope) }
 	// Diagnose the return type before parameters, including for anonymous functions.
@@ -194,7 +198,9 @@ dts_parameter_type :: proc(
 	destructured := object_pattern || array_pattern
 	type_start := cg.pos
 	if ty, ok := annotation.?; ok {
+		if id, named := binding.(^Identifier); named { state.private_parameter = id.name }
 		gen_ts_type(cg, ty.type_annotation)
+		state.private_parameter = ""
 	} else if init == nil && implicit_undefined {
 		dts_error(state, "TS9025", DTS_IMPLICIT_UNDEFINED, span)
 		return
@@ -222,54 +228,96 @@ DTS_IMPLICIT_UNDEFINED :: "Declaration emit for this parameter requires implicit
 dts_function_assignments :: proc(state: ^DeclarationEmit) {
 	seen := make(map[[2]string]bool)
 	computed: [dynamic]^MemberExpression
-	for stmt in state.regions[state.region].body {
-		s, statement := stmt^.(^ExpressionStatement)
-		if !statement { continue }
-		assign, assignment := s.expression^.(^AssignmentExpression)
-		if !assignment || assign.operator != .Assign { continue }
-		member, property := assign.left^.(^MemberExpression)
-		if !property { continue }
-		base, plain := member.object^.(^Identifier)
-		if !plain { continue }
-		_, name, direct := enum_static_member(member)
-		if !direct && member.computed {
-			if number, numeric := member.property^.(^NumericLiteral); numeric {
-				name, direct = dts_numeric_key(number.value), true
-			}
-		}
+	// Assignments are found anywhere in the region's own statements, such as
+	// inside an `if` or a call argument, but not inside nested functions.
+	for member in dts_scan_region(state, state.region).assignments {
+		if dts_entity_name_root(member.object) == nil { continue }
+		name, direct := dts_assigned_name(member)
 		if direct {
-			dts_report_assignment(state, &seen, {base.name, name}, member.loc)
+			dts_report_assignment(state, &seen, member, name)
 		} else if member.computed {
 			append(&computed, member)
 		}
 	}
 	for member in computed {
 		if name, resolved := dts_computed_key(state, member.property); resolved {
-			base := member.object^.(^Identifier)
-			dts_report_assignment(state, &seen, {base.name, name}, member.loc)
+			dts_report_assignment(state, &seen, member, name)
 		}
 	}
 }
 
 @(private)
-dts_report_assignment :: proc(state: ^DeclarationEmit, seen: ^map[[2]string]bool, key: [2]string, loc: Loc) {
+dts_assigned_name :: proc(member: ^MemberExpression) -> (name: string, direct: bool) {
+	assert(member.property != nil)
+	if !member.computed {
+		id, named := member.property^.(^Identifier)
+		if named { return id.name, true }
+		return "", false
+	}
+	#partial switch key in member.property^ {
+	case ^StringLiteral: return key.value, true
+	case ^NumericLiteral: return dts_numeric_key(key.value), true
+	}
+	return "", false
+}
+
+// Resolve `fn` or `ns.inner.fn` to the declarations it names. Later names are
+// exports of a namespace. For a property assignment the first name must be
+// declared in this region, since TypeScript binds such assignments in the
+// function's own container; a `lexical` lookup also searches enclosing regions.
+@(private)
+dts_resolve_entity :: proc(state: ^DeclarationEmit, target: ^Expression, lexical := false) -> []int {
+	names: [dynamic]string
+	current := target
+	for current != nil {
+		#partial switch node in current^ {
+		case ^MemberExpression:
+			id, named := node.property^.(^Identifier)
+			if node.computed || !named { return nil }
+			append(&names, id.name)
+			current = node.object
+			continue
+		case ^Identifier: append(&names, node.name)
+		case: return nil
+		}
+		break
+	}
+	if len(names) == 0 { return nil }
+	candidates := state.regions[state.region].bindings[names[len(names) - 1]][:]
+	if lexical { candidates = dts_lookup(state, names[len(names) - 1], .Either) }
+	#reverse for segment in names[:len(names) - 1] {
+		exported: [dynamic]int
+		for index in candidates {
+			child := state.items[index].child
+			if child == 0 { continue }
+			append(&exported, ..state.exports[{state.regions[child].symbol, segment}][:])
+		}
+		candidates = exported[:]
+	}
+	return candidates
+}
+
+@(private)
+dts_report_assignment :: proc(state: ^DeclarationEmit, seen: ^map[[2]string]bool, member: ^MemberExpression, name: string) {
+	target := get_expression_loc(member.object)
+	key := [2]string{state.writer.source[target.start:target.end], name}
 	if key in seen^ { return }
 	seen^[key] = true
 	function := -1
-	for index in dts_lookup(state, key[0], .Value) {
+	for index in dts_resolve_entity(state, member.object) {
 		item := &state.items[index]
 		if !item.selected { continue }
 		if item.child != 0 {
 			symbol := state.regions[item.child].symbol
-			for member in state.exports[{symbol, key[1]}] {
-				if dts_declares_value(state.items[member].statement) { return }
+			for declared in state.exports[{symbol, name}] {
+				if dts_declares_value(state.items[declared].statement) { return }
 			}
 		}
 		if dts_public_function(item) && function < 0 { function = index }
 	}
 	if function < 0 { return }
 	state.current_item = function
-	dts_error(state, "TS9023", "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.", loc)
+	dts_error(state, "TS9023", "Assigning properties to functions without declaring them is not supported with --isolatedDeclarations. Add an explicit declaration for the properties assigned to this function.", member.loc)
 }
 
 @(private)
