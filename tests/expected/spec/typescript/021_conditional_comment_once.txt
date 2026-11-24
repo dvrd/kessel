@@ -1,0 +1,125 @@
+{
+  "type": "Program",
+  "start": 104,
+  "end": 197,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 104,
+      "end": 148,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 110,
+          "end": 147,
+          "id": {
+            "type": "Identifier",
+            "start": 110,
+            "end": 111,
+            "name": "z",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 114,
+            "end": 147,
+            "test": {
+              "type": "Identifier",
+              "start": 114,
+              "end": 118,
+              "name": "cond",
+              "typeAnnotation": null,
+              "optional": false            },
+            "consequent": {
+              "type": "Identifier",
+              "start": 121,
+              "end": 124,
+              "name": "yes",
+              "typeAnnotation": null,
+              "optional": false            },
+            "alternate": {
+              "type": "Identifier",
+              "start": 145,
+              "end": 147,
+              "name": "no",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 149,
+      "end": 196,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 155,
+          "end": 195,
+          "id": {
+            "type": "Identifier",
+            "start": 155,
+            "end": 156,
+            "name": "w",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 159,
+            "end": 195,
+            "test": {
+              "type": "Identifier",
+              "start": 159,
+              "end": 163,
+              "name": "cond",
+              "typeAnnotation": null,
+              "optional": false            },
+            "consequent": {
+              "type": "Identifier",
+              "start": 167,
+              "end": 168,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "alternate": {
+              "type": "Identifier",
+              "start": 194,
+              "end": 195,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 69,
+      "value": " A conditional lexes past the colon before it settles on a reading."
+    },
+    {
+      "type": "Line",
+      "start": 70,
+      "end": 103,
+      "value": " Each comment is recorded once."
+    },
+    {
+      "type": "Block",
+      "start": 127,
+      "end": 144,
+      "value": " after colon "
+    },
+    {
+      "type": "Block",
+      "start": 172,
+      "end": 193,
+      "value": " arrow candidate "
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=0B reserved=16777216B ratio=0%
+Parse errors: 0

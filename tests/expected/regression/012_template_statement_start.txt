@@ -1,0 +1,97 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 116,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 75,
+      "end": 83,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 75,
+        "end": 82,
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 76,
+            "end": 81,
+            "tail": true,
+            "value": { "raw": "plain", "cooked": "plain" }
+          }
+        ],
+        "expressions": []      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 84,
+      "end": 103,
+      "expression": {
+        "type": "TemplateLiteral",
+        "start": 84,
+        "end": 102,
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 85,
+            "end": 89,
+            "tail": false,
+            "value": { "raw": "head", "cooked": "head" }
+          },
+          {
+            "type": "TemplateElement",
+            "start": 97,
+            "end": 101,
+            "tail": true,
+            "value": { "raw": "tail", "cooked": "tail" }
+          }
+        ],
+        "expressions": [
+          {
+            "type": "Identifier",
+            "start": 91,
+            "end": 96,
+            "name": "value"          }
+        ]      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 104,
+      "end": 115,
+      "expression": {
+        "type": "TaggedTemplateExpression",
+        "start": 104,
+        "end": 114,
+        "tag": {
+          "type": "Identifier",
+          "start": 104,
+          "end": 107,
+          "name": "tag"        },
+        "quasi": {
+          "type": "TemplateLiteral",
+          "start": 107,
+          "end": 114,
+          "quasis": [
+            {
+              "type": "TemplateElement",
+              "start": 108,
+              "end": 113,
+              "tail": true,
+              "value": { "raw": "quasi", "cooked": "quasi" }
+            }
+          ],
+          "expressions": []        }      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " A statement that begins with a template literal begins at its backtick."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=0B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -2509,9 +2509,24 @@ is_paren_wrapped_at :: proc(p: ^Parser, span_start: int) -> bool {
 		ch := p.lexer.source_bytes[i]
 		if ch == '(' { return true }
 		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' { i -= 1; continue }
-		break
+		// A comment between the paren and the operand is insignificant too.
+		comment_start, is_comment := lexer_comment_ending_at(p.lexer, u32(i + 1))
+		if !is_comment { break }
+		i = int(comment_start) - 1
 	}
 	return false
+}
+
+// The start of the recorded comment whose last byte precedes `end`, if any.
+// Comments are recorded in source order, so a binary search finds it.
+lexer_comment_ending_at :: proc(l: ^Lexer, end: u32) -> (start: u32, found: bool) {
+	low, high := 0, len(l.comments)
+	for low < high {
+		middle := (low + high) / 2
+		if l.comments[middle].end < end { low = middle + 1 } else { high = middle }
+	}
+	if low == len(l.comments) || l.comments[low].end != end { return 0, false }
+	return l.comments[low].start, true
 }
 
 // prev_end_offset returns the end offset of the LAST consumed token. Use this

@@ -632,6 +632,11 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 
 	expr_stmt, stmt := new_stmt(p, ExpressionStatement)
 	expr_stmt.loc = start
+	// A template token is located at its first quasi, one byte after the
+	// backtick. The statement begins where its expression begins.
+	if expression_start := loc_from_expr(expr).start; expression_start < start.start {
+		expr_stmt.loc.start = expression_start
+	}
 	expr_stmt.expression = expr
 
 	// ECMA-262 §12.10 - ExpressionStatement requires a `;` (or ASI). When
