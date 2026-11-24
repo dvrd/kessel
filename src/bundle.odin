@@ -258,9 +258,16 @@ BundleGraph :: struct {
 	order:          [dynamic]BundleEvent,
 }
 
-BundleOutput :: struct {
+// One file of the bundle. A build without code splitting produces exactly one.
+BundleFile :: struct {
+	name:     string, // file name relative to the output directory; "" when the caller chooses
 	code:     string,
 	map_json: string, // "" unless a source map was requested
+	entry:    bool,
+}
+
+BundleOutput :: struct {
+	files: []BundleFile,
 }
 
 // bundle_run builds the graph, links it and prints the bundle. The caller

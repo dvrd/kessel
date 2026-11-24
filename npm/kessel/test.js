@@ -13,6 +13,7 @@ const { createRequire } = require('node:module');
 const { compileFunction } = require('node:vm');
 const { parseSync, parseAsync } = require('./index');
 const { lintSync, scanModuleSync, parseRegExpSync, resolveModuleSync, formatSync, transformSync, minifySync } = require('./index');
+const { bundleSync } = require('./index');
 
 const tests = [
   ['const x = 1;', 'VariableDeclaration'],
@@ -1417,6 +1418,74 @@ try {
       passed++;
     } catch (e) { console.error('FAIL: async native stack, preloaded=' + preload, e.message); failed++; }
   }
+
+  // bundleSync reads a small project from disk and returns everything in memory.
+  const fs = require('node:fs'), path = require('node:path');
+  const bundleDir = realpathSync(mkdtempSync(join(tmpdir(), 'kessel-npm-bundle-')));
+  try {
+    const write = (name, text) => fs.writeFileSync(path.join(bundleDir, name), text);
+    write('entry.ts', "import { twice } from './math';\nimport data from './data.json';\nimport legacy from './legacy.cjs';\n" +
+      "export const result: number = twice(data.value) + legacy.offset;\nexport const mode = process.env.NODE_ENV;\n");
+    write('math.ts', "export const twice = (n: number): number => n * 2;\nexport const unused = 'UNUSED_EXPORT';\n");
+    write('data.json', '{ "value": 20 }\n');
+    write('legacy.cjs', "exports.offset = 2;\n");
+    const entry = path.join(bundleDir, 'entry.ts');
+    const before = fs.readdirSync(bundleDir).sort();
+    const esm = bundleSync({ entry, sourceMap: true, outdir: path.join(bundleDir, 'dist'),
+      define: { 'process.env.NODE_ENV': '"test"' } });
+    assert.deepEqual(esm.errors, []);
+    assert.deepEqual(esm.warnings, []);
+    assert.equal(esm.outputs.length, 1);
+    assert.equal(esm.outputs[0].code, esm.code);
+    assert.equal(esm.outputs[0].entry, true);
+    assert.doesNotMatch(esm.code, /UNUSED_EXPORT/);
+    assert.deepEqual(esm.map.sources.slice().sort(), ['../data.json', '../entry.ts', '../legacy.cjs', '../math.ts']);
+    assert.equal(esm.map.sourcesContent[esm.map.sources.indexOf('../math.ts')], fs.readFileSync(path.join(bundleDir, 'math.ts'), 'utf8'));
+    assert.deepEqual(fs.readdirSync(bundleDir).sort(), before, 'bundleSync must not write files');
+
+    const cjs = bundleSync({ entry, format: 'cjs', minify: true, define: { 'process.env.NODE_ENV': '"test"' } });
+    assert.deepEqual(cjs.errors, []);
+    assert.equal(cjs.map, null);
+    assert.ok(cjs.code.length < esm.code.length);
+    const loaded = { exports: {} };
+    compileFunction(cjs.code, ['module', 'exports', 'require'])(loaded, loaded.exports, require);
+    assert.equal(loaded.exports.result, 42);
+    assert.equal(loaded.exports.mode, 'test');
+
+    const iife = bundleSync({ entry, format: 'iife', globalName: 'lib', define: { 'process.env.NODE_ENV': '"x"' } });
+    assert.equal(compileFunction(iife.code + ';return lib.result;')(), 42);
+    assert.equal(bundleSync({ entry, treeShaking: false, define: { 'process.env.NODE_ENV': '1' } }).code.includes('UNUSED_EXPORT'), true);
+
+    write('broken.mjs', "import { missing } from './math.ts';\nimport './nowhere.mjs';\nconsole.log(missing);\n");
+    const failedBuild = bundleSync({ entry: path.join(bundleDir, 'broken.mjs') });
+    assert.equal(failedBuild.code, null);
+    assert.deepEqual(failedBuild.outputs, []);
+    assert.equal(failedBuild.errors.length, 1);
+    assert.match(failedBuild.errors[0].message, /could not resolve '\.\/nowhere\.mjs'/);
+    assert.equal(failedBuild.errors[0].line, 2);
+    assert.equal(failedBuild.errors[0].column, 1);
+    assert.ok(failedBuild.errors[0].file.endsWith('broken.mjs'));
+    assert.match(bundleSync({ entry: path.join(bundleDir, 'absent.js') }).errors[0].message, /cannot read entry file/);
+
+    write('optional.cjs', "try { require('kessel-test-package-that-does-not-exist'); } catch {}\nmodule.exports = 1;\n");
+    const warned = bundleSync({ entry: path.join(bundleDir, 'optional.cjs'), format: 'cjs' });
+    assert.deepEqual(warned.errors, []);
+    assert.equal(warned.warnings.length, 1);
+    assert.equal(warned.warnings[0].severity, 'warning');
+
+    assert.throws(() => bundleSync(), TypeError);
+    assert.throws(() => bundleSync({}), /entry must be a file path/);
+    assert.throws(() => bundleSync({ entry, format: 'umd' }), /format must be/);
+    assert.throws(() => bundleSync({ entry, platform: 'deno' }), /platform must be/);
+    assert.throws(() => bundleSync({ entry, external: 'react' }), /external must be an array/);
+    assert.throws(() => bundleSync({ entry, minify: 1 }), /must be booleans/);
+    assert.throws(() => bundleSync({ entry, define: { a: 1 } }), /define must map/);
+    assert.throws(() => bundleSync({ entry, jsx: 'preserve' }), /jsx must select/);
+    assert.throws(() => bundleSync({ entry, target: 'es5' }), /target must be/);
+    assert.match(bundleSync({ entry, globalName: 'lib' }).errors[0].message, /globalName requires the iife format/);
+    passed++;
+  } catch (e) { console.error('FAIL: bundleSync:', e.message); failed++; }
+  fs.rmSync(bundleDir, { recursive: true, force: true });
 
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);

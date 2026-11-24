@@ -136,6 +136,45 @@ cli_bundle_value :: proc(arguments: ^CLIBundleArguments, flag, value: string) ->
 	case "--main-field":  append(&arguments.main_fields, value)
 	case "--tsconfig":    options.tsconfig = value
 	case "--jsx-import-source": options.jsx_import_source = value
+	case "--define", "--target", "--decorators":
+		return cli_bundle_transform_value(options, flag, value)
+	case "--global-name":
+		if !bundle_is_identifier(value) {
+			fmt.eprintln("Error: --global-name requires an identifier")
+			return false
+		}
+		options.global_name = value
+	case "--jsx":
+		if value != "classic" && value != "automatic" {
+			fmt.eprintln("Error: --jsx requires classic or automatic")
+			return false
+		}
+		options.jsx = value
+	case "--format":
+		switch value {
+		case "esm":  options.format = .ESM
+		case "cjs":  options.format = .CJS
+		case "iife": options.format = .IIFE
+		case:
+			fmt.eprintln("Error: --format requires esm, cjs, or iife")
+			return false
+		}
+	case "--platform":
+		switch value {
+		case "node":    options.platform = .Node
+		case "browser": options.platform = .Browser
+		case:
+			fmt.eprintln("Error: --platform requires node or browser")
+			return false
+		}
+	}
+	return true
+}
+
+// Options the transformer interprets; the bundler only validates their shape.
+@(private="file")
+cli_bundle_transform_value :: proc(options: ^BundleOptions, flag, value: string) -> bool {
+	switch flag {
 	case "--define":
 		// Split at the first '=': the expression may contain more of them.
 		separator := strings.index_byte(value, '=')
@@ -166,35 +205,6 @@ cli_bundle_value :: proc(arguments: ^CLIBundleArguments, flag, value: string) ->
 			options.jsx_factory = value
 		} else {
 			options.jsx_fragment = value
-		}
-	case "--global-name":
-		if !bundle_is_identifier(value) {
-			fmt.eprintln("Error: --global-name requires an identifier")
-			return false
-		}
-		options.global_name = value
-	case "--jsx":
-		if value != "classic" && value != "automatic" {
-			fmt.eprintln("Error: --jsx requires classic or automatic")
-			return false
-		}
-		options.jsx = value
-	case "--format":
-		switch value {
-		case "esm":  options.format = .ESM
-		case "cjs":  options.format = .CJS
-		case "iife": options.format = .IIFE
-		case:
-			fmt.eprintln("Error: --format requires esm, cjs, or iife")
-			return false
-		}
-	case "--platform":
-		switch value {
-		case "node":    options.platform = .Node
-		case "browser": options.platform = .Browser
-		case:
-			fmt.eprintln("Error: --platform requires node or browser")
-			return false
 		}
 	}
 	return true
@@ -229,7 +239,9 @@ cli_bundle_outfile :: proc(arguments: CLIBundleArguments) -> string {
 }
 
 @(private="file")
-cli_bundle_write :: proc(arguments: CLIBundleArguments, output: BundleOutput) -> int {
+cli_bundle_write :: proc(arguments: CLIBundleArguments, result: BundleOutput) -> int {
+	assert(len(result.files) == 1)
+	output := result.files[0]
 	outfile := cli_bundle_outfile(arguments)
 	if outfile == "" {
 		// Without a destination there is nowhere to put a separate map file.

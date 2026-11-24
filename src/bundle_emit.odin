@@ -36,7 +36,7 @@ bundle_emit :: proc(g: ^BundleGraph) -> BundleOutput {
 	shift := u32(strings.builder_len(header))
 	strings.write_string(&header, strings.to_string(e.body))
 	if g.options.format == .IIFE { strings.write_string(&header, "})();\n") }
-	output := BundleOutput{code = strings.to_string(header)}
+	output := BundleFile{code = strings.to_string(header), entry = true}
 
 	mappings: []BundleMapping
 	if g.options.source_map { mappings = bundle_map_collect(g, e.segments[:], shift) }
@@ -48,7 +48,9 @@ bundle_emit :: proc(g: ^BundleGraph) -> BundleOutput {
 	if g.error_count == 0 && g.options.source_map {
 		output.map_json = bundle_map_json(g, mappings, output.code)
 	}
-	return output
+	files := make([]BundleFile, 1, g.alloc)
+	files[0] = output
+	return {files = files}
 }
 
 // A wrapped module's definition. Definitions only create functions, so their

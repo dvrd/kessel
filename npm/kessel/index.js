@@ -129,6 +129,7 @@ const _format = optionalTool('kessel_format', ['void *', 'int32', 'void *', 'int
 const _isolated_declaration = optionalTool('kessel_isolated_declaration', ['void *', 'int32', 'void *', 'int32']);
 const _transform = optionalTool('kessel_transform', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
 const _minify = optionalTool('kessel_minify', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
+const _bundle = optionalTool('kessel_bundle', ['void *', 'int32']);
 
 // ---------------------------------------------------------------------------
 // Language detection
@@ -964,4 +965,70 @@ function generatedCode(native, name, filename, source, settings) {
   return { code: result.output, map: result.map_json ? JSON.parse(result.map_json) : null, errors: result.errors || [] };
 }
 
-module.exports = { parseSync, parseAsync, codegen, lintSync, scanModuleSync, parseRegExpSync, resolveModuleSync, formatSync, isolatedDeclarationSync, transformSync, minifySync };
+// Bundle the module graph that starts at `options.entry` and return the
+// result in memory. Nothing is written; `outdir` only tells the source map
+// where it will live so that its `sources` are relative to it.
+function bundleSync(options) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('kessel: bundle options must be an object');
+  }
+  const { entry, format = 'esm', platform = 'node', external = [], conditions = [], mainFields = [],
+    tsconfig, globalName, outdir, minify = false, sourceMap = false, treeShaking = true,
+    jsx = 'classic', define } = options;
+  if (typeof entry !== 'string' || entry.length === 0) throw new TypeError('kessel: entry must be a file path');
+  if (!['esm', 'cjs', 'iife'].includes(format)) throw new TypeError('kessel: format must be esm, cjs or iife');
+  if (!['node', 'browser'].includes(platform)) throw new TypeError('kessel: platform must be node or browser');
+  for (const [name, list] of Object.entries({ external, conditions, mainFields })) {
+    if (!Array.isArray(list) || list.some(item => typeof item !== 'string' || item.length === 0)) {
+      throw new TypeError(`kessel: ${name} must be an array of non-empty strings`);
+    }
+  }
+  for (const [name, value] of Object.entries({ tsconfig, globalName, outdir })) {
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
+      throw new TypeError(`kessel: ${name} must be a non-empty string`);
+    }
+  }
+  if ([minify, sourceMap, treeShaking].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: minify, sourceMap and treeShaking must be booleans');
+  }
+  if (define !== undefined && (define === null || typeof define !== 'object' ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(define)) ||
+      Object.values(define).some(value => typeof value !== 'string'))) {
+    throw new TypeError('kessel: define must map names to JavaScript expression strings');
+  }
+  const settingsObject = typeof jsx === 'object' && jsx !== null && !Array.isArray(jsx);
+  const runtime = settingsObject ? (jsx.runtime ?? 'classic') : jsx;
+  if (runtime !== 'classic' && runtime !== 'automatic') throw new TypeError('kessel: jsx must select classic or automatic');
+  const { pragma, pragmaFrag, importSource, development = false } = settingsObject ? jsx : {};
+  for (const value of [pragma, pragmaFrag, importSource]) {
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
+      throw new TypeError('kessel: pragma, pragmaFrag, and importSource must be non-empty strings');
+    }
+  }
+  if (typeof development !== 'boolean') throw new TypeError('kessel: jsx.development must be a boolean');
+  const lowering = transformLoweringSettings(options);
+  const request = JSON.stringify({
+    entry: path.resolve(entry), format, platform, externals: external, conditions, main_fields: mainFields,
+    tsconfig, global_name: globalName, map_directory: outdir === undefined ? undefined : path.resolve(outdir),
+    jsx: runtime, jsx_import_source: importSource, jsx_factory: pragma, jsx_fragment: pragmaFrag,
+    jsx_development: development, define, target: lowering.target === 'esnext' ? '' : lowering.target,
+    decorators: lowering.decorators === 'legacy' ? 'legacy' : '',
+    emit_decorator_metadata: lowering.emit_decorator_metadata,
+    minify, source_map: sourceMap, tree_shaking: treeShaking,
+  });
+  const reply = readToolResult(_bundle, 'bundleSync', toolInput(request, 'bundle options'));
+  const diagnostics = (reply.diagnostics || []).map(item => ({
+    severity: item.severity.toLowerCase(), file: item.path || null,
+    line: item.line || null, column: item.line ? item.column : null, message: item.message,
+  }));
+  const outputs = (reply.outputs || []).map(file => ({
+    fileName: file.name || null, code: file.code, map: file.map_json ? JSON.parse(file.map_json) : null, entry: file.entry,
+  }));
+  // A failed build has no outputs: the bundler never returns a partial bundle.
+  const first = outputs[0] || { code: null, map: null };
+  return { code: first.code, map: first.map, outputs,
+    errors: diagnostics.filter(item => item.severity === 'error'),
+    warnings: diagnostics.filter(item => item.severity === 'warning') };
+}
+
+module.exports = { parseSync, parseAsync, codegen, lintSync, scanModuleSync, parseRegExpSync, resolveModuleSync, formatSync, isolatedDeclarationSync, transformSync, minifySync, bundleSync };
