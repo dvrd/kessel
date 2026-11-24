@@ -141,6 +141,7 @@ tasks:
     desc: Build the Odin programs that use Kessel as a package and verify what they print.
     cmds:
       - NODE_PATH=bench/node_modules node tests/verifiers/verify_sourcemap_builder.js
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_library_consumer.js
 
   test:jsx:
     desc: Compare JSX values, spread children and JSX error spans with the reference parsers.

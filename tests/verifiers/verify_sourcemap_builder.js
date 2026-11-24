@@ -68,4 +68,5 @@ for (const [line, column, source, originalLine, originalColumn, name] of expecte
 assert.equal(resolved, 8);
 assert.equal(consumer.sourceContentFor('/project/src/a.jsx'), content);
 
-console.log(`verify_sourcemap_builder: ${decoded.length} mappings round-trip through source-map-js`);
+console.log(`verify_sourcemap_builder: ${decoded.length} mappings round-trip ` +
+  'through source-map-js');
