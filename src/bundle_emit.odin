@@ -199,10 +199,13 @@ bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^Bun
 	bundle_emit_file_paths(g, header)
 	bundle_emit_helpers(g, header)
 	if g.options.format != .ESM { bundle_emit_external_requires(g, header) }
+	// An interop object is bound where its importer runs. A module earlier in
+	// a cycle can read through it before that; Node hands such a reader
+	// `undefined` for every CommonJS export, and an empty object does the same.
 	interop := make([dynamic]string, g.alloc)
 	for module in g.modules {
 		for name in module.interop_names {
-			if name != "" { append(&interop, name) }
+			if name != "" { append(&interop, fmt.aprintf("%s = {{}}", name, allocator = g.alloc)) }
 		}
 	}
 	if len(interop) != 0 {
