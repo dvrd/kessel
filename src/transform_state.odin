@@ -25,7 +25,8 @@ TransformState :: struct {
 	enums:         EnumConstants,           // Enum declarations found while building the model.
 	target:        TransformTarget,
 	temp_scopes:   [dynamic][dynamic]string, // Per open function body; the program is first.
-	local_refs:    map[u32]bool,            // Identifier offsets bound to a declaration in the file.
+	// Identifier offsets bound to a declaration in the file.
+	local_refs:    map[u32]bool,
 	math_checked:  bool,
 	refresh:       RefreshOptions,
 }
@@ -49,7 +50,9 @@ TRANSFORM_HELPER_KINDS := [TransformHelper]string{
 TRANSFORM_HELPER_BODIES := [TransformHelper]string{
 	.Decorate = `(decorators, target, key, desc) {
   var c = arguments.length;
-  var r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc;
+  var r = desc;
+  if (c < 3) r = target;
+  else if (desc === null) r = desc = Object.getOwnPropertyDescriptor(target, key);
   if (typeof Reflect === "object" && typeof Reflect.decorate === "function") {
     r = Reflect.decorate(decorators, target, key, desc);
   } else {
@@ -92,13 +95,16 @@ transform_state_init :: proc(
 		return StripDiagnostic{what = "standard decorators are not lowered yet"}
 	}
 	target, known := transform_target_parse(options.target)
-	if !known { return StripDiagnostic{what = "expected a target from es2015 to es2024, or esnext"} }
+	if !known {
+		return StripDiagnostic{what = "expected a target from es2015 to es2024, or esnext"}
+	}
 	refresh := RefreshOptions{
 		enabled = options.refresh, emit_full_signatures = options.refresh_full_signatures,
 		reg = options.refresh_reg if options.refresh_reg != "" else "$RefreshReg$",
 		sig = options.refresh_sig if options.refresh_sig != "" else "$RefreshSig$",
 	}
-	if refresh.enabled && (!refresh_binding_valid(refresh.reg) || !refresh_binding_valid(refresh.sig)) {
+	bindings_valid := refresh_binding_valid(refresh.reg) && refresh_binding_valid(refresh.sig)
+	if refresh.enabled && !bindings_valid {
 		return StripDiagnostic{what = "invalid React Refresh runtime binding"}
 	}
 	if decorators == .Preserve && target == .ESNext && !refresh.enabled { return nil }
@@ -120,7 +126,8 @@ transform_helper :: proc(cg: ^Codegen, helper: TransformHelper) -> string {
 		state.helpers[helper] = codegen_fresh_runtime_binding(cg, TRANSFORM_HELPER_KINDS[helper])
 		for name in TRANSFORM_HELPER_GLOBALS[helper] {
 			if codegen_resource_root_binding(cg, name) {
-				cg_strip_unsupported(cg, {}, "a top-level binding shadows a global the lowering helpers need")
+				what := "a top-level binding shadows a global the lowering helpers need"
+				cg_strip_unsupported(cg, {}, what)
 			}
 		}
 	}
@@ -152,7 +159,8 @@ transform_model :: proc(cg: ^Codegen) -> ^SemanticModel {
 		state.model = new(SemanticModel, state.allocator)
 		enum_constants_init(&state.enums, state.allocator, len(cg.source))
 		state.model^ = semantic_build(
-			state.job.program, cg.source, state.job.lang, state.allocator, enum_constants = &state.enums,
+			state.job.program, cg.source, state.job.lang, state.allocator,
+			enum_constants = &state.enums,
 		)
 	}
 	return state.model
@@ -220,7 +228,8 @@ transform_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expressi
 	if class, is_class := expr^.(^ClassExpression); is_class {
 		if state.decorators == .Legacy { transform_legacy_class_expression(cg, class) }
 	}
-	if state.target == .ESNext { return expr }
+	// After the first diagnostic nothing is written, so lowering can stop.
+	if state.target == .ESNext || cg.strip_diag != nil { return expr }
 	// A rule may produce syntax that an older target lowers again: `a ??= b`
 	// becomes `a ?? (a = b)` and then a conditional. Three steps is the longest chain.
 	value := expr

@@ -125,7 +125,9 @@ legacy_class_plan :: proc(cg: ^Codegen, plan: ^LegacyClass) -> (decorated: bool)
 			}
 			continue
 		}
-		member := LegacyMember{element = &element, decorators = element.decorators[:], params = params}
+		member := LegacyMember{
+			element = &element, decorators = element.decorators[:], params = params,
+		}
 		if element.kind == .Get || element.kind == .Set {
 			if !legacy_accessor_merge(cg, class, index, &member) { continue }
 		}
@@ -156,7 +158,9 @@ legacy_accessor_merge :: proc(
 	if partner.kind == .Set {
 		member.params = nil
 		if value, present := partner.value.?; present && value != nil {
-			if function, ok := value^.(^FunctionExpression); ok { member.params = function.params[:] }
+			if function, ok := value^.(^FunctionExpression); ok {
+				member.params = function.params[:]
+			}
 		}
 	}
 	return true
@@ -173,11 +177,13 @@ legacy_member_supported :: proc(
 	if element.abstract { return false }
 	if function != nil && function.no_body { return false }
 	if _, private := element.key^.(^PrivateIdentifier); private {
-		cg_strip_unsupported(cg, element.loc, "legacy decorators cannot be applied to a private member")
+		what := "legacy decorators cannot be applied to a private member"
+		cg_strip_unsupported(cg, element.loc, what)
 		return false
 	}
 	if element.is_accessor {
-		cg_strip_unsupported(cg, element.loc, "legacy decorators on an accessor field are not supported")
+		what := "legacy decorators on an accessor field are not supported"
+		cg_strip_unsupported(cg, element.loc, what)
 		return false
 	}
 	if element.declare && element.computed && !legacy_key_is_constant(element.key) {
@@ -203,7 +209,9 @@ legacy_accessor_partner :: proc(class: ^ClassExpression, index: int) -> int {
 	if !named { return -1 }
 	wanted := ClassElementKind.Set if element.kind == .Get else ClassElementKind.Get
 	for other, other_index in class.body.body {
-		if other_index == index || other.kind != wanted || other.static != element.static { continue }
+		if other_index == index || other.kind != wanted || other.static != element.static {
+			continue
+		}
 		other_name, other_named := legacy_key_name(other)
 		if other_named && other_name == name { return other_index }
 	}
