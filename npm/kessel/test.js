@@ -1056,6 +1056,27 @@ try {
     const span = scan.exports[0].span;
     assert.equal(Buffer.from(source).subarray(span.start, span.end).toString(), 'primary');
     assert.deepEqual(scanModuleSync('').dependencies, []);
+    // es-module-lexer equivalents: t, se, d, attribute pairs, facade, format.
+    const lexed = scanModuleSync("/* π */ import a from 'a' with { type: 'json' };\n" +
+      "export { a as 'b' }; import.source('c');");
+    const [declared, called] = lexed.dependencies;
+    const bytes = Buffer.from("/* π */ import a from 'a' with { type: 'json' };");
+    assert.equal(declared.import_type, 'Static');
+    assert.equal(bytes.subarray(declared.statement.start, declared.clause_end).toString(),
+      "import a from 'a' with { type: 'json' }");
+    assert.equal(declared.arguments_start, null);
+    assert.deepEqual(declared.attribute_entries.map(pair => [pair.key, pair.value]),
+      [['type', 'json']]);
+    assert.equal(called.import_type, 'Dynamic_Source_Phase');
+    assert.equal(called.arguments_start, called.request.start - 1);
+    assert.equal(lexed.exports[0].name_is_string, true);
+    assert.equal(lexed.facade, false);
+    assert.equal(lexed.format, 'ESM');
+    assert.equal(scanModuleSync("export * from 'a';").facade, true);
+    const commonjs = scanModuleSync("module.exports = require('a');");
+    assert.deepEqual([commonjs.format, commonjs.has_commonjs_syntax, commonjs.has_module_syntax],
+      ['CJS', true, false]);
+    assert.equal(scanModuleSync('f();').format, 'Unknown');
     assert.throws(() => scanModuleSync("import('incomplete'"), { name: 'SyntaxError', code: 'Invalid_Syntax' });
     passed++;
   } catch (e) { console.error('FAIL: scanModuleSync:', e.message); failed++; }
@@ -1304,6 +1325,16 @@ try {
     const fallback = realpathSync(join(resolverDir, 'script.js'));
     assert.equal(resolveModuleSync('.', importer, { mode: 'require', mainFields: 'custom' }).path, fallback);
     assert.equal(resolveModuleSync('.', importer, { mode: 'require', mainFields: [], mainFiles: ['script'] }).path, fallback);
+    assert.equal(resolveModuleSync('/script.js', importer, { roots: [resolverDir] }).path, fallback);
+    assert.equal(resolveModuleSync('script', importer, { preferRelative: true, fullySpecified: false }).path, fallback);
+    assert.equal(resolveModuleSync('gone', importer, { fallback: [{ name: 'gone', target: fallback }] }).path, fallback);
+    assert.deepEqual(resolveModuleSync('gone', importer, { fallback: [{ name: 'gone', target: false }] }), { kind: 'ignored', path: '' });
+    assert.throws(() => resolveModuleSync('./script.js', importer, { restrictions: [{ regex: '\\.ts$' }] }), { code: 'Not_Found' });
+    assert.equal(realpathSync(resolveModuleSync('.', importer, { resolveToContext: true }).path), realpathSync(resolverDir));
+    for (const options of [{ roots: 'x' }, { fallback: [{ name: 'a' }] }, { restrictions: [{}] }, { fullySpecified: 1 },
+      { restrictions: [{ path: 'a', regex: 'b' }] }, { preferRelative: 'yes' }, { explicitConditions: 0 }]) {
+      assert.throws(() => resolveModuleSync('./script.js', importer, options), TypeError);
+    }
     passed++;
   } catch (e) { console.error('FAIL: resolveModuleSync:', e.message); failed++; }
   finally { rmSync(resolverDir, { recursive: true, force: true }); }

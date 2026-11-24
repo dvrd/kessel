@@ -240,6 +240,17 @@ Use `extensionAlias: { '.js': ['.ts', '.js'] }` to resolve an explicit
 `./entry.js` request to a TypeScript source file first. The resolver tries
 replacement suffixes in order for relative paths and explicit package targets.
 
+The enhanced-resolve lookup options are `roots`, `preferAbsolute`,
+`preferRelative`, `fallback`, `restrictions`, `fullySpecified`,
+`resolveToContext`, `explicitConditions` and `tsconfigReferences`. For example,
+`{ roots: ['/srv/public'], fallback: [{ name: 'buffer', target: false }],
+restrictions: [{ path: '/srv' }, { regex: '\\.(js|ts)$' }] }` looks
+`/assets/a.js` up below the root, reports an unresolved `buffer` as ignored,
+and skips candidate files outside `/srv` or with another extension.
+`fullySpecified` defaults to the Node rule of the mode: exact for `import`,
+extension and directory lookup for `require`. `resolveToContext` returns a
+directory with kind `file`.
+
 An empty string in `extensions` tries the exact filename at that position.
 Relative ESM imports and explicit package export and import targets use exact paths
 by default. Supplying a `tsconfig` with `rootDirs` enables TypeScript source

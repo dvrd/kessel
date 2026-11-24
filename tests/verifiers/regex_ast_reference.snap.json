@@ -1,0 +1,32 @@
+{
+  "test262": {
+    "pairs": 5726,
+    "accepted": 5161,
+    "inputs": "00816a47bf0a57a4cadcfe0f40bf3f97303ddf7a4b1fd0a758a22c8909824a0b",
+    "trees": "b6b367ef07759de45317ad5f9569c1fd32a8919818181221b48a1aff899b66da"
+  },
+  "real_world": {
+    "pairs": 6032,
+    "accepted": 6032,
+    "inputs": "74f82444eb5089967eac61faac52146b42c4be7f16d65a7df43ada39ed4572f2",
+    "trees": "52e22dbe4977e9464ffe1cc870ffdbbd33a81fd63705b712558049c81c89b545"
+  },
+  "grammar": {
+    "pairs": 995,
+    "accepted": 678,
+    "inputs": "33e0c84ffd70ee9bbd9763b962658cc7f2edb7debe30b09d5d44dd64a7944adf",
+    "trees": "6f635bdd4e77c45594c8461779219ebd89fc8842547423ee95c9f226fe175b55"
+  },
+  "properties": {
+    "pairs": 20908,
+    "accepted": 2279,
+    "inputs": "810f534fb01ae50b157155dc841e3f1046f24d45ef051b9e7fd3b856f3c476da",
+    "trees": "076d4a2a5ec39b4a33c80c20c0365e211adb688b4ffec6fdde54ff352dcde003"
+  },
+  "generated": {
+    "pairs": 34193,
+    "accepted": 7521,
+    "inputs": "3256213e14997e789fbb3bf151f3257b00d54ae09770ab4e23e8324ced650569",
+    "trees": "3b958b52a70d607a0eb5a75659c393ebf5f0bf4e4dec9324a3b7964a17071503"
+  }
+}

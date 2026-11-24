@@ -104,6 +104,8 @@ kessel_resolve_module :: proc "c" (request_ptr: [^]u8, request_len: i32) -> Kess
 		return kessel_tool_error("Invalid_Request", "Could not decode resolver options")
 	}
 	request.options.mode = .Require if request.require_mode else .Import
+	// Matchers are derived from restrictions inside module_resolve.
+	request.options.restriction_matchers = nil
 	result, err := module_resolve(request.specifier, request.importer, request.options, temp)
 	if err != .None { return kessel_tool_error(err, "Could not resolve module") }
 	return kessel_tool_json(result)
