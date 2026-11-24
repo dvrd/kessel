@@ -717,7 +717,8 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 	// or `{` is ambiguous with FunctionDeclaration / ClassDeclaration /
 	// BlockStatement. Wrap in parens so the re-parse picks the
 	// Expression production.
-	if expression_starts_with_ambiguous_token(cg, s.expression, .Statement) {
+	if expression_starts_with_ambiguous_token(cg, s.expression, .Statement) ||
+	   expression_is_grouped_string(s) {
 		cg_byte(cg, '(')
 		gen_expression(cg, s.expression, PREC_LOWEST)
 		cg_byte(cg, ')')
@@ -725,6 +726,14 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 		gen_expression(cg, s.expression, PREC_LOWEST)
 	}
 	cg_byte(cg, ';')
+}
+
+// `("use strict");` is an ordinary statement. Printed without its grouping
+// it would become a directive and change the mode of the code after it.
+expression_is_grouped_string :: proc(s: ^ExpressionStatement) -> bool {
+	if s.expression == nil { return false }
+	literal, is_string := s.expression^.(^StringLiteral)
+	return is_string && literal.loc.start != s.loc.start
 }
 
 ExpressionStartContext :: enum { Statement, Arrow_Body, Default_Export }
@@ -2066,7 +2075,7 @@ gen_template_literal :: proc(cg: ^Codegen, e: ^TemplateLiteral) {
 }
 
 gen_tagged_template :: proc(cg: ^Codegen, e: ^TaggedTemplateExpression) {
-	gen_expression(cg, e.tag, PREC_CALL)
+	gen_chain_operand(cg, e.tag)
 	gen_expression(cg, e.quasi, PREC_CALL)
 }
 
@@ -2238,7 +2247,7 @@ gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
 gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 	if cg.cfg.optimize_const_enums && gen_inlined_enum_member(cg, e) { return }
 	obj_start := cg.pos
-	gen_expression(cg, e.object, PREC_CALL)
+	gen_chain_operand(cg, e.object)
 	if e.computed {
 		if e.optional { cg_str(cg, "?.") }
 		cg_byte(cg, '[')
@@ -2271,6 +2280,21 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 	}
 }
 
+// The object of a member access, the callee of a call or the tag of a
+// template. An optional chain ends where its grouping ends: `(a?.b).c` reads
+// `c` even when `a` is nullish, and `a?.b.c` does not. The grouping is kept.
+gen_chain_operand :: proc(cg: ^Codegen, operand: ^Expression) {
+	if operand != nil {
+		if _, is_chain := operand^.(^ChainExpression); is_chain {
+			cg_byte(cg, '(')
+			gen_expression(cg, operand, PREC_LOWEST)
+			cg_byte(cg, ')')
+			return
+		}
+	}
+	gen_expression(cg, operand, PREC_CALL)
+}
+
 gen_call_expression :: proc(cg: ^Codegen, e: ^CallExpression) {
 	properties: []string
 	if len(cg.param_properties_after_super) > 0 && e.callee != nil {
@@ -2279,7 +2303,7 @@ gen_call_expression :: proc(cg: ^Codegen, e: ^CallExpression) {
 			cg_byte(cg, '(')
 		}
 	}
-	gen_expression(cg, e.callee, PREC_CALL)
+	gen_chain_operand(cg, e.callee)
 	if e.optional { cg_str(cg, "?.") }
 	gen_call_arguments(cg, e)
 	if len(properties) > 0 {
@@ -2302,7 +2326,7 @@ gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
 	// CallExpression callee needs explicit parens, otherwise
 	// `new f()()` parses as `(new f)()` (call on the new), not the
 	// intended `new (f())()`.
-	if _, is_call := e.callee^.(^CallExpression); is_call {
+	if new_callee_needs_group(e.callee) {
 		cg_byte(cg, '(')
 		gen_expression(cg, e.callee, PREC_LOWEST)
 		cg_byte(cg, ')')
@@ -2310,6 +2334,24 @@ gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
 		gen_expression(cg, e.callee, PREC_CALL)
 	}
 	gen_call_arguments(cg, e)
+}
+
+// The arguments of `new` attach to the first call on the callee's left spine:
+// `new (a().b)()` constructs the member, `new a().b()` calls it. An optional
+// chain may not be a `new` callee at all without grouping.
+new_callee_needs_group :: proc(callee: ^Expression) -> bool {
+	current := callee
+	for current != nil {
+		#partial switch e in current^ {
+		case ^CallExpression, ^ImportExpression, ^ChainExpression: return true
+		case ^MemberExpression:           current = e.object
+		case ^TaggedTemplateExpression:   current = e.tag
+		case ^TSNonNullExpression:        current = e.expression
+		case ^TSInstantiationExpression:  current = e.expression
+		case: return false
+		}
+	}
+	return false
 }
 
 gen_call_arguments :: proc(cg: ^Codegen, call: $T) {
@@ -2342,11 +2384,27 @@ gen_conditional_expression :: proc(cg: ^Codegen, e: ^ConditionalExpression, ctx:
 	cg_byte(cg, '?')
 	cg_space(cg)
 	// The consequent admits an unparenthesized in operator even in a for initializer.
-	gen_expression(cg, e.consequent, PREC_ASSIGN)
+	if conditional_consequent_needs_group(cg, e.consequent) {
+		cg_byte(cg, '(')
+		gen_expression(cg, e.consequent, PREC_ASSIGN)
+		cg_byte(cg, ')')
+	} else {
+		gen_expression(cg, e.consequent, PREC_ASSIGN)
+	}
 	cg_space(cg)
 	cg_byte(cg, ':')
 	cg_space(cg)
 	gen_expression(cg, e.alternate, PREC_ASSIGN, ctx)
+}
+
+// After `?`, `async (a): T => a : b` reads as the call `async(a)` followed by
+// the alternate. Only grouping makes it an arrow with a return type.
+conditional_consequent_needs_group :: proc(cg: ^Codegen, consequent: ^Expression) -> bool {
+	if cg.cfg.strip_types || consequent == nil { return false }
+	arrow, is_arrow := consequent^.(^ArrowFunctionExpression)
+	if !is_arrow || !arrow.async { return false }
+	_, typed := arrow.return_type.?
+	return typed
 }
 
 // Separate adjacent signs so the lexer cannot merge them into ++ or --.
@@ -2446,7 +2504,9 @@ gen_infix_schedule :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 		append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = left, precedence = PREC_LOWEST})
 		append(&cg.infix_work, CodegenInfixTask{kind = .Open})
 	} else {
-		append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = left, precedence = precedence, ctx = operand_ctx})
+		// `(a ** b) ** c` needs its grouping: without it the right side binds first.
+		left_prec := precedence + 1 if power else precedence
+		append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = left, precedence = left_prec, ctx = operand_ctx})
 	}
 }
 
@@ -3301,11 +3361,9 @@ gen_ts_literal_type :: proc(cg: ^Codegen, t: ^TSLiteralType) {
 gen_ts_template_literal_type :: proc(cg: ^Codegen, t: ^TSTemplateLiteralType) {
 	cg_byte(cg, '`')
 	for i in 0..<len(t.quasis) {
-		if c, ok := t.quasis[i].cooked.?; ok {
-			cg_str(cg, c)
-		} else {
-			cg_str(cg, t.quasis[i].raw)
-		}
+		// The raw text keeps the escapes. The cooked text of `\t` is a tab, and
+		// of `\r\n` a line break that the template would then normalize.
+		cg_str(cg, t.quasis[i].raw)
 		if i < len(t.types) {
 			cg_str(cg, "${")
 			gen_ts_type(cg, t.types[i])
