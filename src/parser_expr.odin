@@ -243,14 +243,25 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		return left
 	}
 
-	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
-	left = #force_inline parse_expr_ts_type_postfix(p, left, start)
+	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only). The
+	// operators have relational precedence and associate to the left, so
+	// `1 + x as T` is `(1 + x) as T`. An operand parsed for a tighter
+	// operator leaves the keyword for the enclosing call's loop below.
+	type_postfix_allowed := int(min_prec) <= int(Precedence.Relational)
+	if type_postfix_allowed {
+		left = #force_inline parse_expr_ts_type_postfix(p, left, start)
+	}
 
 	for {
 		if left == nil {
 			return nil
 		}
 		cur_type := p.cur_type
+
+		if type_postfix_allowed && (cur_type == .As || cur_type == .Satisfies) {
+			left = parse_expr_ts_type_postfix(p, left, start)
+			continue
+		}
 
 		// Skip 'in' as binary op when parsing for-loop init
 		if p.ctx.no_in && cur_type == .In {
