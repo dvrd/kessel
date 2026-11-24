@@ -1686,7 +1686,13 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	// Fast path: simple integer (no dot, no exponent, no underscore, fits in u64)
 	value: f64
-	if is_simple_int && (end - start) <= 15 {
+	if legacy_zero_prefix && !legacy_zero_prefix_has_89 && is_simple_int {
+		// §B.1.1 LegacyOctalIntegerLiteral: `010` is eight, not ten. The digit
+		// loop above accumulated in base ten because it cannot know that no
+		// `8` or `9` follows until the literal ends, so the value is redone
+		// here. Only this cold Annex B spelling pays for the second pass.
+		value = lex_legacy_octal_value(src[start:end])
+	} else if is_simple_int && (end - start) <= 15 {
 		value = f64(acc)
 	} else {
 		text := l.source[start:end]
@@ -1716,6 +1722,37 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
+}
+
+// Mathematical value of a LegacyOctalIntegerLiteral (§B.1.1), rounded to the
+// nearest f64 the way the engine rounds any NumericLiteral (§12.9.3).
+//
+// The top bits are gathered in a u64. Once another digit would no longer fit,
+// the remaining digits only move the binary exponent, and whether any of them
+// was non-zero is folded into bit zero as a sticky bit. The u64 then holds at
+// least 61 significant bits, more than the 53 an f64 keeps, so the conversion
+// rounds exactly as the full integer would.
+lex_legacy_octal_value :: proc(digits: []u8) -> f64 {
+	assert(len(digits) >= 2)
+	assert(digits[0] == '0')
+	mantissa: u64 = 0
+	shift_bits: u32 = 0
+	sticky := false
+	for digit in digits {
+		assert(digit >= '0' && digit <= '7')
+		if mantissa >> 61 == 0 {
+			mantissa = mantissa << 3 | u64(digit - '0')
+		} else {
+			shift_bits += 3
+			if digit != '0' { sticky = true }
+		}
+	}
+	if sticky { mantissa |= 1 }
+	value := f64(mantissa)
+	// Scaling by a power of two is exact; past the f64 range it overflows to
+	// infinity, which is also what the engine evaluates such a literal to.
+	for ; shift_bits > 0 && value < max(f64); shift_bits -= 3 { value *= 8 }
+	return value
 }
 
 lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
