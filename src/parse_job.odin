@@ -122,6 +122,16 @@ ParseConfig :: struct {
 	// Shared guardrails for malformed input. Zero-valued fields use the
 	// defaults from resource_budget.odin.
 	resource_budget: ParseResourceBudget,
+
+	// Reject source that is not well-formed UTF-8 (Unicode Table 3-7:
+	// no overlong encodings, no encoded surrogates, nothing above
+	// U+10FFFF, no truncated or stray continuation bytes). The source is
+	// validated before any token is consumed; on failure the job reports
+	// exactly one K1017_InvalidUtf8 diagnostic spanning the first
+	// ill-formed sequence and an empty Program. Default false: ill-formed
+	// bytes are lexed as before (they may reach string values unchanged).
+	// Costs one pass over the source when on, nothing when off.
+	reject_invalid_utf8: bool,
 }
 
 // Snapshot a CliConfig into a ParseConfig. Called once per parse job
@@ -382,6 +392,17 @@ parse_job_run :: proc(job: ^ParseJob) {
 	// Lexer first - it needs source_type up front to gate Annex B
 	// HTML-like comments on the very first prefetched token.
 	init_lexer(&job.lexer, source_str, job.arena_alloc, job.lex_source_type)
+
+	// Opt-in input validation. Runs after init_lexer because the refusal
+	// is delivered through the lexer (diagnostic + halt), so the rest of
+	// the pipeline sees an ordinary, empty parse.
+	if job.config.reject_invalid_utf8 {
+		bad_start, bad_length := utf8_first_ill_formed(job.source.data)
+		if bad_length > 0 {
+			lexer_refuse_source(&job.lexer, u32(bad_start), u32(bad_length),
+				.K1017_InvalidUtf8, "Source is not valid UTF-8")
+		}
+	}
 
 	// Parser - lang and source_is_dts at construction; everything else
 	// gets set on the struct AFTER init_parser zeroes it (matching the

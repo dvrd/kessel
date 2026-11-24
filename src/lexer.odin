@@ -371,6 +371,24 @@ lexer_halt :: proc(l: ^Lexer) {
 	assert(l.offset == len(l.source_bytes))
 }
 
+// Refuse the whole source before parsing starts: forget what init_lexer
+// gathered while priming the first token (it may have read through the
+// bytes being refused), record the one diagnostic that explains the
+// refusal, and halt so the parser sees an empty program.
+lexer_refuse_source :: proc(l: ^Lexer, offset, length: u32, code: ErrorCode, message: string) {
+	assert(int(offset) + int(length) <= len(l.source_bytes))
+	assert(length > 0)
+	clear(&l.lexer_errors)
+	clear(&l.comments)
+	bump_append(&l.lexer_errors, LexerError{
+		offset = offset, length = length, message = message, code = code,
+	})
+	lexer_halt(l)
+	end := u32(len(l.source_bytes))
+	l.cur = FastToken{start = end, end = end, kind = .EOF}
+	l.nxt_valid = false
+}
+
 // Index every ECMAScript line terminator. Treat CRLF as one line break.
 source_line_offsets :: proc(buf: string, allocator: mem.Allocator = context.allocator) -> []u32 {
 	out := make([dynamic]u32, 1, max(64, len(buf) / 32), allocator)

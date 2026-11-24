@@ -625,3 +625,104 @@ simd_build_utf16_offsets :: proc(source: []u8, alloc: mem.Allocator) -> []u32 {
 	table[len(source)] = utf16_pos
 	return table
 }
+
+// ============================================================================
+// UTF-8 validation (opt-in: ParseConfig.reject_invalid_utf8)
+// ============================================================================
+//
+// The lexer itself tolerates ill-formed UTF-8: bytes it does not recognise
+// surface as generic "invalid character" diagnostics or pass through into
+// string values. A consumer that hands the AST's strings to code assuming
+// UTF-8 can ask for the whole source to be validated up front instead.
+//
+// Well-formedness follows the Unicode Standard, Table 3-7 ("Well-Formed
+// UTF-8 Byte Sequences"). That table, and so this validator, rejects:
+// overlong encodings (C0, C1, E0 80..9F, F0 80..8F), surrogates encoded as
+// three bytes (ED A0..BF), code points above U+10FFFF (F4 90.., F5..FF),
+// continuation bytes with no lead byte, and sequences cut short by another
+// byte or by the end of input.
+//
+// Cost: source is overwhelmingly ASCII, so the loop is an ASCII skip (16
+// bytes per step with hardware SIMD) that drops to the scalar decoder only
+// at a byte >= 0x80. Nothing here runs unless the option is on.
+
+// Return the first ill-formed sequence in `source` as `start` plus
+// `length` (>= 1), or `length == 0` when the whole source is well formed.
+// `start` is the first byte that is not part of a well-formed sequence;
+// `length` covers the maximal prefix of a well-formed sequence found there
+// (Unicode's "maximal subpart"), e.g. 2 for the truncated `E2 82`.
+utf8_first_ill_formed :: proc(source: []u8) -> (start: int, length: int) {
+	offset := 0
+	// Each iteration consumes at least one byte, or returns.
+	for offset < len(source) {
+		offset = utf8_skip_ascii(source, offset)
+		if offset >= len(source) { break }
+		assert(source[offset] >= 0x80)
+		sequence_length, well_formed := utf8_sequence_check(source[offset:])
+		assert(sequence_length >= 1)
+		if !well_formed { return offset, sequence_length }
+		offset += sequence_length
+	}
+	assert(offset == len(source))
+	return offset, 0
+}
+
+// Return the offset of the first byte >= 0x80 at or after `start`, or
+// len(source) when the rest is ASCII.
+utf8_skip_ascii :: proc(source: []u8, start: int) -> int {
+	assert(start >= 0)
+	assert(start <= len(source))
+	offset := start
+	when simd.HAS_HARDWARE_SIMD {
+		high_bit: Vec16 = 0x80
+		for offset + 16 <= len(source) {
+			chunk := load_u8x16_unaligned(&source[offset])
+			if intrinsics.simd_reduce_or(simd.lanes_ge(chunk, high_bit)) != 0 { break }
+			offset += 16
+		}
+	}
+	// Scalar: the tail, the chunk SIMD stopped in, or everything when
+	// there is no hardware SIMD.
+	for offset < len(source) {
+		if source[offset] >= 0x80 { break }
+		offset += 1
+	}
+	return offset
+}
+
+// Decode-check the sequence at bytes[0]. For a well-formed sequence
+// `length` is its size (1..4). Otherwise `length` is how many leading
+// bytes form a valid prefix of some sequence, at least 1.
+utf8_sequence_check :: proc(bytes: []u8) -> (length: int, well_formed: bool) {
+	assert(len(bytes) > 0)
+	// Table 3-7: every special case constrains the SECOND byte only; later
+	// bytes are always plain continuations (80..BF).
+	continuation_count: int
+	second_min: u8 = 0x80
+	second_max: u8 = 0xBF
+	switch bytes[0] {
+	case 0x00..=0x7F: return 1, true
+	case 0xC2..=0xDF: continuation_count = 1
+	case 0xE0:        continuation_count = 2; second_min = 0xA0 // no overlongs
+	case 0xE1..=0xEC: continuation_count = 2
+	case 0xED:        continuation_count = 2; second_max = 0x9F // no surrogates
+	case 0xEE..=0xEF: continuation_count = 2
+	case 0xF0:        continuation_count = 3; second_min = 0x90 // no overlongs
+	case 0xF1..=0xF3: continuation_count = 3
+	case 0xF4:        continuation_count = 3; second_max = 0x8F // <= U+10FFFF
+	case:
+		// 80..BF: continuation without a lead. C0, C1: overlong two-byte
+		// leads. F5..FF: beyond U+10FFFF or never valid.
+		return 1, false
+	}
+	assert(continuation_count >= 1)
+	assert(continuation_count <= 3)
+	byte_min, byte_max := second_min, second_max
+	for index in 1..=continuation_count {
+		if index >= len(bytes) { return index, false } // cut short by end of input
+		if bytes[index] < byte_min { return index, false }
+		if bytes[index] > byte_max { return index, false }
+		byte_min, byte_max = 0x80, 0xBF
+	}
+	return continuation_count + 1, true
+}

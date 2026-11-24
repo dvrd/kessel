@@ -151,6 +151,7 @@ ErrorCode :: enum u16 {
 	// Resource limits and input hardening. Listed last, out of numeric
 	// order, so concurrent additions to the ranges above do not collide.
 	K1016_TemplateNestingTooDeep                  = 1016,
+	K1017_InvalidUtf8                             = 1017,
 	K2085_OutOfMemory                             = 2085,
 }
 
@@ -657,6 +658,17 @@ error_info_part3 :: proc(code: ErrorCode) -> ErrorInfo {
 		return ErrorInfo{
 			default_message = "template literal nesting is too deep",
 			hint            = "move inner template literals into variables",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1017 — the source bytes are not well-formed UTF-8. Only reported
+	//   when the caller opts in (ParseConfig.reject_invalid_utf8); the
+	//   span covers the first ill-formed sequence.
+	case .K1017_InvalidUtf8:
+		return ErrorInfo{
+			default_message = "source is not valid UTF-8",
+			hint            = "re-save the file as UTF-8",
 			ts_code         = "",
 			severity        = .Error,
 		}
