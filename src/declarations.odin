@@ -24,6 +24,7 @@ DeclarationItem :: struct {
 	region, child: int,
 	selected, root: bool,
 	text: string,
+	preamble: string, // An unexported statement printed ahead of the declaration.
 	errors: [dynamic]DeclarationDiagnostic,
 }
 
@@ -226,6 +227,8 @@ dts_index :: proc(state: ^DeclarationEmit, statement: Statement, group: int) {
 		if visibility == .Local && state.region != 0 { root = false }
 	case ^TSModuleDeclaration:
 		if id, ok := s.id^.(^Identifier); ok { name = id.name }
+		// A global augmentation is only meaningful at the top level of a file.
+		if s.global && state.region != 0 { return }
 		if s.global || name == "" { root = true }
 	case ^ExportNamedDeclaration, ^ExportDefaultDeclaration, ^ExportAllDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 	case: return
@@ -262,7 +265,9 @@ dts_emit_item :: proc(state: ^DeclarationEmit, item: ^DeclarationItem) {
 		dts_function(state, s, get_statement_loc(state.regions[state.region].body[item.group]))
 	case ^TSModuleDeclaration:
 		dts_namespace_header(state, s)
-		if item.child != 0 {
+		// `global { }` without `declare` is not ambient, so its unexported
+		// members are private to the block and TypeScript emits it empty.
+		if item.child != 0 && (s.declare || !s.global) {
 			child := &state.regions[item.child]
 			child.active = true
 			for index := child.first; index < child.end; index += 1 {
