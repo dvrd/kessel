@@ -1,5 +1,7 @@
 package kessel
 
+import "core:strings"
+
 // Statement printers. See format_print.odin for the conventions.
 
 @(private = "file")
@@ -71,19 +73,8 @@ format_stmt :: proc(f: ^FormatContext, stmt: ^Statement, key: FormatKey) -> Doc 
 		return fc(f, ft(f, "return"), format_return_argument(f, argument))
 	case ^ThrowStatement:
 		return fc(f, ft(f, "throw"), format_return_argument(f, node.argument))
-	case ^BreakStatement:
-		if label, labeled := node.label.?; labeled {
-			return fc(f, ft(f, "break "), ft(f, label.name), ft(f, ";"))
-		}
-		return ft(f, "break;")
-	case ^ContinueStatement:
-		if label, labeled := node.label.?; labeled {
-			return fc(f, ft(f, "continue "), ft(f, label.name), ft(f, ";"))
-		}
-		return ft(f, "continue;")
-	case ^LabeledStatement:
-		if format_stmt_is_empty(node.body) {return fc(f, ft(f, node.label.name), ft(f, ":;"))}
-		return fc(f, ft(f, node.label.name), ft(f, ": "), format_stmt(f, node.body, .Body))
+	case ^BreakStatement, ^ContinueStatement, ^LabeledStatement:
+		return format_jump(f, stmt)
 	case ^IfStatement:
 		return format_if(f, node)
 	case ^WhileStatement:
@@ -116,6 +107,26 @@ format_stmt :: proc(f: ^FormatContext, stmt: ^Statement, key: FormatKey) -> Doc 
 		return format_export_named(f, node)
 	case ^ExportDefaultDeclaration:
 		return format_export_default(f, node)
+	}
+	return format_fail(f)
+}
+
+@(private = "file")
+format_jump :: proc(f: ^FormatContext, stmt: ^Statement) -> Doc {
+	#partial switch node in stmt^ {
+	case ^BreakStatement:
+		if label, labeled := node.label.?; labeled {
+			return fc(f, ft(f, "break "), ft(f, label.name), ft(f, ";"))
+		}
+		return ft(f, "break;")
+	case ^ContinueStatement:
+		if label, labeled := node.label.?; labeled {
+			return fc(f, ft(f, "continue "), ft(f, label.name), ft(f, ";"))
+		}
+		return ft(f, "continue;")
+	case ^LabeledStatement:
+		if format_stmt_is_empty(node.body) {return fc(f, ft(f, node.label.name), ft(f, ":;"))}
+		return fc(f, ft(f, node.label.name), ft(f, ": "), format_stmt(f, node.body, .Body))
 	}
 	return format_fail(f)
 }
@@ -303,9 +314,10 @@ format_switch_case :: proc(f: ^FormatContext, node: ^SwitchCase) -> Doc {
 		head = fc(f, ft(f, "case "), format_expr(f, test, .Test), ft(f, ":"))
 	}
 	count := 0
-	only: ^Statement
+	only, first: ^Statement
 	for stmt in node.consequent {
 		if format_stmt_is_empty(stmt) {continue}
+		if count == 0 {first = stmt}
 		count += 1
 		only = stmt
 	}
@@ -320,6 +332,21 @@ format_switch_case :: proc(f: ^FormatContext, node: ^SwitchCase) -> Doc {
 	}
 	if colon >= len(f.source) || f.source[colon] != ':' {return format_fail(f)}
 	bounds := FormatListBounds{open = u32(colon + 1), close = node.loc.end, has_head = true}
+	// A line comment on the head's line stays there. Prettier hangs it on
+	// the test, or on a `default` whose first statement is not a block.
+	on_line := format_comments_in(f, bounds.open, get_statement_loc(first).start)
+	if len(on_line) > 0 && format_comment_is_inline_line(f, on_line[0], bounds.open) {
+		_, has_test := node.test.?
+		if !has_test && format_stmt_is_block(first) {return format_fail(f)}
+		format_comment_mark(f, on_line[0])
+		comment := ft(f, strings.trim_right_space(f.source[on_line[0].start:on_line[0].end]))
+		if has_test {
+			head = fc(f, head, doc_line_suffix(f, fc(f, ft(f, " "), comment)), doc_break_parent())
+		} else {
+			head = fc(f, head, ft(f, " "), comment)
+		}
+		bounds.open = on_line[0].end
+	}
 	list := format_stmt_list(f, node.consequent[:], .Consequent, false, bounds)
 	if count == 1 && format_stmt_is_block(only) {return fc(f, head, ft(f, " "), list)}
 	return fc(f, head, fi(f, doc_hardline(), list))
@@ -423,6 +450,24 @@ FormatListBounds :: struct {
 	has_head:    bool,
 }
 
+// Where a statement ends for the purpose of attaching comments. Prettier
+// ends a variable declaration at its last initializer unless the semicolon
+// follows directly, so `var a = 1 /* note */;` has its comment after the
+// statement and prints it after the semicolon.
+@(private = "file")
+format_statement_comment_end :: proc(f: ^FormatContext, stmt: ^Statement, loc: Loc) -> u32 {
+	declaration, is_declaration := stmt^.(^VariableDeclaration)
+	if !is_declaration || len(declaration.declarations) == 0 {return loc.end}
+	last := declaration.declarations[len(declaration.declarations) - 1]
+	if _, has_init := last.init.?; !has_init {return loc.end}
+	end := last.loc.end
+	if end >= loc.end || f.source[end] == ';' {return loc.end}
+	// Only comments and the semicolon may follow, or the spans disagree.
+	rest := format_next_code_index(f.source, end)
+	if rest < int(loc.end) && f.source[rest] != ';' {return loc.end}
+	return end
+}
+
 // Statements separated by hard lines. One blank line survives wherever the
 // source has at least one. Empty statements disappear.
 format_stmt_list :: proc(
@@ -443,7 +488,7 @@ format_stmt_list :: proc(
 		}
 		loc := get_statement_loc(stmt)
 		append(&starts, loc.start)
-		append(&ends, loc.end)
+		append(&ends, format_statement_comment_end(f, stmt, loc))
 	}
 	comments, dangling := format_list_comments(f, bounds, starts[:], ends[:])
 	if len(starts) == 0 {return dangling}
