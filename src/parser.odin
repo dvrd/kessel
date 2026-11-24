@@ -246,6 +246,14 @@ Parser :: struct {
 	// paren-wrapped form from `({}.x)` etc.
 	last_paren_expr: ^Expression,
 
+	// Offset of the first token inside the parenthesised expression being
+	// parsed, or max(u32) outside one. `(a, b,) => 0` is the only place the
+	// expression grammar tolerates a comma with nothing after it (the cover
+	// grammar for arrow parameters), and parse_expr_with_prec recognises that
+	// place by comparing its own start offset with this one. Set and restored
+	// by parse_primary_lparen.
+	cover_list_start: u32,
+
 	// Allocator for AST allocations (used for [dynamic] arrays)
 	allocator: mem.Allocator,
 
@@ -744,6 +752,7 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.has_top_level_await = false
 	p.private_id_count = 0
 	p.pending_paren_start = max(u32) // sentinel: "no `(` pending"
+	p.cover_list_start = max(u32)    // sentinel: not inside `( … )`
 
 	// Initialize interner - pre-allocate capacity based on source size
 	// Small files: minimal map; large files: ~1 unique identifier per 30 bytes
