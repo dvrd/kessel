@@ -93,6 +93,8 @@ ModuleLexScanner :: struct {
 	allocator: mem.Allocator,
 	bindings: ModuleLexBindings,
 	facade_broken: bool,
+	// End of the last token module_lex_import consumed without recording a call.
+	consumed_end: u32,
 	commonjs_found: bool,
 	commonjs_state: ModuleLexCommonJSState,
 }
@@ -195,6 +197,7 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 			pending, err := module_lex_import(scan, depth == 0)
 			if err != .None { return err }
 			if pending == nil {
+				if depth > 0 { module_lex_note_consumed(scan, &frames[depth - 1], token.start) }
 				previous = .Import
 				continue
 			}
@@ -229,7 +232,11 @@ module_lex_scan :: proc(scan: ^ModuleLexScanner) -> ModuleLexError {
 		if token.kind != .Semi { scan.facade_broken = true }
 		if close, ok := module_lex_close_for(token.kind); ok {
 			if depth == len(frames) { return .Depth_Limit }
-			frames[depth] = {close = close, control = control_paren}
+			// `control` means a statement may follow the closing token, so a
+			// `/` there starts a regular expression: after `if (x)` and after
+			// the `}` of a block, but not after `(x)` or an object literal.
+			block := token.kind == .LBrace && module_lex_opens_block(previous)
+			frames[depth] = {close = close, control = control_paren || block}
 			depth += 1
 		}
 		previous = token.kind
@@ -255,6 +262,16 @@ module_lex_note_nested_end :: proc(scan: ^ModuleLexScanner, parent: ^ModuleLexFr
 	}
 }
 
+// `import.meta` and friends are consumed whole by module_lex_import, so the
+// argument tracking of an enclosing `import(...)` never sees their tokens.
+// Report them as one operand: `import(import.meta.url)` has a request.
+@(private="file")
+module_lex_note_consumed :: proc(scan: ^ModuleLexScanner, parent: ^ModuleLexFrame, start: u32) {
+	assert(start < scan.consumed_end)
+	operand := FastToken{start = start, end = scan.consumed_end, kind = .Identifier}
+	module_lex_note_nested_end(scan, parent, operand)
+}
+
 @(private="file")
 module_lex_start :: proc(token: FastToken) -> u32 {
 	if token.kind == .Template || token.kind == .TemplateHead { return token.start - 1 }
@@ -278,6 +295,18 @@ module_lex_close_for :: proc(kind: TokenType) -> (TokenType, bool) {
 	return .EOF, false
 }
 
+// Whether a `{` after `previous` opens a statement block or function body
+// rather than an object literal. `:` stays an expression context: it is far
+// more often a property value or a conditional than a label.
+@(private="file")
+module_lex_opens_block :: proc(previous: TokenType) -> bool {
+	#partial switch previous {
+	case .RParen, .Semi, .LBrace, .RBrace, .Arrow, .Else, .Do, .Try, .Finally, .EOF:
+		return true
+	}
+	return false
+}
+
 @(private="file")
 module_lex_control :: proc(kind: TokenType) -> bool {
 	#partial switch kind {
@@ -291,6 +320,7 @@ module_lex_control :: proc(kind: TokenType) -> bool {
 module_lex_import :: proc(scan: ^ModuleLexScanner, top_level: bool) -> (Maybe(int), ModuleLexError) {
 	l := &scan.lexer
 	keyword := l.cur
+	scan.consumed_end = keyword.end
 	module_lex_advance(l)
 	// Everything but a top-level import declaration is an expression.
 	declaration := top_level && l.cur.kind != .LParen && l.cur.kind != .Dot && l.cur.kind != .Colon
@@ -307,11 +337,13 @@ module_lex_import :: proc(scan: ^ModuleLexScanner, top_level: bool) -> (Maybe(in
 				statement = {start = keyword.start, end = l.cur.end},
 			}
 			scan.result.has_module_syntax = true
+			scan.consumed_end = l.cur.end
 			err := module_lex_add(scan, entry)
 			module_lex_advance(l)
 			return nil, err
 		}
 		if member == "source" || member == "defer" {
+			scan.consumed_end = l.cur.end
 			module_lex_advance(l)
 			if l.cur.kind == .LParen {
 				phase := ModuleImportPhase.Source if member == "source" else ModuleImportPhase.Defer

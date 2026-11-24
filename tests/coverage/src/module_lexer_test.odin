@@ -374,3 +374,36 @@ test_module_lexer_facade_and_format :: proc(t: ^testing.T) {
 		testing.expectf(t, result.format == item.format, "%q: %v", source, result.format)
 	}
 }
+
+// Regressions found by the es-module-lexer reference gate: operands the
+// import-keyword path consumes whole, `/` after a statement block, and class
+// names behind decorators or TypeScript's `implements`.
+@(test)
+test_module_lexer_scan_contexts :: proc(t: ^testing.T) {
+	operands := "import(import.meta.url); import(a, import.meta);"
+	result, err := kessel.module_lex_dependencies(operands, context.allocator)
+	if !testing.expect_value(t, err, .None) { return }
+	defer kessel.module_lex_destroy(&result)
+	if !testing.expect_value(t, len(result.dependencies), 4) { return }
+	first := result.dependencies[0]
+	testing.expect_value(t, operands[first.request.start:first.request.end], "import.meta.url")
+	testing.expect_value(t, first.attributes == nil, true)
+	third := result.dependencies[2]
+	testing.expect_value(t, operands[third.request.start:third.request.end], "a")
+	if testing.expect_value(t, third.attributes != nil, true) {
+		options := third.attributes.?
+		testing.expect_value(t, operands[options.start:options.end], "import.meta")
+	}
+
+	blocks := "function a() {} /import('x')/.test(b);\n" +
+	          "if (c) {} /import('y')/.test(d);\n" +
+	          "for (;;) {} /import('z')/.test(e);\n" +
+	          "f = {} / g / import('object-divisor');\n" +
+	          "h = (i) / j / import('paren-divisor');\n"
+	scanned, blocks_err := kessel.module_lex_dependencies(blocks, context.allocator)
+	if !testing.expect_value(t, blocks_err, .None) { return }
+	defer kessel.module_lex_destroy(&scanned)
+	if !testing.expect_value(t, len(scanned.dependencies), 2) { return }
+	testing.expect_value(t, scanned.dependencies[0].name, Maybe(string)("object-divisor"))
+	testing.expect_value(t, scanned.dependencies[1].name, Maybe(string)("paren-divisor"))
+}
