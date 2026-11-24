@@ -882,8 +882,99 @@ sem_walk_assignment_target :: proc(ctx: ^SemCtx, expr: ^Expression, kind: RefKin
 	}
 }
 
+// sem_walk_chain is sem_walk_expr for binary / logical / member / call
+// chains. The parser builds these in a loop and does not bound their
+// length, so the chain operand is reached iteratively (see spine.odin);
+// each link's other operands are walked on the way back up, in the same
+// order as the recursive form.
+//
+// ctx.let_barrier needs care: sem_walk_expr saves it on entry and
+// restores it on exit, and a LogicalExpression raises it to the current
+// scope for its whole subtree. Entering the links outermost-first
+// therefore leaves it raised from the first logical link inward, and
+// each link's operands must see the value that was in effect just after
+// that link was entered.
+sem_walk_chain :: proc(ctx: ^SemCtx, expr: ^Expression) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	// Without the chain table the links cannot be visited; the model
+	// then lacks their references, the same as for an unparsed operand.
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+
+	barrier_outer := ctx.let_barrier
+	defer ctx.let_barrier = barrier_outer
+	scope := ctx.cur_scope
+	barrier_raised_from := len(spine.nodes) // index of the first link that raised it
+
+	for node, index in spine.nodes {
+		if ctx.let_uses != nil {
+			sem_note_let_expression(ctx, node)
+			if _, is_logical := node^.(^LogicalExpression); is_logical {
+				barrier_raised_from = min(barrier_raised_from, index)
+			}
+		}
+		if ctx.defines != nil { transform_define_note(ctx, node, false) }
+		sem_walk_chain_enter(ctx, node)
+	}
+	sem_walk_expr(ctx, spine.leaf)
+	assert(ctx.cur_scope == scope)
+
+	#reverse for node, index in spine.nodes {
+		ctx.let_barrier = barrier_outer
+		if index >= barrier_raised_from { ctx.let_barrier = scope }
+		sem_walk_chain_leave(ctx, node)
+	}
+}
+
+// sem_walk_chain_enter records what a link notes before its chain
+// operand is walked.
+sem_walk_chain_enter :: proc(ctx: ^SemCtx, node: ^Expression) {
+	#partial switch e in node^ {
+	case ^MemberExpression:
+		if ctx.enum_constants != nil { enum_constants_note_read(ctx.enum_constants, e) }
+	case ^CallExpression:
+		if ctx.property_uses != nil && len(e.arguments) != 0 && e.callee != nil {
+			callee := semantic_runtime_expression(e.callee)
+			if callee != nil {
+				if member, ok := callee^.(^MemberExpression); ok {
+					use := SemanticMemberCall{ctx.cur_scope, member, e.arguments[0]}
+					append(&ctx.property_uses.calls, use)
+				}
+			}
+		}
+	case ^BinaryExpression, ^LogicalExpression:
+		// Nothing to note before the left operand.
+	case:
+		unreachable()
+	}
+}
+
+// sem_walk_chain_leave walks a link's operands other than its chain
+// operand; these are bounded by the parser's nesting limit.
+sem_walk_chain_leave :: proc(ctx: ^SemCtx, node: ^Expression) {
+	#partial switch e in node^ {
+	case ^MemberExpression:
+		if e.computed { sem_walk_expr(ctx, e.property) }
+	case ^CallExpression:
+		for a in e.arguments { sem_walk_expr(ctx, a) }
+	case ^BinaryExpression:
+		sem_walk_expr(ctx, e.right)
+	case ^LogicalExpression:
+		sem_walk_expr(ctx, e.right)
+	case:
+		unreachable()
+	}
+}
+
 sem_walk_expr :: proc(ctx: ^SemCtx, expr: ^Expression, value_used := true) {
 	if expr == nil { return }
+	// Binary / logical / member / call chains are unbounded in length;
+	// walk them with a loop instead of one frame per link.
+	if expr_is_spine_node(expr) {
+		sem_walk_chain(ctx, expr)
+		return
+	}
 	barrier := ctx.let_barrier
 	defer ctx.let_barrier = barrier
 	if ctx.let_uses != nil { sem_note_let_expression(ctx, expr) }
@@ -899,27 +990,8 @@ sem_walk_expr :: proc(ctx: ^SemCtx, expr: ^Expression, value_used := true) {
 		}
 	case ^UpdateExpression:
 		if e != nil { sem_walk_assignment_target(ctx, e.argument, .ReadWrite, value_used) }
-	case ^BinaryExpression:     if e != nil { sem_walk_expr(ctx, e.left); sem_walk_expr(ctx, e.right) }
-	case ^LogicalExpression:    if e != nil { sem_walk_expr(ctx, e.left); sem_walk_expr(ctx, e.right) }
-	case ^MemberExpression:
-		if e != nil {
-			if ctx.enum_constants != nil { enum_constants_note_read(ctx.enum_constants, e) }
-			sem_walk_expr(ctx, e.object)
-			if e.computed { sem_walk_expr(ctx, e.property) }
-		}
-	case ^CallExpression:
-		if e != nil {
-			if ctx.property_uses != nil && len(e.arguments) != 0 && e.callee != nil {
-				callee := semantic_runtime_expression(e.callee)
-				if callee != nil {
-					if member, ok := callee^.(^MemberExpression); ok {
-						append(&ctx.property_uses.calls, SemanticMemberCall{ctx.cur_scope, member, e.arguments[0]})
-					}
-				}
-			}
-			sem_walk_expr(ctx, e.callee)
-			for a in e.arguments { sem_walk_expr(ctx, a) }
-		}
+	case ^BinaryExpression, ^LogicalExpression, ^MemberExpression, ^CallExpression:
+		unreachable() // handled by sem_walk_chain above
 	case ^NewExpression:        if e != nil { sem_walk_expr(ctx, e.callee); for a in e.arguments { sem_walk_expr(ctx, a) } }
 	case ^ConditionalExpression: if e != nil { sem_walk_expr(ctx, e.test); sem_walk_expr(ctx, e.consequent); sem_walk_expr(ctx, e.alternate) }
 	case ^SequenceExpression:   if e != nil {

@@ -61,6 +61,7 @@ ErrorCode :: enum u16 {
 	K2060_DuplicateLabel                          = 2060,
 	K2070_RequiredFormOrBinding                   = 2070,
 	K2080_ParserBudgetExceeded                    = 2080,
+	K2081_NestingTooDeep                          = 2081,
 	K2090_MalformedDecorator                      = 2090,
 
 	// K3xxx — ECMA-262 early errors. Phase 4 first slice covers the
@@ -316,6 +317,17 @@ error_info_part1 :: proc(code: ErrorCode) -> ErrorInfo {
 		return ErrorInfo{
 			default_message = "out of memory: input exceeds the parser arena",
 			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2081 — the source nests deeper than ParseConfig.max_depth. The
+	//   parser is recursive, so nesting depth is stack depth; the limit
+	//   turns a would-be stack overflow into one ordinary diagnostic.
+	case .K2081_NestingTooDeep:
+		return ErrorInfo{
+			default_message = "maximum nesting depth exceeded",
+			hint            = "flatten the nesting, or raise the parser's max_depth",
 			ts_code         = "",
 			severity        = .Error,
 		}

@@ -563,6 +563,7 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 // other diagnostics merge into.
 scope_emit :: #force_inline proc(p: ^Parser, at: u32, message: string) {
 	if p == nil { return }
+	if p.depth_exceeded { return }
 	bump_append(&p.errors, ParseError{start = at, end = at, message = message})
 }
 
@@ -2010,6 +2011,9 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		eat(p)
 		current_expr := head_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)  // consume `.`
 			if p.cur_type != .Identifier && !is_keyword_usable_as_property_name(p.cur_type) &&
 			   p.cur_type != .Await && p.cur_type != .Yield {

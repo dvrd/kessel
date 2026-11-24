@@ -187,6 +187,9 @@ parse_expr_yield_lhs_restricted :: proc(p: ^Parser, left: ^Expression) -> bool {
 parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression, start: u32) -> ^Expression {
 	left := left
 	for is_token(p, .As) || is_token(p, .Satisfies) {
+		// `a as T as U ...` wraps in this loop but is walked by recursion,
+		// so each wrapper takes a nesting level.
+		if !parser_depth_charge(p) { return nil }
 		if !allow_ts_mode(p) {
 			if is_token(p, .Satisfies) {
 				report_error_coded(p, .K4053_TSOnlyInJS, "Type satisfaction expressions can only be used in TypeScript files")
@@ -218,6 +221,11 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression, start: u32) ->
 }
 
 parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
+	// Every nested expression (group, element, argument, operand, branch)
+	// re-enters here, so this is the main nesting-depth checkpoint.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	// Outer type operators include grouping delimiters even when the AST elides parentheses.
 	start := cur_offset(p)
 	prev_private_in_allowed := p.ctx.private_in_allowed
@@ -554,6 +562,11 @@ check_pow_unparenthesized_operand :: proc(p: ^Parser, left: ^Expression, cur_typ
 // Lifted out of parse_unary_expr's dispatch switch as pure code motion: the
 // operator token is still current on entry, and the helper always returns.
 parse_unary_prefix_op :: proc(p: ^Parser) -> ^Expression {
+	// Prefix chains (`!!!!x`) recurse through parse_unary_expr without
+	// passing parse_expr_with_prec, so they take their own level.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	current := snap_current(p)
 	eat(p)
 	argument := parse_unary_expr(p)
@@ -628,6 +641,9 @@ parse_unary_prefix_op :: proc(p: ^Parser) -> ^Expression {
 // switch as pure code motion: the operator token is still current on entry,
 // and the helper always returns.
 parse_unary_prefix_update :: proc(p: ^Parser) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	current := snap_current(p)
 	eat(p)
 	argument := parse_unary_expr(p)
@@ -726,6 +742,9 @@ parse_unary_await :: proc(p: ^Parser) -> (^Expression, bool) {
 	if await_unary_falls_through(p) {
 		return nil, false
 	}
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil, true }
 	// §14.13.1 LabelIdentifier - in async context, "await" is a
 	// reserved word, so `await:` as a LabelledStatement head is a
 	// SyntaxError.
@@ -912,6 +931,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 
 	case .Dot3:
+		// `... ... ...x` recurses here directly; take a nesting level.
+		depth_saved, depth_ok := parser_depth_enter(p)
+		defer p.depth_left = depth_saved
+		if !depth_ok { return nil }
 		current := snap_current(p)
 		eat(p)
 		argument := parse_unary_expr(p)
@@ -1286,6 +1309,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if is_chain {
 				report_error_coded(p, .K3068_OptionalChainTaggedTemplate, "Tagged template literals cannot appear in an optional chain")
 			}
+			// tag`a``b`... wraps in this loop but is walked by recursion.
+			if !parser_depth_charge(p) { return nil }
 			tagged, tagged_e := new_expr(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
@@ -1370,6 +1395,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				report_error_coded(p, .K4053_TSOnlyInJS, "Non-null assertions can only be used in TypeScript files")
 			}
 
+			// `a!!!!` wraps in this loop but is walked by recursion.
+			if !parser_depth_charge(p) { return nil }
 			nn, nn_e := new_expr(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
 			nn.expression = expr
@@ -1527,6 +1554,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				inst_start = chain.loc
 				is_chain = false  // we just sealed the chain
 			}
+			// `a<T><T>...` wraps in this loop but is walked by recursion.
+			if !parser_depth_charge(p) { return nil }
 			inst, inst_e := new_expr(p, TSInstantiationExpression)
 			inst.loc = inst_start
 			inst.expression = inner
@@ -3612,6 +3641,10 @@ parse_new_type_arguments :: proc(p: ^Parser) -> Maybe(^TSTypeParameterInstantiat
 }
 
 parse_new_expr :: proc(p: ^Parser) -> ^Expression {
+	// `new new new X` recurses here for the callee.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	eat(p) // consume new
 
@@ -3982,6 +4015,43 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 // into shapes that can legally hold default-value expressions; it does
 // not descend into nested function literals (those introduce their own
 // scope where yield/await can be legitimately bound).
+// walk_arrow_cover_chain_for_yield_await handles binary / logical / call /
+// member chains for walk_arrow_cover_for_yield_await. A parameter default
+// such as `(a = x + y + ...) =>` holds a chain the parser built in a loop
+// and did not limit, so the chain operand is reached iteratively (see
+// spine.odin). Operands are visited in source order, so diagnostics keep
+// their order. As before, a member's property is not visited.
+walk_arrow_cover_chain_for_yield_await :: proc(
+	p: ^Parser,
+	expr: ^Expression,
+	disallow_yield, disallow_await: bool,
+) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	// Without the chain table the chain goes unchecked; the checker
+	// (pass 3) reports the same early error from its own walk.
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+
+	walk_arrow_cover_for_yield_await(p, spine.leaf, disallow_yield, disallow_await)
+	#reverse for node in spine.nodes {
+		#partial switch e in node^ {
+		case ^BinaryExpression:
+			walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+		case ^LogicalExpression:
+			walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+		case ^CallExpression:
+			for arg in e.arguments {
+				walk_arrow_cover_for_yield_await(p, arg, disallow_yield, disallow_await)
+			}
+		case ^MemberExpression:
+			// Property is not visited (unchanged behaviour).
+		case:
+			unreachable()
+		}
+	}
+}
+
 walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow_yield, disallow_await: bool) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -4019,12 +4089,8 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 		}
 	case ^SpreadElement:
 		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
-	case ^BinaryExpression:
-		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
-		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
-	case ^LogicalExpression:
-		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
-		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		walk_arrow_cover_chain_for_yield_await(p, expr, disallow_yield, disallow_await)
 	case ^UnaryExpression:
 		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
 	case ^UpdateExpression:
@@ -4033,11 +4099,6 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 		walk_arrow_cover_for_yield_await(p, e.test, disallow_yield, disallow_await)
 		walk_arrow_cover_for_yield_await(p, e.consequent, disallow_yield, disallow_await)
 		walk_arrow_cover_for_yield_await(p, e.alternate, disallow_yield, disallow_await)
-	case ^CallExpression:
-		walk_arrow_cover_for_yield_await(p, e.callee, disallow_yield, disallow_await)
-		for arg in e.arguments { walk_arrow_cover_for_yield_await(p, arg, disallow_yield, disallow_await) }
-	case ^MemberExpression:
-		walk_arrow_cover_for_yield_await(p, e.object, disallow_yield, disallow_await)
 	case ^TaggedTemplateExpression:
 		walk_arrow_cover_for_yield_await(p, e.tag, disallow_yield, disallow_await)
 	case ^TemplateLiteral:
@@ -5027,6 +5088,9 @@ arrow_validate_params :: proc(p: ^Parser, params: []FunctionParameter, start: Lo
 }
 
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 
 	// §15.3.1 — ArrowParameters Contains check. The cover expression
 	// was parsed under the surrounding generator/async context, so a

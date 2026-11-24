@@ -276,6 +276,7 @@ programmatic handling. Full API and visitor helpers documented in
 | `--range` | Emit ESLint-style `range: [start, end]` |
 | `--preserve-parens` | Wrap `(expr)` in ParenthesizedExpression nodes |
 | `--show-semantic-errors` | Run the semantic checker (pass 3) |
+| `--max-depth=N` | Reject source nested deeper than `N` levels with one `K2081` diagnostic instead of risking a stack overflow. Default 512. Operator, member and call chains (`a+b+c`, `a.b.c`, `a()()`) do not count and may be arbitrarily long |
 | `--ast-only` | Skip semantic checks (for benchmarking) |
 | `--ast-type=js\|ts\|auto` | Force ESTree shape (JS or TS fields) |
 | `--module-record` | Emit static import/export module record |

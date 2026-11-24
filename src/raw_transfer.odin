@@ -210,6 +210,89 @@ rewrite_maybe_binding_id_name :: #force_inline proc(field: ^Maybe(BindingIdentif
 // Expression rewriter
 // ============================================================================
 
+// rewrite_expression_chain rewrites a member / call / binary / logical
+// chain. The parser builds these in a loop and does not limit their
+// length, so one frame per link would overflow the stack on a generated
+// million-term expression.
+//
+// This pass already overwrites every pointer in the tree, so the way back
+// up is kept in the tree itself: while descending, each link's chain
+// field temporarily holds its PARENT link; ascending puts the child back
+// and then rewrites it to an offset exactly as rewrite_expr_field would.
+// No storage is needed, so there is no allocation that could fail and
+// leave native pointers in the buffer.
+rewrite_expression_chain :: proc(top: ^Expression, base: uintptr, source_base: uintptr) {
+	assert(rewrite_chain_slot(top) != nil)
+
+	// Descend to the first operand that is not a chain link.
+	parent: ^Expression = nil
+	node := top
+	link_count := 0
+	for link_count < EXPR_SPINE_COUNT_MAX {
+		slot := rewrite_chain_slot(node)
+		if slot == nil { break }
+		child := slot^
+		slot^ = parent
+		parent = node
+		node = child
+		link_count += 1
+	}
+	assert(link_count < EXPR_SPINE_COUNT_MAX, "expression chain is cyclic")
+	assert(link_count > 0)
+
+	// `node` is the innermost operand; it is not a chain link, so this
+	// call cannot re-enter rewrite_expression_chain on the same chain.
+	rewrite_expression(node, base, source_base)
+
+	// Ascend, restoring each chain field and rewriting it to an offset.
+	child := node
+	for _ in 0 ..< link_count {
+		assert(parent != nil)
+		slot := rewrite_chain_slot(parent)
+		grandparent := slot^
+		slot^ = child
+		if child != nil {
+			rewrite_union_ptr(child, base)
+			rewrite_ptr((^rawptr)(slot), base)
+		}
+		rewrite_chain_rest(parent, base, source_base)
+		child = parent
+		parent = grandparent
+	}
+	assert(parent == nil)
+	assert(child == top)
+}
+
+// rewrite_chain_slot returns the address of the field a chain continues
+// through, or nil when `expr` is not a chain link.
+rewrite_chain_slot :: proc(expr: ^Expression) -> ^^Expression {
+	if expr == nil { return nil }
+	#partial switch v in expr {
+	case ^MemberExpression:  if v != nil { return &v.object }
+	case ^CallExpression:    if v != nil { return &v.callee }
+	case ^BinaryExpression:  if v != nil { return &v.left }
+	case ^LogicalExpression: if v != nil { return &v.left }
+	}
+	return nil
+}
+
+// rewrite_chain_rest rewrites the fields of a chain link other than the
+// one the chain continues through.
+rewrite_chain_rest :: proc(expr: ^Expression, base: uintptr, source_base: uintptr) {
+	#partial switch v in expr {
+	case ^MemberExpression:
+		rewrite_expr_field(v.property, &v.property, base, source_base)
+	case ^CallExpression:
+		rewrite_expression_array(&v.arguments, base, source_base)
+	case ^BinaryExpression:
+		rewrite_expr_field(v.right, &v.right, base, source_base)
+	case ^LogicalExpression:
+		rewrite_expr_field(v.right, &v.right, base, source_base)
+	case:
+		unreachable()
+	}
+}
+
 rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintptr) {
 	if expr == nil { return }
 	
@@ -263,12 +346,9 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 		rewrite_arrow_function(v, base, source_base)
 	case ^ClassExpression:
 		rewrite_class_expression(v, base, source_base)
-	case ^MemberExpression:
-		rewrite_expr_field(v.object, &v.object, base, source_base)
-		rewrite_expr_field(v.property, &v.property, base, source_base)
-	case ^CallExpression:
-		rewrite_expr_field(v.callee, &v.callee, base, source_base)
-		rewrite_expression_array(&v.arguments, base, source_base)
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		// Unbounded chains: rewritten by a loop, not one frame per link.
+		rewrite_expression_chain(expr, base, source_base)
 	case ^NewExpression:
 		rewrite_expr_field(v.callee, &v.callee, base, source_base)
 		rewrite_expression_array(&v.arguments, base, source_base)
@@ -280,12 +360,6 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^UnaryExpression:
 		rewrite_expr_field(v.argument, &v.argument, base, source_base)
-	case ^BinaryExpression:
-		rewrite_expr_field(v.left, &v.left, base, source_base)
-		rewrite_expr_field(v.right, &v.right, base, source_base)
-	case ^LogicalExpression:
-		rewrite_expr_field(v.left, &v.left, base, source_base)
-		rewrite_expr_field(v.right, &v.right, base, source_base)
 	case ^AssignmentExpression:
 		rewrite_expr_field(v.left, &v.left, base, source_base)
 		rewrite_expr_field(v.right, &v.right, base, source_base)

@@ -670,6 +670,7 @@ print_usage :: proc() {
 	out_println("  --color=true|false              ANSI color in diagnostics. Default: true.")
 	out_println("                                   Env: KESSEL_COLOR=1|0. Flag overrides env.")
 	out_println("  --show-semantic-errors          Run the AST-walker semantic checker (pass 3).")
+	out_println("  --max-depth=N                   Reject nesting deeper than N (K2081). Default: 512.")
 	out_println("")
 	out_println("Examples:")
 	out_println("  kessel parse app.js                       Pretty diagnostics, exit 1 on error.")
@@ -782,7 +783,12 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	// makes the state explicit so server mode and tests get the same
 	// shape without ambient globals. See src/emitter.odin.
 	e: Emitter
-	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
+	emit_config := emit_config_from_cli(cli, job.lang)
+	// Without --json the document is built only to exercise the emitter
+	// and then discarded, so skip the whitespace: pretty output for a
+	// long operator chain is hundreds of megabytes of indentation.
+	if !cli.emit_json { emit_config.compact = true }
+	emitter_init(&e, emit_config, len(job.source.data), context.allocator)
 	defer emitter_destroy(&e)
 
 	emit_job_json(&e, &job)

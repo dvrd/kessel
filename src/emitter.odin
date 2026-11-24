@@ -240,11 +240,80 @@ to_utf16 :: #force_inline proc(e: ^Emitter, byte_off: u32) -> u32 {
 // `use_direct_buf` global; that routing is gone - emitter procs always
 // write to e.buf and CLI procs always write to stdout.
 
+// ============================================================================
+// Writer helper inlining
+// ============================================================================
+//
+// The writer helpers are force-inlined for speed: the printer calls them
+// thousands of times per file. A force-inlined body leaves its locals in
+// the CALLER's frame, and only an optimising build merges those slots.
+// Without optimisation every call site keeps its own copy, which made the
+// recursive printers enormous (print_statement_ast: 16 KB per frame with
+// -debug, 242 KB with -o:minimal) and overflowed an 8 MB stack on 40
+// nested blocks. So the helpers are inlined only where the optimiser can
+// clean up; elsewhere each is one ordinary procedure. Optimised builds
+// generate the same code as before.
+EMIT_HELPERS_INLINE :: ODIN_OPTIMIZATION_MODE == .Speed ||
+                       ODIN_OPTIMIZATION_MODE == .Aggressive ||
+                       ODIN_OPTIMIZATION_MODE == .Size
+
+when EMIT_HELPERS_INLINE {
+	emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
+		#force_inline emit_reserve_body(e, need)
+	}
+	emit_raw :: #force_inline proc(e: ^Emitter, s: string) {
+		#force_inline emit_raw_body(e, s)
+	}
+	emit_bool :: #force_inline proc(e: ^Emitter, b: bool) {
+		#force_inline emit_bool_body(e, b)
+	}
+	emit_u32 :: #force_inline proc(e: ^Emitter, n: u32) {
+		#force_inline emit_u32_body(e, n)
+	}
+	emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
+		#force_inline emit_indent_body(e, depth)
+	}
+	emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_core_body(e, loc, indent)
+	}
+	emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_fields_body(e, loc, indent)
+	}
+	emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_leading_body(e, loc, indent)
+	}
+} else {
+	emit_reserve :: #force_no_inline proc(e: ^Emitter, need: int) {
+		#force_inline emit_reserve_body(e, need)
+	}
+	emit_raw :: #force_no_inline proc(e: ^Emitter, s: string) {
+		#force_inline emit_raw_body(e, s)
+	}
+	emit_bool :: #force_no_inline proc(e: ^Emitter, b: bool) {
+		#force_inline emit_bool_body(e, b)
+	}
+	emit_u32 :: #force_no_inline proc(e: ^Emitter, n: u32) {
+		#force_inline emit_u32_body(e, n)
+	}
+	emit_indent :: #force_no_inline proc(e: ^Emitter, depth: int) {
+		#force_inline emit_indent_body(e, depth)
+	}
+	emit_span_core :: #force_no_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_core_body(e, loc, indent)
+	}
+	emit_span_fields :: #force_no_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_fields_body(e, loc, indent)
+	}
+	emit_span_leading :: #force_no_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_leading_body(e, loc, indent)
+	}
+}
+
 // Ensure e.buf has at least `need` unused bytes from e.pos. Grows by
 // doubling when the current allocation would overflow. Doubling
 // amortises to O(1) per byte. Callers MUST reserve BEFORE indexing
 // e.buf so indexed writes never touch freed memory.
-emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
+emit_reserve_body :: #force_inline proc(e: ^Emitter, need: int) {
 	if e.pos + need <= len(e.buf) { return }
 	new_cap := max(len(e.buf) * 2, e.pos + need)
 	new_buf := make([]byte, new_cap, e.allocator)
@@ -256,7 +325,7 @@ emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
 // Raw write. Strips '\n' in compact mode (matches the pre-refactor
 // `out_s` semantics for direct-buffer mode). Most static strings on
 // the hot path do not contain '\n' so the strip branch is rarely taken.
-emit_raw :: #force_inline proc(e: ^Emitter, s: string) {
+emit_raw_body :: #force_inline proc(e: ^Emitter, s: string) {
 	emit_reserve(e, len(s))
 	if e.cfg.compact {
 		// Copy the runs between newlines in bulk; the common case (no
@@ -385,7 +454,7 @@ emit_str :: proc(e: ^Emitter, s: string) {
 }
 
 // Write a bool as 'true' or 'false'.
-emit_bool :: #force_inline proc(e: ^Emitter, b: bool) {
+emit_bool_body :: #force_inline proc(e: ^Emitter, b: bool) {
 	emit_reserve(e, 5)
 	if b {
 		e.buf[e.pos] = 't'; e.buf[e.pos+1] = 'r'; e.buf[e.pos+2] = 'u'; e.buf[e.pos+3] = 'e'
@@ -397,7 +466,7 @@ emit_bool :: #force_inline proc(e: ^Emitter, b: bool) {
 }
 
 // Write a u32 as decimal.
-emit_u32 :: #force_inline proc(e: ^Emitter, n: u32) {
+emit_u32_body :: #force_inline proc(e: ^Emitter, n: u32) {
 	// u32 max is 10 digits.
 	tmp: [12]byte
 	s := strconv.write_uint(tmp[:], u64(n), 10)
@@ -477,9 +546,13 @@ emit_printf :: proc(e: ^Emitter, format: string, args: ..any) {
 // Indent N levels (skipped in compact mode). Two-space indent matches
 // the existing pretty-print format. Copied from a static blank table in
 // one mem.copy per call rather than a two-byte-at-a-time loop.
-emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
+emit_indent_body :: #force_inline proc(e: ^Emitter, depth: int) {
 	if e.cfg.compact { return }
-	n := depth * 2
+	// Indentation stops growing at EMIT_INDENT_DEPTH_MAX. A chain of N
+	// binary operators is N objects deep, so unclamped indentation makes
+	// the pretty document O(N^2) bytes (tens of gigabytes for a 60,000-
+	// term concatenation). Clamping keeps it linear and still valid JSON.
+	n := min(depth, EMIT_INDENT_DEPTH_MAX) * 2
 	emit_reserve(e, n)
 	for n > 0 {
 		chunk := min(n, len(EMIT_SPACES))
@@ -488,6 +561,11 @@ emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
 		n -= chunk
 	}
 }
+
+// Deepest indentation level the pretty printer renders; deeper nodes
+// share this level. Far beyond anything readable (512 columns), and well
+// above the 30 levels the golden fixtures reach.
+EMIT_INDENT_DEPTH_MAX :: 256
 
 // Static blank run for emit_indent bulk copies. 64 spaces covers depth
 // 32 in a single mem.copy; deeper nesting loops in 64-byte chunks.
@@ -1047,7 +1125,7 @@ emit_string_literal_object :: proc(e: ^Emitter, s: StringLiteral, indent: int) {
 //
 // Accepts loc by value (16B) rather than by pointer so there's no risk of
 // accidental mutation. Hot path: inlined.
-emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+emit_span_core_body :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	// Tolerate inverted spans (end < start) that can arise from deeply-nested
 	// JSX children or error-recovery paths - clamp `end := max(start, end)` so
 	// invalid input is still emitted as well-formed JSON instead of SIGTRAPping.
@@ -1109,7 +1187,7 @@ emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 // line and whatever the case emits next (which still starts with its own
 // `,\n<indent>"field": ...`). This is the one-call-per-node invariant that
 // closes the ESTree position-info drift uniformly.
-emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+emit_span_fields_body :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	emit_raw(e, ",\n")
 	emit_indent(e, indent)
 	emit_span_core(e, loc, indent)
@@ -1120,7 +1198,7 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 // emit_indent(e, indent). Convenient for inline emitters (SwitchCase, Property,
 // ImportSpecifier, CatchClause, Directive, etc.) that don't use `emit_span_fields`'s
 // leading-comma pattern.
-emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+emit_span_leading_body :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	emit_span_core(e, loc, indent)
 	emit_raw(e, ",\n")
 	emit_indent(e, indent)
@@ -1857,10 +1935,34 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 	emit_raw(e, "\"")
 	emit_span_fields(e, get_statement_loc(stmt), indent)
 
-	// Complete switch (no #partial): every Statement variant must have an explicit
-	// case so a newly-added AST node fails the build instead of being silently
-	// dropped from the ESTree JSON output.
-	switch s in stmt^ {
+	// The arms live in several part procedures (print_statement_ast_a, _b, ...) rather
+	// than one switch. An unoptimised build gives every call in a procedure
+	// its own stack slots, so a single thousand-line switch cost 16 KB per
+	// recursion level and a few hundred nested nodes overflowed an 8 MB
+	// stack. This switch stays complete (no #partial, no default): a new AST
+	// variant fails the build here until it is routed to a part.
+	switch _ in stmt^ {
+	case ^ExpressionStatement, ^VariableDeclaration, ^FunctionDeclaration, ^BlockStatement,
+	     ^ReturnStatement, ^IfStatement, ^WhileStatement, ^ForStatement:
+		print_statement_ast_a(e, stmt, indent)
+	case ^ClassDeclaration, ^TryStatement:
+		print_statement_ast_b(e, stmt, indent)
+	case ^ExportNamedDeclaration, ^ExportDefaultDeclaration, ^ExportAllDeclaration,
+	     ^DoWhileStatement, ^SwitchStatement:
+		print_statement_ast_c(e, stmt, indent)
+	case ^ForInStatement, ^ForOfStatement, ^ThrowStatement, ^ImportDeclaration:
+		print_statement_ast_d(e, stmt, indent)
+	case ^BreakStatement, ^ContinueStatement, ^LabeledStatement, ^WithStatement, ^EmptyStatement,
+	     ^DebuggerStatement, ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration, ^TSEnumDeclaration,
+	     ^TSModuleDeclaration, ^TSImportEqualsDeclaration, ^TSExportAssignment,
+	     ^TSNamespaceExportDeclaration:
+		print_statement_ast_e(e, stmt, indent)
+	}
+}
+
+// Statement arms, part a. Routed from print_statement_ast.
+print_statement_ast_a :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ExpressionStatement:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -2107,6 +2209,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 		emit_indent(e, indent)
 		emit_print(e, "}")
 
+	}
+}
+
+print_statement_ast_b :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ClassDeclaration:
 		emit_println(e, ",")
 		// Emit decorators only when non-empty (OXC omits empty arrays).
@@ -2261,6 +2368,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_print(e, "null")
 		}
 
+	}
+}
+
+print_statement_ast_c :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ExportNamedDeclaration:
 		emit_println(e, ",")
 		emit_indent(e, indent)
@@ -2492,6 +2604,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "]")
 		}
 
+	}
+}
+
+print_statement_ast_d :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ForInStatement:
 		emit_println(e, ",")
 		emit_indent(e, indent)
@@ -2695,6 +2812,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_str(e, s.phase)
 		}
 
+	}
+}
+
+print_statement_ast_e :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^BreakStatement:
 		emit_println(e, ",")
 		emit_indent(e, indent)
@@ -4859,6 +4981,156 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 	emit_raw(e, "}")
 }
 
+// print_expression_chain emits a binary / logical / call / member chain.
+// The parser builds these in a loop and does not limit their length, so
+// recursing once per link (as every other expression does) would overflow
+// the stack on generated code such as a million-term concatenation. The
+// bytes written are identical to the recursive form: each link's fields
+// up to its chain operand on the way down, the rest on the way back up.
+print_expression_chain :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	if !expr_spine_open(&spine, expr, e.allocator) {
+		// Out of memory for the chain table: emit a well-formed
+		// placeholder rather than recursing or truncating the document.
+		emit_indent(e, indent)
+		emit_raw(e, "\"type\": \"Unknown\"")
+		emit_span_fields(e, Loc{}, indent)
+		return
+	}
+	defer expr_spine_close(&spine)
+
+	for node, depth in spine.nodes {
+		print_expression_chain_enter(e, node, indent + depth)
+	}
+	print_expression_ast(e, spine.leaf, indent + len(spine.nodes))
+	#reverse for node, depth in spine.nodes {
+		print_expression_chain_leave(e, node, indent + depth)
+	}
+}
+
+// print_expression_chain_enter writes a chain link's header and every
+// field that precedes its chain operand, ending with that operand's
+// opening brace.
+print_expression_chain_enter :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"")
+	emit_raw(e, get_expression_type_name(e, expr))
+	emit_raw(e, "\"")
+	emit_span_fields(e, get_expression_loc(expr), indent)
+
+	#partial switch n in expr^ {
+	case ^BinaryExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		op_str := binary_op_to_string(n.operator)
+		emit_raw(e, "\"operator\": \"")
+		emit_raw(e, op_str)
+		emit_raw(e, "\",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"left\": {\n")
+	case ^LogicalExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		op_str := ""
+		#partial switch n.operator {
+		case .And: op_str = "&&"
+		case .Or:  op_str = "||"
+		case .NullishCoalescing: op_str = "??"
+		}
+		emit_raw(e, "\"operator\": \"")
+		emit_raw(e, op_str)
+		emit_raw(e, "\",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"left\": {\n")
+	case ^CallExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"callee\": {\n")
+	case ^MemberExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"computed\": ")
+		emit_bool(e, n.computed)
+		emit_raw(e, ",\n")
+		if n.optional {
+			emit_indent(e, indent)
+			emit_raw(e, "\"optional\": true,\n")
+		}
+		emit_indent(e, indent)
+		emit_raw(e, "\"object\": {\n")
+	case:
+		unreachable()
+	}
+}
+
+// print_expression_chain_leave closes a chain link's chain operand and
+// writes the remaining fields. The operands emitted here (right operand,
+// arguments, property) are ordinary nested expressions.
+print_expression_chain_leave :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
+	case ^BinaryExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"right\": {\n")
+		print_expression_ast(e, n.right, indent + 1)
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	case ^LogicalExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"right\": {\n")
+		print_expression_ast(e, n.right, indent + 1)
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	case ^CallExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		if n.optional {
+			emit_indent(e, indent)
+			emit_raw(e, "\"optional\": true,\n")
+		}
+		emit_indent(e, indent)
+		// typeArguments: emit when present (generic call `foo<T>(args)`); emit null
+		// placeholder in TS-shape mode for structural uniformity (OXC always emits it).
+		if targs, ok := n.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
+			emit_raw(e, "\"typeArguments\": ")
+			emit_ts_type_argument_list(e, n.type_parameters, indent)
+			emit_raw(e, ",\n")
+			emit_indent(e, indent)
+		} else if e.cfg.ts_shape {
+			emit_raw(e, "\"typeArguments\": null,\n")
+			emit_indent(e, indent)
+		}
+		emit_raw(e, "\"arguments\": [\n")
+		for arg, i in n.arguments {
+			emit_indent(e, indent + 1)
+			emit_raw(e, "{\n")
+			print_expression_ast(e, arg, indent + 2)
+			emit_indent(e, indent + 1)
+			if i < len(n.arguments) - 1 {
+				emit_raw(e, "},\n")
+			} else {
+				emit_raw(e, "}\n")
+			}
+		}
+		emit_indent(e, indent)
+		emit_raw(e, "]")
+	case ^MemberExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"property\": {\n")
+		print_expression_ast(e, n.property, indent + 1)
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	case:
+		unreachable()
+	}
+}
+
 print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	// Emitter robustness: same rationale as print_statement_ast. A nil inner
 	// typed pointer on an Expression would crash every downstream emitter
@@ -4870,6 +5142,53 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_span_fields(e, Loc{}, indent)
 		return
 	}
+	// Literals are self-contained nodes; binary / logical / call / member
+	// chains can be arbitrarily long, so a loop emits them instead of one
+	// recursion per link.
+	#partial switch _ in expr^ {
+	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral,
+	     ^BigIntLiteral, ^RegExpLiteral:
+		print_expression_literal(e, expr, indent)
+		return
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		print_expression_chain(e, expr, indent)
+		return
+	}
+
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"")
+	emit_raw(e, get_expression_type_name(e, expr))
+	emit_raw(e, "\"")
+	emit_span_fields(e, get_expression_loc(expr), indent)
+
+	// The arms live in several part procedures (print_expression_ast_a, _b, ...) rather
+	// than one switch. An unoptimised build gives every call in a procedure
+	// its own stack slots, so a single thousand-line switch cost 16 KB per
+	// recursion level and a few hundred nested nodes overflowed an 8 MB
+	// stack. This switch stays complete (no #partial, no default): a new AST
+	// variant fails the build here until it is routed to a part.
+	switch _ in expr^ {
+	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral,
+	     ^BigIntLiteral, ^RegExpLiteral,
+	     ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		unreachable() // returned above
+	case ^Identifier, ^ThisExpression, ^Super, ^ChainExpression, ^ArrayExpression,
+	     ^ObjectExpression, ^UnaryExpression, ^AssignmentExpression, ^ConditionalExpression:
+		print_expression_ast_a(e, expr, indent)
+	case ^FunctionExpression, ^ArrowFunctionExpression, ^NewExpression, ^TemplateLiteral,
+	     ^TaggedTemplateExpression:
+		print_expression_ast_b(e, expr, indent)
+	case ^SpreadElement, ^UpdateExpression, ^SequenceExpression, ^YieldExpression,
+	     ^AwaitExpression, ^ImportExpression, ^MetaProperty, ^PrivateIdentifier, ^ClassExpression:
+		print_expression_ast_c(e, expr, indent)
+	case ^JSXElement, ^JSXFragment, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
+	     ^JSXSpreadChild, ^TSAsExpression, ^TSSatisfiesExpression, ^TSNonNullExpression,
+	     ^TSInstantiationExpression, ^TSTypeAssertion, ^ParenthesizedExpression:
+		print_expression_ast_d(e, expr, indent)
+	}
+}
+
+print_expression_literal :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	// ESTree Literal short-circuit: collapse six OXC-style literal types into one.
 	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
 	// Every branch emits start/end via emit_span_fields or emit_span_leading so
@@ -5003,20 +5322,17 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		return
 	case:
 	}
+}
 
-	emit_indent(e, indent)
-	emit_raw(e, "\"type\": \"")
-	emit_raw(e, get_expression_type_name(e, expr))
-	emit_raw(e, "\"")
-	emit_span_fields(e, get_expression_loc(expr), indent)
-
+// Expression arms, part a. Routed from print_expression_ast.
+print_expression_ast_a :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	// Complete switch (no #partial, no default): the Odin compiler enforces that
 	// every variant of `Expression :: union { ... }` in src/ast.odin has an explicit
 	// case here. A newly-added AST variant fails the build instead of silently
 	// emitting an "[UNIMPLEMENTED]" node. The six literal variants are handled (and
 	// returned) by the #partial fast-path switch above, so their cases here are
 	// unreachable and intentionally empty.
-	switch n in expr^ {
+	#partial switch n in expr^ {
 	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral, ^BigIntLiteral, ^RegExpLiteral:
 		// Unreachable: handled with an early return in the literal fast-path above.
 	case ^Identifier:
@@ -5202,23 +5518,8 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "]")
 
-	case ^BinaryExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		op_str := binary_op_to_string(n.operator)
-		emit_raw(e, "\"operator\": \"")
-		emit_raw(e, op_str)
-		emit_raw(e, "\",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_expression_ast(e, n.left, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"right\": {\n")
-		print_expression_ast(e, n.right, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "}")
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		// Unreachable: chains are emitted by print_expression_chain above.
 
 	case ^UnaryExpression:
 		emit_raw(e, ",\n")
@@ -5270,65 +5571,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
-	case ^CallExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"callee\": {\n")
-		print_expression_ast(e, n.callee, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		if n.optional {
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": true,\n")
-		}
-		emit_indent(e, indent)
-		// typeArguments: emit when present (generic call `foo<T>(args)`); emit null
-		// placeholder in TS-shape mode for structural uniformity (OXC always emits it).
-		if targs, ok := n.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
-			emit_raw(e, "\"typeArguments\": ")
-			emit_ts_type_argument_list(e, n.type_parameters, indent)
-			emit_raw(e, ",\n")
-			emit_indent(e, indent)
-		} else if e.cfg.ts_shape {
-			emit_raw(e, "\"typeArguments\": null,\n")
-			emit_indent(e, indent)
-		}
-		emit_raw(e, "\"arguments\": [\n")
-		for arg, i in n.arguments {
-			emit_indent(e, indent + 1)
-			emit_raw(e, "{\n")
-			print_expression_ast(e, arg, indent + 2)
-			emit_indent(e, indent + 1)
-			if i < len(n.arguments) - 1 {
-				emit_raw(e, "},\n")
-			} else {
-				emit_raw(e, "}\n")
-			}
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "]")
-
-	case ^MemberExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"computed\": ")
-		emit_bool(e, n.computed)
-		emit_raw(e, ",\n")
-		if n.optional {
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": true,\n")
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "\"object\": {\n")
-		print_expression_ast(e, n.object, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"property\": {\n")
-		print_expression_ast(e, n.property, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "}")
-
 	case ^ConditionalExpression:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -5347,6 +5589,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
+	}
+}
+
+print_expression_ast_b :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
 	case ^FunctionExpression:
 		// ESTree FunctionExpression.id is `Identifier | null` - for anonymous
 		// functions (the common IIFE case) it's null. OXC always emits it, so
@@ -5570,6 +5817,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
+	}
+}
+
+print_expression_ast_c :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
 	case ^SpreadElement:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -5596,29 +5848,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "\"argument\": {\n")
 		print_expression_ast(e, n.argument, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "}")
-
-	case ^LogicalExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		op_str := ""
-		#partial switch n.operator {
-		case .And: op_str = "&&"
-		case .Or:  op_str = "||"
-		case .NullishCoalescing: op_str = "??"
-		}
-		emit_raw(e, "\"operator\": \"")
-		emit_raw(e, op_str)
-		emit_raw(e, "\",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_expression_ast(e, n.left, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"right\": {\n")
-		print_expression_ast(e, n.right, indent + 1)
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
@@ -5787,6 +6016,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}\n")
 
+	}
+}
+
+print_expression_ast_d :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
 	case ^JSXElement:
 		emit_jsx_element_body(e, n, indent)
 

@@ -8,10 +8,12 @@ ParseResourceBudget :: struct {
 	// Maximum consecutive parser loop iterations without consuming input.
 	error_recovery_iterations: int,
 
-	// Maximum AST recursion depth tolerated by consumers that walk the
-	// finished tree recursively. The Odin parser does not yet enforce
-	// this at every grammar entry; binary decode and future walkers share
-	// the value so the limit has one published source.
+	// Maximum nesting depth. The parser enforces it at every recursive
+	// grammar entry (see "Nesting depth limit" in parser.odin) and
+	// reports K2081 beyond it, so consumers that walk the finished tree
+	// recursively inherit a bound. Binary, logical, member and call
+	// chains are exempt: they are built and walked iteratively.
+	// ParseConfig.max_depth, when set, takes precedence over this field.
 	ast_depth: int,
 
 	// Maximum node-array length in compact binary AST consumers.
@@ -21,6 +23,15 @@ ParseResourceBudget :: struct {
 PARSE_RESOURCE_ERROR_RECOVERY_ITERATIONS :: 10000
 PARSE_RESOURCE_AST_DEPTH                 :: 512
 PARSE_RESOURCE_BINARY_NODE_ARRAY_COUNT   :: 100000
+
+// Upper bound accepted for a caller-supplied nesting limit. The limit is
+// stack depth, so a caller that raises it must also supply the stack;
+// the ceiling only keeps the countdown and its diagnostics well inside
+// u32 and rejects obviously accidental values.
+PARSE_DEPTH_MAX_CEILING :: 1 << 20
+
+#assert(PARSE_RESOURCE_AST_DEPTH > 0)
+#assert(PARSE_RESOURCE_AST_DEPTH <= PARSE_DEPTH_MAX_CEILING)
 
 parse_resource_budget_default :: #force_inline proc() -> ParseResourceBudget {
 	return ParseResourceBudget{
