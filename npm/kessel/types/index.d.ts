@@ -277,6 +277,8 @@ export function transformSync(filename: string, source: string, options?: Transf
 export interface MinifyOptions {
   compress?: boolean;
   mangle?: boolean;
+  /** Also shorten function and class names. This changes their `name` property. Default false. */
+  mangleNames?: boolean;
   /** Factory and fragment bindings supplied by the downstream JSX transform. */
   jsx?: { pragma?: string; pragmaFrag?: string };
   sourceMap?: boolean;

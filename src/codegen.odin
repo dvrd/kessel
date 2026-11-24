@@ -148,6 +148,7 @@ PREC_PRIMARY  :: 19  // literals, identifiers, (expr), [], {}
 
 PrintOptions :: struct {
 	minified, compress, mangle: bool,
+	mangle_names: bool, // Also shorten function and class names, changing their `name` property.
 	pragma, pragma_frag: string,
 }
 
@@ -1027,7 +1028,7 @@ gen_function_declaration :: proc(cg: ^Codegen, s: ^FunctionDeclaration) {
 	// `declare` is a parse error).
 	if s.declare && !cg.cfg.strip_types { cg_str(cg, "declare ") }
 	name := ""
-	if id, ok := s.id.?; ok { name = id.name }
+	if id, ok := s.id.?; ok { name = minify_binding_name(cg, id) }
 	gen_function_expression_like(cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters, s.return_type, true)
 }
 
@@ -1089,7 +1090,7 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 	if s.declare  && !cg.cfg.strip_types { cg_str(cg, "declare ") }
 	if s.abstract && !cg.cfg.strip_types { cg_str(cg, "abstract ") }
 	name := ""
-	if id, ok := s.id.?; ok { name = id.name }
+	if id, ok := s.id.?; ok { name = minify_binding_name(cg, id) }
 	gen_class_like(cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements)
 }
 
@@ -2183,7 +2184,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 
 gen_function_expression :: proc(cg: ^Codegen, e: ^FunctionExpression) {
 	name := ""
-	if id, ok := e.id.?; ok { name = id.name }
+	if id, ok := e.id.?; ok { name = minify_binding_name(cg, id) }
 	gen_function_expression_like(cg, e.async, e.generator, name, e.params[:], e.body, e.no_body, e.type_parameters, e.return_type, false)
 }
 
@@ -2231,7 +2232,7 @@ gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
 		cg_hard_space(cg)
 	}
 	name := ""
-	if id, ok := e.id.?; ok { name = id.name }
+	if id, ok := e.id.?; ok { name = minify_binding_name(cg, id) }
 	gen_class_like(cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements)
 }
 

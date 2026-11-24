@@ -497,6 +497,9 @@ main :: proc() {
 			case optimize && arg == "--no-mangle":
 				options.mangle = false
 				i += 1
+			case optimize && arg == "--mangle-names":
+				options.mangle_names = true
+				i += 1
 			case command == "minify" && arg == "--no-compress":
 				options.compress = false
 				i += 1
@@ -647,7 +650,7 @@ print_usage :: proc() {
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
 	out_println("  lint/fmt/transform --watch      Repeat the command when input files change.")
 	out_println("  lint --list-rules               Print the lint rule catalogue as JSON.")
-	out_println("  minify <file> [--no-compress] [--no-mangle] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
+	out_println("  minify <file> [--no-compress] [--no-mangle] [--mangle-names] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
 	out_println("                                  Options: --no-compress, --no-mangle.")
 	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
 	out_println("  transform <file> [--define NAME=EXPRESSION] [--jsx=classic|automatic|preserve] [--jsx-development] [--jsx-import-source=X] [--jsx-pragma=X] [--jsx-pragma-frag=X] [--minified] [--sourcemap]")

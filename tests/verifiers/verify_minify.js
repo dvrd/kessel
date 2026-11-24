@@ -141,6 +141,100 @@ function verifyNames() {
   assert.equal(outcome(emit('minify', write('many.js', many))), outcome(many));
 }
 
+// Aliases are shared between unrelated scopes and ordered by use count. Each
+// program observes every binding it declares, so a captured reference or a
+// merged binding changes the result. Function and class names stay unless
+// --mangle-names is given, which may only change the `name` values.
+function verifyNameSlots() {
+  const cases = {
+    'default-later.js': [
+      '(function(){ function bindNode(q){return 1}',
+      '  function createBinder(){ function bindEach(nodes, bindFunction = bindNode){ return bindFunction(nodes); }',
+      '    function bindNode(node){ return 2 } return bindEach(0); }',
+      '  globalThis.result=[createBinder(), bindNode(1)]; })();'],
+    'parameter-body.js': [
+      'function init(first = 1, second = () => first){ var third; var fourth = 4; return [third, fourth, second(), first]; }',
+      'function shadow(outerValue){ return function(innerValue = outerValue){ var outerValue; return [innerValue, outerValue]; }(); }',
+      'globalThis.result=[init(), init(7), shadow(3)];'],
+    'catch-var.js': [
+      'function recover(){ var before = 1; try { throw 2 } catch (problem) { var problem = 5; var inside = problem; }',
+      '  try { throw 3 } catch (failure) { var later = failure; } try { throw 4 } catch ({message = 9}) { later += message; }',
+      '  return [before, typeof problem, inside, later]; }',
+      'globalThis.result=recover();'],
+    'annex-b.js': [
+      'function blocks(flag){ var seen = typeof hoisted; { function hoisted(){ return 1 } }',
+      '  if (flag) { function chosen(){ return 2 } } return [seen, hoisted(), typeof chosen]; }',
+      'function strictBlocks(){ "use strict"; { function scoped(){ return 3 } var kept = scoped(); } return [kept, typeof scoped]; }',
+      'globalThis.result=[blocks(true), blocks(false), strictBlocks()];'],
+    'self-names.js': [
+      'function outer(){ var factorial = function inner(count){ return count < 2 ? 1 : count * inner(count - 1); };',
+      '  var Shape = class Figure { static make(){ return new Figure(); } who(){ return Figure === Shape; } };',
+      '  class Local { again(){ return Local; } } var copy = Local; Local = null;',
+      '  return [factorial(5), Shape.make().who(), new copy().again()]; }',
+      'globalThis.result=outer();'],
+    'hoisted-var.js': [
+      'function hoist(list){ { let blockOnly = list.length; { var total = blockOnly; } }',
+      '  for (var index = 0; index < list.length; index++) { let item = list[index]; var last = () => item + total; }',
+      '  switch (total) { case 2: let picked = last(); var out = picked; } return [total, index, last(), out]; }',
+      'globalThis.result=hoist([4,5]);'],
+    'shadow-reads.js': [
+      'function layers(value){ const read = () => value; { const value = 2; var mid = () => value + read(); }',
+      '  return function(value){ return [value, mid(), read(), (function(){ var value = 8; return value; })()]; }(3); }',
+      'function labels(){ label: for (var label = 0; label < 3; label++) { continue label; } return label; }',
+      'globalThis.result=[layers(1), labels()];'],
+    'shorthand.js': [
+      'function pack(alphaValue, betaValue){ const gammaValue = alphaValue + betaValue;',
+      '  const {alphaValue: renamedValue = 6, missingValue = gammaValue} = {alphaValue};',
+      '  return {alphaValue, betaValue, gammaValue, renamedValue, missingValue}; }',
+      'globalThis.result=pack(1, 2);'],
+    'name-values.js': [
+      'function report(){ function declared(){} var assigned = function(){}; var arrow = () => 1; class Kind {}',
+      '  var later; later = function(){}; var {picked = class {}} = {}; var expression = function own(){};',
+      '  return [declared.name, assigned.name, arrow.name, Kind.name, later.name, picked.name, expression.name]; }',
+      'globalThis.result=report();'],
+  };
+  for (const [name, lines] of Object.entries(cases)) {
+    const source = lines.join('\n');
+    const file = write(name, source);
+    const expected = outcome(source);
+    for (const passes of [[], ['--no-compress'], ['--mangle-names'], ['--no-compress', '--mangle-names']]) {
+      const output = emit('minify', file, passes);
+      const actual = outcome(output);
+      if (name === 'name-values.js' && passes.includes('--mangle-names')) {
+        assert.equal(JSON.parse(actual).length, 7);
+        assert.doesNotMatch(output, /declared|assigned|Kind|later|own/);
+      } else {
+        assert.equal(actual, expected, name + ' ' + passes.join(' '));
+      }
+      if (sdk) {
+        const result = sdk.minifySync(file, source, { compress: !passes.includes('--no-compress'),
+          mangleNames: passes.includes('--mangle-names') });
+        assert.deepEqual(result, { code: output, map: null, errors: [] }, name);
+      }
+    }
+  }
+  const kept = emit('minify', write('kept.js', cases['name-values.js'].join('\n')));
+  for (const name of ['declared', 'assigned', 'arrow', 'Kind', 'later', 'picked', 'own']) assert.ok(kept.includes(name), name);
+  // Oxc 0.127.0 resolves a default-parameter reference to a later function
+  // declaration against the outer scope, so its own mangler changes this result.
+  if (reference) {
+    const source = cases['default-later.js'].join('\n');
+    const result = reference.minifySync('default-later.js', source, { compress: false });
+    assert.equal(outcome(source), '[2,1]');
+    assert.equal(outcome(result.code), '[1,1]');
+  }
+  // Unrelated functions share aliases, and the most used binding gets the shortest one.
+  const shared = emit('minify', write('shared.js', 'function one(first){return function(second){return second+second+second+first;};}' +
+    'function two(third,fourth){return fourth*fourth*fourth*fourth+third;}'), ['--no-compress']);
+  assert.equal(shared, 'function one(b){return function(a){return a+a+a+b;};}function two(b,a){return a*a*a*a+b;}');
+  // Many bindings in one scope use every two-character alias before a third character.
+  const locals = Array.from({ length: 400 }, (_, i) => 'localValue' + i);
+  const wide = 'function wide(){var ' + locals.map((name, i) => name + '=' + i).join(',') + ';return ' + locals.join('+') + ';}globalThis.result=wide();';
+  const small = emit('minify', write('wide.js', wide), ['--no-compress']);
+  assert.equal(outcome(small), outcome(wide));
+  assert.ok(Math.max(...small.slice(0, small.indexOf(';return')).match(/[A-Za-z_$][\w$]*(?==)/g).map(name => name.length)) <= 2);
+}
+
 function verifyJSXNames() {
   const factory = '({render:(kind,props,...children)=>[kind,props,...children]})';
   const body = [
@@ -448,6 +542,7 @@ try {
   const operations = verifyOperators();
   verifyEffects();
   verifyNames();
+  verifyNameSlots();
   verifyJSXNames();
   verifyJSXTagMappings();
   verifyJSXAliasCapacity();

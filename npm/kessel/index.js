@@ -883,17 +883,17 @@ function minifySync(filename, source, options = {}) {
   if (!options || typeof options !== 'object' || Array.isArray(options)) {
     throw new TypeError('kessel: minify options must be an object');
   }
-  const { compress = true, mangle = true, sourceMap = false, jsx = {} } = options;
+  const { compress = true, mangle = true, mangleNames = false, sourceMap = false, jsx = {} } = options;
   if (!jsx || typeof jsx !== 'object' || Array.isArray(jsx)) throw new TypeError('kessel: jsx must be an object');
   const { pragma, pragmaFrag } = jsx;
   if ([pragma, pragmaFrag].some(value => value !== undefined && (typeof value !== 'string' || !value.length))) {
     throw new TypeError('kessel: JSX pragma and pragmaFrag must be nonempty strings');
   }
-  if ([compress, mangle, sourceMap].some(value => typeof value !== 'boolean')) {
-    throw new TypeError('kessel: compress, mangle and sourceMap must be booleans');
+  if ([compress, mangle, mangleNames, sourceMap].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: compress, mangle, mangleNames and sourceMap must be booleans');
   }
   return generatedCode(_minify, 'minifySync', filename, source,
-    JSON.stringify({ compress, mangle, source_map: sourceMap, pragma, pragma_frag: pragmaFrag }));
+    JSON.stringify({ compress, mangle, mangle_names: mangleNames, source_map: sourceMap, pragma, pragma_frag: pragmaFrag }));
 }
 
 function generatedCode(native, name, filename, source, settings) {

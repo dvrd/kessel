@@ -63,6 +63,7 @@ Symbol :: struct {
 	kinds:      bit_set[SymbolKind; u16], // All declarations sharing this runtime binding.
 	flags:      SymbolFlags,
 	scope:      ScopeId,       // scope this symbol is declared in
+	decl_scope: ScopeId,       // scope containing the declaration text; a hoisted var differs
 	decl_start: u32,           // source offset of the declaration
 	decl_end:   u32,
 	read_count: u32,           // reads other than discarded updates and compound writes
@@ -259,6 +260,7 @@ sem_declare :: proc(ctx: ^SemCtx, name: string, kind: SymbolKind, flags: SymbolF
 		kinds      = kinds,
 		flags      = flags,
 		scope      = target,
+		decl_scope = ctx.cur_scope,
 		decl_start = start,
 		decl_end   = end,
 	})
