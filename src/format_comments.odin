@@ -242,9 +242,15 @@ format_comment_leads_next :: proc(
 		// Code on both sides of the comment's line. The comment leads the
 		// next item when only spaces and other comments separate the two,
 		// and trails the previous item otherwise.
+		// An opening parenthesis belongs to the next item: the parser drops
+		// grouping parentheses, so the item's span starts inside them.
 		gap_end := high
 		for index := len(in_gap) - 1; index >= position; index -= 1 {
-			if !format_is_inline_space(f.source[in_gap[index].end:gap_end]) {return false, true}
+			between := f.source[in_gap[index].end:gap_end]
+			if index == len(in_gap) - 1 {
+				between, _ = strings.remove_all(between, "(", f.alloc)
+			}
+			if !format_is_inline_space(between) {return false, true}
 			gap_end = in_gap[index].start
 		}
 		return true, true

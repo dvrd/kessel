@@ -744,6 +744,13 @@
     "expected": "items.map(\n  (item: Item): string => item.name,\n);\nrun(function (\n  error: Error,\n  data: Buffer,\n): void {\n  done(error, data);\n});\n"
   },
   {
+    "name": "comment before a parenthesised argument",
+    "source": "run(/*a*/ function(){}, /*b*/()=>{}, /*c*/(x+y));pick(first, /*d*/ ( (second) + third), last);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "run(\n  /*a*/ function () {},\n  /*b*/ () => {},\n  /*c*/ x + y,\n);\npick(first, /*d*/ second + third, last);\n"
+  },
+  {
     "name": "debugger and with labels",
     "source": "debugger;label:;",
     "options": {},
