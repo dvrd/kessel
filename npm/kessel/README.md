@@ -360,8 +360,8 @@ name lookups.
 `'es2024'`. Kessel lowers exponentiation, optional catch binding, optional
 chaining, nullish coalescing, logical assignment, numeric separators, and the
 ES2022 class features: public fields, private names, `#x in o` and static
-blocks. Newer syntax it cannot lower, such as async functions below `es2017`
-or object spread below `es2018`, is reported in `errors` and no code is
+blocks, and object rest and spread. Newer syntax it cannot lower, such as
+async functions below `es2017`, is reported in `errors` and no code is
 returned. Lowered public fields are defined, as the language specifies;
 `assumptions: { setPublicClassFields: true }` assigns them instead.
 

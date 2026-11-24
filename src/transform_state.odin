@@ -18,6 +18,7 @@ TransformHelper :: enum u8 {
 	Define_Field, Prop_Key, Set_Name, Take_Member,
 	Private_Init, Private_Brand, Private_Get, Private_Set, Private_Method,
 	Private_Accessor_Get, Private_Accessor_Set, Private_Readonly, Private_In,
+	Object_Spread, Rest_Pair,
 }
 
 TransformState :: struct {
@@ -61,6 +62,8 @@ TRANSFORM_HELPER_GLOBALS := [TransformHelper][]string{
 	.Private_Accessor_Set = {"TypeError"},
 	.Private_Readonly     = {"TypeError"},
 	.Private_In           = {"TypeError"},
+	.Object_Spread        = {"Object", "Reflect"},
+	.Rest_Pair            = {"Object", "Reflect", "Symbol", "String"},
 }
 
 TRANSFORM_HELPER_KINDS := [TransformHelper]string{
@@ -80,6 +83,8 @@ TRANSFORM_HELPER_KINDS := [TransformHelper]string{
 	.Private_Accessor_Set = "private_setter",
 	.Private_Readonly     = "private_readonly",
 	.Private_In           = "private_in",
+	.Object_Spread        = "spread",
+	.Rest_Pair            = "rest",
 }
 
 // Every line ends a statement or opens or closes a block, so the compact
@@ -180,6 +185,44 @@ TRANSFORM_HELPER_BODIES := [TransformHelper]string{
     throw new TypeError("Cannot use 'in' to look for a private member in a non-object");
   }
   return store.has(target);
+}`,
+	.Object_Spread = `(target, source) {
+  if (source === null || source === void 0) return target;
+  var from = Object(source);
+  var keys = Reflect.ownKeys(from);
+  for (var i = 0; i < keys.length; i++) {
+    var own = Object.getOwnPropertyDescriptor(from, keys[i]);
+    if (!own || !own.enumerable) continue;
+    var copy = { value: from[keys[i]], enumerable: true, configurable: true, writable: true };
+    Object.defineProperty(target, keys[i], copy);
+  }
+  return target;
+}`,
+	.Rest_Pair = `(source, excluded) {
+  var step = 0;
+  var pair = {};
+  pair[Symbol.iterator] = function () {
+    return pair;
+  };
+  pair.next = function () {
+    step += 1;
+    if (step === 1) return { value: source, done: false };
+    if (step > 2) return { value: void 0, done: true };
+    var from = Object(source);
+    var rest = {};
+    var names = [];
+    for (var n = 0; n < excluded.length; n++) names.push(String(excluded[n]));
+    var keys = Reflect.ownKeys(from);
+    for (var i = 0; i < keys.length; i++) {
+      if (names.indexOf(keys[i]) >= 0) continue;
+      var own = Object.getOwnPropertyDescriptor(from, keys[i]);
+      if (!own || !own.enumerable) continue;
+      var copy = { value: from[keys[i]], enumerable: true, configurable: true, writable: true };
+      Object.defineProperty(rest, keys[i], copy);
+    }
+    return { value: rest, done: false };
+  };
+  return pair;
 }`,
 }
 

@@ -126,6 +126,7 @@ try {
   require('./verify_transform_decorators')(binary, temp, run, oracle);
   require('./verify_transform_target')(binary, temp, run, oracle);
   require('./verify_transform_classes')(binary, temp, run, oracle);
+  require('./verify_transform_object_rest')(binary, temp, run, oracle);
   require('./verify_transform_refresh')(binary, temp, run, oracle);
   if (process.argv.includes('--reference')) checkReference();
 } finally {

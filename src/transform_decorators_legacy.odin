@@ -61,6 +61,8 @@ transform_class_declaration :: proc(
 		if class.id == nil { return class_default_anonymous(cg, class) }
 		info := class_lower(cg, class, "")
 		info.emitted = true
+		// After the fields: a parameter pattern is bound before they are initialized.
+		rest_class_members(cg, class)
 		return class_declaration_emit(cg, info, export)
 	}
 	// Decorated members are planned first, while the fields are still in the
@@ -69,6 +71,7 @@ transform_class_declaration :: proc(
 	if lowers {
 		plan.lowered = class_lower(cg, class, "")
 		plan.lowered.emitted = true
+		rest_class_members(cg, class)
 	}
 	legacy_class_emit(cg, &plan, export)
 	return true

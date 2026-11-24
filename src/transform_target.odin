@@ -246,6 +246,9 @@ target_lower :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 	if target < .ES2022 {
 		if lowered := class_lower_expression(cg, expr); lowered != nil { return lowered }
 	}
+	if target < .ES2018 {
+		if lowered := rest_lower_expression(cg, expr); lowered != nil { return lowered }
+	}
 	#partial switch node in expr^ {
 	case ^LogicalExpression:
 		if node.operator == .NullishCoalescing && target < .ES2020 {
@@ -542,10 +545,7 @@ target_check_unsupported :: proc(cg: ^Codegen, expr: ^Expression) {
 	#partial switch node in expr^ {
 	case ^ArrowFunctionExpression:
 		if node.async { target_require(cg, node.loc, .ES2017, "async functions cannot be lowered") }
-		for param in node.params {
-			target_check_pattern(cg, param.pattern)
-			class_note_pattern_names(cg, param.pattern, param.default_val)
-		}
+		for param in node.params { class_note_pattern_names(cg, param.pattern, param.default_val) }
 	case ^AwaitExpression:
 		target_require(cg, node.loc, .ES2017, "await cannot be lowered")
 		if !target_inside_function(cg, node.loc.start) {
@@ -556,12 +556,6 @@ target_check_unsupported :: proc(cg: ^Codegen, expr: ^Expression) {
 	case ^MetaProperty:
 		if node.meta.name == "import" {
 			target_require(cg, node.loc, .ES2020, "import.meta cannot be lowered")
-		}
-	case ^ObjectExpression:
-		for property in node.properties {
-			if _, spread := property.value^.(^SpreadElement); spread {
-				target_require(cg, property.loc, .ES2018, "object spread cannot be lowered")
-			}
 		}
 	case ^RegExpLiteral:
 		if strings.contains_rune(node.flags, 's') {
@@ -628,7 +622,7 @@ target_check_pattern :: proc(cg: ^Codegen, pattern: Pattern) {
 	case ^ObjectPattern:
 		for property in node.properties {
 			if rest, is_rest := property.value.(^RestElement); is_rest {
-				cg_strip_unsupported(cg, rest.loc, "object rest cannot be lowered")
+				cg_strip_unsupported(cg, rest.loc, "nested object rest cannot be lowered")
 			} else {
 				target_check_pattern(cg, property.value)
 			}
@@ -697,10 +691,12 @@ transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	if state.target >= .ES2022 { return }
 	target_check_module_statement(cg, stmt)
 	#partial switch node in stmt {
+	case ^FunctionDeclaration:
+		rest_function(cg, &node.expr)
 	case ^ForStatement:
 		if declaration, declared := node.init_decl.?; declared {
+			rest_declaration(cg, declaration)
 			for declarator in declaration.declarations {
-				target_check_pattern(cg, declarator.id)
 				class_note_pattern_names(cg, declarator.id, declarator.init)
 			}
 		}
@@ -711,22 +707,24 @@ transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 			unused := codegen_fresh_runtime_binding(cg, "unused")
 			handler.param = transform_identifier(state, unused, handler.loc.start)^.(^Identifier)
 		}
-		if present { if param, bound := handler.param.?; bound { target_check_pattern(cg, param) } }
+		if present { rest_catch(cg, handler) }
 	case ^VariableDeclaration:
+		rest_declaration(cg, node)
 		for declarator in node.declarations {
-			target_check_pattern(cg, declarator.id)
 			class_note_pattern_names(cg, declarator.id, declarator.init)
 		}
 	case ^ForInStatement:
-		if target, written := node.left_expr.?; written { class_lower_private_targets(cg, target) }
-		if declaration, declared := node.left_decl.?; declared {
-			for declarator in declaration.declarations { target_check_pattern(cg, declarator.id) }
+		if target, written := node.left_expr.?; written {
+			class_lower_private_targets(cg, target)
+			rest_reject_nested(cg, target, true)
 		}
+		rest_loop_head(cg, &node.left_decl, &node.left_expr, &node.body)
 	case ^ForOfStatement:
-		if target, written := node.left_expr.?; written { class_lower_private_targets(cg, target) }
-		if node.await { target_require(cg, node.loc, .ES2018, "for await cannot be lowered") }
-		if declaration, declared := node.left_decl.?; declared {
-			for declarator in declaration.declarations { target_check_pattern(cg, declarator.id) }
+		if target, written := node.left_expr.?; written {
+			class_lower_private_targets(cg, target)
+			rest_reject_nested(cg, target, true)
 		}
+		if node.await { target_require(cg, node.loc, .ES2018, "for await cannot be lowered") }
+		rest_loop_head(cg, &node.left_decl, &node.left_expr, &node.body)
 	}
 }

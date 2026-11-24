@@ -276,8 +276,8 @@ export interface TransformOptions {
   };
   /**
    * Lower syntax newer than this ECMAScript edition: exponentiation, optional catch binding,
-   * optional chaining, nullish coalescing, logical assignment, numeric separators, class fields,
-   * private names and static blocks. Newer syntax with no lowering is reported in `errors`.
+   * object rest and spread, optional chaining, nullish coalescing, logical assignment, numeric
+   * separators, class fields, private names and static blocks. Newer syntax with no lowering is reported in `errors`.
    * Defaults to 'esnext'.
    */
   target?: 'es2015' | 'es2016' | 'es2017' | 'es2018' | 'es2019' | 'es2020' | 'es2021' | 'es2022' | 'es2023' | 'es2024' | 'esnext';
