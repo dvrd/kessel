@@ -193,6 +193,9 @@ ParseContext :: struct {
 	in_in_rhs:                bool,
 	private_in_allowed:       bool,
 	in_nested_pattern_convert: bool,
+	// True while an assignment target (not a binding) is validated as a
+	// pattern. `({a: (b)} = c)` is legal, `({a: (b)}) => 0` is not.
+	in_assignment_target_convert: bool,
 	in_ambient:               bool,
 	label_floor:              int,
 }

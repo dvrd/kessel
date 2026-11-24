@@ -7546,7 +7546,10 @@ for_in_of_check_expr_lhs :: proc(p: ^Parser, left_expr: ^Expression, is_in: bool
 		report_error_coded(p, .K2040_UnexpectedToken, "The left-hand side of a 'for...in' statement cannot be a destructuring pattern.")
 	}
 	if is_destructure_target_candidate(left_expr) {
+		previous := p.ctx.in_assignment_target_convert
+		p.ctx.in_assignment_target_convert = true
 		_, _ = expr_to_pattern(p, left_expr)
+		p.ctx.in_assignment_target_convert = previous
 	}
 }
 
