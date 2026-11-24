@@ -292,6 +292,63 @@ try {
   else { console.error('FAIL: JSX parse'); failed++; }
 } catch (e) { console.error('CRASH: JSX', e.message); failed++; }
 
+// JSX entities are decoded into `value`; `raw` keeps the source text.
+try {
+  const body = '&copy; &#x1F600; &amp;lt; &amp x';
+  const source = `const el = <a title="&lt;b&gt; &amp;&#65;&foo;">${body}</a>;`;
+  const { program, errors } = parseSync('entities.jsx', source);
+  const element = program.body[0].declarations[0].init;
+  const title = element.openingElement.attributes[0].value;
+  const text = element.children[0];
+  if (errors.length === 0 &&
+      title.value === '<b> &A&foo;' && title.raw === '"&lt;b&gt; &amp;&#65;&foo;"' &&
+      text.value === '\u00a9 \u{1F600} &lt; &amp x' && text.raw === body) passed++;
+  else { console.error('FAIL: JSX entities', JSON.stringify([title, text, errors])); failed++; }
+} catch (e) { console.error('CRASH: JSX entities', e.message); failed++; }
+
+// `{...xs}` in child position is a JSXSpreadChild spanning both braces.
+try {
+  const { program, errors } = parseSync('spread.jsx', '<a>{...xs}{y}</a>;');
+  const [spread, container] = program.body[0].expression.children;
+  if (errors.length === 0 && spread.type === 'JSXSpreadChild' &&
+      spread.start === 3 && spread.end === 10 &&
+      spread.expression.type === 'Identifier' && spread.expression.name === 'xs' &&
+      container.type === 'JSXExpressionContainer') passed++;
+  else { console.error('FAIL: JSXSpreadChild', JSON.stringify([spread, container])); failed++; }
+} catch (e) { console.error('CRASH: JSXSpreadChild', e.message); failed++; }
+
+// `{...}` without an operand is an error on the `}`.
+try {
+  const errors = parseSync('empty.jsx', '<a>{...}</a>;').errors;
+  if (errors.length >= 1 && errors[0].code === 'K2020' &&
+      errors[0].start === 7 && errors[0].end === 8) passed++;
+  else { console.error('FAIL: empty JSX spread', JSON.stringify(errors)); failed++; }
+} catch (e) { console.error('CRASH: empty JSX spread', e.message); failed++; }
+
+// A mismatched closing tag is reported on the closing tag's name.
+try {
+  const errors = parseSync('mismatch.jsx', '<p></div>;').errors;
+  if (errors.length >= 1 && errors[0].code === 'K3063' &&
+      errors[0].start === 5 && errors[0].end === 8) passed++;
+  else { console.error('FAIL: JSX closing tag span', JSON.stringify(errors)); failed++; }
+} catch (e) { console.error('CRASH: JSX closing tag span', e.message); failed++; }
+
+// Program.hashbang: the node oxc-parser emits, or null. It travels in binary
+// version 9; programs without one still use the earlier versions.
+try {
+  const withHashbang = parseSync('cli.js', '#!/usr/bin/env node\nconst x = 1;').program;
+  const expected = { type: 'Hashbang', start: 0, end: 19, value: '/usr/bin/env node' };
+  assert.deepEqual({ ...withHashbang.hashbang }, expected);
+  assert.equal(withHashbang.body[0].type, 'VariableDeclaration');
+  assert.equal(withHashbang.body[0].start, 20);
+  assert.equal(parseSync('plain.js', 'const x = 1;').program.hashbang, null);
+  assert.equal(parseSync('plain.ts', 'const x: number = 1;').program.hashbang, null);
+  const typed = parseSync('cli.ts', '#!/usr/bin/env -S node\nlet x: number;').program;
+  assert.equal(typed.hashbang.value, '/usr/bin/env -S node');
+  assert.equal(typed.body[0].declarations[0].id.typeAnnotation.type, 'TSTypeAnnotation');
+  passed++;
+} catch (e) { console.error('FAIL: Program.hashbang:', e.message); failed++; }
+
 // Valid input must yield zero errors.
 try {
   const { errors } = parseSync('clean.js', 'const x = 1;');

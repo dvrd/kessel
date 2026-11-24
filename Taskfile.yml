@@ -105,6 +105,8 @@ tasks:
       - task: test:lint
       - task: test:strip-types
       - task: test:transform
+      - task: test:jsx
+      - task: test:library
       - task: test:minify
       - task: test:format
       - task: test:watch
@@ -148,6 +150,18 @@ tasks:
     deps: [build]
     cmds:
       - node tests/verifiers/verify_transform.js
+
+  test:library:
+    desc: Build the Odin programs that use Kessel as a package and verify what they print.
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_sourcemap_builder.js
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_library_consumer.js
+
+  test:jsx:
+    desc: Compare JSX values, spread children and JSX error spans with the reference parsers.
+    deps: [build]
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_jsx_ast.js
 
   test:minify:
     desc: Compare compressed programs with their original runtime results and check source maps.

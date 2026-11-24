@@ -63,7 +63,15 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	closing_name := closing != nil ? jsx_element_name_string(closing.name) : ""
 	if closing != nil && opening_name != closing_name &&
 	   len(opening_name) > 0 && len(closing_name) > 0 && len(p.errors) == 0 {
-		report_error_coded(p, .K3063_JSXInvalid, fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name))
+		// Span the closing tag's name, as OXC does. The parser has already
+		// consumed the closing `>`, so the current token is whatever follows
+		// the element and says nothing about where the mistake is.
+		closing_name_loc := jsx_element_name_loc(closing.name)
+		assert(closing_name_loc.start < closing_name_loc.end)
+		report_error_coded_span(
+			p, .K3063_JSXInvalid, closing_name_loc.start, closing_name_loc.end,
+			fmt.tprintf("Expected corresponding JSX closing tag for '%s'.", opening_name),
+		)
 	}
 	elem := new_node(p, JSXElement)
 	elem.loc = start
@@ -72,6 +80,30 @@ parse_jsx_element_or_fragment :: proc(p: ^Parser) -> ^Expression {
 	elem.closing_element = closing
 	elem.loc.end = prev_end_offset(p)
 	return expression_from(p, elem)
+}
+
+// Source span of a whole element name: `div`, `a:b` or `a.b.c`.
+jsx_element_name_loc :: proc(name: JSXElementName) -> Loc {
+	switch n in name {
+	case JSXIdentifier:        return n.loc
+	case ^JSXNamespacedName:   if n != nil { return n.loc }
+	case ^JSXMemberExpression: if n != nil { return n.loc }
+	}
+	return Loc{}
+}
+
+// parse_jsx_spread_operand parses the expression of `{...expr}` in attribute
+// or child position; the caller has consumed `{` and `...`. JSX requires the
+// operand, so `{...}` is an error spanning the `}` where the expression was
+// expected (the span OXC reports). Returns nil in that case.
+parse_jsx_spread_operand :: proc(p: ^Parser) -> ^Expression {
+	if is_token(p, .RBrace) {
+		report_error_coded(
+			p, .K2020_ExpectedExpression, "Expected an expression after '...' in JSX spread",
+		)
+		return nil
+	}
+	return parse_assignment_expression(p)
 }
 
 // Extract a string representation of a JSXElementName for tag matching.
@@ -244,8 +276,14 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 	for !is_token(p, .RAngle) && !is_token(p, .Div) && !is_token(p, .EOF) {
 		if is_token(p, .LBrace) {
 			spread_start := cur_loc(p)
-			eat(p); expect_token(p, .Dot3)
-			expr := parse_assignment_expression(p)
+			eat(p)
+			expr: ^Expression = nil
+			if expect_token(p, .Dot3) {
+				expr = parse_jsx_spread_operand(p)
+			} else {
+				// Recover as before: take whatever expression is there.
+				expr = parse_assignment_expression(p)
+			}
 			expect_token(p, .RBrace)
 			spread := new_node(p, JSXSpreadAttribute)
 			spread.loc = spread_start; spread.argument = expr
@@ -285,6 +323,9 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 				}
 				if is_token(p, .String) {
 					str := parse_string_literal(p)
+					// `raw` keeps the source text; `value` is the cooked
+					// string, as in acorn-jsx and Babel.
+					str.value = jsx_decode_entities(str.value, p.allocator)
 					str_expr, str_expr_e := new_expr(p, StringLiteral); str_expr^ = str
 					attr_value = str_expr_e
 				} else if is_token(p, .LBrace) {
@@ -356,12 +397,14 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 		// middle one. parse_jsx_text scans from prev_end_offset to the
 		// next `<` / `{`, so it naturally grabs the leading run when the
 		// current token is already one of those delimiters.
-		if text := parse_jsx_text(p); text != nil && text.value != "" {
+		if text := parse_jsx_text(p); text != nil && text.raw != "" {
 			// JSX spec: bare `>` is not allowed in text content — must
 			// use `{'>'}` or `&gt;`. Only report when the parse is clean
 			// (no prior errors) to avoid false positives during recovery.
+			// Scan `raw`: `value` is entity-decoded, and a `>` or `}` that
+			// came from `&gt;` or `&rbrace;` is exactly what the rule asks for.
 			if len(p.errors) == 0 {
-				for c in text.value {
+				for c in text.raw {
 					if c == '>' {
 						report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token. Did you mean `{'>'}` or `&gt;`?")
 						break
@@ -384,33 +427,7 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 				}
 			}
 		} else if is_token(p, .LBrace) {
-			start := cur_loc(p)
-			// JSXEmptyExpression spans between `{` and `}` (exclusive of both),
-			// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
-			empty_start := start.start + 1
-			eat(p)
-			// Reset ternary depth across the JSX expression-container
-			// boundary. Inside `{expr}` the surrounding ternary's `:` is
-			// not in scope; otherwise looks_like_ts_arrow_params would
-			// suppress its byte-scan and reject `{(): T => body}`-style
-			// arrow returns inside JSX (swc-8243.tsx).
-			prev_cond_depth := p.conditional_depth
-			p.conditional_depth = 0
-			expr: ^Expression = nil
-			if !is_token(p, .RBrace) { expr = parse_assignment_expression(p) }
-			p.conditional_depth = prev_cond_depth
-			rbrace_start := u32(cur_offset(p))
-			expect_token(p, .RBrace)
-			container := new_node(p, JSXExpressionContainer)
-			container.loc = start
-			if expr != nil { container.expression = expr
-			} else {
-				empty, empty_e := new_expr(p, JSXEmptyExpression)
-				empty.loc = Loc{start = empty_start, end = rbrace_start}
-				container.expression = empty_e
-			}
-			container.loc.end = prev_end_offset(p)
-			bump_append(&children, container)
+			bump_append(&children, parse_jsx_brace_child(p))
 		}
 		// Progress guard: if no iteration advanced the cursor (e.g. malformed
 		// input where parse_jsx_element_or_fragment returned without consuming,
@@ -420,6 +437,57 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 		if cur_offset(p) == prev_off { break }
 	}
 	return children
+}
+
+// parse_jsx_brace_child parses a child that starts with `{`: an expression
+// container `{expr}`, an empty one `{}` or `{/* comment */}`, or a spread
+// child `{...expr}`. The current token is the `{`.
+parse_jsx_brace_child :: proc(p: ^Parser) -> JSXChild {
+	assert(is_token(p, .LBrace))
+	start := cur_loc(p)
+	// JSXEmptyExpression spans between `{` and `}` (exclusive of both),
+	// matching OXC. `{` is always 1 byte, so empty_start = start + 1.
+	empty_start := start.start + 1
+	eat(p)
+	// Reset ternary depth across the JSX expression-container
+	// boundary. Inside `{expr}` the surrounding ternary's `:` is
+	// not in scope; otherwise looks_like_ts_arrow_params would
+	// suppress its byte-scan and reject `{(): T => body}`-style
+	// arrow returns inside JSX (swc-8243.tsx).
+	prev_cond_depth := p.conditional_depth
+	p.conditional_depth = 0
+	expr: ^Expression = nil
+	is_spread := is_token(p, .Dot3)
+	if is_spread {
+		eat(p)
+		expr = parse_jsx_spread_operand(p)
+	} else if !is_token(p, .RBrace) {
+		expr = parse_assignment_expression(p)
+	}
+	p.conditional_depth = prev_cond_depth
+	rbrace_start := u32(cur_offset(p))
+	expect_token(p, .RBrace)
+
+	if is_spread {
+		// `{...xs}` is a JSXSpreadChild whose span includes both
+		// braces, as in OXC and Babel; it is not an expression
+		// container holding a SpreadElement.
+		spread := new_node(p, JSXSpreadChild)
+		spread.loc = start; spread.expression = expr
+		spread.loc.end = prev_end_offset(p)
+		return spread
+	}
+	container := new_node(p, JSXExpressionContainer)
+	container.loc = start
+	if expr != nil {
+		container.expression = expr
+	} else {
+		empty, empty_e := new_expr(p, JSXEmptyExpression)
+		empty.loc = Loc{start = empty_start, end = rbrace_start}
+		container.expression = empty_e
+	}
+	container.loc.end = prev_end_offset(p)
+	return container
 }
 
 parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
@@ -435,9 +503,13 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	if text_start > int(cur_offset(p)) { text_start = int(cur_offset(p)) }
 	start := Loc{start = u32(text_start), end = u32(text_start)}
 	off := text_start
+	// Entity decoding is skipped unless the scan saw a `&`, so entity-free
+	// text (nearly all of it) costs one extra byte compare here, no more.
+	saw_ampersand := false
 	for off < len(src) {
 		c := src[off]
 		if c == '<' || c == '{' { break }
+		if c == '&' { saw_ampersand = true }
 		off += 1
 	}
 	if off == text_start { return nil }
@@ -467,6 +539,7 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	p.cur_type = p.lexer.cur.kind
 	text := new_node(p, JSXText)
 	text.loc = start; text.value = value; text.raw = value
+	if saw_ampersand { text.value = jsx_decode_entities(value, p.allocator) }
 	text.loc.end = u32(off)
 	return text
 }

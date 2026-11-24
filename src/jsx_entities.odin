@@ -1,5 +1,8 @@
 package kessel
 
+import "base:runtime"
+import "core:strings"
+
 // JSX uses the HTML 4 named character references plus the XML apostrophe.
 // Keep the names in ASCII order for binary lookup.
 @(private)
@@ -257,4 +260,45 @@ JSX_ENTITIES := [?]struct { name: string, value: rune }{
 	{"zeta", 0x03b6},
 	{"zwj", 0x200d},
 	{"zwnj", 0x200c},
+}
+
+// jsx_write_decoded appends `text` to `builder` with every well-formed
+// character reference (`&name;`, `&#65;`, `&#x41;`) replaced by its code
+// point. Anything that does not decode stays literal: unknown names
+// (`&foo;`), references without a terminating semicolon (`&amp x`), numeric
+// references above U+10FFFF, and surrogate code points, which UTF-8 cannot
+// carry. The scan is one pass; `amp` only ever moves forward.
+jsx_write_decoded :: proc(builder: ^strings.Builder, text: string) {
+	start, amp := 0, -1
+	for index in 0..<len(text) {
+		switch text[index] {
+		case '&': amp = index
+		case ';':
+			if amp < 0 { continue }
+			if value, ok := jsx_decode_entity(text[amp+1:index]); ok {
+				strings.write_string(builder, text[start:amp])
+				strings.write_rune(builder, value)
+				start = index + 1
+			}
+			amp = -1
+		}
+	}
+	strings.write_string(builder, text[start:])
+}
+
+// jsx_decode_entities returns the cooked value of JSX text or of the body of
+// a JSX string attribute. The parser stores it in `JSXText.value` and in the
+// attribute's `StringLiteral.value`; `raw` keeps the source text. The input
+// is returned as is, without allocating, when it holds no `&`, so callers on
+// the parse path pay one byte scan for entity-free text.
+jsx_decode_entities :: proc(text: string, allocator: runtime.Allocator) -> string {
+	if strings.index_byte(text, '&') < 0 { return text }
+	// A reference is never shorter than the code point it decodes to
+	// (`&lt;` is 4 bytes for 1; the shortest numeric form `&#1;` is 4 for 1,
+	// and 4-byte code points need at least `&#x10000;`), so the input length
+	// bounds the output and the builder never grows.
+	builder := strings.builder_make(0, len(text), allocator)
+	jsx_write_decoded(&builder, text)
+	assert(strings.builder_len(builder) <= len(text))
+	return strings.to_string(builder)
 }

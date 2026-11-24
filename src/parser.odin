@@ -667,6 +667,14 @@ init_parser :: proc(p: ^Parser, lexer: ^Lexer, alloc: mem.Allocator, lang: Lang 
 	p.pending_proto_dups = make([dynamic]u32, 0, 4, alloc)
 	p.pending_paren_patterns = make([dynamic]u32, 0, 4, alloc)
 	p.pending_priv_refs = make([dynamic]PendingPrivRef, 0, 0, alloc)
+	// The module record belongs to the parse arena like every other parser
+	// array. Left zero-valued, the first append takes `context.allocator`,
+	// and nothing frees that when the job closes: every file with an import
+	// or export leaked. Zero capacity: this only records the allocator.
+	p.staticImports  = make([dynamic]ESMStaticImport, 0, 0, alloc)
+	p.staticExports  = make([dynamic]ESMStaticExport, 0, 0, alloc)
+	p.dynamicImports = make([dynamic]ESMDynamicImport, 0, 0, alloc)
+	p.importMetas    = make([dynamic]ESMImportMeta, 0, 0, alloc)
 	// Heuristic: ~1 scope-bearing node per ~512 bytes of source on average
 	// real-world JS (functions / arrows / blocks). Pre-size so the typical
 	// big bundle (typescript.js ~9 MB) doesn't realloc more than 1-2 times.
@@ -1932,6 +1940,16 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// token, which may be earlier when the file has trailing newlines or
 	// comments.
 	program.loc.end = u32(p.source_len)
+
+	// The lexer consumed the hashbang before the first token. Put it on the
+	// Program so that library consumers do not have to reach into the lexer.
+	if p.lexer != nil && p.lexer.has_hashbang {
+		assert(p.lexer.hashbang_start <= p.lexer.hashbang_end)
+		program.hashbang = Hashbang{
+			loc   = Loc{start = p.lexer.hashbang_start, end = p.lexer.hashbang_end},
+			value = p.lexer.hashbang_value,
+		}
+	}
 
 	// OXC-TS quirk: in .ts / .tsx mode OXC sets program.start = body[0].start
 	// (skipping leading comments/whitespace), while still ending at source.length.

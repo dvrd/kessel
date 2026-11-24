@@ -623,6 +623,11 @@ rewrite_program :: proc(p: ^Program, base: uintptr, source_base: uintptr) {
 	rewrite_dynamic_header(rawptr(&p.directives), base, dir_len)
 
 	rewrite_statement_array(&p.body, base, source_base)
+
+	// A native pointer must not survive into the buffer.
+	if hashbang, present := &p.hashbang.?; present {
+		rewrite_string(&hashbang.value, source_base)
+	}
 }
 
 rewrite_template_literal :: proc(t: ^TemplateLiteral, base: uintptr, source_base: uintptr) {

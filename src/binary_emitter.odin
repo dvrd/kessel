@@ -133,6 +133,7 @@ BinNodeType :: enum u8 {
 	TSInstantiationExpression,
 	TypedRecord,
 	TypedPrefix,
+	Hashbang,
 	// Sentinel
 	_Count,
 }
@@ -170,11 +171,15 @@ BinValType :: enum u8 {
 //   v7: Typed records and field prefixes share the string table with fixed-layout nodes.
 //   v8: A byte immediately before the string table identifies the TypeScript ESTree shape.
 //       JavaScript decorators can use typed records, and plain TypeScript may use none.
+//   v9: A Program that starts with `#!` ends with a Hashbang node. Emitted only for such
+//       programs; every other tree keeps the version it had.
 BINARY_VERSION_DIAGNOSTICS     :: u32(4)
 BINARY_VERSION_DECLARED_FIELDS :: u32(5)
 BINARY_VERSION_CHILD_SPANS     :: u32(6)
 BINARY_VERSION_TYPES           :: u32(7)
 BINARY_VERSION_SOURCE_SHAPE    :: u32(8)
+BINARY_VERSION_HASHBANG        :: u32(9)
+#assert(BINARY_VERSION_HASHBANG > BINARY_VERSION_SOURCE_SHAPE)
 BINARY_HEADER_SIZE    :: 24
 
 BinaryEmitter :: struct {
@@ -292,6 +297,13 @@ bin_emit_program :: proc(be: ^BinaryEmitter, program: ^Program) {
 	bw_u32(be, u32(len(program.directives)))
 	for d in program.directives {
 		bin_emit_directive(be, d)
+	}
+	// Written only when present, so a program without a hashbang keeps its
+	// earlier layout and version; a v9 reader reads it for v9 buffers only.
+	if hashbang, present := program.hashbang.?; present {
+		be.version = max(be.version, BINARY_VERSION_HASHBANG)
+		bin_node_header(be, .Hashbang, hashbang.loc)
+		bw_string_ref(be, hashbang.value)
 	}
 }
 
@@ -1390,7 +1402,8 @@ bin_emit_finalize :: proc(be: ^BinaryEmitter) {
 	if be.version >= BINARY_VERSION_TYPES {
 		// Keeping the mode next to the table preserves every node and diagnostic offset.
 		bw_bool(be, be.ts_shape)
-		be.version = BINARY_VERSION_SOURCE_SHAPE
+		// Keep a later version (v9 hashbang) that already implies this byte.
+		be.version = max(be.version, BINARY_VERSION_SOURCE_SHAPE)
 	}
 	string_table_off := u32(be.pos)
 

@@ -622,7 +622,7 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 	case ^MetaProperty:               gen_meta_property(cg, e)
 	case ^JSXElement:                 gen_jsx_element(cg, e)
 	case ^JSXFragment:                gen_jsx_fragment(cg, e)
-	case ^JSXText:                    cg_str(cg, e.value)
+	case ^JSXText:                    cg_str(cg, e.raw)
 	case ^JSXExpressionContainer:     gen_jsx_expression_container(cg, e)
 	case ^JSXEmptyExpression:         // empty
 	case ^JSXSpreadChild:             cg_byte(cg, '{'); cg_str(cg, "..."); gen_expression(cg, e.expression, PREC_ASSIGN); cg_byte(cg, '}')
@@ -2787,7 +2787,7 @@ gen_jsx_child :: proc(cg: ^Codegen, c: JSXChild) {
 	switch v in c {
 	case ^JSXElement:              gen_jsx_element(cg, v)
 	case ^JSXFragment:             gen_jsx_fragment(cg, v)
-	case ^JSXText:                 cg_str(cg, v.value)
+	case ^JSXText:                 cg_str(cg, v.raw)
 	case ^JSXExpressionContainer:  gen_jsx_expression_container(cg, v)
 	case ^JSXSpreadChild:          cg_byte(cg, '{'); cg_str(cg, "..."); gen_expression(cg, v.expression, PREC_ASSIGN); cg_byte(cg, '}')
 	}

@@ -265,6 +265,96 @@ Each error carries a stable `code` (e.g. `K3010`) and `severity` field for
 programmatic handling. Full API and visitor helpers documented in
 [`npm/kessel/README.md`](npm/kessel/README.md).
 
+### Odin package
+
+Kessel is one Odin package (`src/`). Import it and you get the typed AST in
+process, without JSON and without a subprocess:
+
+```odin
+import kessel "path/to/kessel/src"
+
+State :: struct {
+    query:     ^kessel.ScopeQuery,
+    positions: ^kessel.SourcePositions,
+}
+
+compile :: proc(source: string) -> bool {
+    // Parse. The job owns one arena holding the whole AST; `parse_job_close`
+    // releases all of it, so AST pointers are valid until then.
+    job: kessel.ParseJob
+    config := kessel.ParseConfig{lang_override = kessel.Lang.JSX}
+    if !kessel.parse_job_open_inline(&job, source, config, "app.jsx") { return false }
+    defer kessel.parse_job_close(&job)
+    kessel.parse_job_run(&job)
+    if len(job.parser.errors) != 0 { return false }   // start/end are byte offsets
+
+    // `#!...` first line, if any.
+    if hashbang, present := job.program.hashbang.?; present { _ = hashbang.value }
+
+    // Scopes: bindings and references, queried by the `loc` of a node.
+    model := kessel.semantic_build(job.program, source, job.lang, job.arena_alloc)
+    query: kessel.ScopeQuery
+    kessel.scope_query_init(&query, &model, job.arena_alloc)
+    defer kessel.scope_query_destroy(&query)
+
+    // Byte offsets -> 1-based line, 0-based UTF-16 column, and back.
+    positions: kessel.SourcePositions
+    if !kessel.source_positions_init(&positions, source, context.allocator) { return false }
+    defer kessel.source_positions_destroy(&positions)
+
+    // Walk the tree. `.Skip` leaves out a subtree, `.Stop` ends the walk.
+    state := State{query = &query, positions = &positions}
+    status := kessel.ast_walk(job.program, {user = &state, enter = enter}, context.allocator)
+    return status == .Completed
+}
+
+enter :: proc(user: rawptr, node: kessel.AstNode) -> kessel.AstWalkAction {
+    state := cast(^State)user
+    #partial switch n in node {
+    case ^kessel.JSXElement:
+        where_ := kessel.source_position_at(state.positions, n.loc.start)
+        function, inside := kessel.scope_query_enclosing_function(state.query, n.loc)
+        _, _, _ = where_, function, inside
+    case ^kessel.JSXText:
+        _ = n.value                       // entity-decoded; n.raw is the source text
+    case ^kessel.JSXSpreadChild:
+        _ = n.expression                  // `{...xs}` as a child
+    case ^kessel.Identifier:
+        symbol := kessel.scope_query_symbol_at(state.query, n.loc)
+        _ = symbol                        // SYMBOL_UNRESOLVED for a global
+    case ^kessel.FunctionParameter:
+        view := kessel.function_parameter_view(n)   // {target, default_value}
+        _ = view
+    case ^kessel.TSTypeAnnotation:
+        return .Skip                      // not interested in types
+    }
+    return .Continue
+}
+```
+
+| API | File | What it gives you |
+|---|---|---|
+| `parse_job_open_inline`, `parse_job_run`, `parse_job_close` | `src/parse_job.odin` | `job.program`, `job.parser.errors`; one arena per job |
+| `Program.hashbang` | `src/ast.odin` | The `#!` line as `Maybe(Hashbang)` |
+| `ast_walk`, `ast_walk_statement_tree`, `ast_walk_expression_tree`, `ast_node_loc` | `src/ast_walk.odin` | Enter/leave over typed `AstNode`s. Depth-bounded (`PARSE_RESOURCE_AST_DEPTH`, 512); long `a + b + ...` and `a.b().c` chains use a loop, not the stack |
+| `function_parameter_view` | `src/function_parameter.odin` | Target and default of a parameter, however the parser stored it |
+| `semantic_build` | `src/semantic.odin` | Scope tree, symbols, references |
+| `scope_query_symbol_at`, `scope_query_references`, `scope_query_bindings_named`, `scope_query_enclosing_function`, ... | `src/scope_query.odin` | Which binding an identifier or JSX tag declares or uses; all uses of a binding; the function around a node |
+| `source_position_at`, `source_offset_at` | `src/positions.odin` | Byte offset <-> (line, UTF-16 column); CRLF, CR, U+2028/9, BOM and astral characters handled |
+| `sourcemap_builder_*` | `src/sourcemap_builder.odin` | Source Map v3: sources, names, mappings in any order, JSON out |
+| `jsx_decode_entities` | `src/jsx_entities.odin` | The decoder behind `JSXText.value` |
+
+Conventions worth knowing: every `Loc` and diagnostic span is a UTF-8 byte
+offset (the JSON emitter converts to UTF-16; use `source_position_at` to do
+the same); source-map lines and columns are 0-based while
+`source_position_at` lines are 1-based; strings in the AST point into the
+source or the job's arena and die with the job.
+
+[`tests/library/consumer`](tests/library/consumer/main.odin) is a complete
+program using all of the above; `task test:library` builds it and checks its
+output against oxc-parser, Babel and `source-map-js`. The same task compiles
+and runs the snippet above, so it cannot drift from the API.
+
 ### CLI Flags
 
 | Flag | Description |
@@ -518,7 +608,12 @@ Three-pass pipeline:
 | `src/raw_transfer.odin` | Zero-copy binary AST buffer wire format |
 | `src/main.odin` | CLI dispatch + worker pool + server mode |
 | `src/lib_exports.odin` | Shared-library exports for the npm FFI |
-| `src/sourcemap.odin` | Source-map v3 VLQ encoder |
+| `src/sourcemap.odin` | Source map for the printer's own output |
+| `src/sourcemap_builder.odin` | Source Map v3 builder (sources, names, mappings) and the shared VLQ encoder |
+| `src/ast_walk.odin` | Typed, depth-bounded AST walk with enter/leave |
+| `src/function_parameter.odin` | One view of a parameter's target and default value |
+| `src/scope_query.odin` | Scope queries by source position, on top of `src/semantic.odin` |
+| `src/positions.odin` | Byte offset <-> line / UTF-16 column |
 | `src/simd.odin` | Cross-platform SIMD intrinsics |
 | `src/parse_job.odin` | Source → parsed Program deep module |
 | `src/token.odin` | `TokenType` enum, `FastToken`, `LiteralValue` |
