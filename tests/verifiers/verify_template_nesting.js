@@ -80,7 +80,10 @@ try {
   for (const [name, source, kind] of cases) {
     const file = path.join(directory, 'case.js');
     fs.writeFileSync(file, source);
-    const result = spawnSync(binary, ['parse', file], {
+    // 1000 open braces are 1000 nested object literals, which is deeper than
+    // the parser's default nesting limit of 512. This gate is about the lexer's
+    // brace counters, so lift the parser limit out of the way.
+    const result = spawnSync(binary, ['parse', '--max-depth=4096', file], {
       encoding: 'utf8', env: { ...process.env, KESSEL_COLOR: '0', NO_COLOR: '1' },
     });
     assert.equal(result.signal, null, `${name}: kessel died with ${result.signal}`);
