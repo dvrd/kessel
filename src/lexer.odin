@@ -279,7 +279,7 @@ TemplateOuterLevel :: struct {
 }
 
 #assert(TEMPLATE_DEPTH_MAX <= max(u16))
-#assert(size_of(TemplateOuterLevel) == 16)
+#assert(size_of(TemplateOuterLevel) <= 16) // 16 on 64-bit targets, 8 on wasm32
 // The parser reads `cur` / `nxt` on every token. These are the offsets they
 // had (measured, 64-bit targets) before the template state changed from
 // `[8]u8` to a u32 count plus a cold pointer; pin them so the change, and
