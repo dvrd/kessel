@@ -1,0 +1,9 @@
+{
+  "expected": "expected.txt",
+  "args": [
+    "--jsx-factory",
+    "h",
+    "--jsx-fragment",
+    "Fragment"
+  ]
+}

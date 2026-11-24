@@ -1,0 +1,7 @@
+{
+  "error": "is a Node builtin; mark it external",
+  "args": [
+    "--platform",
+    "browser"
+  ]
+}

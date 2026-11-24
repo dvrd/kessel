@@ -469,6 +469,11 @@ main :: proc() {
 		flush_stdout_writer()
 		if exit_status != 0 { os.exit(exit_status) }
 
+	case "bundle":
+		exit_status := cli_bundle(os.args[2:])
+		flush_stdout_writer()
+		if exit_status != 0 { os.exit(exit_status) }
+
 	case "codegen", "minify":
 		optimize := command == "minify"
 		if len(os.args) < 3 {
@@ -664,6 +669,7 @@ print_usage :: proc() {
 	out_println("  dts <file.ts>                   Emit isolated TypeScript declarations to stdout.")
 	out_println("  fmt <file>                      Format module imports and exports to stdout.")
 	out_println("  resolve <specifier> --from F   Resolve a module and print its path as JSON.")
+	out_println("  bundle <entry> [--outfile F]    Bundle a module graph into one file (esm, cjs or iife).")
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
 	out_println("  lint/fmt/transform --watch      Repeat the command when input files change.")
 	out_println("  lint --list-rules               Print the lint rule catalogue as JSON.")

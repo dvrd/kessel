@@ -1,0 +1,3 @@
+{
+  "error": "could not resolve './does-not-exist.mjs'"
+}

@@ -112,6 +112,7 @@ tasks:
       - task: test:watch
       - task: test:robust
       - task: test:depth
+      - task: test:bundle
 
   test:robust:
     desc: Compare template-literal nesting limits with the JavaScript engine that runs the verifier.
@@ -124,6 +125,12 @@ tasks:
     deps: [build, build:debug]
     cmds:
       - node tests/verifiers/verify_depth_limit.js
+
+  test:bundle:
+    desc: Bundle the multi-file fixtures and compare their behaviour with the original modules under Node.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_bundle.js {{.CLI_ARGS}}
 
   test:watch:
     desc: Verify that lint, fmt and transform respond to file changes and recover from errors.

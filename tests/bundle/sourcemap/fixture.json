@@ -1,0 +1,7 @@
+{
+  "formats": [
+    "esm",
+    "cjs"
+  ],
+  "sourcemap": true
+}
