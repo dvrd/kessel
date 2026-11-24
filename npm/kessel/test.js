@@ -292,6 +292,20 @@ try {
   else { console.error('FAIL: JSX parse'); failed++; }
 } catch (e) { console.error('CRASH: JSX', e.message); failed++; }
 
+// JSX entities are decoded into `value`; `raw` keeps the source text.
+try {
+  const body = '&copy; &#x1F600; &amp;lt; &amp x';
+  const source = `const el = <a title="&lt;b&gt; &amp;&#65;&foo;">${body}</a>;`;
+  const { program, errors } = parseSync('entities.jsx', source);
+  const element = program.body[0].declarations[0].init;
+  const title = element.openingElement.attributes[0].value;
+  const text = element.children[0];
+  if (errors.length === 0 &&
+      title.value === '<b> &A&foo;' && title.raw === '"&lt;b&gt; &amp;&#65;&foo;"' &&
+      text.value === '\u00a9 \u{1F600} &lt; &amp x' && text.raw === body) passed++;
+  else { console.error('FAIL: JSX entities', JSON.stringify([title, text, errors])); failed++; }
+} catch (e) { console.error('CRASH: JSX entities', e.message); failed++; }
+
 // `{...xs}` in child position is a JSXSpreadChild spanning both braces.
 try {
   const { program, errors } = parseSync('spread.jsx', '<a>{...xs}{y}</a>;');

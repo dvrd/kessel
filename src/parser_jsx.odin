@@ -316,6 +316,9 @@ parse_jsx_opening_element :: proc(p: ^Parser, start: Loc, name: JSXElementName) 
 				}
 				if is_token(p, .String) {
 					str := parse_string_literal(p)
+					// `raw` keeps the source text; `value` is the cooked
+					// string, as in acorn-jsx and Babel.
+					str.value = jsx_decode_entities(str.value, p.allocator)
 					str_expr, str_expr_e := new_expr(p, StringLiteral); str_expr^ = str
 					attr_value = str_expr_e
 				} else if is_token(p, .LBrace) {
@@ -387,12 +390,14 @@ parse_jsx_children :: proc(p: ^Parser) -> [dynamic]JSXChild {
 		// middle one. parse_jsx_text scans from prev_end_offset to the
 		// next `<` / `{`, so it naturally grabs the leading run when the
 		// current token is already one of those delimiters.
-		if text := parse_jsx_text(p); text != nil && text.value != "" {
+		if text := parse_jsx_text(p); text != nil && text.raw != "" {
 			// JSX spec: bare `>` is not allowed in text content — must
 			// use `{'>'}` or `&gt;`. Only report when the parse is clean
 			// (no prior errors) to avoid false positives during recovery.
+			// Scan `raw`: `value` is entity-decoded, and a `>` or `}` that
+			// came from `&gt;` or `&rbrace;` is exactly what the rule asks for.
 			if len(p.errors) == 0 {
-				for c in text.value {
+				for c in text.raw {
 					if c == '>' {
 						report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token. Did you mean `{'>'}` or `&gt;`?")
 						break
@@ -482,9 +487,13 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	if text_start > int(cur_offset(p)) { text_start = int(cur_offset(p)) }
 	start := Loc{start = u32(text_start), end = u32(text_start)}
 	off := text_start
+	// Entity decoding is skipped unless the scan saw a `&`, so entity-free
+	// text (nearly all of it) costs one extra byte compare here, no more.
+	saw_ampersand := false
 	for off < len(src) {
 		c := src[off]
 		if c == '<' || c == '{' { break }
+		if c == '&' { saw_ampersand = true }
 		off += 1
 	}
 	if off == text_start { return nil }
@@ -514,6 +523,7 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 	p.cur_type = p.lexer.cur.kind
 	text := new_node(p, JSXText)
 	text.loc = start; text.value = value; text.raw = value
+	if saw_ampersand { text.value = jsx_decode_entities(value, p.allocator) }
 	text.loc.end = u32(off)
 	return text
 }
