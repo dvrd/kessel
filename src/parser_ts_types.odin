@@ -570,8 +570,9 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		if is_token(p, .RBrace) {
 			l := p.lexer
 			l.offset = int(l.cur.start)
-			l.template_depth += 1  // compensate for the premature decrement
-			l.cur = lex_template_resume(l, l.cur.start, l.cur.flags)
+			// The level was already left by the premature resume, so only
+			// re-scan the continuation text; do not leave a second level.
+			l.cur = lex_template_continue(l, l.cur.start, l.cur.flags)
 			l.lit_write_idx ~= 1
 			l.nxt_valid = false
 			p.cur_type = l.cur.kind
@@ -1807,8 +1808,11 @@ TrialSnapshot :: struct {
 	lex_lit_value:      [2]LiteralValue,
 	lex_lit_type:       [2]LiteralType,
 	lex_lit_write_idx:  u8,
-	lex_template_depth:     u8,
-	lex_template_brace_stack: [8]u8,
+	// Complete template interpolation state: the enclosing levels are an
+	// immutable linked list, so copying its head pointer captures them all.
+	lex_template_depth:       u16,
+	lex_template_brace_depth: u32,
+	lex_template_outer:       ^TemplateOuterLevel,
 	// Parser scalars — re-derived from lexer on restore
 	cur_type:       TokenType,
 	prev_token_end: u32,
@@ -1828,7 +1832,8 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 		lex_lit_type            = l.lit_type,
 		lex_lit_write_idx       = l.lit_write_idx,
 		lex_template_depth      = l.template_depth,
-		lex_template_brace_stack = l.template_brace_stack,
+		lex_template_brace_depth = l.template_brace_depth,
+		lex_template_outer      = l.template_outer,
 		cur_type                = p.cur_type,
 		prev_token_end          = p.prev_token_end,
 		errors_len              = len(p.errors),
@@ -1847,7 +1852,11 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 	l.lit_type               = s.lex_lit_type
 	l.lit_write_idx          = s.lex_lit_write_idx
 	l.template_depth         = s.lex_template_depth
-	l.template_brace_stack   = s.lex_template_brace_stack
+	l.template_brace_depth   = s.lex_template_brace_depth
+	l.template_outer         = s.lex_template_outer
+	// A halt outlives the rewind: without this the restored cursor would
+	// resume tokenising input the lexer has already given up on.
+	if l.halted { lexer_halt(l) }
 	p.cur_type               = s.cur_type
 	p.prev_token_end         = s.prev_token_end
 	// Drop any parse errors accumulated during the speculative parse.

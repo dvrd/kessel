@@ -1095,12 +1095,23 @@ using_starts_decl :: proc(p: ^Parser) -> bool {
 	return nxt.type == .Identifier || can_be_binding_identifier(nxt.type)
 }
 
+// parser_halted reports whether the lexer has latched a halt (template
+// nesting cap, out of memory). From that point every token is a forced EOF,
+// so any diagnostic the grammar raises is an artefact of the truncation and
+// would bury the one that explains it. The report_* procedures below drop
+// such diagnostics; the halting diagnostic itself is recorded by whoever
+// halted, not through them.
+parser_halted :: #force_inline proc(p: ^Parser) -> bool {
+	return p.lexer != nil && p.lexer.halted
+}
+
 // report_error surfaces a diagnostic at the CURRENT token. The span is
 // [cur.start, cur.end), so the error covers the whole offending token
 // instead of a single byte — callers that just need a caret keep the
 // caret at .start; renderers that want an underline get the full extent
 // for free. End-of-source errors trivially collapse to start == end.
 report_error :: proc(p: ^Parser, message: string) {
+	if parser_halted(p) { return }
 	bump_append(&p.errors, ParseError{
 		start   = cur_offset(p),
 		end     = cur_raw_end(p),
@@ -1116,12 +1127,14 @@ report_error :: proc(p: ^Parser, message: string) {
 // prior token boundary) but no matching end — a future pass can widen
 // these by passing a real span via report_error_span.
 report_error_at :: #force_inline proc(p: ^Parser, loc: LexerLoc, message: string) {
+	if parser_halted(p) { return }
 	bump_append(&p.errors, ParseError{start = u32(loc), end = u32(loc), message = message})
 }
 
 // report_error_span is the explicit-span variant. Prefer this whenever a
 // caller has both ends of the offending range.
 report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: string) {
+	if parser_halted(p) { return }
 	bump_append(&p.errors, ParseError{start = start, end = end, message = message})
 }
 
@@ -1133,6 +1146,7 @@ report_error_span :: #force_inline proc(p: ^Parser, start, end: u32, message: st
 // callers that quote source text build a richer string here and still
 // pass the code so tooling can group / suppress / look it up.
 report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
+	if parser_halted(p) { return }
 	info := error_info(code)
 	bump_append(&p.errors, ParseError{
 		start    = cur_offset(p),
@@ -1150,6 +1164,7 @@ report_error_coded :: proc(p: ^Parser, code: ErrorCode, message: string) {
 // when both ends of the offending range are known (e.g. a saved token
 // span from before a recovery rollback) and a stable code applies.
 report_error_coded_span :: #force_inline proc(p: ^Parser, code: ErrorCode, start, end: u32, message: string) {
+	if parser_halted(p) { return }
 	info := error_info(code)
 	bump_append(&p.errors, ParseError{
 		start    = start,
@@ -1608,6 +1623,14 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 		}
 	}
 
+	// A halted parse has a truncated body. The whole-program checks below
+	// would only report artefacts of the truncation (undefined exports,
+	// dangling cover grammar), so surface the halting diagnostic and stop.
+	if parser_halted(p) {
+		parser_drain_lexer_errors(p)
+		return program
+	}
+
 	// Auto-detect module vs script sourceType: any top-level import/export makes
 	// this a module per ECMA-262 §16.2. We do this after parse so the body is
 	// already populated; callers that want to force a source type can still pass
@@ -1702,25 +1725,7 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// directly because error reporting needs line/col lazy-lookup off
 	// the Parser; this is the first point after parse where we're sure
 	// the lexer has seen every token.
-	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
-		for lex_err in p.lexer.lexer_errors {
-			// Propagate the lexer's code + severity into the parser's
-			// error list so JSON / pretty / binary emitters all see
-			// the same K-code regardless of which pass produced the
-			// diagnostic. `error_info` provides the severity since
-			// LexerError doesn't carry one (lexer-side warnings are
-			// not yet a thing).
-			info := error_info(lex_err.code)
-			err := ParseError{
-				start    = lex_err.offset,
-				end      = lex_err.offset,
-				message  = lex_err.message,
-				code     = lex_err.code,
-				severity = info.severity,
-			}
-			bump_append(&p.errors, err)
-		}
-	}
+	parser_drain_lexer_errors(p)
 
 	// §14.2.1 — program-level lex/var clash check.
 
@@ -1733,6 +1738,30 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	parser_scope_check(p, program.body[:], false)
 
 	return program
+}
+
+// Copy the lexer's diagnostics into p.errors. Called once per parse, after
+// the last token has been lexed (see the call sites in parse_program).
+parser_drain_lexer_errors :: proc(p: ^Parser) {
+	if p.lexer != nil && len(p.lexer.lexer_errors) > 0 {
+		for lex_err in p.lexer.lexer_errors {
+			// Propagate the lexer's code + severity into the parser's
+			// error list so JSON / pretty / binary emitters all see
+			// the same K-code regardless of which pass produced the
+			// diagnostic. `error_info` provides the severity since
+			// LexerError doesn't carry one (lexer-side warnings are
+			// not yet a thing).
+			info := error_info(lex_err.code)
+			err := ParseError{
+				start    = lex_err.offset,
+				end      = lex_err.offset + lex_err.length,
+				message  = lex_err.message,
+				code     = lex_err.code,
+				severity = info.severity,
+			}
+			bump_append(&p.errors, err)
+		}
+	}
 }
 
 // Retroactive octal/\8/\9 check for directive-prologue strings that

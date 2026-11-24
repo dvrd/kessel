@@ -113,7 +113,9 @@ Lexer :: struct {
 	offset:     int,                  // 8B  — read/write every token
 	had_line_terminator: bool,        // 1B  — write every token
 	last_token_type: TokenType,       // 1B  — write every token
-	template_depth: u8,               // 1B  — number of active template interpolations
+	// Number of `${ ... }` interpolations the cursor is currently inside,
+	// at most TEMPLATE_DEPTH_MAX. See "Template interpolation state" below.
+	template_depth: u16,              // 2B  — read on every `{` / `}`
 	// Lazy nxt: true when `nxt` holds a pre-lexed token (from a peek).
 	// advance_token checks this to decide whether to copy nxt→cur (cheap)
 	// or lex directly into cur (no 16-byte copy). ~90% of advances skip
@@ -126,7 +128,13 @@ Lexer :: struct {
 	// token is fetched.
 	is_module_mode: bool,             // 1B  — set once at init
 	_hot_pad: [2]u8,                  // 2B  — align to 32B boundary
-	template_brace_stack: [8]u8,      // 8B  — brace depth per template nesting level (max 8 deep)
+	// Count of `{` still open inside the INNERMOST active interpolation.
+	// Only the innermost count changes per token, so it alone lives in the
+	// hot line; the counts of the enclosing interpolations are parked on
+	// the cold `template_outer` list. A `}` seen at count zero closes the
+	// interpolation. u32 cannot wrap: every `{` is a source byte and token
+	// offsets are u32, so a source holds fewer than 2^32 of them.
+	template_brace_depth: u32,        // 4B  — read/write on `{` / `}` inside `${ }`
 	cur:   FastToken,            // 16B — read/write every token (parser reads)
 	nxt:   FastToken,            // 16B — read/write every token
 	// --- 64 bytes so far: fits in 1 cache line ---
@@ -149,6 +157,13 @@ Lexer :: struct {
 	column:     int,
 	allocator:  mem.Allocator,
 	template_stack: [dynamic]bool,
+	// Brace counts of the interpolations that enclose the innermost one,
+	// innermost-enclosing first. nil while template_depth <= 1.
+	template_outer: ^TemplateOuterLevel,
+	// Latched by lexer_halt: the rest of the input is deliberately not
+	// tokenised and the parser discards diagnostics raised from then on,
+	// which could only be artefacts of the forced end of input.
+	halted: bool,
 	strict_mode: bool,
 	at_start_of_file: bool,
 
@@ -217,6 +232,143 @@ LexerError :: struct {
 	offset:  u32,
 	message: string,
 	code:    ErrorCode,   // .None for legacy / un-migrated lexer errors
+	// Byte length of the offending construct, for diagnostics that span
+	// more than a point. Zero (the default) keeps the legacy point span.
+	length:  u32,
+}
+
+// ----------------------------------------------------------------------------
+// Template interpolation state
+// ----------------------------------------------------------------------------
+//
+// Inside `${ ... }` the lexer must tell a `}` that closes an object literal
+// or block from the `}` that ends the interpolation and resumes the template
+// text. It does so by counting open `{` per interpolation:
+//
+//   template_depth        how many interpolations are open (0 = not in one)
+//   template_brace_depth  open `{` in the innermost interpolation
+//   template_outer        the same count for each enclosing interpolation
+//
+// The enclosing counts form a linked list of arena nodes that are never
+// modified after they are written: entering a nested interpolation links a
+// new node in front, leaving it moves the head pointer back to the parent.
+// That makes the whole state three scalars (depth, count, head pointer), so
+// the parser's speculative-parse snapshot (`lexer_snapshot`) captures it
+// exactly at any depth by copying them, with nothing to deep-copy. A fixed
+// array of counters would not have that property: a speculative parse that
+// leaves and re-enters a level overwrites the slot the snapshot relies on.
+//
+// Cost: no allocation up to depth 1 (the overwhelmingly common case); one
+// 16-byte arena node per nested interpolation beyond that. Before this
+// design the state was `[8]u8`: depth 9 silently stopped tracking and 256
+// open braces wrapped the counter, so valid programs were rejected.
+//
+// TEMPLATE_DEPTH_MAX bounds the list (and so the arena spent on it: at most
+// 255 nodes = 4 KiB live). It is far above anything hand-written or
+// generated code produces (V8 accepts more, but only until its own stack
+// runs out), and it is low enough that the recursive-descent parser, which
+// spends several stack frames per level, reaches the cap before it reaches
+// the end of an 8 MiB stack even in unoptimised builds. Exceeding it is
+// reported as K1016_TemplateNestingTooDeep at the offending `${` and lexing
+// halts, rather than continuing with brace tracking known to be wrong.
+TEMPLATE_DEPTH_MAX :: 256
+
+TemplateOuterLevel :: struct {
+	parent:      ^TemplateOuterLevel, // next enclosing interpolation, or nil
+	brace_depth: u32,                 // its open `{` count while suspended
+}
+
+#assert(TEMPLATE_DEPTH_MAX <= max(u16))
+#assert(size_of(TemplateOuterLevel) == 16)
+// The parser reads `cur` / `nxt` on every token. These are the offsets they
+// had (measured, 64-bit targets) before the template state changed from
+// `[8]u8` to a u32 count plus a cold pointer; pin them so the change, and
+// later ones, cannot silently shift the hot fields across cache lines.
+when size_of(rawptr) == 8 {
+	#assert(offset_of(Lexer, template_depth) == 40)
+	#assert(offset_of(Lexer, template_brace_depth) == 48)
+	#assert(offset_of(Lexer, cur) == 56)
+	#assert(offset_of(Lexer, nxt) == 80)
+}
+
+// Enter the interpolation whose `${` starts at `dollar_offset`. Returns
+// false when the level cannot be opened (nesting cap or allocation
+// failure); a diagnostic has then been recorded and lexing halted, and the
+// caller must return an Invalid token.
+template_level_enter :: proc(l: ^Lexer, dollar_offset: int) -> bool {
+	assert(dollar_offset + 2 <= len(l.source_bytes))
+	assert(l.template_depth <= TEMPLATE_DEPTH_MAX)
+	if l.template_depth == TEMPLATE_DEPTH_MAX {
+		template_level_refuse(l, dollar_offset, .K1016_TemplateNestingTooDeep,
+			"Template literal nesting exceeds 256 levels")
+		return false
+	}
+	if l.template_depth > 0 {
+		// Park the enclosing interpolation's count; depth 0 has none.
+		outer, alloc_err := new(TemplateOuterLevel, l.allocator)
+		if alloc_err != nil || outer == nil {
+			template_level_refuse(l, dollar_offset, .K2085_OutOfMemory,
+				"Out of memory: input exceeds the parser arena")
+			return false
+		}
+		outer.parent = l.template_outer
+		outer.brace_depth = l.template_brace_depth
+		l.template_outer = outer
+	} else {
+		assert(l.template_outer == nil)
+		assert(l.template_brace_depth == 0)
+	}
+	l.template_depth += 1
+	l.template_brace_depth = 0
+	return true
+}
+
+// Leave the innermost interpolation: its closing `}` was just recognised.
+// Tolerates depth 0 because error recovery in the TS template-type parser
+// re-lexes a stray `}` as a continuation (see parse_ts_template_literal_type).
+template_level_leave :: proc(l: ^Lexer) {
+	if l.template_depth == 0 {
+		assert(l.template_outer == nil)
+		return
+	}
+	l.template_depth -= 1
+	if l.template_depth > 0 {
+		outer := l.template_outer
+		assert(outer != nil)
+		l.template_brace_depth = outer.brace_depth
+		l.template_outer = outer.parent
+	} else {
+		assert(l.template_outer == nil)
+		l.template_brace_depth = 0
+	}
+}
+
+// Record why an interpolation could not be opened and halt the lexer.
+// Carrying on would misread each following `}` and bury the real cause
+// under a cascade of unrelated syntax errors.
+template_level_refuse :: proc(l: ^Lexer, dollar_offset: int, code: ErrorCode, message: string) {
+	// A speculative parse may rewind and reach the same `${` again; report
+	// the refusal once.
+	if !l.halted {
+		bump_append(&l.lexer_errors, LexerError{
+			offset  = u32(dollar_offset),
+			length  = 2, // the `${`
+			message = message,
+			code    = code,
+		})
+	}
+	lexer_halt(l)
+}
+
+// Stop tokenising: move the cursor to the end of input so every later token
+// is EOF, and latch `halted`. Used for conditions after which the token
+// stream cannot be trusted (template nesting cap) or must not be consumed
+// (out of memory). The latch is what keeps the stop in force when the
+// parser rewinds the cursor: lexer_restore re-applies it. Idempotent.
+lexer_halt :: proc(l: ^Lexer) {
+	l.halted = true
+	l.offset = len(l.source_bytes)
+	assert(l.offset == len(l.source_bytes))
 }
 
 // Index every ECMAScript line terminator. Treat CRLF as one line break.
@@ -914,15 +1066,14 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	if tt != .Invalid {
 		// When inside template interpolation, track brace depth
 		if l.template_depth > 0 {
-			idx := l.template_depth - 1
 			if tt == .RBrace {
-				if l.template_brace_stack[idx] == 0 {
+				if l.template_brace_depth == 0 {
 					// Closes the interpolation → template resume
 					return lex_template_resume(l, start, flags)
 				}
-				l.template_brace_stack[idx] -= 1
+				l.template_brace_depth -= 1
 			} else if tt == .LBrace {
-				l.template_brace_stack[idx] += 1
+				l.template_brace_depth += 1
 			}
 		}
 		l.offset += 1
@@ -2901,12 +3052,10 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
 			content_end := u32(l.offset)
-			l.offset += 2 // consume ${  
-			// Push template brace depth
-			if l.template_depth < len(l.template_brace_stack) {
-				l.template_brace_stack[l.template_depth] = 0
-				l.template_depth += 1
+			if !template_level_enter(l, l.offset) {
+				return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 			}
+			l.offset += 2 // consume ${
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateHead, flags = flags}
 		}
@@ -2936,11 +3085,19 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 }
 
+// The `}` at `start` closes the innermost interpolation: leave that level,
+// then scan the template text that follows.
 lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+	template_level_leave(l)
+	return lex_template_continue(l, start, flags)
+}
+
+// Scan template text from the `}` at `start` up to the next `${` (returns
+// TemplateMiddle and enters a new level) or closing backtick (TemplateTail).
+// Split from lex_template_resume so a caller that already left the level
+// can re-scan the continuation without leaving a second one.
+lex_template_continue :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	l.offset += 1
-	if l.template_depth > 0 {
-		l.template_depth -= 1
-	}
 	src := l.source_bytes
 	src_len := len(src)
 	content_start := l.offset
@@ -2973,11 +3130,10 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
 			content_end := u32(l.offset)
-			l.offset += 2
-			if l.template_depth < len(l.template_brace_stack) {
-				l.template_brace_stack[l.template_depth] = 0
-				l.template_depth += 1
+			if !template_level_enter(l, l.offset) {
+				return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 			}
+			l.offset += 2
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateMiddle, flags = flags}
 		}
