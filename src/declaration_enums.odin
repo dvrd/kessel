@@ -1,7 +1,5 @@
 package kessel
 
-import "core:math"
-
 @(private)
 dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 	if state.enums.allocator.procedure == nil {
@@ -49,8 +47,6 @@ dts_enum :: proc(state: ^DeclarationEmit, decl: ^TSEnumDeclaration) {
 		if !explicit && !numbered { value = nil }
 		#partial switch constant in value {
 		case f64:
-			// Infinity and NaN have no literal spelling in a declaration file.
-			if math.is_inf(constant) || math.is_nan(constant) { break }
 			buf: [64]byte
 			cg_str(cg, " = "); cg_str(cg, enum_number_string(buf[:], constant))
 		case string: cg_str(cg, " = "); gen_string_quoted(cg, constant)

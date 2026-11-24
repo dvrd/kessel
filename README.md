@@ -174,7 +174,29 @@ interfaces, aliases, namespaces, and re-exports. Diagnostics on stderr give the 
 UTF-8 byte range. A failed emit exits with status 1 and writes no declarations.
 Class index signatures and nested or merged namespaces retain private types used
 by public signatures. Computed interface and type-literal members can refer to
-local or imported keys. Some computed class members and inferred types remain in development.
+local or imported keys.
+
+Types are taken from annotations, or inferred the way TypeScript's
+`isolatedDeclarations` mode allows: literals, `as` assertions, `as const` arrays
+and objects, object literals, function and arrow expressions, a single direct
+`return`, parameter defaults, enum constants, and paired accessors. Anything
+that needs a type checker is reported with TypeScript's `TS90xx` code instead
+of being guessed.
+
+Known differences from TypeScript 5.9.3:
+
+- A file with a parse error or an early error (for example `super` outside a
+  method) fails with `Invalid_Syntax` and emits nothing. TypeScript's
+  single-file emitter skips those checks and still emits declarations.
+- When a file is already rejected, TypeScript sometimes adds diagnostics that
+  come from its type checker, such as TS9007 on an arrow function nested in a
+  call, TS4094 for mixins, or TS9039 for private names. Kessel reports the
+  primary error only.
+- Property assignments to a function (`fn.prop = value`) are diagnosed at the
+  top level of a file or namespace, not inside nested statements or expressions.
+- A generic function type used as a type argument and escapes in template
+  literal types are printed by the shared code generator without TypeScript's
+  parentheses and escape sequences.
 
 The experimental `module-lex` command emits JSON with imports, re-exports,
 `import.meta`, source and defer imports, and export names. Export records
@@ -521,7 +543,7 @@ results are in the [codegen section](#codegen).
 | 6 | Semantic model · CFG · resolver · module lexer · regexp AST | In progress |
 | 7 | Formatter (`kessel fmt`, `formatSync`) | Wraps import and export lists and nested data literals at the configured width. General statement and expression formatting, JSX layout and comment placement remain open. |
 | 8 | Minifier + mangler (`kessel minify`, `minifySync`) | Experimental. Folds JS and JSX numeric and boolean expressions, joins adjacent declarations, and shortens local JS and JSX bindings. Preserves JSX tag semantics and factory pragmas. TypeScript retains its binding names and initializer expressions for type inference. |
-| 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. The TypeScript reference suite covers namespaces, class index signatures and computed interface members. Some computed class members and inferred types remain open. |
+| 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. Compared with TypeScript 5.9.3 on its whole compiler and conformance fixture directories; every emitter difference is recorded in `tests/baselines/dts_typescript_differences.txt`. Files with early errors are rejected, and checker-dependent secondary diagnostics are not reproduced. |
 | 10 | Bundler + language server | The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. Bundling remains planned. |
 
 Run `task build:vscode` to create an installable VSIX for your platform.

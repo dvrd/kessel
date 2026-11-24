@@ -152,7 +152,7 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 	if el.kind == .Get { cg_str(cg, "get ") }
 	if el.kind == .Set { cg_str(cg, "set ") }
 	static_key := dts_property_key(state, el.key, el.computed)
-	if !static_key && (el.kind != .Method || dts_entity_name_root(el.key) == nil) { return }
+	if !static_key && (el.kind != .Method || !dts_key_may_index(state, el.key)) { return }
 	if el.optional { cg_byte(cg, '?') }
 	loc := get_expression_loc(el.key)
 	if el.computed { loc = dts_computed_span(state, loc) }
@@ -246,12 +246,102 @@ dts_property_key :: proc(state: ^DeclarationEmit, key: ^Expression, computed: bo
 			loc := dts_computed_span(state, get_expression_loc(key))
 			dts_error(state, "TS9038", "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.", loc)
 		}
-		if root := dts_entity_name_root(key); root != nil { dts_reference(state, root, true) }
+		// TypeScript keeps the binding of a name that could be an index key.
+		// A literal-typed name is rejected without declaring its binding.
+		if root := dts_entity_name_root(key); root != nil {
+			if named || dts_key_may_index(state, key) { dts_reference(state, root, true) }
+		}
 		cg_byte(cg, '[')
 	}
 	gen_expression(cg, key, PREC_ASSIGN)
 	if computed { cg_byte(cg, ']') }
 	return named
+}
+
+DeclarationKeyType :: enum { Unknown, Index, Other }
+
+// TypeScript reports TS9038 for a dynamic method name and still checks the
+// method's signature when the name could act as an index signature key: a
+// dotted name whose type is string, number, symbol, any, or unresolved. A
+// name declared here with another type, or with one literal type, is not.
+@(private)
+dts_key_may_index :: proc(state: ^DeclarationEmit, key: ^Expression) -> bool {
+	root := dts_entity_name_root(key)
+	if root == nil { return false }
+	if root != key { return true } // A property path has no local annotation to read.
+	name := root^.(^Identifier).name
+	for index in dts_lookup(state, name, .Value) {
+		item := &state.items[index]
+		#partial switch decl in item.statement {
+		case ^FunctionDeclaration, ^ClassDeclaration, ^TSEnumDeclaration, ^TSModuleDeclaration:
+			return false
+		case ^VariableDeclaration:
+			entry := decl.declarations[item.part]
+			id, plain := entry.id.(^Identifier)
+			if !plain { return true }
+			if annotation, typed := id.type_annotation.?; typed {
+				return dts_key_type(state, annotation.type_annotation) != .Other
+			}
+			init, has_init := entry.init.?
+			if !has_init { return true }
+			// A const literal has a literal type and names a real property.
+			if decl.kind == .Const && dts_primitive_type(init) != "" { return false }
+			if call, called := init^.(^CallExpression); called && decl.kind == .Const {
+				if callee, named := call.callee^.(^Identifier); named && callee.name == "Symbol" {
+					return false // `const k = Symbol()` is a unique symbol.
+				}
+			}
+			return true
+		}
+	}
+	return true
+}
+
+// Classify an annotation without a checker. A union indexes only when every
+// member could, and it has more than one literal member.
+@(private)
+dts_key_type :: proc(state: ^DeclarationEmit, annotation: ^TSType) -> DeclarationKeyType {
+	pending := make([dynamic]^TSType, 0, 4)
+	append(&pending, annotation)
+	members := 0
+	literals := 0
+	for len(pending) > 0 {
+		ty, _ := dts_accessor_type_root(state, pop(&pending))
+		if ty == nil { return .Unknown }
+		members += 1
+		#partial switch t in ty^ {
+		case ^TSUnionType:
+			members -= 1
+			// A cyclic alias cannot grow the queue past the input's own size.
+			if members + len(pending) > len(state.items) + 64 { return .Unknown }
+			append(&pending, ..t.types[:])
+		case ^TSKeywordType:
+			#partial switch t.kind {
+			case .String, .Number, .Symbol, .Any, .Never:
+			case: return .Other
+			}
+		case ^TSLiteralType:
+			#partial switch _ in t.literal^ {
+			case ^StringLiteral, ^NumericLiteral, ^TemplateLiteral: literals += 1
+			case: return .Other
+			}
+		case ^TSTemplateLiteralType:
+		case ^TSTypeReference:
+			// An interface or class type is never a property key. An unresolved
+			// or imported name has an unknown type, which TypeScript accepts.
+			if id, plain := t.type_name^.(^Identifier); plain {
+				for index in dts_lookup(state, id.name, .Type) {
+					#partial switch _ in state.items[index].statement {
+					case ^TSInterfaceDeclaration, ^ClassDeclaration: return .Other
+					}
+				}
+			}
+			return .Unknown
+		case: return .Other
+		}
+	}
+	if members == 1 && literals == 1 { return .Other }
+	return .Index
 }
 
 // A global well-known symbol can be named directly in a declaration file.

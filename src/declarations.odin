@@ -132,7 +132,8 @@ dts_external_module :: proc(job: ^ParseJob) -> bool {
 		#partial switch s in stmt^ {
 		case ^TSExportAssignment: return true
 		case ^TSImportEqualsDeclaration:
-			if _, external := s.module_reference.(^TSExternalModuleReference); external { return true }
+			_, external := s.module_reference.(^TSExternalModuleReference)
+			if external { return true }
 		}
 	}
 	return false
@@ -275,8 +276,16 @@ dts_emit_item :: proc(state: ^DeclarationEmit, item: ^DeclarationItem) {
 				append(&state.references, DeclarationReference{name = local.name})
 			}
 		}
-		gen_statement(cg, item.statement)
-	case ^ExportAllDeclaration, ^TSNamespaceExportDeclaration: gen_statement(cg, item.statement)
+		clause := s^
+		clause.attributes = dts_declaration_attributes(s.attributes)
+		statement: Statement = &clause
+		gen_statement(cg, statement)
+	case ^ExportAllDeclaration:
+		clause := s^
+		clause.attributes = dts_declaration_attributes(s.attributes)
+		statement: Statement = &clause
+		gen_statement(cg, statement)
+	case ^TSNamespaceExportDeclaration: gen_statement(cg, item.statement)
 	case ^ExportDefaultDeclaration: dts_default(state, s.declaration^.(^Expression), "export default ")
 	case ^TSExportAssignment: dts_default(state, s.expression, "export = ")
 	case:

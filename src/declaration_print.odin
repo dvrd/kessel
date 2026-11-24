@@ -65,6 +65,19 @@ dts_finish :: proc(state: ^DeclarationEmit) {
 	if len(state.output.errors) == 0 { state.output.output = string(cg.buf[:cg.pos]) }
 }
 
+// Import attributes describe how a runtime loads a module. A declaration file
+// keeps only `resolution-mode`, which selects the types a specifier resolves to.
+@(private)
+dts_declaration_attributes :: proc(
+	attributes: [dynamic]ImportAttribute,
+) -> [dynamic]ImportAttribute {
+	if len(attributes) != 1 { return nil }
+	attribute := attributes[0]
+	if attribute.key.name != "resolution-mode" { return nil }
+	if attribute.value.value != "import" && attribute.value.value != "require" { return nil }
+	return attributes
+}
+
 @(private)
 dts_module_indicator :: proc(items: []DeclarationItem) -> bool {
 	assert(len(items) > 0)
@@ -91,6 +104,7 @@ dts_print_group :: proc(state: ^DeclarationEmit, items: []DeclarationItem, regio
 	case ^ImportDeclaration:
 		clause := s^
 		clause.specifiers = nil
+		clause.attributes = dts_declaration_attributes(s.attributes)
 		for entry in items {
 			if entry.selected && entry.part >= 0 { append(&clause.specifiers, s.specifiers[entry.part]) }
 		}
