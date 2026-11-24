@@ -85,6 +85,14 @@ Codegen :: struct {
 	// write prefixes itself with indentation in pretty mode.
 	at_line_start: bool,
 	comments: []Comment, // Borrowed for normal comments in pretty output.
+	// First comment that no printer site has claimed, and its source start
+	// (CODEGEN_COMMENT_NONE when none is waiting) for a one-compare fast path.
+	comment_cursor: int,
+	comment_next: u32,
+	// Output offset just after comments that began a line; -1 when unset.
+	comment_line_pos: int,
+	// Output offset just after a continuation indent; -1 when unset.
+	comment_continuation_pos: int,
 	annotations: map[u32]CodegenAnnotations,
 
 	// Source-map state. nil unless the caller opted in via
@@ -188,6 +196,10 @@ codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source: string, alloc: me
 	cg.depth         = 0
 	cg.at_line_start = true
 	cg.comments      = nil
+	cg.comment_cursor = 0
+	cg.comment_next  = CODEGEN_COMMENT_NONE
+	cg.comment_line_pos = -1
+	cg.comment_continuation_pos = -1
 	cg.annotations   = nil
 	cg.sm            = nil
 	cg.strip_diag    = nil
@@ -293,6 +305,17 @@ cg_break_or_space :: #force_inline proc(cg: ^Codegen) {
 	if cg.cfg.minified { cg_hard_space(cg) } else { cg_newline(cg) }
 }
 
+// Before a closing delimiter: print the comments that remain inside the group.
+cg_close_comments :: #force_inline proc(cg: ^Codegen, upto: u32) {
+	if cg.comment_next < upto { codegen_flush_comments(cg, upto, true) }
+}
+
+// Before the bracket that closes a computed key.
+cg_close_key :: proc(cg: ^Codegen, key: ^Expression) {
+	if cg.comment_next == CODEGEN_COMMENT_NONE { return }
+	cg_close_comments(cg, codegen_skip_trivia(cg.source, loc_from_expr(key).end, groups = true))
+}
+
 // ----------------------------------------------------------------------------
 // Top-level entry point
 // ----------------------------------------------------------------------------
@@ -319,9 +342,8 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program, comments: []Comment = n
 	}
 	codegen_emit_legal_comments(cg, comments[:header_end], compact_jsx)
 	defer codegen_emit_legal_comments(cg, comments[header_end:])
-	comment_index := 0
 	source_end := u32(len(cg.source))
-	cg.comments = comments
+	codegen_comments_begin(cg, comments)
 	jsx_boundary, jsx_offset := -1, -1
 	directives := 0
 	jsx_prelude := cg.cfg.jsx.runtime == .Automatic || cg.cfg.jsx.development
@@ -338,13 +360,17 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program, comments: []Comment = n
 		if jsx_boundary == 0 {
 			if !cg.cfg.minified && len(program.body) > 0 {
 				header := jsx_file_header(comments, codegen_list_item_loc(program.body[0]).start)
-				codegen_emit_leading_comments(cg, program.body[:], header, &comment_index, 0, source_end)
+				if len(header) > 0 {
+					position := cg.pos
+					codegen_emit_comment_gap(cg, 0, header[len(header) - 1].end, false)
+					if cg.pos != position && !cg.at_line_start { cg_newline(cg) }
+				}
 			}
 			jsx_offset = cg.pos
 		}
 	}
 	if !cg.cfg.minified {
-		codegen_emit_leading_comments(cg, program.body[:], comments, &comment_index, 0, source_end)
+		codegen_emit_leading_comments(cg, program.body[:], 0, source_end)
 	}
 	// Directive prologue (e.g. "use strict") lives in BOTH `program.directives`
 	// and as the leading ExpressionStatement of `program.body`. We emit only
@@ -360,14 +386,14 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program, comments: []Comment = n
 			need_asi_guard = prev_stmt_can_continue_into_next(program.body[i]^, program.body[i+1]^)
 		}
 		if module_kind == .None {
-			gen_statement_list_item(cg, program.body[:], i)
+			gen_statement_list_entry(cg, program.body[:], i)
 		} else {
 			gen_module_resource_item(cg, program.body[i], module_kind)
 		}
 		if !cg.cfg.minified {
 			// Keep standalone comments attached to the next user statement.
 			offset := &jsx_offset if i + 1 == jsx_boundary else nil
-			codegen_end_item_line(cg, program.body[:], i, comments, &comment_index, source_end, insert_offset = offset)
+			codegen_end_item_line(cg, program.body[:], i, source_end, insert_offset = offset)
 		} else if need_asi_guard {
 			// Use a newline instead of `;` here — a `;` would reparse as
 			// an additional EmptyStatement, lengthening the body by one
@@ -455,7 +481,20 @@ stmt_starts_with_asi_hazard :: proc(stmt: Statement) -> bool {
 // Statement dispatch
 // ============================================================================
 
+// Type erasure prints nothing for a declaration without runtime behavior. Its
+// comments describe syntax that is gone, so they go with it.
+gen_statement_list_entry :: proc(cg: ^Codegen, statements: []^Statement, index: int) {
+	gen_statement_list_item(cg, statements, index)
+	if cg.comment_next == CODEGEN_COMMENT_NONE || !cg.cfg.strip_types { return }
+	if strip_statement_has_runtime(statements[index]^) { return }
+	codegen_skip_comments(cg, get_statement_loc(statements[index]).end)
+}
+
 gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		stmt_local := stmt
+		codegen_flush_comments(cg, get_statement_loc(&stmt_local).start)
+	}
 	if cg.sm != nil {
 		// Force indent before recording so the mapping points at the
 		// statement keyword, not at the leading whitespace.
@@ -539,6 +578,15 @@ gen_expression_begin :: proc(
 		// A lowered JSX receiver is a call, including in the callee of new.
 		#partial switch _ in value^ { case ^JSXElement, ^JSXFragment: need_paren = true }
 	}
+	// Comments go in front of grouping that the printer adds. Grouping is not
+	// part of the AST, so the output is read back with the comment before it.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		if need_paren {
+			codegen_flush_head(cg, loc_from_expr(expr).start)
+		} else {
+			codegen_flush_comments(cg, loc_from_expr(expr).start)
+		}
+	}
 	if need_paren { cg_byte(cg, '(') }
 	// A comparison followed by a type assertion or JSX must lex as two '<' tokens.
 	if cg.pos > 0 && cg.buf[cg.pos - 1] == '<' {
@@ -618,7 +666,11 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 	case ^TSNonNullExpression:        gen_expression(cg, e.expression, PREC_CALL); if !cg.cfg.strip_types { cg_byte(cg, '!') }
 	case ^TSTypeAssertion:            if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_type_assertion(cg, e) }
 	case ^TSInstantiationExpression:  if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_instantiation(cg, e) }
-	case ^ParenthesizedExpression:    cg_byte(cg, '('); gen_expression(cg, e.expression, PREC_LOWEST); cg_byte(cg, ')')
+	case ^ParenthesizedExpression:
+		cg_byte(cg, '(')
+		gen_expression(cg, e.expression, PREC_LOWEST)
+		cg_close_comments(cg, e.loc.end)
+		cg_byte(cg, ')')
 	}
 }
 
@@ -779,26 +831,26 @@ gen_block_statement :: proc(cg: ^Codegen, s: ^BlockStatement) {
 }
 
 gen_statement_block :: proc(cg: ^Codegen, statements: []^Statement, loc: Loc) {
+	if cg.comment_next < loc.start { codegen_flush_comments(cg, loc.start) }
 	cg_byte(cg, '{')
 	comments := codegen_comments_in_body(cg, loc)
 	if len(statements) == 0 && !codegen_has_ordinary_comments(comments) { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	comment_index := 0
-	codegen_emit_leading_comments(cg, statements, comments, &comment_index, loc.start, loc.end)
+	codegen_emit_leading_comments(cg, statements, loc.start, loc.end)
 	kind := resource_list_kind(cg, statements)
 	start := 0
 	if kind != .None {
 		start = codegen_directive_count(statements)
 		for i in 0..<start {
-			gen_statement_list_item(cg, statements, i)
-			codegen_end_item_line(cg, statements, i, comments, &comment_index, loc.end)
+			gen_statement_list_entry(cg, statements, i)
+			codegen_end_item_line(cg, statements, i, loc.end)
 		}
 	}
 	outer := codegen_resource_open(cg, kind)
 	for i in start..<len(statements) {
-		gen_statement_list_item(cg, statements, i)
-		codegen_end_item_line(cg, statements, i, comments, &comment_index, loc.end)
+		gen_statement_list_entry(cg, statements, i)
+		codegen_end_item_line(cg, statements, i, loc.end)
 	}
 	codegen_resource_close(cg, kind, outer)
 	cg.depth -= 1
@@ -806,6 +858,9 @@ gen_statement_block :: proc(cg: ^Codegen, statements: []^Statement, loc: Loc) {
 }
 
 gen_return_statement :: proc(cg: ^Codegen, s: ^ReturnStatement) {
+	if arg, ok := s.argument.?; ok {
+		codegen_hoist_comments(cg, loc_from_expr(arg).start, s.loc.start)
+	}
 	cg_str(cg, "return")
 	if arg, ok := s.argument.?; ok {
 		cg_hard_space(cg)
@@ -844,6 +899,7 @@ gen_if_statement :: proc(cg: ^Codegen, s: ^IfStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.test, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.consequent).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.consequent^)
@@ -866,26 +922,19 @@ gen_switch_statement :: proc(cg: ^Codegen, s: ^SwitchStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.discriminant, PREC_LOWEST)
+	cg_close_comments(cg, loc_from_expr(s.discriminant).end)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	cg_byte(cg, '{')
 	cg_newline(cg)
 	cg.depth += 1
-	for c in s.cases {
-		if t, ok := c.test.?; ok {
-			cg_str(cg, "case ")
-			gen_expression(cg, t, PREC_LOWEST)
-			cg_byte(cg, ':')
-		} else {
-			cg_str(cg, "default:")
-		}
-		cg_newline(cg)
-		cg.depth += 1
-		for _, i in c.consequent {
-			gen_statement_list_item(cg, c.consequent[:], i)
-			cg_newline(cg)
-		}
-		cg.depth -= 1
+	// The closing brace bounds the comments of the last case.
+	body_end := s.loc.end - 1 if s.loc.end > 0 else 0
+	codegen_emit_leading_comments(cg, s.cases[:], s.loc.start, body_end)
+	for c, index in s.cases {
+		next := body_end
+		if index + 1 < len(s.cases) { next = s.cases[index + 1].loc.start }
+		gen_switch_case(cg, c, next, index + 1 == len(s.cases))
 	}
 	cg.depth -= 1
 	cg_byte(cg, '}')
@@ -897,11 +946,52 @@ gen_switch_statement :: proc(cg: ^Codegen, s: ^SwitchStatement) {
 	}
 }
 
+// `next` is where the following case, or the closing brace, begins.
+gen_switch_case :: proc(cg: ^Codegen, c: SwitchCase, next: u32, last: bool) {
+	header_end := c.loc.start
+	if t, ok := c.test.?; ok {
+		cg_str(cg, "case ")
+		gen_expression(cg, t, PREC_LOWEST)
+		header_end = loc_from_expr(t).end
+		cg_close_comments(cg, header_end)
+		cg_byte(cg, ':')
+	} else {
+		cg_str(cg, "default:")
+	}
+	// Comments at the indentation of the next case describe that case. Before
+	// the closing brace there is no next case to compare with.
+	split := next
+	if !last && cg.comment_next < next {
+		from := header_end
+		if len(c.consequent) > 0 {
+			from = get_statement_loc(c.consequent[len(c.consequent) - 1]).end
+		}
+		split = codegen_outdented_comment(cg, from, next)
+	}
+	cg.depth += 1
+	if cg.comment_next < split {
+		boundary := split
+		if len(c.consequent) > 0 { boundary = get_statement_loc(c.consequent[0]).start }
+		codegen_emit_comment_gap(cg, header_end, boundary, true)
+	}
+	if !cg.at_line_start { cg_newline(cg) }
+	for _, i in c.consequent {
+		gen_statement_list_entry(cg, c.consequent[:], i)
+		codegen_end_item_line(cg, c.consequent[:], i, split)
+	}
+	cg.depth -= 1
+	if cg.comment_next < next {
+		codegen_emit_comment_gap(cg, split, next, false)
+		if !cg.at_line_start { cg_newline(cg) }
+	}
+}
+
 gen_while_statement :: proc(cg: ^Codegen, s: ^WhileStatement) {
 	cg_str(cg, "while")
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.test, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -920,6 +1010,7 @@ gen_do_while_statement :: proc(cg: ^Codegen, s: ^DoWhileStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.test, PREC_LOWEST)
+	cg_close_comments(cg, s.loc.end)
 	cg_str(cg, ");")
 }
 
@@ -936,6 +1027,7 @@ gen_for_statement :: proc(cg: ^Codegen, s: ^ForStatement) {
 	if t, ok := s.test.?; ok { cg_space(cg); gen_expression(cg, t, PREC_LOWEST) }
 	cg_byte(cg, ';')
 	if u, ok := s.update.?; ok { cg_space(cg); gen_expression(cg, u, PREC_LOWEST) }
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -952,6 +1044,7 @@ gen_for_in_statement :: proc(cg: ^Codegen, s: ^ForInStatement) {
 	}
 	cg_str(cg, " in ")
 	gen_expression(cg, s.right, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -981,6 +1074,7 @@ gen_for_of_statement :: proc(cg: ^Codegen, s: ^ForOfStatement) {
 	}
 	cg_str(cg, " of ")
 	gen_expression(cg, s.right, PREC_ASSIGN)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -991,12 +1085,14 @@ gen_with_statement :: proc(cg: ^Codegen, s: ^WithStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.object, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
 }
 
 gen_throw_statement :: proc(cg: ^Codegen, s: ^ThrowStatement) {
+	codegen_hoist_comments(cg, loc_from_expr(s.argument).start, s.loc.start)
 	cg_str(cg, "throw ")
 	gen_expression(cg, s.argument, PREC_LOWEST)
 	cg_byte(cg, ';')
@@ -1052,6 +1148,15 @@ gen_variable_declaration :: proc(
 	if lower_resource && cg.resource_scope.name == "" {
 		cg_strip_unsupported(cg, s.loc, "resource declaration requires a cleanup scope")
 		return
+	}
+	// `using` ends at a line break. In a loop head no statement boundary has
+	// printed the comments in front of the declaration yet.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		first := s.loc.start
+		// A line break may separate `await` from `using`, but not `using`
+		// from its binding: comments between the keywords go before both.
+		if s.kind == .AwaitUsing { first = codegen_skip_trivia(cg.source, first + len("await")) }
+		codegen_flush_comments(cg, first)
 	}
 	switch s.kind {
 	case .Var:   cg_str(cg, "var")
@@ -1148,6 +1253,7 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 			cg_space(cg)
 			named_open = true
 		}
+		if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, v.loc.start) }
 		if type_only { cg_str(cg, "type ") }
 		quoted := cg_name_is_quoted(cg, v.imported.loc.start)
 		if quoted {
@@ -1161,6 +1267,7 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 		}
 	}
 	if named_open {
+		cg_close_comments(cg, s.source.loc.start)
 		cg_space(cg)
 		cg_byte(cg, '}')
 		first = false
@@ -1283,6 +1390,7 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 		if cg.cfg.strip_types && type_only { continue }
 		if !first { cg_str(cg, ", ") } else { cg_space(cg) }
 		first = false
+		if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, sp.loc.start) }
 		if type_only { cg_str(cg, "type ") }
 		if export_name_eq(sp.local, sp.exported) {
 			gen_export_specifier_name(cg, sp.local)
@@ -1291,6 +1399,9 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 			cg_str(cg, " as ")
 			gen_export_specifier_name(cg, sp.exported)
 		}
+	}
+	if count := len(s.specifiers); count > 0 && cg.comment_next != CODEGEN_COMMENT_NONE {
+		cg_close_comments(cg, codegen_skip_trivia(cg.source, s.specifiers[count - 1].loc.end))
 	}
 	cg_space(cg)
 	cg_byte(cg, '}')
@@ -1440,6 +1551,9 @@ decorator_expr_is_bare :: proc(expr: ^Expression) -> bool {
 // ----------------------------------------------------------------------------
 
 gen_pattern :: proc(cg: ^Codegen, p: Pattern, target := "") {
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		codegen_flush_comments(cg, get_pattern_loc(p).start)
+	}
 	switch v in p {
 	case ^Identifier:
 		if target != "" { gen_runtime_property(cg, target, v.name) } else { gen_pattern_identifier(cg, v) }
@@ -1502,6 +1616,7 @@ gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern, target := "") {
 			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 			gen_object_pattern_property(cg, e.properties[i], target)
 		}
+		cg_close_comments(cg, codegen_pattern_close(e.loc, e.type_annotation))
 		cg_space(cg)
 		cg_byte(cg, '}')
 	}
@@ -1516,6 +1631,7 @@ gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern, target := "") {
 }
 
 gen_object_pattern_property :: proc(cg: ^Codegen, p: ObjectPatternProperty, target := "") {
+	if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, p.loc.start) }
 	if p.shorthand && target == "" {
 		id := mangle_pattern_identifier(p.value) if len(cg.renamed) != 0 else nil
 		if id == nil || cg.renamed[id.loc.start] == "" {
@@ -1560,6 +1676,7 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern, target := "") {
 			cg_byte(cg, ',')
 		}
 	}
+	cg_close_comments(cg, codegen_pattern_close(e.loc, e.type_annotation))
 	cg_byte(cg, ']')
 	// Same TS-position annotation as ObjectPattern: `function
 	// f([a, b]: number[])` carries `: number[]` on the ArrayPattern.
@@ -1568,6 +1685,13 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern, target := "") {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, ta.type_annotation)
 	}
+}
+
+// A destructuring pattern's span includes its type annotation. Comments in
+// the annotation stay there; only those before it are inside the brackets.
+codegen_pattern_close :: proc(loc: Loc, annotation: Maybe(^TSTypeAnnotation)) -> u32 {
+	if typed, ok := annotation.?; ok && typed != nil { return typed.loc.start }
+	return loc.end
 }
 
 gen_assignment_pattern :: proc(cg: ^Codegen, e: ^AssignmentPattern, target := "") {
@@ -1582,6 +1706,11 @@ gen_assignment_pattern :: proc(cg: ^Codegen, e: ^AssignmentPattern, target := ""
 // ----------------------------------------------------------------------------
 
 gen_function_param :: proc(cg: ^Codegen, p: FunctionParameter) {
+	// A parameter-property modifier ends at a line break, so comments
+	// between it and the name go in front of the modifier.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		codegen_flush_comments(cg, get_pattern_loc(p.pattern).start)
+	}
 	// Accessibility / readonly / override / parameter properties — emit
 	// the minimum keywords so the output still parses; full TS shape is a
 	// follow-up.
@@ -1657,12 +1786,16 @@ gen_function_params_and_body :: proc(
 		if i > first_param { cg_byte(cg, ','); cg_space(cg) }
 		gen_function_param(cg, params[i])
 	}
+	if len(params) > 0 && cg.comment_next != CODEGEN_COMMENT_NONE {
+		cg_close_comments(cg, codegen_skip_trivia(cg.source, params[len(params) - 1].loc.end))
+	}
 	cg_byte(cg, ')')
 	if rt, ok := return_type.?; ok && !cg.cfg.strip_types {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, rt.type_annotation)
 	}
 	if no_body { cg_byte(cg, ';'); return }
+	cg_close_comments(cg, body.loc.start)
 	cg_space(cg)
 	cg_byte(cg, '{')
 	properties := codegen_parameter_properties(cg, params, constructor)
@@ -1671,12 +1804,11 @@ gen_function_params_and_body :: proc(
 	if len(body.body) == 0 && len(properties) == 0 && !codegen_has_ordinary_comments(comments) { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	comment_index := 0
-	codegen_emit_leading_comments(cg, body.body[:], comments, &comment_index, body.loc.start, body.loc.end)
+	codegen_emit_leading_comments(cg, body.body[:], body.loc.start, body.loc.end)
 	directive_count := min(len(body.directives), len(body.body))
 	for i in 0..<directive_count {
-		gen_statement_list_item(cg, body.body[:], i)
-		codegen_end_item_line(cg, body.body[:], i, comments, &comment_index, body.loc.end)
+		gen_statement_list_entry(cg, body.body[:], i)
+		codegen_end_item_line(cg, body.body[:], i, body.loc.end)
 	}
 	if constructor == .Base {
 		for name in properties {
@@ -1688,8 +1820,8 @@ gen_function_params_and_body :: proc(
 	kind := resource_list_kind(cg, body.body[directive_count:])
 	outer := codegen_resource_open(cg, kind)
 	for i in directive_count..<len(body.body) {
-		gen_statement_list_item(cg, body.body[:], i)
-		codegen_end_item_line(cg, body.body[:], i, comments, &comment_index, body.loc.end)
+		gen_statement_list_entry(cg, body.body[:], i)
+		codegen_end_item_line(cg, body.body[:], i, body.loc.end)
 	}
 	codegen_resource_close(cg, kind, outer)
 	cg.depth -= 1
@@ -1751,6 +1883,10 @@ gen_class_like :: proc(
 }
 
 gen_class_body :: proc(cg: ^Codegen, body: ClassBody, derived: bool) {
+	if cg.comment_next < body.loc.start {
+		// The caller has already written the space before the brace.
+		codegen_flush_comments(cg, body.loc.start)
+	}
 	cg_byte(cg, '{')
 	comments := codegen_comments_in_body(cg, body.loc)
 	proto_name := cg.resource_proto_class == body.loc.start
@@ -1763,18 +1899,19 @@ gen_class_body :: proc(cg: ^Codegen, body: ClassBody, derived: bool) {
 		cg_str(cg, "static {const O = ({}).constructor; if (O.getOwnPropertyDescriptor(this,'name').value === '') O.defineProperty(this,'name',{value:'__proto__'});}")
 		cg_newline(cg)
 	}
-	comment_index := 0
-	codegen_emit_leading_comments(cg, body.body[:], comments, &comment_index, body.loc.start, body.loc.end)
+	codegen_emit_leading_comments(cg, body.body[:], body.loc.start, body.loc.end)
 	for el, i in body.body {
 		erased := cg.cfg.strip_types && class_element_erased(el)
 		if !erased {
+			// Comments that share the member's line come before its mapping.
+			if cg.comment_next < el.loc.start { codegen_flush_comments(cg, el.loc.start) }
 			if cg.sm != nil {
 				cg_indent(cg)
 				cg_record_class_element_mapping(cg, &body.body[i])
 			}
 			gen_class_element(cg, el, derived)
 		}
-		codegen_end_item_line(cg, body.body[:], i, comments, &comment_index, body.loc.end, erased)
+		codegen_end_item_line(cg, body.body[:], i, body.loc.end, erased)
 	}
 	cg.depth -= 1
 	cg_byte(cg, '}')
@@ -1803,6 +1940,16 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement, derived: bool) {
 		gen_decorator(cg, d)
 		cg_break_or_space(cg)
 	}
+	// `async`, `accessor` and the TypeScript modifiers end at a line break.
+	// A comment that followed the decorators on their own line stays in front
+	// of the first modifier instead of drifting behind it.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		first := el.loc.start
+		if count := len(el.decorators); count > 0 {
+			first = codegen_skip_trivia(cg.source, el.decorators[count - 1].loc.end)
+		}
+		codegen_flush_comments(cg, first)
+	}
 	if el.declare { cg_str(cg, "declare ") }
 	switch el.accessibility {
 	case .None:      // nothing
@@ -1829,7 +1976,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement, derived: bool) {
 		}
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
-		if el.computed { cg_byte(cg, ']') }
+		if el.computed { cg_close_key(cg, el.key); cg_byte(cg, ']') }
 		if el.optional && !cg.cfg.strip_types { cg_byte(cg, '?') }
 		if el.definite && !cg.cfg.strip_types { cg_byte(cg, '!') }
 		if ta, ok := el.typing.annotation.?; ok && !cg.cfg.strip_types {
@@ -1853,7 +2000,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement, derived: bool) {
 		cg_str(cg, "get ")
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
-		if el.computed { cg_byte(cg, ']') }
+		if el.computed { cg_close_key(cg, el.key); cg_byte(cg, ']') }
 		if val, ok := el.value.?; ok {
 			if fn, is_fn := val.(^FunctionExpression); is_fn {
 				gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
@@ -1865,7 +2012,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement, derived: bool) {
 		cg_str(cg, "set ")
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
-		if el.computed { cg_byte(cg, ']') }
+		if el.computed { cg_close_key(cg, el.key); cg_byte(cg, ']') }
 		if val, ok := el.value.?; ok {
 			if fn, is_fn := val.(^FunctionExpression); is_fn {
 				gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
@@ -1930,6 +2077,9 @@ decl_to_stmt :: proc(d: Declaration) -> Statement {
 gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 	if ty == nil { cg_str(cg, "any"); return }
 	if cg.declaration_emit != nil { dts_track_type(cg.declaration_emit, ty) }
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		codegen_flush_comments(cg, get_ts_type_loc(ty).start)
+	}
 	switch v in ty^ {
 	case ^TSKeywordType:      cg_str(cg, TS_KEYWORD_SOURCE[v.kind])
 	case ^TSTypeReference:
@@ -1956,6 +2106,7 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 			gen_ts_type(cg, v.element_types[i])
 		}
+		cg_close_comments(cg, v.loc.end)
 		cg_byte(cg, ']')
 	case ^TSFunctionType:        gen_ts_function_type(cg, v)
 	case ^TSConstructorType:     gen_ts_constructor_type(cg, v)
@@ -1971,6 +2122,7 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 	case ^TSParenthesizedType:
 		cg_byte(cg, '(')
 		gen_ts_type(cg, v.type_annotation)
+		cg_close_comments(cg, v.loc.end)
 		cg_byte(cg, ')')
 	case ^TSRestType:
 		cg_str(cg, "...")
@@ -2068,6 +2220,7 @@ gen_template_literal :: proc(cg: ^Codegen, e: ^TemplateLiteral) {
 		if i < len(e.expressions) {
 			cg_str(cg, "${")
 			gen_expression(cg, e.expressions[i], PREC_LOWEST)
+			if i + 1 < len(e.quasis) { cg_close_comments(cg, e.quasis[i + 1].loc.start) }
 			cg_byte(cg, '}')
 		}
 	}
@@ -2085,6 +2238,10 @@ gen_tagged_template :: proc(cg: ^Codegen, e: ^TaggedTemplateExpression) {
 
 gen_array_expression :: proc(cg: ^Codegen, e: ^ArrayExpression) {
 	cg_byte(cg, '[')
+	if cg.comment_next < e.loc.end && gen_commented_array(cg, e) {
+		cg_byte(cg, ']')
+		return
+	}
 	for i in 0..<len(e.elements) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		if el, ok := e.elements[i].?; ok {
@@ -2100,37 +2257,55 @@ gen_array_expression :: proc(cg: ^Codegen, e: ^ArrayExpression) {
 			cg_byte(cg, ',')
 		}
 	}
+	cg_close_comments(cg, e.loc.end)
 	cg_byte(cg, ']')
+}
+
+// Comments between elements read best with one element per line. A hole has
+// no span to hang a comment on, so arrays with holes keep the compact form.
+gen_commented_array :: proc(cg: ^Codegen, e: ^ArrayExpression) -> bool {
+	for element in e.elements {
+		if _, present := element.?; !present { return false }
+	}
+	// A present Maybe(^Expression) has the representation of its pointer.
+	#assert(size_of(Maybe(^Expression)) == size_of(^Expression))
+	elements := transmute([]^Expression)e.elements[:]
+	if !codegen_has_list_comments(cg, elements, e.loc.end) { return false }
+	gen_commented_list(cg, elements, e.loc)
+	return true
 }
 
 gen_object_expression :: proc(cg: ^Codegen, e: ^ObjectExpression) {
 	cg_byte(cg, '{')
-	comments := codegen_comments_in_body(cg, e.loc)
-	if len(comments) > 0 && codegen_has_list_comments(e.properties[:], comments) {
-		gen_commented_list(cg, e.properties[:], comments, e.loc)
+	if codegen_has_list_comments(cg, e.properties[:], e.loc.end) {
+		gen_commented_list(cg, e.properties[:], e.loc)
 		cg_byte(cg, '}')
 		return
 	}
-	if len(e.properties) == 0 { cg_byte(cg, '}'); return }
+	if len(e.properties) == 0 {
+		cg_close_comments(cg, e.loc.end)
+		cg_byte(cg, '}')
+		return
+	}
 	cg_space(cg)
 	for i in 0..<len(e.properties) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_property(cg, e.properties[i])
 	}
+	cg_close_comments(cg, e.loc.end)
 	cg_space(cg)
 	cg_byte(cg, '}')
 }
 
-gen_commented_list :: proc(cg: ^Codegen, items: []$T, comments: []Comment, loc: Loc) {
+gen_commented_list :: proc(cg: ^Codegen, items: []$T, loc: Loc) {
 	cg_newline(cg)
 	cg.depth += 1
-	comment_index := 0
-	codegen_emit_leading_comments(cg, items, comments, &comment_index, loc.start, loc.end)
+	codegen_emit_leading_comments(cg, items, loc.start, loc.end)
 	for item, index in items {
 		when T == Property { gen_property(cg, item) }
 		else { gen_expression(cg, item, PREC_ASSIGN) }
 		if index + 1 < len(items) { cg_byte(cg, ',') }
-		codegen_end_item_line(cg, items, index, comments, &comment_index, loc.end)
+		codegen_end_item_line(cg, items, index, loc.end)
 	}
 	cg.depth -= 1
 }
@@ -2140,6 +2315,8 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		gen_expression(cg, p.value, PREC_ASSIGN)
 		return
 	}
+	// `async` ends at a line break: comments before the property precede it.
+	if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, p.loc.start) }
 	switch p.kind {
 	case .Init:
 		if p.shorthand {
@@ -2155,7 +2332,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		}
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		cg_byte(cg, ':')
 		cg_space(cg)
 		gen_expression(cg, p.value, PREC_ASSIGN)
@@ -2167,7 +2344,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		}
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		if fn_for_prefix != nil {
 			gen_function_params_and_body(cg, fn_for_prefix.async, fn_for_prefix.generator, fn_for_prefix.params[:], fn_for_prefix.body, fn_for_prefix.no_body, fn_for_prefix.type_parameters, fn_for_prefix.return_type)
 		}
@@ -2175,7 +2352,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		cg_str(cg, "get ")
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		if fn, is_fn := p.value.(^FunctionExpression); is_fn {
 			gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
 		}
@@ -2183,7 +2360,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		cg_str(cg, "set ")
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		if fn, is_fn := p.value.(^FunctionExpression); is_fn {
 			gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
 		}
@@ -2207,6 +2384,9 @@ gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression, ctx: Codeg
 	for i in 0..<len(e.params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_function_param(cg, e.params[i])
+	}
+	if len(e.params) > 0 && cg.comment_next != CODEGEN_COMMENT_NONE {
+		cg_close_comments(cg, codegen_skip_trivia(cg.source, e.params[len(e.params) - 1].loc.end))
 	}
 	cg_byte(cg, ')')
 	if rt, ok := e.return_type.?; ok && !cg.cfg.strip_types {
@@ -2248,10 +2428,16 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 	if cg.cfg.optimize_const_enums && gen_inlined_enum_member(cg, e) { return }
 	obj_start := cg.pos
 	gen_chain_operand(cg, e.object)
+	// A chain broken over lines often carries a comment before the dot.
+	// Comments inside the brackets of a computed access stay inside them.
+	if cg.comment_next != CODEGEN_COMMENT_NONE && !e.computed {
+		codegen_flush_comments(cg, loc_from_expr(e.property).start)
+	}
 	if e.computed {
 		if e.optional { cg_str(cg, "?.") }
 		cg_byte(cg, '[')
 		gen_expression(cg, e.property, PREC_LOWEST)
+		cg_close_comments(cg, e.loc.end)
 		cg_byte(cg, ']')
 	} else {
 		// A bare decimal-integer object (`1`, `100`) immediately
@@ -2356,24 +2542,19 @@ new_callee_needs_group :: proc(callee: ^Expression) -> bool {
 
 gen_call_arguments :: proc(cg: ^Codegen, call: $T) {
 	gen_ts_type_arguments(cg, call.type_parameters)
-	comments: []Comment
-	if !cg.cfg.minified && len(cg.comments) > 0 {
-		start := loc_from_expr(call.callee).end
-		if types, ok := call.type_parameters.?; ok { start = types.loc.end }
-		comments = codegen_argument_comments(cg, start, call.loc.end)
-	}
-	gen_argument_list(cg, call.arguments[:], comments, call.loc)
+	gen_argument_list(cg, call.arguments[:], call.loc)
 }
 
-gen_argument_list :: proc(cg: ^Codegen, args: []^Expression, comments: []Comment, loc: Loc) {
+gen_argument_list :: proc(cg: ^Codegen, args: []^Expression, loc: Loc) {
 	cg_byte(cg, '(')
-	if len(comments) > 0 && codegen_has_list_comments(args, comments) {
-		gen_commented_list(cg, args, comments, loc)
+	if codegen_has_list_comments(cg, args, loc.end) {
+		gen_commented_list(cg, args, loc)
 	} else {
 		for arg, index in args {
 			if index > 0 { cg_byte(cg, ','); cg_space(cg) }
 			gen_expression(cg, arg, PREC_ASSIGN)
 		}
+		cg_close_comments(cg, loc.end)
 	}
 	cg_byte(cg, ')')
 }
@@ -2596,6 +2777,9 @@ gen_sequence_expression :: proc(cg: ^Codegen, e: ^SequenceExpression, ctx: Codeg
 }
 
 gen_yield_expression :: proc(cg: ^Codegen, e: ^YieldExpression, ctx: CodegenExpressionContext) {
+	if arg, ok := e.argument.?; ok && !e.delegate {
+		codegen_hoist_comments(cg, loc_from_expr(arg).start, e.loc.start)
+	}
 	cg_str(cg, "yield")
 	if e.delegate { cg_byte(cg, '*') }
 	if arg, ok := e.argument.?; ok {
@@ -2609,12 +2793,14 @@ gen_import_expression :: proc(cg: ^Codegen, e: ^ImportExpression) {
 	if len(e.phase) > 0 { cg_byte(cg, '.'); cg_str(cg, e.phase) }
 	values := [2]^Expression{e.source, e.options}
 	args := values[:2 if e.options != nil else 1]
-	comments := codegen_argument_comments(cg, e.loc.start, e.loc.end)
-	if cg.cfg.minified && len(comments) > 0 {
-		gen_compact_import_arguments(cg, args, comments, e.loc)
-	} else {
-		gen_argument_list(cg, args, comments, e.loc)
+	if cg.cfg.minified {
+		comments := codegen_argument_comments(cg, e.loc.start, e.loc.end)
+		if len(comments) > 0 {
+			gen_compact_import_arguments(cg, args, comments, e.loc)
+			return
+		}
 	}
+	gen_argument_list(cg, args, e.loc)
 }
 
 gen_compact_import_arguments :: proc(cg: ^Codegen, args: []^Expression, comments: []Comment, loc: Loc) {
@@ -2654,8 +2840,16 @@ gen_jsx_element :: proc(cg: ^Codegen, e: ^JSXElement) {
 	gen_ts_type_arguments(cg, e.opening_element.type_arguments)
 	for a in e.opening_element.attributes {
 		cg_byte(cg, ' ')
+		if cg.comment_next != CODEGEN_COMMENT_NONE {
+			switch attribute in a {
+			case JSXAttribute:        codegen_flush_comments(cg, attribute.loc.start)
+			case ^JSXSpreadAttribute: codegen_flush_comments(cg, attribute.loc.start)
+			}
+		}
 		gen_jsx_attr(cg, a)
 	}
+	// Children are text: a comment still pending there would become content.
+	cg_close_comments(cg, e.opening_element.loc.end)
 	if e.opening_element.self_closing {
 		cg_str(cg, " />")
 		return
@@ -2667,6 +2861,7 @@ gen_jsx_element :: proc(cg: ^Codegen, e: ^JSXElement) {
 	cg_str(cg, "</")
 	if cl, ok := e.closing_element.?; ok {
 		gen_jsx_name(cg, cl.name, alias)
+		cg_close_comments(cg, cl.loc.end)
 	}
 	cg_byte(cg, '>')
 }
@@ -2686,6 +2881,7 @@ gen_jsx_fragment :: proc(cg: ^Codegen, e: ^JSXFragment) {
 gen_jsx_expression_container :: proc(cg: ^Codegen, e: ^JSXExpressionContainer) {
 	cg_byte(cg, '{')
 	gen_expression(cg, e.expression, PREC_ASSIGN)
+	cg_close_comments(cg, e.loc.end)
 	cg_byte(cg, '}')
 }
 
@@ -2811,10 +3007,12 @@ gen_ts_type_parameter_declaration :: proc(
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_ts_type_parameter(cg, d.params[i])
 	}
+	cg_close_comments(cg, d.loc.end)
 	cg_byte(cg, '>')
 }
 
 gen_ts_type_parameter :: proc(cg: ^Codegen, p: TSTypeParameter) {
+	if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, p.loc.start) }
 	if p.const_ { cg_str(cg, "const ") }
 	if p.in_    { cg_str(cg, "in ") }
 	if p.out    { cg_str(cg, "out ") }
@@ -2839,7 +3037,10 @@ gen_ts_type_arguments :: proc(
 	if len(a.params) == 0 {
 		// The parser accepts JSDoc-only spellings such as <?> without a type node.
 		if a.loc.start < a.loc.end && u64(a.loc.end) <= u64(len(cg.source)) {
+			if cg.comment_next < a.loc.start { codegen_flush_comments(cg, a.loc.start) }
 			cg_str(cg, cg.source[a.loc.start:a.loc.end])
+			// The copied text already contains its comments.
+			codegen_skip_comments(cg, a.loc.end)
 		}
 		return
 	}
@@ -2848,6 +3049,7 @@ gen_ts_type_arguments :: proc(
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_ts_type(cg, a.params[i])
 	}
+	cg_close_comments(cg, a.loc.end)
 	cg_byte(cg, '>')
 }
 
@@ -2894,7 +3096,7 @@ gen_ts_signature :: proc(cg: ^Codegen, sig: ^TSSignature) {
 		if v.readonly { cg_str(cg, "readonly ") }
 		if v.computed { cg_byte(cg, '[') }
 		gen_expression(cg, v.key, PREC_ASSIGN)
-		if v.computed { cg_byte(cg, ']') }
+		if v.computed { cg_close_key(cg, v.key); cg_byte(cg, ']') }
 		if v.optional { cg_byte(cg, '?') }
 		if ta, ok := v.type_annotation.?; ok {
 			cg_str(cg, ": ")
@@ -2909,7 +3111,7 @@ gen_ts_signature :: proc(cg: ^Codegen, sig: ^TSSignature) {
 		}
 		if v.computed { cg_byte(cg, '[') }
 		gen_expression(cg, v.key, PREC_ASSIGN)
-		if v.computed { cg_byte(cg, ']') }
+		if v.computed { cg_close_key(cg, v.key); cg_byte(cg, ']') }
 		if v.optional { cg_byte(cg, '?') }
 		gen_ts_type_parameter_declaration(cg, v.type_parameters)
 		gen_ts_function_params(cg, v.params[:])
@@ -2951,20 +3153,36 @@ gen_ts_signature :: proc(cg: ^Codegen, sig: ^TSSignature) {
 	}
 }
 
-gen_ts_signature_list :: proc(cg: ^Codegen, members: []^TSSignature) {
+gen_ts_signature_list :: proc(cg: ^Codegen, members: []^TSSignature, loc: Loc) {
 	cg_byte(cg, '{')
-	if len(members) == 0 { cg_byte(cg, '}'); return }
+	if len(members) == 0 && cg.comment_next >= loc.end { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
+	codegen_emit_leading_comments(cg, members, loc.start, loc.end)
 	for i in 0..<len(members) {
 		cg_indent(cg)
+		// Comments that share the member's line come before its modifiers.
+		if cg.comment_next != CODEGEN_COMMENT_NONE {
+			codegen_flush_comments(cg, codegen_signature_loc(members[i]).start)
+		}
 		gen_ts_signature(cg, members[i])
 		cg_byte(cg, ';')
-		cg_newline(cg)
+		codegen_end_item_line(cg, members, i, loc.end)
 	}
 	cg.depth -= 1
 	cg_indent(cg)
 	cg_byte(cg, '}')
+}
+
+codegen_signature_loc :: proc(signature: ^TSSignature) -> Loc {
+	switch value in signature^ {
+	case TSPropertySignature:             return value.loc
+	case TSMethodSignature:               return value.loc
+	case TSCallSignatureDeclaration:      return value.loc
+	case TSConstructSignatureDeclaration: return value.loc
+	case TSIndexSignature:                return value.loc
+	}
+	return {}
 }
 
 
@@ -2986,7 +3204,7 @@ gen_ts_interface_declaration_full :: proc(cg: ^Codegen, s: ^TSInterfaceDeclarati
 		}
 	}
 	cg_space(cg)
-	gen_ts_signature_list(cg, s.body.body[:])
+	gen_ts_signature_list(cg, s.body.body[:], s.body.loc)
 }
 
 gen_ts_type_alias_declaration_full :: proc(cg: ^Codegen, s: ^TSTypeAliasDeclaration) {
@@ -3006,9 +3224,11 @@ gen_ts_enum_declaration_full :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
 	cg_str(cg, s.id.name)
 	cg_space(cg)
 	cg_byte(cg, '{')
-	if len(s.body.members) == 0 { cg_byte(cg, '}'); return }
+	body := s.body.loc
+	if len(s.body.members) == 0 && cg.comment_next >= body.end { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
+	codegen_emit_leading_comments(cg, s.body.members[:], body.start, body.end)
 	for i in 0..<len(s.body.members) {
 		cg_indent(cg)
 		m := s.body.members[i]
@@ -3018,7 +3238,7 @@ gen_ts_enum_declaration_full :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
 			gen_expression(cg, init, PREC_ASSIGN)
 		}
 		cg_byte(cg, ',')
-		cg_newline(cg)
+		codegen_end_item_line(cg, s.body.members[:], i, body.end)
 	}
 	cg.depth -= 1
 	cg_indent(cg)
@@ -3274,7 +3494,7 @@ gen_ts_constructor_type :: proc(cg: ^Codegen, t: ^TSConstructorType) {
 }
 
 gen_ts_type_literal :: proc(cg: ^Codegen, t: ^TSTypeLiteral) {
-	gen_ts_signature_list(cg, t.members[:])
+	gen_ts_signature_list(cg, t.members[:], t.loc)
 }
 
 gen_ts_conditional_type :: proc(cg: ^Codegen, t: ^TSConditionalType) {
@@ -3316,6 +3536,7 @@ gen_ts_indexed_access_type :: proc(cg: ^Codegen, t: ^TSIndexedAccessType) {
 	gen_ts_type(cg, t.object_type)
 	cg_byte(cg, '[')
 	gen_ts_type(cg, t.index_type)
+	cg_close_comments(cg, t.loc.end)
 	cg_byte(cg, ']')
 }
 
