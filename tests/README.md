@@ -13,6 +13,7 @@ tests/
 │   ├── verify_lexer_tokens.js    # Lexer token-stream conformance
 │   ├── verify_bench_regression.js  # Performance regression gate
 │   ├── verify_crashes_known.js     # Known crash-class tracking
+│   ├── verify_depth_limit.js       # Nesting-depth limit and long-chain stack safety
 │   ├── fuzz_diff.js          # Differential fuzzing vs reference
 │   └── fuzz_invalid.js       # Invalid-input mutation fuzzing
 ├── runners/               # Shell runners

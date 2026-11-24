@@ -108,6 +108,13 @@ tasks:
       - task: test:minify
       - task: test:format
       - task: test:watch
+      - task: test:depth
+
+  test:depth:
+    desc: "Nesting-depth gate: deep input is rejected with K2081 and million-term chains survive every tool, on an 8 MB stack, optimized and debug builds."
+    deps: [build, build:debug]
+    cmds:
+      - node tests/verifiers/verify_depth_limit.js
 
   test:watch:
     desc: Verify that lint, fmt and transform respond to file changes and recover from errors.
