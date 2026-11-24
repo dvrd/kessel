@@ -12,6 +12,11 @@
 // such snippet fails the run. A snippet that Kessel leaves as written is only
 // counted: unsupported syntax is meant to keep its text.
 //
+// With --typescript the snippets come instead from a fixed sample of the
+// vendored TypeScript compiler cases and from any TypeScript sources under
+// bench/node_modules, and the whole-file levels are skipped: those files are
+// conformance cases, many of them invalid on purpose.
+//
 // Prettier is loaded from KESSEL_PRETTIER or from bench/node_modules. Its
 // output is cached per source under the system temp directory, because
 // formatting the large bundles takes minutes.
@@ -32,7 +37,10 @@ const { parseSync } = bench('oxc-parser');
 const babel = bench('@babel/parser');
 const corpus = path.resolve(root, process.env.KESSEL_REAL_WORLD_ROOT || 'bench/real_world');
 const cacheRoot = path.join(os.tmpdir(), 'kessel-prettier-' + prettier.version);
-const NESTED_SAMPLE_PER_FILE = 60;
+const typescript = process.argv.includes('--typescript');
+const NESTED_SAMPLE_PER_FILE = typescript ? 12 : 60;
+const TYPESCRIPT_CASES = path.join(root, 'tests/vendor/typescript/tests/cases/compiler');
+const TYPESCRIPT_CASE_COUNT = 1500;
 const SNIPPET_BYTES_MAX = 6000;
 
 const digest = text => crypto.createHash('md5').update(text).digest('hex');
@@ -46,11 +54,11 @@ async function reference(source, options) {
   return output;
 }
 
-function listFiles(directory, found = []) {
+function listFiles(directory, pattern = /\.m?js$/, found = []) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const full = path.join(directory, entry.name);
-    if (entry.isDirectory()) listFiles(full, found);
-    else if (/\.m?js$/.test(entry.name)) found.push(full);
+    if (entry.isDirectory()) listFiles(full, pattern, found);
+    else if (pattern.test(entry.name)) found.push(full);
   }
   return found.sort();
 }
@@ -71,7 +79,8 @@ function sampler() {
 function collectSnippets(source, random, snippets) {
   let ast;
   try {
-    ast = babel.parse(source, { sourceType: 'unambiguous', allowReturnOutsideFunction: true });
+    ast = babel.parse(source, { sourceType: 'unambiguous', allowReturnOutsideFunction: true,
+      plugins: typescript ? ['typescript'] : [] });
   } catch { return; }
   const top = [], nested = [];
   (function visit(node, parentIsProgram) {
@@ -100,10 +109,18 @@ function collectSnippets(source, random, snippets) {
 async function main() {
   assert.equal(prettier.version, prettier_npm, 'the reference must be the pinned Prettier');
   fs.mkdirSync(cacheRoot, { recursive: true });
-  const files = listFiles(corpus);
   const totals = { files: 0, filesIdentical: 0, statements: 0, statementsIdentical: 0 };
   const snippets = new Set();
   const random = sampler();
+  let files = typescript ? [] : listFiles(corpus);
+  if (typescript) {
+    const cases = listFiles(TYPESCRIPT_CASES, /\.ts$/).slice(0, TYPESCRIPT_CASE_COUNT);
+    const installed = listFiles(path.join(root, 'bench/node_modules'), /(?<!\.d)\.ts$/);
+    for (const file of [...cases, ...installed]) {
+      collectSnippets(fs.readFileSync(file, 'utf8'), random, snippets);
+    }
+    console.log(`TypeScript sources: ${cases.length} compiler cases, ${installed.length} files under bench/node_modules`);
+  }
   for (const file of files) {
     const name = path.relative(corpus, file);
     const source = fs.readFileSync(file, 'utf8');
@@ -121,9 +138,9 @@ async function main() {
   const snippet = { identical: 0, preserved: 0, different: 0, unparsed: 0 };
   const failures = [];
   for (const text of snippets) {
-    const expected = await reference(text, { parser: 'babel' });
+    const expected = await reference(text, { parser: typescript ? 'typescript' : 'babel' });
     let actual;
-    try { actual = formatSync('snippet.js', text); } catch { actual = null; }
+    try { actual = formatSync(typescript ? 'snippet.ts' : 'snippet.js', text); } catch { actual = null; }
     // Out of its function a statement may not parse on its own.
     if (expected === null || actual === null) { snippet.unparsed++; continue; }
     if (actual === expected) snippet.identical++;
@@ -133,8 +150,10 @@ async function main() {
   const percent = (part, whole) => (100 * part / whole).toFixed(2) + '%';
   const compared = snippet.identical + snippet.preserved + snippet.different;
   console.log(`Prettier ${prettier.version} reference on ${files.length} files:`);
-  console.log(`  identical files: ${totals.filesIdentical}/${totals.files} (${percent(totals.filesIdentical, totals.files)})`);
-  console.log(`  identical top-level statements: ${totals.statementsIdentical}/${totals.statements} (${percent(totals.statementsIdentical, totals.statements)})`);
+  if (!typescript) {
+    console.log(`  identical files: ${totals.filesIdentical}/${totals.files} (${percent(totals.filesIdentical, totals.files)})`);
+    console.log(`  identical top-level statements: ${totals.statementsIdentical}/${totals.statements} (${percent(totals.statementsIdentical, totals.statements)})`);
+  }
   console.log(`  identical statement snippets: ${snippet.identical}/${compared} (${percent(snippet.identical, compared)}), ` +
     `${snippet.preserved} left as written, ${snippet.different} formatted differently, ${snippet.unparsed} not parsed alone`);
   for (const text of failures.slice(0, 5)) console.error('formatted differently from Prettier:\n' + text + '\n');
