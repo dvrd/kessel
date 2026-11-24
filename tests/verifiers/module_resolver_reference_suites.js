@@ -209,7 +209,39 @@ function* fieldCases(root, packed) {
   }
 }
 
+function configDirectories(directory, found) {
+  const entries = fs.readdirSync(directory, { withFileTypes: true });
+  if (entries.some(entry => entry.name === 'tsconfig.json')) found.push(directory);
+  for (const entry of entries) {
+    if (entry.isDirectory() && entry.name !== 'node_modules') configDirectories(path.join(directory, entry.name), found);
+  }
+  return found;
+}
+
+// Upstream's tsconfig tests build one resolver per fixture directory. Every
+// directory holding a tsconfig.json is replayed the same way, from itself and
+// from its src directory, with the three option sets those tests use.
+function tsconfigSuites(root, literals) {
+  const requests = Array.from(new Set(['tsconfig_paths', 'tsconfig_extends', 'tsconfig_root_dirs']
+    .flatMap(suite => literals[suite])));
+  return configDirectories(path.join(root, 'tsconfig'), []).map(directory => {
+    const tsconfig = { configFile: path.join(directory, 'tsconfig.json'), references: 'auto' };
+    const source = path.join(directory, 'src');
+    return { suite: 'tsconfig', requests, dirs: fs.existsSync(source) ? [directory, source] : [directory], sets: [
+      { tsconfig }, { tsconfig, extensions: ['.ts', '.js'] },
+      { tsconfig, extensionAlias: { '.js': ['.js', '.ts', '.tsx'] } },
+    ] };
+  });
+}
+
 function* cases(root, packed) {
+  for (const group of tsconfigSuites(root, packed.literals)) {
+    for (const options of group.sets) {
+      for (const directory of group.dirs) {
+        for (const request of group.requests) yield { suite: group.suite, options, directory, request };
+      }
+    }
+  }
   for (const group of fixtureSuites(root, packed.literals)) {
     const base = group.base;
     const literals = packed.literals[group.literals || group.suite].concat(group.extra || []);
@@ -282,7 +314,7 @@ const DIFFERENCES = [
     // target unless fullySpecified, in which case it agrees with Kessel. The
     // rule holds only when that rerun of the reference agrees.
     name: 'package map targets are exact filenames',
-    expected: 2,
+    expected: 6,
     applies: (test, oxc, kessel, rerun) => oxc.kind === 'file' && kessel.message === 'Not_Found' &&
       (isBare(test.request) || test.request.startsWith('#')) &&
       rerun({ ...test.options, fullySpecified: true }).kind === 'error',
@@ -349,6 +381,45 @@ const DIFFERENCES = [
     expected: 32,
     applies: (test, oxc, kessel) => test.request.startsWith('#') && oxc.kind === 'file' &&
       kessel.message === 'Package_Import_Not_Defined' && test.request.includes('/../'),
+  },
+  {
+    // A request that tsconfig paths, baseUrl or rootDirs map is looked up the
+    // way TypeScript looks it up: ".ts", ".tsx" and ".d.ts" are tried, and a
+    // ".js" request finds its ".ts" source. test:resolve:reference compares
+    // that with TypeScript itself. oxc-resolver tries only the configured
+    // extensions. The rule holds only when the reference, rerun with
+    // TypeScript's extensions configured, agrees with Kessel.
+    name: 'tsconfig mappings use TypeScript extension lookup',
+    expected: 86,
+    applies: (test, oxc, kessel, rerun) => {
+      if (!test.options.tsconfig || kessel.kind !== 'file' || oxc.kind !== 'error') return false;
+      const typed = rerun({ ...test.options, extensions: ['.ts', '.tsx', '.d.ts', '.js', '.jsx', '.json'],
+        extensionAlias: { '.js': ['.ts', '.tsx', '.d.ts', '.js'] } });
+      return typed.kind === 'file' && typed.path === kessel.path;
+    },
+  },
+  {
+    // TypeScript follows "extends": "pkg" through the package's "tsconfig"
+    // manifest field (getParsedCommandLineOfConfigFile on the "field" fixture
+    // yields its paths). oxc-resolver does not read that field.
+    name: 'extends reads the tsconfig field of a package',
+    expected: 9,
+    applies: (test, oxc, kessel) => kessel.kind === 'file' && oxc.kind === 'error' &&
+      oxc.message.startsWith('Tsconfig not found'),
+  },
+  {
+    // TypeScript reports "File not found" (diagnostic 6053) for an "extends"
+    // entry that names a directory. oxc-resolver loads the directory's
+    // tsconfig.json. The rule asks the installed TypeScript.
+    name: 'extends cannot name a directory',
+    expected: 14,
+    applies: (test, oxc, kessel) => {
+      if (!test.options.tsconfig || kessel.message !== 'TSConfig_Not_Found' || oxc.kind !== 'file') return false;
+      const ts = require('../../bench/node_modules/typescript');
+      const host = { ...ts.sys, onUnRecoverableConfigFileDiagnostic() {} };
+      const parsed = ts.getParsedCommandLineOfConfigFile(test.options.tsconfig.configFile, {}, host);
+      return parsed.errors.some(error => error.code === 6053);
+    },
   },
   {
     // TypeScript resolves a file of a referenced project with that project's

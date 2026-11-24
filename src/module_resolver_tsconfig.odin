@@ -6,12 +6,15 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 
-// TypeScript's paths and baseUrl apply to non-relative specifiers. An empty
-// result lets the caller continue ordinary package resolution.
+// TypeScript's paths and baseUrl apply to non-relative specifiers. A rooted
+// specifier such as "/images/a" is eligible for paths but not for baseUrl,
+// which the caller requests with paths_only. An empty result lets the caller
+// continue ordinary resolution.
 @(private)
 module_resolver_tsconfig_path :: proc(
 	specifier, filename: string,
 	allocator: mem.Allocator,
+	paths_only := false,
 ) -> (string, ModuleResolveError) {
 	context.allocator = allocator
 	if strings.contains_rune(filename, 0) { return "", .Invalid_TSConfig }
@@ -43,7 +46,7 @@ module_resolver_tsconfig_path :: proc(
 		}
 	}
 
-	if options.has_base_url {
+	if options.has_base_url && !paths_only {
 		path, path_err := filepath.join({options.base_url, specifier}, allocator)
 		if path_err != nil { return "", .Allocation_Error }
 		return module_resolver_tsconfig_probe(path, allocator)
@@ -115,6 +118,8 @@ module_resolver_tsconfig_read :: proc(filename, project_dir: string, allocator: 
 	source, read_err := os.read_entire_file_from_path(filename, allocator)
 	if read_err == .Not_Exist { return {}, .TSConfig_Not_Found }
 	if read_err != nil { return {}, .IO_Error }
+	// TypeScript reads an empty configuration file as an empty object.
+	if strings.trim_space(string(source)) == "" { source = transmute([]u8)string("{}") }
 	path, path_err := filepath.abs(filename, allocator)
 	if path_err != nil { return {}, .IO_Error }
 	dir := filepath.dir(path)
@@ -192,6 +197,13 @@ module_resolver_tsconfig_merge :: proc(result: ^ModuleTSConfigOptions, source: M
 module_resolver_tsconfig_parent :: proc(parent, directory: string, allocator: mem.Allocator) -> (string, ModuleResolveError) {
 	if parent == "" || strings.contains_rune(parent, 0) { return "", .Invalid_TSConfig }
 	if filepath.is_abs(parent) { return module_resolver_tsconfig_existing(parent, allocator) }
+	if parent == "." || parent == ".." {
+		// Without a trailing slash TypeScript resolves these like a module
+		// request, which finds the tsconfig.json of that directory.
+		nested, join_err := filepath.join({directory, parent, "tsconfig.json"}, allocator)
+		if join_err != nil { return "", .Allocation_Error }
+		return module_resolver_tsconfig_existing(nested, allocator)
+	}
 	if !strings.has_prefix(parent, "./") && !strings.has_prefix(parent, "../") {
 		return module_resolver_tsconfig_package(parent, directory, allocator)
 	}

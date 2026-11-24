@@ -208,6 +208,21 @@ An explicit suffix can opt into substitution. For example,
 `entry.ts` first, then `entry.js`. The order also applies to explicit package
 entry paths. An empty replacement tries the filename without its suffix.
 
+The enhanced-resolve lookup options are available too. `--root <directory>`
+looks a server-relative request such as `/assets/logo.js` up below each root
+before the filesystem root, or after it with `--prefer-absolute`.
+`--prefer-relative` tries a bare request beside the importer before package
+lookup. `--fallback name=target` is tried only after a request failed. Repeat
+a name for several targets, and use `--fallback-ignore name` to report the
+request as ignored. `--restriction <directory>` and `--restriction-regex
+<pattern>` hide candidate files outside them, so lookup continues with the next
+candidate. `--fully-specified` and `--no-fully-specified` override whether a
+request must name its file exactly, which defaults to the Node rule of the
+mode. `--resolve-to-context` resolves a directory. `--explicit-conditions`
+selects package map targets with the given `--condition` names and `default`
+only. `--tsconfig-references` lets a project listed under `references` supply
+the paths for the files below it.
+
 Pass `--browser` for the browser export condition and package browser field
 remaps. An ignored module produces `{"kind":"ignored","path":""}`.
 An explicit `--tsconfig` adds TypeScript path

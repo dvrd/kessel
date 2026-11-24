@@ -129,6 +129,10 @@ module_resolver_request_path :: proc(
 	}
 	resolved: string
 	err: ModuleResolveError
+	if absolute && options.typescript_config != "" {
+		resolved, err = module_resolver_tsconfig_path(specifier, options.typescript_config, temp, true)
+		if resolved != "" || err != .None { return resolved, err }
+	}
 	if options.typescript_config != "" {
 		resolved, err = module_resolver_tsconfig_root_path(
 			specifier, target, options, temp, browser_probe,
@@ -303,6 +307,7 @@ module_resolver_tsconfig_reference :: proc(
 	source, read_err := os.read_entire_file_from_path(filename, allocator)
 	if read_err == .Not_Exist { return "", .TSConfig_Not_Found }
 	if read_err != nil { return "", .IO_Error }
+	if strings.trim_space(string(source)) == "" { return filename, .None }
 	config, parse_err := json.parse(source, .JSON5, false, allocator)
 	if parse_err != nil { return "", .Invalid_TSConfig }
 	root, root_ok := config.(json.Object)
