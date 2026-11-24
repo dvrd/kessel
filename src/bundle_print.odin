@@ -38,14 +38,14 @@ bundle_target_text :: proc(g: ^BundleGraph, target: BundleTarget, callee: bool) 
 		if final, renamed := module.names[target.name]; renamed { return final }
 		return target.name
 	case .Namespace:
-		return g.modules[target.module].namespace_name
+		return bundle_namespace_ref(g, g.modules[target.module])
 	case .Property:
 		module := g.modules[target.module]
 		if module.kind == .CJS {
 			node_mode := g.modules[target.via_module].node_mode
 			strings.write_string(&builder, bundle_interop_name(g, module, node_mode))
 		} else {
-			strings.write_string(&builder, module.namespace_name)
+			strings.write_string(&builder, bundle_namespace_ref(g, module))
 		}
 		if target.name != "" {
 			bundle_write_accessor(&builder, target.name)
@@ -72,11 +72,13 @@ bundle_target_text :: proc(g: ^BundleGraph, target: BundleTarget, callee: bool) 
 bundle_init_text :: proc(g: ^BundleGraph, importer: ^BundleModule, record: BundleRecord) -> string {
 	target := g.modules[record.target]
 	assert(target.wrap != .None)
-	if target.wrap == .ESM { return fmt.aprintf("%s();", target.wrapper_name, allocator = g.alloc) }
-	if !record.used { return fmt.aprintf("%s();", target.wrapper_name, allocator = g.alloc) }
+	wrapper := bundle_wrapper_ref(g, target)
+	if target.wrap == .ESM || !record.used {
+		return fmt.aprintf("%s();", wrapper, allocator = g.alloc)
+	}
 	g.helpers.used += {.ToESM, .CopyProps, .DefProp}
 	return fmt.aprintf("%s = %s(%s(), %d);", bundle_interop_name(g, target, importer.node_mode),
-		g.helpers.names[.ToESM], target.wrapper_name, 1 if importer.node_mode else 0,
+		g.helpers.names[.ToESM], wrapper, 1 if importer.node_mode else 0,
 		allocator = g.alloc)
 }
 
@@ -185,25 +187,7 @@ bundle_print_records :: proc(g: ^BundleGraph, module: ^BundleModule, renamed: ^m
 		if module.wrap == .None && !module.parts[record.statement].live { continue }
 		target := g.modules[record.target]
 		assert(target.wrap != .None, "a lazily loaded module must be wrapped")
-		text: string
-		switch {
-		case record.kind == .Require && target.wrap == .CJS:
-			text = fmt.aprintf("%s()", target.wrapper_name, allocator = g.alloc)
-		case record.kind == .Require:
-			g.helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
-			text = fmt.aprintf("%s(%s())", g.helpers.names[.ToCommonJS], target.wrapper_name,
-				allocator = g.alloc)
-		case target.wrap == .CJS:
-			g.helpers.used += {.ToESM, .CopyProps, .DefProp, .Dynamic}
-			text = fmt.aprintf("%s(() => %s(%s(), %d))", g.helpers.names[.Dynamic],
-				g.helpers.names[.ToESM], target.wrapper_name, 1 if module.node_mode else 0,
-				allocator = g.alloc)
-		case:
-			// The initializer returns the namespace, which is what import() yields.
-			g.helpers.used += {.Dynamic}
-			text = fmt.aprintf("%s(%s)", g.helpers.names[.Dynamic], target.wrapper_name,
-				allocator = g.alloc)
-		}
+		text := bundle_print_record_text(g, module, record, target)
 		replacement := new(Identifier, g.alloc)
 		replacement^ = {loc = record.loc, name = text}
 		record.node^ = replacement
@@ -213,6 +197,48 @@ bundle_print_records :: proc(g: ^BundleGraph, module: ^BundleModule, renamed: ^m
 		}
 	}
 	if shim_needed && replaced < len(module.free_cjs) { g.helpers.used += {.Require} }
+}
+
+// The expression that replaces a require() or import() of bundled module
+// `target`. Within one file it calls the module's initializer. An import()
+// that crosses files loads the other file first; the initializer it exports
+// returns the namespace, which is what import() yields.
+@(private="file")
+bundle_print_record_text :: proc(
+	g: ^BundleGraph,
+	module: ^BundleModule,
+	record: BundleRecord,
+	target: ^BundleModule,
+) -> string {
+	helpers := &g.helpers
+	mode := 1 if module.node_mode else 0
+	if record.kind == .Require {
+		wrapper := bundle_wrapper_ref(g, target)
+		if target.wrap == .CJS { return fmt.aprintf("%s()", wrapper, allocator = g.alloc) }
+		helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
+		return fmt.aprintf("%s(%s())", helpers.names[.ToCommonJS], wrapper, allocator = g.alloc)
+	}
+	if target.chunk != g.current {
+		// Loading the file runs nothing of the module; calling the exported
+		// initializer does.
+		g.chunks[target.chunk].exports[target.wrapper_name] = true
+		file := g.chunks[target.chunk].name
+		if target.wrap == .ESM {
+			return fmt.aprintf("import(\"./%s\").then((chunk) => chunk.%s())", file,
+				target.wrapper_name, allocator = g.alloc)
+		}
+		helpers.used += {.ToESM, .CopyProps, .DefProp}
+		return fmt.aprintf("import(\"./%s\").then((chunk) => %s(chunk.%s(), %d))", file,
+			helpers.names[.ToESM], target.wrapper_name, mode, allocator = g.alloc)
+	}
+	helpers.used += {.Dynamic}
+	if target.wrap == .ESM {
+		return fmt.aprintf("%s(%s)", helpers.names[.Dynamic], target.wrapper_name,
+			allocator = g.alloc)
+	}
+	helpers.used += {.ToESM, .CopyProps, .DefProp}
+	return fmt.aprintf("%s(() => %s(%s(), %d))", helpers.names[.Dynamic], helpers.names[.ToESM],
+		target.wrapper_name, mode, allocator = g.alloc)
 }
 
 @(private="file")

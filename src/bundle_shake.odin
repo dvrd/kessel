@@ -157,23 +157,40 @@ bundle_expression_pure :: proc(
 		case .Minus, .Plus, .BitwiseNot: return bundle_expression_primitive(node.argument)
 		}
 		return false
-	case ^BinaryExpression:
-		if node.operator == .StrictEq || node.operator == .StrictNotEq {
-			return bundle_expression_pure(effects, node.left, next) &&
-				bundle_expression_pure(effects, node.right, next)
-		}
-		// Other operators convert their operands, which can call valueOf.
-		if node.operator == .In || node.operator == .Instanceof { return false }
-		return bundle_expression_primitive(node.left) && bundle_expression_primitive(node.right)
-	case ^LogicalExpression:
-		return bundle_expression_pure(effects, node.left, next) &&
-			bundle_expression_pure(effects, node.right, next)
+	case ^BinaryExpression, ^LogicalExpression:
+		return bundle_chain_pure(effects, expression, next)
 	case ^ConditionalExpression:
 		return bundle_expression_pure(effects, node.test, next) &&
 			bundle_expression_pure(effects, node.consequent, next) &&
 			bundle_expression_pure(effects, node.alternate, next)
 	case ^SequenceExpression, ^ArrayExpression, ^ObjectExpression, ^CallExpression, ^NewExpression:
 		return bundle_compound_pure(effects, expression, next)
+	}
+	return false
+}
+
+// `a === b === c` and `a && b && c` nest on the left without limit, so the
+// left operands are checked in a loop. The bound is the node count of the tree.
+@(private="file")
+bundle_chain_pure :: proc(effects: ^BundleEffects, expression: ^Expression, next: int) -> bool {
+	current := expression
+	for _ in 0..<EXPR_SPINE_COUNT_MAX {
+		#partial switch node in current^ {
+		case ^LogicalExpression:
+			if !bundle_expression_pure(effects, node.right, next) { return false }
+			current = node.left
+			continue
+		case ^BinaryExpression:
+			if node.operator == .StrictEq || node.operator == .StrictNotEq {
+				if !bundle_expression_pure(effects, node.right, next) { return false }
+				current = node.left
+				continue
+			}
+			// Other operators convert their operands, which can call valueOf.
+			if node.operator == .In || node.operator == .Instanceof { return false }
+			return bundle_expression_primitive(node.left) && bundle_expression_primitive(node.right)
+		}
+		return bundle_expression_pure(effects, current, next)
 	}
 	return false
 }
@@ -242,9 +259,10 @@ BundleShakeItem :: struct {
 // the loop ends after at most one pass over each module, part and binding.
 bundle_shake :: proc(g: ^BundleGraph) {
 	work := make([dynamic]BundleShakeItem, g.alloc)
-	entry := g.modules[0]
-	append(&work, BundleShakeItem{kind = .Module, module = 0})
-	if entry.kind == .ESM {
+	for index in g.entries {
+		entry := g.modules[index]
+		append(&work, BundleShakeItem{kind = .Module, module = index})
+		if entry.kind != .ESM { continue }
 		for name in bundle_export_names(g, entry) {
 			append(&work,
 				BundleShakeItem{kind = .Target, target = bundle_resolve_hoisted(g, entry, name, 0)})
@@ -402,38 +420,48 @@ BundleOrderFrame :: struct {
 // because a kept module may only be reachable through one of them. The
 // explicit stack holds each module at most once.
 bundle_order :: proc(g: ^BundleGraph) {
-	entry := g.modules[0]
 	bundle_order_check_namespaces(g)
-	if entry.wrap == .None {
-		stack := make([dynamic]BundleOrderFrame, g.alloc)
-		append(&stack, BundleOrderFrame{module = 0})
-		entry.visit_state = 1
-		for len(stack) > 0 {
-			assert(len(stack) <= len(g.modules))
-			frame := &stack[len(stack) - 1]
-			module := g.modules[frame.module]
-			descended := false
-			for frame.next < len(module.records) && !descended {
-				record_index := frame.next
-				frame.next += 1
-				descended = bundle_order_record(g, &stack, module, i32(record_index))
+	for &chunk in g.chunks {
+		bundle_chunk_enter(g, chunk.index)
+		defer bundle_chunk_leave(g)
+		// Only a hoisted entry has code that runs when its file is loaded.
+		if chunk.entry >= 0 && g.modules[chunk.entry].wrap == .None {
+			bundle_order_from(g, g.modules[chunk.entry])
+		}
+		// Lazy ES modules still import their externals at the top of the file.
+		for index in chunk.modules {
+			module := g.modules[index]
+			if module.wrap != .ESM || !module.included { continue }
+			for record in module.records {
+				if record.kind == .Import && record.target == BUNDLE_EXTERNAL {
+					bundle_external_for(g, record.specifier)
+				}
 			}
-			if descended { continue }
-			if module.included {
-				append(&g.order, BundleEvent{kind = .Code, module = module.index})
-			}
-			module.visit_state = 2
-			pop(&stack)
 		}
 	}
-	// Lazy ES modules still import their externals at the top of the file.
-	for module in g.modules {
-		if module.wrap != .ESM || !module.included { continue }
-		for record in module.records {
-			if record.kind == .Import && record.target == BUNDLE_EXTERNAL {
-				bundle_external_for(g, record.specifier)
-			}
+}
+
+@(private="file")
+bundle_order_from :: proc(g: ^BundleGraph, entry: ^BundleModule) {
+	stack := make([dynamic]BundleOrderFrame, g.alloc)
+	append(&stack, BundleOrderFrame{module = entry.index})
+	entry.visit_state = 1
+	for len(stack) > 0 {
+		assert(len(stack) <= len(g.modules))
+		frame := &stack[len(stack) - 1]
+		module := g.modules[frame.module]
+		descended := false
+		for frame.next < len(module.records) && !descended {
+			record_index := frame.next
+			frame.next += 1
+			descended = bundle_order_record(g, &stack, module, i32(record_index))
 		}
+		if descended { continue }
+		if module.included {
+			append(&g.order, BundleEvent{kind = .Code, module = module.index})
+		}
+		module.visit_state = 2
+		pop(&stack)
 	}
 }
 

@@ -19,6 +19,11 @@
 //   contains / excludes   strings the default esm bundle must / must not contain
 //   in_place   write the bundles next to the sources, for fixtures whose
 //              bundle must still find an external package at run time
+//   entries    several entry files, bundled together into a directory. Each
+//              entry is run on its own, natively and from the bundle, and
+//              then all of them in one process in the listed order, which
+//              is what shows that shared modules stay single instances.
+//              Only the esm format applies.
 //   sourcemap  also build with --sourcemap and require every MARK_* string in
 //              the output to map back to the line of the original file that
 //              contains it
@@ -100,7 +105,7 @@ function entryKind(source, entry) {
 }
 
 // Every marker in the bundle must lead back to its own line in its own file.
-function checkSourceMap(label, outfile) {
+function checkSourceMap(label, outfile, minimum = 5) {
   const code = fs.readFileSync(outfile, 'utf8');
   const mapFile = outfile + '.map';
   assert.ok(code.trimEnd().endsWith('//# sourceMappingURL=' + path.basename(mapFile)), `${label}: no sourceMappingURL`);
@@ -123,21 +128,79 @@ function checkSourceMap(label, outfile) {
       markers += 1;
     }
   });
-  assert.ok(markers >= 5, `${label}: expected the markers to survive, found ${markers}`);
+  assert.ok(markers >= minimum, `${label}: expected the markers to survive, found ${markers}`);
 }
 
 let checks = 0;
 const failures = [];
 
+// A module that loads the given files one after another in one process.
+function writeLoader(directory, files) {
+  const loader = path.join(directory, 'load-all-entries.mjs');
+  fs.writeFileSync(loader, files.map(file => `await import(${JSON.stringify('./' + file)});\n`).join(''));
+  return loader;
+}
+
+async function checkEntries(name, source, config, out) {
+  const entries = config.entries;
+  const extra = config.args || [];
+  if (config.error) {
+    const result = await execute(binary, ['bundle', ...entries, '--outdir', out, ...extra], { cwd: source });
+    checks += 1;
+    assert.equal(result.status, 1, `${name}: expected the build to fail\n${result.stderr}`);
+    assert.ok(result.stderr.includes(config.error), `${name}: expected "${config.error}" in\n${result.stderr}`);
+    assert.deepEqual(fs.readdirSync(out), [], `${name}: a failed build wrote output`);
+    return;
+  }
+  const expected = [];
+  const kinds = entries.map(entry => entryKind(source, entry));
+  for (const [index, entry] of entries.entries()) expected.push(await run(kinds[index], path.join(source, entry)));
+  const expectedTogether = await run('esm', writeLoader(source, entries));
+  for (const flags of [[], ['--no-tree-shaking'], ['--minify']]) {
+    const label = `${name} [esm${flags.length ? ' ' + flags.join(' ') : ''}]`;
+    const directory = path.join(out, 'split' + flags.join('').replaceAll('-', ''));
+    const mapFlags = config.sourcemap ? ['--sourcemap'] : [];
+    const built = await execute(binary, ['bundle', ...entries, '--outdir', directory, ...extra, ...mapFlags, ...flags], { cwd: source });
+    checks += 1;
+    assert.equal(built.status, 0, `${label}: build failed\n${built.stderr}`);
+    const files = entries.map(entry => path.basename(entry).replace(/\.[^.]+$/, '.mjs'));
+    for (const [index, file] of files.entries()) {
+      // A CommonJS entry's file exports module.exports as its default.
+      const actual = await run('esm', path.join(directory, file), kinds[index] === 'cjs' ? ['--default'] : []);
+      assert.equal(actual, expected[index], `${label}: ${entries[index]} behaves differently from the original`);
+    }
+    if (config.sourcemap) {
+      // Every file that holds module code has a map, shared chunks included.
+      const mapped = fs.readdirSync(directory).filter(file => file.endsWith('.mjs.map'));
+      assert.ok(mapped.length >= config.sourcemap, `${label}: expected ${config.sourcemap} maps, found ${mapped}`);
+      for (const file of mapped) checkSourceMap(label + ' ' + file, path.join(directory, file.slice(0, -4)), 1);
+    }
+    const together = await run('esm', writeLoader(directory, files));
+    assert.equal(together, expectedTogether, `${label}: the entries behave differently when loaded together`);
+    if (flags.length === 0) {
+      const written = fs.readdirSync(directory).filter(file => file.endsWith('.mjs') && file !== 'load-all-entries.mjs');
+      const code = written.map(file => fs.readFileSync(path.join(directory, file), 'utf8')).join('\n');
+      for (const file of config.files || []) assert.ok(written.includes(file), `${label}: expected output file ${file}, got ${written}`);
+      for (const text of config.contains || []) assert.ok(code.includes(text), `${label}: missing ${JSON.stringify(text)}`);
+      for (const text of config.excludes || []) assert.ok(!code.includes(text), `${label}: unexpected ${JSON.stringify(text)}`);
+      // A shared module must be printed once, in one file.
+      for (const text of config.once || []) {
+        assert.equal(code.split(text).length - 1, 1, `${label}: expected exactly one ${JSON.stringify(text)}`);
+      }
+    }
+  }
+}
+
 async function checkFixture(name) {
   const source = materialize(name);
   const configFile = path.join(source, 'fixture.json');
   const config = fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile, 'utf8')) : {};
+  const out = config.in_place ? path.join(source, 'out') : path.join(temp, name, 'out');
+  fs.mkdirSync(out, { recursive: true });
+  if (config.entries) return checkEntries(name, source, config, out);
   const entry = config.entry || ENTRY_NAMES.find(candidate => fs.existsSync(path.join(source, candidate)));
   assert.ok(entry, `${name}: no entry file`);
   const extra = config.args || [];
-  const out = config.in_place ? path.join(source, 'out') : path.join(temp, name, 'out');
-  fs.mkdirSync(out, { recursive: true });
 
   if (config.error) {
     const result = await bundle(source, entry, path.join(out, 'error.mjs'), 'esm', extra);

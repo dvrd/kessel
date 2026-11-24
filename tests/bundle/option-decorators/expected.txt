@@ -1,0 +1,2 @@
+hello x 2 greet,version true
+EXPORTS {"Service": [class]}

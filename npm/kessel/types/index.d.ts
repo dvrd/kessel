@@ -318,6 +318,81 @@ export interface MinifyOptions {
 /** Compress source and shorten local JS and JSX bindings. Diagnostic spans use UTF-8 byte offsets. */
 export function minifySync(filename: string, source: string, options?: MinifyOptions): GeneratedCode;
 
+export interface BundleOptions {
+  /**
+   * Entry file, or several. Relative paths are resolved against the working directory.
+   * Several entries share their common modules through chunk files; that requires 'esm'.
+   */
+  entry: string | string[];
+  /** Give each `import()` target a chunk of its own instead of inlining it. Requires 'esm'. Default false. */
+  splitting?: boolean;
+  /** Output format. Default 'esm'. */
+  format?: 'esm' | 'cjs' | 'iife';
+  /** Resolution rules and builtins. Default 'node'. */
+  platform?: 'node' | 'browser';
+  /** Modules to leave unbundled. A name also covers its subpaths; a trailing `*` matches a prefix. */
+  external?: string[];
+  /** Extra package.json `exports` / `imports` conditions. */
+  conditions?: string[];
+  /** package.json entry fields, in order. Default: the resolver's choice for the platform. */
+  mainFields?: string[];
+  /** tsconfig.json whose `paths` and `baseUrl` are used for resolution. */
+  tsconfig?: string;
+  /** iife only: the global that receives the entry's exports. */
+  globalName?: string;
+  /** Directory the output will be written to. Only used to make source-map `sources` relative. */
+  outdir?: string;
+  minify?: boolean;
+  sourceMap?: boolean;
+  /** Remove unused statements and unused side-effect-free modules. Default true. */
+  treeShaking?: boolean;
+  /** JSX runtime, or its settings. Default 'classic'. */
+  jsx?: 'classic' | 'automatic' | {
+    runtime?: 'classic' | 'automatic';
+    pragma?: string;
+    pragmaFrag?: string;
+    importSource?: string;
+    development?: boolean;
+  };
+  /** Global or member names replaced by JavaScript expressions in every input. */
+  define?: Record<string, string>;
+  /** Lower newer syntax in the inputs: 'es2015' to 'es2024'. Default 'esnext'. */
+  target?: string;
+  decorator?: { legacy?: boolean; emitDecoratorMetadata?: boolean };
+}
+
+export interface BundleDiagnostic {
+  severity: 'error' | 'warning';
+  /** Path relative to the working directory, or null when no file is involved. */
+  file: string | null;
+  /** One-based position in the file the user wrote, or null when unknown. */
+  line: number | null;
+  column: number | null;
+  message: string;
+}
+
+export interface BundleOutputFile {
+  /** Name relative to the output directory; null when the build has a single output and the caller names it. */
+  fileName: string | null;
+  code: string;
+  map: SourceMap | null;
+  /** True for the file of an entry; false for shared chunks and the helper chunk. */
+  entry: boolean;
+}
+
+export interface BundleResult {
+  /** Code and map of the first output; null when the build failed. */
+  code: string | null;
+  map: SourceMap | null;
+  outputs: BundleOutputFile[];
+  /** A build with errors has no outputs. */
+  errors: BundleDiagnostic[];
+  warnings: BundleDiagnostic[];
+}
+
+/** Bundle a module graph from disk into memory. Nothing is written. */
+export function bundleSync(options: BundleOptions): BundleResult;
+
 export type LintLevel = 'off' | 'allow' | 'warn' | 'error' | 'deny' | 0 | 1 | 2;
 type LintSeveritySetting = LintLevel | readonly [LintLevel];
 type LintGetterSetting = readonly [LintLevel, { allowImplicit?: boolean }];

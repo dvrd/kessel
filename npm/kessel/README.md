@@ -406,6 +406,47 @@ on dynamic imports. Pretty output also preserves comments between statements
 and class members, around object literal properties, and inside call,
 constructor, and dynamic import argument lists.
 
+### Bundling
+
+`bundleSync(options)` bundles a module graph from disk and returns the result
+in memory; nothing is written.
+
+```js
+const { bundleSync } = require('@dvrdlibs/kessel');
+
+const result = bundleSync({
+  entry: 'src/main.ts',            // or an array of entries
+  format: 'esm',                   // 'esm' | 'cjs' | 'iife'
+  platform: 'browser',             // 'node' | 'browser'
+  define: { 'process.env.NODE_ENV': '"production"' },
+  external: ['react'],
+  minify: true,
+  sourceMap: true,
+  outdir: 'dist',                  // only makes source-map paths relative to it
+});
+if (result.errors.length) throw new Error(result.errors[0].message);
+for (const file of result.outputs) {
+  // file.fileName is null when there is a single output and you name it.
+}
+```
+
+The result is `{ code, map, outputs, errors, warnings }`. `outputs` lists every
+file as `{ fileName, code, map, entry }`; `code` and `map` are those of the
+first one. A build with errors has no outputs. Diagnostics are
+`{ severity, file, line, column, message }` with one-based positions in the
+file you wrote, also for TypeScript and JSX inputs.
+
+Other options: `splitting` (a chunk per `import()` target), `conditions`,
+`mainFields`, `tsconfig`, `globalName` (iife), `treeShaking`, `target`,
+`decorator: { legacy, emitDecoratorMetadata }` and `jsx` (`'classic'`,
+`'automatic'`, or `{ runtime, pragma, pragmaFrag, importSource, development }`).
+Several entries and `splitting` produce several files and require `'esm'`.
+
+ES modules are scope-hoisted with live bindings and TDZ intact; CommonJS and
+lazily loaded modules keep a wrapper and start where they are first imported.
+Constructs the bundler cannot express, such as top-level await outside an
+entry or direct `eval` in an ES module, are reported in `errors`.
+
 ### Rendering errors
 
 A small subpath ships a codeframe renderer for human-readable output —

@@ -242,6 +242,9 @@ const TOOLS = {
   fmt:         (f) => ['fmt', f],
   transform:   (f) => ['transform', f],
   strip_types: (f) => ['strip-types', f],
+  // The bundler adds its own walkers (scan, side-effect analysis) and then
+  // reparses and checks what it printed.
+  bundle:      (f, tmp) => ['bundle', f, '--outfile', path.join(tmp, 'bundle.out.js')],
 };
 const TOOL_NAMES = Object.keys(TOOLS);
 
