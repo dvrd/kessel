@@ -2506,11 +2506,10 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 	#partial switch v in decl^ {
 	case ^FunctionDeclaration:
 		decl_union^ = v
-		// `declare` on the inner declaration marks it ambient (no body)
-		// but the export itself stays `"value"` per ESTree — only an
-		// explicit `export type X` modifier sets exportKind to "type".
+		if v.declare { export_kind = .Type }
 	case ^VariableDeclaration:
 		decl_union^ = v
+		if v != nil && v.declare { export_kind = .Type }
 		// §Explicit Resource Management - `export using x = ...` and
 		// `export await using x = ...` are SyntaxErrors. Using
 		// declarations must use the named-export form: `export { x }`.
@@ -2519,6 +2518,7 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 		}
 	case ^ClassDeclaration:
 		decl_union^ = v
+		if v != nil && v.declare { export_kind = .Type }
 		// §15.7.1 — named exports require a class name.
 		// `export class {}` is invalid; must use `export default class {}`.
 		if v != nil {
@@ -2542,11 +2542,10 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 		export_kind = .Type
 	case ^TSEnumDeclaration:
 		decl_union^ = v
-		// `declare` doesn't lift the export to `type`; only an explicit
-		// `export type` modifier does.
+		if v.declare { export_kind = .Type }
 	case ^TSModuleDeclaration:
 		decl_union^ = v
-		// Same: `export declare namespace N {}` is a value-kind export.
+		if v.declare { export_kind = .Type }
 	case ^TSImportEqualsDeclaration:  decl_union^ = v
 	case:
 		// After `export` (non-default), only declarations are valid.
@@ -2559,37 +2558,18 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 	return decl_union, export_kind, true
 }
 
-// report_export_default_function_tail flags an LHS-tail token that would
-// extend the `export default [async] function() {}` declaration into an
-// expression. Per §16.2.3 the FunctionDeclaration ends at `}`; a SAME-line
-// `(`/`[`/`.`/`` `tag` ``/`=>`/postfix `++`/`--` makes the production fail,
-// while a token on the NEXT line is a fresh statement (ASI applies at the
-// declaration boundary). Only same-line continuations are errors. Test262:
-// language/module-code/parse-err-invoke-anon-{fun,gen}-decl.js.
-report_export_default_function_tail :: proc(p: ^Parser) {
-	if cur_has_newline(p) { return }
-	#partial switch p.cur_type {
-	case .LParen, .LBracket, .Dot, .OptionalChain,
-	     .Template, .TemplateHead, .Arrow,
-	     .PlusPlus, .MinusMinus:
-		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after 'export default function' declaration")
-	}
-}
-
-// parse_export_default_function handles `export default [async] function`,
-// the §16.2.3 HoistableDeclaration form. parse_function_declaration(is_expr
-// = true) returns a ^Statement wrapping an ExpressionStatement whose
-// .expression is the FunctionExpression, so unwrap that as the default def.
+// A default function declaration may be anonymous. A named declaration
+// introduces a module binding, unlike a parenthesized function expression.
 parse_export_default_function :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
-	p.in_export_default = true
-	fn_stmt := parse_function_declaration(p, true)
-	p.in_export_default = false
+	fn_stmt := parse_function_declaration(p, .Default_Export)
 	if fn_stmt != nil {
-		if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
-			def = expr_stmt.expression
+		if fn, ok := fn_stmt^.(^FunctionDeclaration); ok {
+			decl := new_node(p, Declaration)
+			decl^ = fn
+			def = decl
 		}
 	}
-	report_export_default_function_tail(p)
+	// The body closes the declaration. Parse the next statement even on the same line.
 	return
 }
 

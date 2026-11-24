@@ -403,37 +403,37 @@
     {
       "type": "Line",
       "start": 302,
-      "end": 374,
+      "end": 372,
       "value": " so dispatching with the wrong tag invoked a random case — typically"
     },
     {
       "type": "Line",
-      "start": 375,
-      "end": 451,
+      "start": 373,
+      "end": 447,
       "value": " BlockStatement — and dereferenced garbage fields. Crashes appeared only"
     },
     {
       "type": "Line",
-      "start": 452,
-      "end": 525,
+      "start": 448,
+      "end": 521,
       "value": " on export-heavy modules whose exported declarations flowed through the"
     },
     {
       "type": "Line",
-      "start": 526,
-      "end": 572,
+      "start": 522,
+      "end": 568,
       "value": " dispatch path with class subtrees in scope."
     },
     {
       "type": "Line",
-      "start": 573,
-      "end": 648,
+      "start": 569,
+      "end": 644,
       "value": " Fixed: print_declaration_ast rebuilds a ^Statement whose tag is assigned"
     },
     {
       "type": "Line",
-      "start": 649,
-      "end": 721,
+      "start": 645,
+      "end": 717,
       "value": " from the inner variant, giving the correct tag ordinal for Statement."
     }
   ]

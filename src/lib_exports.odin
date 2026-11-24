@@ -1,3 +1,5 @@
+#+build !wasi
+
 package kessel
 
 // ============================================================================
@@ -107,7 +109,7 @@ kessel_parse_binary_with_config :: proc(source: string, label: string, config: P
 	// string table so the JS decoder can surface real parse diagnostics
 	// instead of always seeing an empty errors[] array.
 	be: BinaryEmitter
-	binary_emitter_init(&be, source, context.allocator)
+	binary_emitter_init(&be, source, context.allocator, job.parser.allocator, allow_ts_mode(&job.parser))
 	bin_emit_program(&be, job.program)
 	bin_emit_errors(&be, job.parser.errors[:])
 	bin_emit_finalize(&be)
@@ -284,35 +286,12 @@ kessel_codegen :: proc "c" (
 
 	result := new(LibCodegenResult)
 
-	// Codegen.
-	cg_cfg := CodegenConfig{minified = kessel_bool_from_i32(minified), indent = "  "}
 	cg: Codegen
-	codegen_init(&cg, cg_cfg, len(source), context.allocator)
-	defer codegen_destroy(&cg, context.allocator)
-
 	sm: SourceMap
 	want_sm := kessel_bool_from_i32(want_sourcemap)
-	if want_sm {
-		if job.parser.lexer.num_lines == 0 {
-			build_line_table(job.parser.lexer)
-		}
-		line_offsets := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
-		sourcemap_init(&sm, source, line_offsets)
-		codegen_enable_sourcemap(&cg, &sm)
-	}
+	codegen_print_job(&job, &cg, {minified = kessel_bool_from_i32(minified)}, &sm if want_sm else nil)
+	defer codegen_destroy(&cg, context.allocator)
 	defer if want_sm { sourcemap_destroy(&sm) }
-
-	if job.lexer.has_hashbang {
-		cg_str(&cg, "#!")
-		cg_str(&cg, job.lexer.hashbang_value)
-		// Hashbang is a line comment; emit a real newline even in
-		// minified mode so the next token doesn't get swallowed.
-		cg_byte(&cg, '\n')
-	}
-	codegen_program(&cg, job.program)
-	if !cg_cfg.minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
-		cg_byte(&cg, '\n')
-	}
 
 	if want_sm {
 		map_json := sourcemap_to_json(
@@ -425,8 +404,9 @@ kessel_lint_binary :: proc "c" (
 	rules_len:    i32,
 ) -> KesselParseResult {
 	context = runtime.default_context()
-	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
-	source := string(source_ptr[:source_len])
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+	source, ok := kessel_tool_input(source_ptr, source_len)
+	if !ok { return {} }
 	label := "lib"
 	if filename_ptr != nil && filename_len > 0 {
 		label = string(filename_ptr[:filename_len])
@@ -434,10 +414,10 @@ kessel_lint_binary :: proc "c" (
 
 	config := ParseConfig{
 		lang_override = kessel_lang_from_i32(lang),
-		ast_only      = true,
+		ast_only      = false,
 	}
 	job: ParseJob
-	if !parse_job_open_inline(&job, source, config, label) {
+	if !parse_job_open_inline(&job, source, lint_parse_config(label, config), label) {
 		return KesselParseResult{}
 	}
 	defer parse_job_close(&job)
@@ -450,14 +430,13 @@ kessel_lint_binary :: proc "c" (
 	overrides: [dynamic]LintOverride
 	if rules_ptr != nil && rules_len > 0 {
 		overrides = make([dynamic]LintOverride, context.temp_allocator)
-		lint_parse_rules_text(string(rules_ptr[:rules_len]), &overrides)
+		if !lint_parse_rules_text(string(rules_ptr[:rules_len]), &overrides) {
+			// A negative length distinguishes invalid rule settings from a failed parse job.
+			return {buf_len = -1}
+		}
 	}
-	l := lint_run_for_job(&job, overrides[:])
-	combined := make([dynamic]ParseError, 0, len(job.parser.errors) + len(l.diagnostics), context.temp_allocator)
-	for e in job.parser.errors { append(&combined, e) }
-	for d in l.diagnostics      { append(&combined, d) }
-
-	buf := lint_emit_diagnostics_buffer(combined[:], context.allocator)
+	linter := lint_run_for_job(&job, {overrides=overrides[:]})
+	buf := lint_emit_diagnostics_buffer(kessel_lint_diagnostics(&job, &linter), context.allocator)
 
 	result := new(LibResult, context.allocator)
 	result.buf = buf
@@ -468,4 +447,11 @@ kessel_lint_binary :: proc "c" (
 		buf_ptr = result.buf_ptr,
 		buf_len = i32(result.buf_len),
 	}
+}
+
+kessel_lint_diagnostics :: proc(job: ^ParseJob, linter: ^Linter) -> []ParseError {
+	combined := make([dynamic]ParseError, 0, len(job.parser.errors) + len(linter.diagnostics), job.arena_alloc)
+	append(&combined, ..job.parser.errors[:])
+	append(&combined, ..linter.diagnostics[:])
+	return combined[:]
 }

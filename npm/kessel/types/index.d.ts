@@ -179,23 +179,9 @@ export function parseSync(
 ): ParseResult;
 
 /**
- * Asynchronously parse `source` on a libuv worker thread and return an
- * ESTree-compatible AST.
- *
- * Same signature and return shape as {@link parseSync}, but the native
- * parse runs off the Node main thread via koffi's `.async()`. The event
- * loop stays responsive during the parse and concurrent calls fan out
- * across libuv's worker pool (default 4 threads; raise with the
- * `UV_THREADPOOL_SIZE` environment variable for more parallelism).
- *
- * Throughput notes:
- *  - One-shot parseAsync is marginally slower than parseSync because of
- *    a small thread-handoff overhead (~10-50µs).
- *  - For N concurrent parses on M-core hosts, parseAsync scales close to
- *    `min(N, UV_THREADPOOL_SIZE)` until the pool saturates.
- *  - The post-parse JS work (binary AST decode + error enrichment) still
- *    runs on the awaiting thread; only the native parse itself is
- *    offloaded.
+ * Asynchronously parse source off the calling thread and return an
+ * ESTree-compatible AST. Uses libuv or a dedicated Node worker depending
+ * on Koffi's stack configuration.
  *
  * @param filename Path or synthetic name. Drives language detection
  *                 unless overridden by `options.lang`.
@@ -207,3 +193,268 @@ export function parseAsync(
   source: string,
   options?: ParseOptions
 ): Promise<ParseResult>;
+
+export interface CodegenOptions {
+  filename?: string;
+  lang?: Lang;
+  sourceType?: Exclude<SourceType, 'unambiguous'>;
+  minified?: boolean;
+  sourceMap?: boolean;
+}
+
+export interface SourceMap {
+  version: 3;
+  file: string;
+  sourceRoot: string;
+  sources: string[];
+  names: string[];
+  sourcesContent?: string[];
+  mappings: string;
+}
+
+export interface CodegenResult {
+  code: string;
+  map: SourceMap | null;
+  errors: Array<{ message: string }>;
+}
+
+/** Print source from the parsed AST and optionally return a version 3 source map. */
+export function codegen(source: string, options?: CodegenOptions): CodegenResult;
+
+export interface FormatOptions {
+  printWidth?: number;
+  /** Indentation width in columns, from 0 to 16. */
+  tabWidth?: number;
+  useTabs?: boolean;
+  singleQuote?: boolean;
+  bracketSpacing?: boolean;
+  trailingComma?: 'all' | 'es5' | 'none';
+  /** Line ending for newly printed module declarations. */
+  endOfLine?: 'lf' | 'crlf' | 'cr' | 'auto';
+}
+
+/** Emit a declaration file from one TypeScript source. Diagnostic spans use UTF-8 byte offsets. */
+export function isolatedDeclarationSync(filename: string, source: string): {
+  output: string;
+  errors: { code: string; message: string; start: number; end: number }[];
+};
+
+/** Format module declarations and object or array data in variable declarations and default exports. Throws SyntaxError with a UTF-8 byte offset on parse failure. */
+export function formatSync(filename: string, source: string, options?: FormatOptions): string;
+
+export interface TransformOptions {
+  /** Replace global expressions after TypeScript and JSX lowering. */
+  define?: Record<string, string>;
+  typescript?: { optimizeConstEnums?: boolean };
+  explicitResourceManagement?: boolean;
+  jsx?: 'preserve' | 'classic' | 'automatic' | {
+    runtime: 'classic';
+    pragma?: string;
+    pragmaFrag?: string;
+    development?: boolean;
+    pure?: boolean;
+    throwIfNamespace?: boolean;
+  } | {
+    runtime: 'automatic';
+    importSource?: string;
+    development?: boolean;
+    pure?: boolean;
+    throwIfNamespace?: boolean;
+  };
+  minified?: boolean;
+  sourceMap?: boolean;
+}
+
+export interface GeneratedCode {
+  code: string;
+  map: SourceMap | null;
+  errors: Array<{ start: number; end: number; message: string }>;
+}
+
+/** Lower TypeScript and optionally JSX. Diagnostic spans use UTF-8 byte offsets. */
+export function transformSync(filename: string, source: string, options?: TransformOptions): GeneratedCode;
+
+export interface MinifyOptions {
+  compress?: boolean;
+  mangle?: boolean;
+  /** Factory and fragment bindings supplied by the downstream JSX transform. */
+  jsx?: { pragma?: string; pragmaFrag?: string };
+  sourceMap?: boolean;
+}
+
+/** Compress source and shorten local JS and JSX bindings. Diagnostic spans use UTF-8 byte offsets. */
+export function minifySync(filename: string, source: string, options?: MinifyOptions): GeneratedCode;
+
+export type LintLevel = 'off' | 'allow' | 'warn' | 'error' | 'deny' | 0 | 1 | 2;
+type LintSeveritySetting = LintLevel | readonly [LintLevel];
+type LintGetterSetting = readonly [LintLevel, { allowImplicit?: boolean }];
+type LintFallthroughSetting = readonly [LintLevel, {
+  allowEmptyCase?: boolean;
+  commentPattern?: string | null;
+  reportUnusedFallthroughComment?: boolean;
+}];
+type LintPreferConstSetting = readonly [LintLevel, { destructuring?: 'any' | 'all'; ignoreReadBeforeAssign?: boolean }];
+type LintConsoleSetting = readonly [LintLevel, { allow?: readonly string[] }];
+type LintHookSetting = readonly [LintLevel, { additionalHooks?: string }];
+type LintEqualitySetting =
+  readonly [LintLevel, 'always' | 'smart' | 'allow-null', { null?: 'always' | 'ignore' | 'never' }?];
+export type LintRuleSetting = LintSeveritySetting | LintEqualitySetting | LintPreferConstSetting | LintGetterSetting | LintFallthroughSetting | LintConsoleSetting | LintHookSetting;
+
+export interface LintOptions {
+  /** Resolve project config, overrides and ignores from this absolute directory. */
+  workspaceRoot?: string;
+  /** Attach individual safe edits to diagnostics for the returned revision. */
+  includeFixes?: boolean;
+  /** Attach optional edits for manual selection. Hook dependency edits can change when effects run. */
+  includeSuggestions?: boolean;
+  /** Include the registered rule name and an available line directive edit for lint diagnostics. */
+  includeSuppressions?: boolean;
+  fix?: boolean;
+  fixSuggestions?: boolean;
+  fixDangerously?: boolean;
+  lang?: Lang;
+  reportUnusedDisableDirectives?: 'off' | 'warn' | 'error';
+  rules?: Record<string, LintRuleSetting> & {
+    eqeqeq?: LintSeveritySetting | LintEqualitySetting;
+    'prefer-const'?: LintSeveritySetting | LintPreferConstSetting;
+    'getter-return'?: LintSeveritySetting | LintGetterSetting;
+    'no-fallthrough'?: LintSeveritySetting | LintFallthroughSetting;
+    'no-console'?: LintSeveritySetting | LintConsoleSetting;
+    'exhaustive-deps'?: LintSeveritySetting | LintHookSetting;
+    'react/exhaustive-deps'?: LintSeveritySetting | LintHookSetting;
+    'react-hooks/exhaustive-deps'?: LintSeveritySetting | LintHookSetting;
+  };
+}
+
+export interface LintDiagnostic extends Omit<ParseError, 'code' | 'severity'> {
+  /** Locations of captured values when project diagnostics report a missing Hook dependency. */
+  related?: Array<ByteSpan & { message: string }>;
+  suppression?: { rule: string; line?: ByteSpan & { text: string } };
+  code: ErrorCode | `L${number}` | '';
+  severity: Severity;
+  /** UTF-8 byte offsets into the linted source and the replacement text. */
+  fix?: ByteSpan & { text: string };
+  suggestion?: ByteSpan & { text: string; title: string };
+}
+
+/** Run the built-in lint rules and return diagnostics with UTF-8 byte offsets. */
+export function lintSync(
+  filename: string,
+  source: string,
+  options?: LintOptions
+): { diagnostics: LintDiagnostic[]; output?: string };
+
+/** A closed-open range measured in UTF-8 bytes. */
+export interface ByteSpan {
+  start: number;
+  end: number;
+}
+
+export interface ModuleDependency {
+  kind: 'Static' | 'Reexport' | 'Dynamic' | 'Import_Meta' | 'Import_Equals';
+  phase: 'Evaluation' | 'Source' | 'Defer';
+  statement: ByteSpan;
+  request: ByteSpan;
+  attributes: ByteSpan | null;
+  name: string | null;
+  type_only: boolean;
+}
+
+export interface ModuleExport {
+  name: string;
+  span: ByteSpan;
+  local_name: string | null;
+  local_span: ByteSpan | null;
+  type_only: boolean;
+}
+
+export interface ModuleScanResult {
+  dependencies: ModuleDependency[];
+  exports: ModuleExport[];
+  has_module_syntax: boolean;
+}
+
+/** Scan module syntax and bindings without building a JavaScript AST. */
+export function scanModuleSync(source: string): ModuleScanResult;
+
+export type RegExpNodeKind =
+  | 'Pattern' | 'Alternative' | 'Group' | 'Character_Class' | 'Character' | 'Dot'
+  | 'Start_Assertion' | 'End_Assertion' | 'Boundary_Assertion'
+  | 'Character_Class_Escape' | 'Property_Escape' | 'Escape' | 'Indexed_Reference'
+  | 'Named_Reference' | 'Quantifier' | 'Class_Range' | 'Class_Intersection'
+  | 'Class_Subtraction' | 'Class_String';
+
+export interface RegExpRepeatBound {
+  /** Use the pattern slice in digits for values above Number.MAX_SAFE_INTEGER. */
+  value: number;
+  digits: ByteSpan;
+  overflow: boolean;
+}
+
+export interface RegExpNode {
+  kind: RegExpNodeKind;
+  span: ByteSpan;
+  first_child: number;
+  next_sibling: number;
+  group_kind: 'Capture' | 'Named_Capture' | 'Noncapturing' |
+    'Lookahead' | 'Negative_Lookahead' | 'Lookbehind' | 'Negative_Lookbehind' | 'Modifiers';
+  capture_index: number;
+  name: ByteSpan;
+  property_value: ByteSpan | null;
+  /** A Unicode code point in u/v mode, otherwise a UTF-16 code unit. */
+  code_point: number | null;
+  negative: boolean;
+  may_contain_strings: boolean;
+  repeat: {
+    min: RegExpRepeatBound;
+    max: RegExpRepeatBound | null;
+    greedy: boolean;
+  };
+}
+
+export interface RegExpTree {
+  nodes: RegExpNode[];
+  /** Node index zero is reserved for absent links. */
+  root: number;
+  /** Bit mask in d, g, i, m, s, u, v, y order, from low to high. */
+  flags: number;
+  capture_count: number;
+  has_named_captures: boolean;
+}
+
+/** Parse a regexp pattern without slash delimiters. Syntax errors carry a byte offset. */
+export function parseRegExpSync(pattern: string, flags?: string): RegExpTree;
+
+export interface ModuleResolveOptions {
+  mode?: 'import' | 'require';
+  tsconfig?: string;
+  browser?: boolean;
+  preserveSymlinks?: boolean;
+  /** Ordered legacy package entry fields. An empty list goes straight to directory entry names. */
+  mainFields?: string | readonly string[];
+  /** Manifest fields for package exports. Nested arrays name a path through JSON objects. */
+  exportsFields?: readonly (string | readonly string[])[];
+  /** Manifest fields for private imports, searched in order. */
+  importsFields?: readonly (string | readonly string[])[];
+  /** Package directories in search order. Relative entries are searched up the importer ancestry. */
+  modules?: string | readonly string[];
+  /** Suffixes for implicit lookup, in order. Defaults to ['.js', '.json', '.node']. */
+  extensions?: readonly string[];
+  /** Replace an explicit filename suffix with candidate suffixes in order. */
+  extensionAlias?: Readonly<Record<string, readonly string[]>>;
+  /** Directory entry names, in order. Defaults to ['index']. */
+  mainFiles?: readonly string[];
+  conditions?: readonly string[];
+  aliases?: readonly { name: string; target: string; exact?: boolean }[];
+}
+
+export type ModuleResolution =
+  | { kind: 'file' | 'builtin'; path: string }
+  | { kind: 'ignored'; path: '' };
+
+/** Resolve a module from the given importing file. Errors include a code. */
+export function resolveModuleSync(
+  specifier: string,
+  importer: string,
+  options?: ModuleResolveOptions
+): ModuleResolution;

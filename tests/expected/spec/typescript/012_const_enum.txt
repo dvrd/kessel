@@ -361,25 +361,25 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 69,
+      "end": 67,
       "value": " TS-D: `const enum` — numeric, string, and computed initializers,"
     },
     {
       "type": "Line",
-      "start": 70,
-      "end": 134,
+      "start": 68,
+      "end": 132,
       "value": " plus the `const` modifier on the TSEnumDeclaration node. Each"
     },
     {
       "type": "Line",
-      "start": 135,
-      "end": 200,
+      "start": 133,
+      "end": 198,
       "value": " enum must emit `{ const: true, members: [...] }` with the same"
     },
     {
       "type": "Line",
-      "start": 201,
-      "end": 261,
+      "start": 199,
+      "end": 259,
       "value": " shape OXC produces, verified by the spec-fixtures runner."
     }
   ]

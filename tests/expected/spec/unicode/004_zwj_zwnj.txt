@@ -54,31 +54,31 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 72,
+      "end": 69,
       "value": " ECMA-262 §12.7 — ZWJ (U+200D) and ZWNJ (U+200C) are allowed inside"
     },
     {
       "type": "Line",
-      "start": 73,
-      "end": 133,
+      "start": 70,
+      "end": 130,
       "value": " an identifier as IdentifierPart (not as IdentifierStart)."
     },
     {
       "type": "Line",
-      "start": 134,
-      "end": 192,
+      "start": 131,
+      "end": 189,
       "value": " This is important for languages like Persian and Hindi."
     },
     {
       "type": "Line",
-      "start": 215,
-      "end": 231,
+      "start": 210,
+      "end": 226,
       "value": " contains ZWNJ"
     },
     {
       "type": "Line",
-      "start": 254,
-      "end": 269,
+      "start": 247,
+      "end": 262,
       "value": " contains ZWJ"
     }
   ]

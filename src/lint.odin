@@ -102,6 +102,7 @@ LintRule :: enum u16 {
 	L2052_NoDuplicateImports      = 2052,
 	L2053_NoThisBeforeSuper       = 2053,
 	L2054_NoAwaitInLoop           = 2054,
+	L2055_NoConstAssign           = 2055,
 
 	// L3xxx — TypeScript-specific.
 	L3001_BanTsComment            = 3001,
@@ -218,6 +219,11 @@ LintRule :: enum u16 {
 	L4102_NoTernary                  = 4102,
 	L4103_NoNew                      = 4103,
 	L4104_NoReturnAwait              = 4104,
+	L4105_PreferRegexLiterals        = 4105,
+	L4106_NoUselessBackreference    = 4106,
+	L4107_RulesOfHooks              = 4107,
+	L4108_ExhaustiveDeps            = 4108,
+	L9001_UnusedDirective           = 9001,
 }
 
 // LintRuleInfo is the static record looked up by LintRule. Held in a
@@ -571,6 +577,8 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			default_message = "'this' used before 'super()' in constructor",
 			default_severity = .Error, default_enabled = true,
 		}
+	case .L2055_NoConstAssign:
+		return LintRuleInfo{name="no-const-assign", default_message="constant binding should not be reassigned", default_severity=.Error, default_enabled=true}
 	case .L2054_NoAwaitInLoop:
 		return LintRuleInfo{
 			name = "no-await-in-loop",
@@ -1121,8 +1129,51 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 		return LintRuleInfo{name="no-new", default_message="'new' expression used only for its side effects", default_severity=.Warning, default_enabled=false}
 	case .L4104_NoReturnAwait:
 		return LintRuleInfo{name="no-return-await", default_message="redundant 'return await'", default_severity=.Warning, default_enabled=false}
+	case .L4105_PreferRegexLiterals:
+		return LintRuleInfo{name="prefer-regex-literals", default_message="use a regex literal instead of the RegExp constructor with a string", default_severity=.Warning, default_enabled=false}
+	case .L4107_RulesOfHooks:
+		return LintRuleInfo{name="rules-of-hooks", default_message="invalid React Hook call", default_severity=.Warning, default_enabled=false}
+	case .L4108_ExhaustiveDeps:
+		return LintRuleInfo{name="exhaustive-deps", default_message="invalid React Hook dependencies", default_severity=.Warning, default_enabled=false}
+	case .L9001_UnusedDirective:
+		return LintRuleInfo{name="unused-disable-directive", default_message="unused lint directive", default_severity=.Warning, default_enabled=false}
+	case .L4106_NoUselessBackreference:
+		return LintRuleInfo{name="no-useless-backreference", default_message="backreference cannot match its capture", default_severity=.Error, default_enabled=true}
 	}
 	return LintRuleInfo{}
+}
+
+LintRuleCatalogueEntry :: struct {
+	code, name: string,
+	default_severity: Severity,
+	default_enabled: bool,
+}
+
+@(private)
+cli_lint_list_rules :: proc() -> int {
+	context.allocator = context.temp_allocator
+	entries: [dynamic]LintRuleCatalogueEntry
+	for rule in LintRule {
+		if rule == .None || rule == .L9001_UnusedDirective { continue }
+		info := lint_rule_info(rule)
+		assert(info.name != "")
+		canonical, ok := lint_rule_by_name(info.name)
+		assert(ok)
+		if canonical != rule { continue }
+		append(&entries, LintRuleCatalogueEntry{
+			code = lint_rule_code_string(rule),
+			name = info.name,
+			default_severity = info.default_severity,
+			default_enabled = info.default_enabled,
+		})
+	}
+	encoded, err := json.marshal(entries, {use_enum_names = true})
+	if err != nil {
+		fmt.eprintln("Error: could not encode lint rule catalogue")
+		return 1
+	}
+	out_println(string(encoded))
+	return 0
 }
 
 // lint_rule_code_string returns the stable "L####" identifier used in JSON
@@ -1138,12 +1189,15 @@ lint_rule_code_string :: proc(rule: LintRule) -> string {
 // function / class boundaries collapses to a single struct copy.
 LintContext :: struct {
 	lang: Lang,
+	hooks: ^LintHookFrame,
+	dependencies: ^LintHookDependencies,
 }
 
 // Linter owns the diagnostic buffer and the enable/severity configuration.
 // Mirrors `Checker`: diagnostics are `ParseError` so they share the existing
 // pretty renderer (`render_pretty_diagnostics`) and JSON shape.
 Linter :: struct {
+	globals: LintGlobalSettings,
 	diagnostics: [dynamic]ParseError,
 	allocator:   mem.Allocator,
 	source:      string,
@@ -1156,7 +1210,21 @@ Linter :: struct {
 	// no-dupe-else-if (L2023) scan, so the whole-chain scan runs exactly once
 	// per if/else-if chain (at its head) rather than re-firing on every link.
 	dupe_else_if_seen: map[rawptr]bool,
-	semantic: ^SemanticModel,
+	regexp_calls: [dynamic]LintRegExpCall,
+	console_allow: map[string]bool,
+	console_members: map[u32]Loc,
+	comments: []Comment,
+	equality: LintEqualityOptions,
+	prefer_const: LintPreferConstOptions,
+	fallthrough_options: LintFallthroughOptions,
+	getter_allow_implicit: bool,
+	getter_descriptors: map[u32]LintGetterDescriptors,
+	custom_hooks: ^LintCustomHooks,
+	dependency_notes: map[Loc]LintDependencyNotes,
+	fix_kinds: LintFixKinds,
+	fixes: map[LintFixKey]LintEdit,
+	suggestions: map[LintSuggestionKey]LintSuggestion,
+	suppression_marks: []u64,
 }
 
 // init_linter constructs a Linter bound to the parse arena allocator.
@@ -1166,6 +1234,7 @@ init_linter :: proc(alloc: mem.Allocator) -> Linter {
 		enabled     = make(map[LintRule]bool, 0, alloc),
 		severity    = make(map[LintRule]Severity, 0, alloc),
 		dupe_else_if_seen = make(map[rawptr]bool, 0, alloc),
+		regexp_calls = make([dynamic]LintRegExpCall, 0, 0, alloc),
 		allocator   = alloc,
 	}
 }
@@ -1204,34 +1273,39 @@ lint_report :: proc(l: ^Linter, start, end: u32, rule: LintRule, message: string
 // lint_program is the entry point: walk every top-level statement.
 lint_program :: proc(l: ^Linter, ctx: ^LintContext, program: ^Program) {
 	if program == nil { return }
+	top: LintHookFrame
+	dependencies: LintHookDependencies
+	if lint_rule_enabled(l, .L4108_ExhaustiveDeps) {
+		lint_dependencies_init(&dependencies, l.allocator)
+		dependencies.custom_hooks = l.custom_hooks
+		ctx.dependencies = &dependencies
+	}
+	defer ctx.dependencies = nil
+	if lint_rule_enabled(l, .L4107_RulesOfHooks) { ctx.hooks = &top }
+	defer ctx.hooks = nil
+	if lint_rule_enabled(l, .L4037_NoConsole) { l.console_members = make(map[u32]Loc, 8, l.allocator) }
 	lint_check_redeclare(l, ctx, program.body[:])
 	lint_check_no_duplicate_imports(l, program.body[:])
-	for stmt in program.body {
-		lint_walk_stmt(l, ctx, stmt)
-	}
-	// Scope-aware rules (M3) run as a separate two-phase pass — collect
-	// declarations + references, then diff them — rather than fold their
-	// bookkeeping into the AST-local walk above. This mirrors regex.odin's
-	// justified multi-pass design: the scope chain has different granularity
-	// than the per-node rule fan-out. The pass is skipped entirely unless a
-	// scope rule is enabled, so default `kessel lint` runs pay nothing.
-	if lint_rule_enabled(l, .L2006_NoUndef) ||
-	   lint_rule_enabled(l, .L2007_NoUnusedVars) ||
-	   lint_rule_enabled(l, .L2008_NoShadow) {
-		lint_scope_pass(l, ctx, program)
-	}
+	lint_walk_stmt_list(l, ctx, program.body[:])
+	lint_check_semantic_rules(l, ctx, program)
 }
 
-lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
+lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement, required_body := false) {
 	if stmt == nil { return }
+	if len(l.suppression_marks) > 0 { lint_suppression_boundaries(l, get_statement_loc(stmt)) }
 	switch v in stmt^ {
 	case ^ExpressionStatement:
-		if v != nil { lint_check_no_new(l, v); lint_walk_expr(l, ctx, v.expression) }
+		if v != nil {
+			lint_check_no_new(l, v)
+			lint_walk_expr(l, ctx, v.expression)
+			if .Suggestion in l.fix_kinds {
+				lint_fix_console_call(l, v.expression, v.loc, .Required_Body if required_body else .Statement)
+			}
+		}
 	case ^BlockStatement:
 		if v != nil {
 			lint_check_redeclare(l, ctx, v.body[:])
 			lint_check_no_inner_declarations(l, ctx, v.body[:], false)
-			lint_check_no_unreachable(l, v.body[:])
 			// no-empty (L1001): a bare `{}` block with no statements. Function
 			// bodies are a distinct AST type (FunctionBody), so only standalone /
 			// nested / control-flow-body blocks reach here — matching ESLint's
@@ -1240,34 +1314,35 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 				info := lint_rule_info(.L1001_NoEmpty)
 				lint_report(l, u32(v.loc.start), u32(v.loc.end), .L1001_NoEmpty, info.default_message)
 			}
-			for s in v.body { lint_walk_stmt(l, ctx, s) }
+			lint_walk_stmt_list(l, ctx, v.body[:])
 		}
 	case ^IfStatement:
 		if v != nil {
 			lint_check_dupe_else_if(l, v)
 			lint_check_no_lonely_if(l, v)
 			lint_check_no_negated_condition(l, v)
-			lint_check_no_else_return(l, v)
+			if !required_body { lint_check_no_else_return(l, v) }
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_no_extra_boolean_cast(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_walk_expr(l, ctx, v.test)
-			lint_walk_stmt(l, ctx, v.consequent)
-			if alt, ok := v.alternate.(^Statement); ok && alt != nil {
-				lint_walk_stmt(l, ctx, alt)
+			alternate, _ := v.alternate.?
+			lint_walk_hook_stmt(l, ctx, v.consequent, lint_hook_opposite_path(ctx.hooks, alternate))
+			if alternate != nil {
+				lint_walk_hook_stmt(l, ctx, alternate, lint_hook_opposite_path(ctx.hooks, v.consequent))
 			}
 		}
 	case ^WhileStatement:
 		if v != nil {
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
-			lint_walk_expr(l, ctx, v.test); lint_walk_stmt(l, ctx, v.body)
+			lint_walk_hook_expr(l, ctx, v.test, .Repeated); lint_walk_hook_stmt(l, ctx, v.body, .Repeated)
 		}
 	case ^DoWhileStatement:
 		if v != nil {
 			lint_check_constant_condition(l, v.test, u32(v.loc.start), u32(v.loc.end))
 			lint_check_cond_assign(l, v.test, u32(v.loc.start), u32(v.loc.end))
-			lint_walk_stmt(l, ctx, v.body); lint_walk_expr(l, ctx, v.test)
+			lint_walk_hook_stmt(l, ctx, v.body, .Repeated); lint_walk_hook_expr(l, ctx, v.test, .Repeated)
 		}
 	case ^ForStatement:
 		lint_check_for_direction(l, v)
@@ -1277,31 +1352,35 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 			if e, ok := v.left_expr.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 			if d, ok := v.left_decl.(^VariableDeclaration); ok && d != nil { lint_walk_var_decl(l, ctx, d) }
 			lint_walk_expr(l, ctx, v.right)
-			lint_walk_stmt(l, ctx, v.body)
+			lint_walk_hook_stmt(l, ctx, v.body, .Repeated)
 		}
 	case ^ForOfStatement:
 		if v != nil {
 			if e, ok := v.left_expr.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 			if d, ok := v.left_decl.(^VariableDeclaration); ok && d != nil { lint_walk_var_decl(l, ctx, d) }
 			lint_walk_expr(l, ctx, v.right)
-			lint_walk_stmt(l, ctx, v.body)
+			lint_walk_hook_stmt(l, ctx, v.body, .Repeated)
 		}
 	case ^SwitchStatement:
 		lint_walk_switch(l, ctx, v)
 	case ^ReturnStatement:
 		if v != nil {
+			if ctx.hooks != nil && ctx.hooks.path != .Unreachable { ctx.hooks.returns += 1 }
 			lint_check_no_return_assign(l, v)
 			lint_check_no_return_await(l, v)
-			if e, ok := v.argument.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
+			if e, ok := v.argument.(^Expression); ok && e != nil {
+				if ctx.dependencies != nil { lint_dependency_return(ctx.dependencies, e) }
+				lint_walk_expr(l, ctx, e)
+			}
 		}
 	case ^ThrowStatement:
 		if v != nil { lint_check_no_throw_literal(l, v); lint_walk_expr(l, ctx, v.argument) }
 	case ^TryStatement:
 		lint_walk_try(l, ctx, v)
 	case ^WithStatement:
-		if v != nil { lint_check_no_with(l, v); lint_walk_expr(l, ctx, v.object); lint_walk_stmt(l, ctx, v.body) }
+		if v != nil { lint_check_no_with(l, v); lint_walk_expr(l, ctx, v.object); lint_walk_stmt(l, ctx, v.body, true) }
 	case ^LabeledStatement:
-		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_check_no_labels(l, v); lint_walk_stmt(l, ctx, v.body) }
+		if v != nil { lint_check_no_unused_labels(l, v); lint_check_no_extra_label(l, v); lint_check_no_labels(l, v); lint_hook_label_body(l, ctx, v) }
 	case ^VariableDeclaration:
 		if v != nil { lint_check_no_inferrable_types(l, v); lint_walk_var_decl(l, ctx, v) }
 	case ^FunctionDeclaration:
@@ -1319,24 +1398,47 @@ lint_walk_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		// and enable gate; the rule only decides whether to report.
 		if v != nil && lint_rule_enabled(l, .L2001_NoDebugger) {
 			info := lint_rule_info(.L2001_NoDebugger)
-			lint_report(l, u32(v.loc.start), u32(v.loc.end), .L2001_NoDebugger, info.default_message)
+			lint_report(l, v.loc.start, v.loc.end, .L2001_NoDebugger, info.default_message)
+			if .Fix in l.fix_kinds { lint_fix_debugger(l, v.loc, required_body) }
 		}
 	case ^TSModuleDeclaration:
-		if v != nil { lint_check_ts_namespace(l, v) }
+		if v != nil {
+			lint_check_ts_namespace(l, v)
+			lint_walk_namespace_body(l, ctx, v)
+		}
 	case ^ContinueStatement:
 		if v != nil { lint_check_no_continue(l, v) }
 	case ^TSInterfaceDeclaration:
 		if v != nil { lint_check_no_empty_interface(l, v) }
 	case ^TSEnumDeclaration:
-		if v != nil { lint_check_no_duplicate_enum_values(l, v) }
+		if v != nil {
+			lint_check_no_duplicate_enum_values(l, v)
+			for member in v.body.members {
+				if initializer, ok := member.initializer.?; ok { lint_walk_expr(l, ctx, initializer) }
+			}
+		}
+	case ^TSExportAssignment:
+		if v != nil { lint_walk_expr(l, ctx, v.expression) }
 	case ^TSTypeAliasDeclaration:
 		if v != nil { lint_check_no_type_alias(l, v) }
-	case ^EmptyStatement, ^BreakStatement,
-	     ^ImportDeclaration, ^ExportAllDeclaration,
-	     ^TSImportEqualsDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
-		// Leaf for traversal purposes: no JS statement/expression children the
-		// current rule set inspects. TS type internals and namespace bodies are
-		// not walked in M1 — M3 deepens this if a scope-aware rule needs it.
+	case ^BreakStatement:
+		lint_hook_break(ctx.hooks, v)
+	case ^EmptyStatement, ^ImportDeclaration, ^ExportAllDeclaration,
+	     ^TSImportEqualsDeclaration, ^TSNamespaceExportDeclaration:
+	}
+}
+
+lint_walk_namespace_body :: proc(l: ^Linter, ctx: ^LintContext, decl: ^TSModuleDeclaration) {
+	// A dotted namespace nests declarations around a single statement list.
+	for current := decl; current != nil; {
+		body, ok := current.body.?
+		if !ok || body == nil || body^ == nil { return }
+		switch value in body^ {
+		case ^TSModuleBlock:
+			if value != nil { for stmt in value.body { lint_walk_stmt(l, ctx, stmt) } }
+			return
+		case ^TSModuleDeclaration: current = value
+		}
 	}
 }
 
@@ -1377,9 +1479,9 @@ lint_walk_for :: proc(l: ^Linter, ctx: ^LintContext, v: ^ForStatement) {
 	if v == nil { return }
 	if e, ok := v.init_expr.(^Expression); ok && e != nil { lint_walk_expr(l, ctx, e) }
 	if d, ok := v.init_decl.(^VariableDeclaration); ok && d != nil { lint_walk_var_decl(l, ctx, d) }
-	if t, ok := v.test.(^Expression); ok && t != nil { lint_walk_expr(l, ctx, t) }
-	if u, ok := v.update.(^Expression); ok && u != nil { lint_walk_expr(l, ctx, u) }
-	lint_walk_stmt(l, ctx, v.body)
+	if t, ok := v.test.(^Expression); ok && t != nil { lint_walk_hook_expr(l, ctx, t, .Repeated) }
+	if u, ok := v.update.(^Expression); ok && u != nil { lint_walk_hook_expr(l, ctx, u, .Repeated) }
+	lint_walk_hook_stmt(l, ctx, v.body, .Repeated)
 }
 
 lint_walk_switch :: proc(l: ^Linter, ctx: ^LintContext, v: ^SwitchStatement) {
@@ -1389,9 +1491,10 @@ lint_walk_switch :: proc(l: ^Linter, ctx: ^LintContext, v: ^SwitchStatement) {
 	lint_check_no_fallthrough(l, v)
 	lint_check_default_case_last(l, v)
 	for sc in v.cases {
+		if len(l.suppression_marks) > 0 { lint_suppression_boundaries(l, sc.loc) }
 		if t, ok := sc.test.(^Expression); ok && t != nil { lint_walk_expr(l, ctx, t) }
 		lint_check_case_declarations(l, sc.consequent[:])
-		for s in sc.consequent { lint_walk_stmt(l, ctx, s) }
+		lint_walk_stmt_list(l, ctx, sc.consequent[:], .Conditional)
 	}
 }
 
@@ -1450,14 +1553,14 @@ lint_check_duplicate_case :: proc(l: ^Linter, v: ^SwitchStatement) {
 lint_walk_try :: proc(l: ^Linter, ctx: ^LintContext, v: ^TryStatement) {
 	if v == nil { return }
 	lint_check_no_unsafe_finally(l, v)
-	for s in v.block.body { lint_walk_stmt(l, ctx, s) }
+	lint_walk_stmt_list(l, ctx, v.block.body[:], .Conditional if v.handler != nil else .Always)
 	if h, ok := v.handler.(CatchClause); ok {
 		lint_check_useless_catch(l, h)
-		lint_check_no_ex_assign(l, h)
-		for s in h.body.body { lint_walk_stmt(l, ctx, s) }
+		if param, ok := h.param.(Pattern); ok { lint_walk_pattern(l, ctx, param) }
+		lint_walk_stmt_list(l, ctx, h.body.body[:], .Conditional)
 	}
 	if f, ok := v.finalizer.(BlockStatement); ok {
-		for s in f.body { lint_walk_stmt(l, ctx, s) }
+		lint_walk_stmt_list(l, ctx, f.body[:])
 	}
 }
 
@@ -1490,19 +1593,21 @@ lint_walk_var_decl :: proc(l: ^Linter, ctx: ^LintContext, d: ^VariableDeclaratio
 		info := lint_rule_info(.L1004_NoVar)
 		lint_report(l, u32(d.loc.start), u32(d.loc.end), .L1004_NoVar, info.default_message)
 	}
-	for decl in d.declarations {
+	for &decl in d.declarations {
+		if ctx.dependencies != nil { lint_dependency_binding(ctx.dependencies, &decl, d.kind) }
 		lint_walk_pattern(l, ctx, decl.id)
-		if init, ok := decl.init.(^Expression); ok && init != nil { lint_walk_expr(l, ctx, init) }
+		if init, ok := decl.init.(^Expression); ok && init != nil {
+			binding := LintHookBinding{owner=.Anonymous}
+			if ctx.hooks != nil { if id, named := decl.id.(^Identifier); named { binding.name = id.name } }
+			lint_walk_expr(l, ctx, init, binding)
+		}
 	}
 }
 
 lint_walk_decl :: proc(l: ^Linter, ctx: ^LintContext, d: ^Declaration) {
 	if d == nil { return }
-	#partial switch inner in d^ {
-	case ^FunctionDeclaration: if inner != nil { lint_walk_function(l, ctx, &inner.expr) }
-	case ^ClassDeclaration:    if inner != nil { lint_walk_class(l, ctx, &inner.expr) }
-	case ^VariableDeclaration: if inner != nil { lint_walk_var_decl(l, ctx, inner) }
-	}
+	stmt := decl_to_stmt(d^)
+	lint_walk_stmt(l, ctx, &stmt)
 }
 
 lint_walk_export_default :: proc(l: ^Linter, ctx: ^LintContext, v: ^ExportDefaultDeclaration) {
@@ -1515,11 +1620,21 @@ lint_walk_export_default :: proc(l: ^Linter, ctx: ^LintContext, v: ^ExportDefaul
 
 lint_walk_pattern :: proc(l: ^Linter, ctx: ^LintContext, pat: Pattern) {
 	if pat == nil { return }
+	if len(l.suppression_marks) > 0 { lint_suppression_boundaries(l, get_pattern_loc(pat)) }
 	switch pp in pat {
-	case ^Identifier, ^MemberExpression:
-		// Leaf binding target (or destructuring member target).
+	case ^Identifier:
+	case ^MemberExpression:
+		if pp != nil {
+			target := Expression(pp)
+			lint_walk_expr(l, ctx, &target)
+		}
 	case ^AssignmentPattern:
-		if pp != nil { lint_walk_pattern(l, ctx, pp.left); lint_walk_expr(l, ctx, pp.right) }
+		if pp != nil {
+			lint_walk_pattern(l, ctx, pp.left)
+			binding := LintHookBinding{owner=.Anonymous}
+			if ctx.hooks != nil { if id, named := pp.left.(^Identifier); named { binding.name = id.name } }
+			lint_walk_expr(l, ctx, pp.right, binding)
+		}
 	case ^ObjectPattern:
 		if pp != nil {
 			// no-empty-pattern (L2015): `{}` binds nothing. A leaf report; the
@@ -1583,8 +1698,20 @@ lint_check_dupe_args :: proc(l: ^Linter, params: []FunctionParameter, start, end
 	}
 }
 
-lint_walk_function :: proc(l: ^Linter, ctx: ^LintContext, fn: ^FunctionExpression) {
+lint_walk_function :: proc(l: ^Linter, ctx: ^LintContext, fn: ^FunctionExpression, binding := LintHookBinding{owner=.Anonymous}) {
 	if fn == nil { return }
+	if ctx.dependencies != nil {
+		if id, named := fn.id.?; named { ctx.dependencies.bindings[id.loc.start] = {body=fn.loc, async=fn.async, unique=true} }
+	}
+	previous := ctx.hooks
+	frame: LintHookFrame
+	if previous != nil {
+		name := ""
+		if id, named := fn.id.?; named { name = id.name }
+		frame = lint_hook_frame(previous, binding, name, fn.async)
+		ctx.hooks = &frame
+	}
+	defer ctx.hooks = previous
 	lint_check_dupe_args(l, fn.params[:], u32(fn.loc.start), u32(fn.loc.end))
 	lint_check_require_yield(l, fn)
 	lint_check_no_empty_function(l, fn)
@@ -1594,22 +1721,36 @@ lint_walk_function :: proc(l: ^Linter, ctx: ^LintContext, fn: ^FunctionExpressio
 	}
 	if !fn.no_body {
 		lint_check_redeclare(l, ctx, fn.body.body[:])
-		lint_check_no_unreachable(l, fn.body.body[:])
 		lint_check_no_useless_return(l, fn.body.body[:])
-		for s in fn.body.body { lint_walk_stmt(l, ctx, s) }
+		lint_walk_stmt_list(l, ctx, fn.body.body[:])
 	}
 }
 
-lint_walk_arrow :: proc(l: ^Linter, ctx: ^LintContext, fn: ^ArrowFunctionExpression) {
+lint_walk_arrow :: proc(l: ^Linter, ctx: ^LintContext, fn: ^ArrowFunctionExpression, binding := LintHookBinding{owner=.Anonymous}) {
 	if fn == nil { return }
+	previous := ctx.hooks
+	frame: LintHookFrame
+	if previous != nil {
+		frame = lint_hook_frame(previous, binding, "", fn.async)
+		if fn.async { frame.async_arrow = fn.loc }
+		ctx.hooks = &frame
+	}
+	defer ctx.hooks = previous
 	lint_check_dupe_args(l, fn.params[:], u32(fn.loc.start), u32(fn.loc.end))
 	for pr in fn.params {
 		lint_walk_pattern(l, ctx, pr.pattern)
 		if d, ok := pr.default_val.(^Expression); ok && d != nil { lint_walk_expr(l, ctx, d) }
 	}
 	switch b in fn.body {
-	case ^Expression:     if b != nil { lint_walk_expr(l, ctx, b) }
-	case ^BlockStatement: if b != nil { for s in b.body { lint_walk_stmt(l, ctx, s) } }
+	case ^Expression:
+		if b != nil {
+			if ctx.dependencies != nil { lint_dependency_return(ctx.dependencies, b) }
+			lint_walk_expr(l, ctx, b)
+			if .Suggestion in l.fix_kinds {
+				lint_fix_console_call(l, b, {get_expression_loc(b).start, fn.loc.end}, .Arrow_Body)
+			}
+		}
+	case ^BlockStatement: if b != nil { lint_walk_stmt_list(l, ctx, b.body[:]) }
 	}
 }
 
@@ -1669,18 +1810,25 @@ lint_static_key :: proc(name: string) -> string {
 
 lint_walk_class :: proc(l: ^Linter, ctx: ^LintContext, cls: ^ClassExpression) {
 	if cls == nil { return }
+	if ctx.dependencies != nil {
+		if id, named := cls.id.?; named { ctx.dependencies.bindings[id.loc.start] = {unique=true} }
+	}
 	lint_check_dupe_class_members(l, cls)
 	lint_check_constructor_super(l, cls)
 	lint_check_no_this_before_super(l, cls)
 	lint_check_accessor_pairs(l, cls)
 	lint_check_grouped_accessor_pairs(l, cls)
+	for decorator in cls.decorators { lint_walk_expr(l, ctx, decorator.expression) }
 	if sc, ok := cls.super_class.(^Expression); ok && sc != nil { lint_walk_expr(l, ctx, sc) }
 	for elem in cls.body.body {
+		for decorator in elem.decorators { lint_walk_expr(l, ctx, decorator.expression) }
 		lint_check_no_setter_return(l, elem)
-		lint_check_getter_return(l, elem)
+		if elem.kind == .Get {
+			if val, ok := elem.value.(^Expression); ok { lint_getter_function(l, val) }
+		}
 		lint_check_no_useless_computed_key_class(l, elem)
 		if elem.computed && elem.key != nil { lint_walk_expr(l, ctx, elem.key) }
-		if val, ok := elem.value.(^Expression); ok && val != nil { lint_walk_expr(l, ctx, val) }
+		if val, ok := elem.value.(^Expression); ok && val != nil { lint_walk_expr(l, ctx, val, {owner=.Class}) }
 	}
 }
 
@@ -1773,21 +1921,6 @@ lint_check_redeclare :: proc(l: ^Linter, ctx: ^LintContext, body: []^Statement) 
 			}
 		}
 	}
-}
-
-// lint_check_eqeqeq (eqeqeq, L1003): flags loose equality (`==` / `!=`) and
-// recommends the strict form. Config-gated (default-off); enable via
-// `--rule eqeqeq:error`.
-lint_check_eqeqeq :: proc(l: ^Linter, e: ^BinaryExpression) {
-	if e == nil || !lint_rule_enabled(l, .L1003_Eqeqeq) { return }
-	msg: string
-	have := false
-	#partial switch e.operator {
-	case .Eq:    msg = "expected '===' and instead saw '=='"; have = true
-	case .NotEq: msg = "expected '!==' and instead saw '!='"; have = true
-	}
-	if !have { return }
-	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L1003_Eqeqeq, msg)
 }
 
 // lint_is_constant_test reports whether an expression in a condition position
@@ -2055,49 +2188,6 @@ lint_check_no_with :: proc(l: ^Linter, v: ^WithStatement) {
 	lint_report(l, u32(v.loc.start), u32(v.loc.end), .L2028_NoWith, info.default_message)
 }
 
-// lint_check_no_ex_assign (no-ex-assign, L2029): flags assignment to the catch
-// parameter inside a catch block. Walks the catch body looking for assignments
-// to the catch binding name.
-lint_check_no_ex_assign :: proc(l: ^Linter, h: CatchClause) {
-	if !lint_rule_enabled(l, .L2029_NoExAssign) { return }
-	pat, has_param := h.param.(Pattern)
-	if !has_param { return }
-	param_id, param_ok := pat.(^Identifier)
-	if !param_ok || param_id == nil { return }
-	name := param_id.name
-	for s in h.body.body {
-		lint_scan_ex_assign(l, s, name)
-	}
-}
-
-lint_scan_ex_assign :: proc(l: ^Linter, stmt: ^Statement, name: string) {
-	if stmt == nil { return }
-	#partial switch v in stmt^ {
-	case ^ExpressionStatement:
-		if v != nil { lint_scan_ex_assign_expr(l, v.expression, name) }
-	case ^BlockStatement:
-		if v != nil { for s in v.body { lint_scan_ex_assign(l, s, name) } }
-	case ^IfStatement:
-		if v != nil {
-			lint_scan_ex_assign(l, v.consequent, name)
-			if alt, ok := v.alternate.(^Statement); ok { lint_scan_ex_assign(l, alt, name) }
-		}
-	}
-}
-
-lint_scan_ex_assign_expr :: proc(l: ^Linter, expr: ^Expression, name: string) {
-	if expr == nil { return }
-	#partial switch e in expr^ {
-	case ^AssignmentExpression:
-		if e != nil {
-			if lhs, ok := e.left.(^Identifier); ok && lhs != nil && lhs.name == name {
-				info := lint_rule_info(.L2029_NoExAssign)
-				lint_report(l, u32(e.loc.start), u32(e.loc.end), .L2029_NoExAssign, info.default_message)
-			}
-		}
-	}
-}
-
 // lint_check_no_setter_return (no-setter-return, L2030): a setter should not
 // return a value. Scans the body of setter methods for ReturnStatements with
 // an argument. Only checks direct body statements (not nested functions).
@@ -2351,18 +2441,32 @@ lint_check_no_loss_of_precision :: proc(l: ^Linter, e: ^NumericLiteral) {
 	}
 }
 
-// lint_check_no_control_regex (no-control-regex, L2039): flags regex patterns
-// containing ASCII control characters (0x01-0x1f) via \x00-\x1f hex escapes.
-// Scans the pattern string for raw control chars.
+// Hexadecimal and Unicode escapes for C0 controls carry the same value as
+// a literal control byte. Named and control-letter escapes are explicit.
 lint_check_no_control_regex :: proc(l: ^Linter, e: ^RegExpLiteral) {
 	if e == nil || !lint_rule_enabled(l, .L2039_NoControlRegex) { return }
-	for ch in e.pattern {
-		if ch >= 0x01 && ch <= 0x1f {
-			info := lint_rule_info(.L2039_NoControlRegex)
-			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L2039_NoControlRegex, info.default_message)
-			return
-		}
+	if lint_regex_contains_control(e, l.allocator) {
+		info := lint_rule_info(.L2039_NoControlRegex)
+		lint_report(l, e.loc.start, e.loc.end, .L2039_NoControlRegex, info.default_message)
 	}
+}
+
+@(private="file")
+lint_regex_contains_control :: proc(e: ^RegExpLiteral, allocator: mem.Allocator) -> bool {
+	for byte in transmute([]u8)e.pattern {
+		if byte < 0x20 { return true }
+	}
+	if !strings.contains(e.pattern, "\\x") && !strings.contains(e.pattern, "\\u") { return false }
+	tree, err := regex_parse_ast(e.pattern, e.flags, allocator)
+	if err.kind != .None { return false }
+	defer regex_ast_destroy(&tree)
+	for node in tree.nodes[1:] {
+		if node.kind != .Escape || node.span.end - node.span.start < 2 { continue }
+		prefix := e.pattern[node.span.start + 1]
+		if prefix != 'x' && prefix != 'u' { continue }
+		if value, ok := node.code_point.?; ok && value < 0x20 { return true }
+	}
+	return false
 }
 
 // lint_check_no_empty_character_class (no-empty-character-class, L2040): flags
@@ -2410,164 +2514,33 @@ lint_check_no_regex_spaces :: proc(l: ^Linter, e: ^RegExpLiteral) {
 	}
 }
 
-// lint_check_no_unreachable (no-unreachable, L2044): basic version without
-// CFG. Flags statements that follow a return, throw, break, or continue in
-// the same block — those statements can never execute.
+// Uninitialized var and function declarations are hoisted even when an earlier
+// statement exits. Empty statements have no observable work to report.
 lint_check_no_unreachable :: proc(l: ^Linter, body: []^Statement) {
-	if !lint_rule_enabled(l, .L2044_NoUnreachable) { return }
-	hit_terminator := false
-	for s in body {
-		if s == nil { continue }
-		if hit_terminator {
-			// Skip function/class declarations — they're hoisted.
-			#partial switch _ in s^ {
-			case ^FunctionDeclaration, ^ClassDeclaration: continue
-			}
-			loc := lint_stmt_loc(s)
-			info := lint_rule_info(.L2044_NoUnreachable)
-			lint_report(l, u32(loc.start), u32(loc.end), .L2044_NoUnreachable, info.default_message)
-			return // one report per block
-		}
-		if lint_stmt_is_terminator(s) { hit_terminator = true }
-	}
-}
-
-lint_stmt_is_terminator :: proc(s: ^Statement) -> bool {
-	if s == nil { return false }
-	#partial switch _ in s^ {
-	case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement:
-		return true
-	}
-	return false
-}
-
-lint_stmt_loc :: proc(s: ^Statement) -> Loc {
-	if s == nil { return {} }
-	#partial switch v in s^ {
-	case ^ExpressionStatement:  if v != nil { return v.loc }
-	case ^VariableDeclaration:  if v != nil { return v.loc }
-	case ^ReturnStatement:      if v != nil { return v.loc }
-	case ^ThrowStatement:       if v != nil { return v.loc }
-	case ^IfStatement:          if v != nil { return v.loc }
-	case ^BlockStatement:       if v != nil { return v.loc }
-	case ^ForStatement:         if v != nil { return v.loc }
-	case ^WhileStatement:       if v != nil { return v.loc }
-	case ^FunctionDeclaration:  if v != nil { return v.loc }
-	case ^ClassDeclaration:     if v != nil { return v.loc }
-	case ^BreakStatement:       if v != nil { return v.loc }
-	case ^ContinueStatement:    if v != nil { return v.loc }
-	case ^EmptyStatement:       if v != nil { return v.loc }
-	case ^DebuggerStatement:    if v != nil { return v.loc }
-	case ^LabeledStatement:     if v != nil { return v.loc }
-	case ^SwitchStatement:      if v != nil { return v.loc }
-	case ^TryStatement:         if v != nil { return v.loc }
-	case ^DoWhileStatement:     if v != nil { return v.loc }
-	}
-	return {}
-}
-
-// lint_check_no_fallthrough (no-fallthrough, L2045): basic version. Flags a
-// case clause that has statements but does not end with break, return, throw,
-// or continue — it falls through to the next case.
-lint_check_no_fallthrough :: proc(l: ^Linter, v: ^SwitchStatement) {
-	if v == nil || !lint_rule_enabled(l, .L2045_NoFallthrough) { return }
-	for idx in 0..<len(v.cases) - 1 {
-		sc := v.cases[idx]
-		if len(sc.consequent) == 0 { continue } // empty case = intentional group
-		last := sc.consequent[len(sc.consequent) - 1]
-		if last == nil { continue }
-		if lint_stmt_is_terminator(last) { continue }
-		// Check if last is a block ending with a terminator.
-		if blk, ok := last^.(^BlockStatement); ok && blk != nil && len(blk.body) > 0 {
-			if lint_stmt_is_terminator(blk.body[len(blk.body) - 1]) { continue }
-		}
-		next_sc := v.cases[idx + 1]
-		info := lint_rule_info(.L2045_NoFallthrough)
-		lint_report(l, u32(next_sc.loc.start), u32(next_sc.loc.end), .L2045_NoFallthrough, info.default_message)
-	}
-}
-
-// lint_check_getter_return (getter-return, L2046): every getter property or
-// method must contain at least one return statement (basic scan, not CFG).
-lint_check_getter_return :: proc(l: ^Linter, elem: ClassElement) {
-	if !lint_rule_enabled(l, .L2046_GetterReturn) { return }
-	if elem.kind != .Get { return }
-	val, has_val := elem.value.(^Expression)
-	if !has_val || val == nil { return }
-	fn, is_fn := val^.(^FunctionExpression)
-	if !is_fn || fn == nil || fn.no_body { return }
-	if lint_body_has_return(fn.body.body[:]) { return }
-	info := lint_rule_info(.L2046_GetterReturn)
-	lint_report(l, u32(elem.loc.start), u32(elem.loc.end), .L2046_GetterReturn, info.default_message)
-}
-
-// lint_body_has_return scans a statement list for any return statement
-// (shallow — does not descend into nested functions).
-lint_body_has_return :: proc(body: []^Statement) -> bool {
-	for s in body {
-		if s == nil { continue }
-		#partial switch v in s^ {
-		case ^ReturnStatement:  return true
-		case ^IfStatement:
-			if v != nil {
-				if lint_stmt_has_return(v.consequent) { return true }
-				if alt, aok := v.alternate.(^Statement); aok {
-					if lint_stmt_has_return(alt) { return true }
-				}
-			}
-		case ^BlockStatement:
-			if v != nil && lint_body_has_return(v.body[:]) { return true }
-		case ^SwitchStatement:
-			if v != nil {
-				for sc in v.cases {
-					if lint_body_has_return(sc.consequent[:]) { return true }
-				}
-			}
-		case ^TryStatement:
-			if v != nil {
-				if lint_body_has_return(v.block.body[:]) { return true }
+	if len(body) < 2 || !lint_rule_enabled(l, .L2044_NoUnreachable) { return }
+	terminator, found := cfg_first_terminator(body[:len(body)-1], l.allocator)
+	if !found { return }
+	assert(terminator < len(body))
+	for s in body[terminator + 1:] {
+		if statement_inner_nil(s) { continue }
+		#partial switch node in s^ {
+		case ^FunctionDeclaration, ^ClassDeclaration, ^EmptyStatement: continue
+		case ^VariableDeclaration:
+			if node.kind == .Var {
+				initialized := false
+				for binding in node.declarations { if binding.init != nil { initialized = true; break } }
+				if !initialized { continue }
 			}
 		}
-	}
-	return false
-}
-
-lint_stmt_has_return :: proc(s: ^Statement) -> bool {
-	if s == nil { return false }
-	#partial switch v in s^ {
-	case ^ReturnStatement: return true
-	case ^BlockStatement:  if v != nil { return lint_body_has_return(v.body[:]) }
-	}
-	return false
-}
-
-// lint_check_getter_return_obj is the object-literal variant.
-lint_check_getter_return_obj :: proc(l: ^Linter, prop: Property) {
-	if !lint_rule_enabled(l, .L2046_GetterReturn) { return }
-	if prop.kind != .Get { return }
-	if prop.value == nil { return }
-	fn, is_fn := prop.value^.(^FunctionExpression)
-	if !is_fn || fn == nil || fn.no_body { return }
-	if lint_body_has_return(fn.body.body[:]) { return }
-	info := lint_rule_info(.L2046_GetterReturn)
-	lint_report(l, u32(prop.loc.start), u32(prop.loc.end), .L2046_GetterReturn, info.default_message)
-}
-
-// lint_check_no_global_assign (no-global-assign, L2047): forbids assignment to
-// well-known read-only globals (undefined, NaN, Infinity, eval, arguments, etc.).
-lint_check_no_global_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
-	if e == nil || !lint_rule_enabled(l, .L2047_NoGlobalAssign) { return }
-	id, ok := e.left.(^Identifier)
-	if !ok || id == nil { return }
-	if lint_is_readonly_global(id.name) {
-		info := lint_rule_info(.L2047_NoGlobalAssign)
-		lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2047_NoGlobalAssign, info.default_message)
+		loc := get_statement_loc(s)
+		info := lint_rule_info(.L2044_NoUnreachable)
+		lint_report(l, u32(loc.start), u32(loc.end), .L2044_NoUnreachable, info.default_message)
 	}
 }
 
 lint_is_readonly_global :: proc(name: string) -> bool {
 	switch name {
-	case "undefined", "NaN", "Infinity", "eval", "arguments",
+	case "undefined", "NaN", "Infinity", "eval",
 	     "Object", "Array", "Function", "Number", "String",
 	     "Boolean", "Symbol", "BigInt", "Math", "JSON",
 	     "Reflect", "Proxy", "Promise", "Map", "Set",
@@ -2584,58 +2557,6 @@ lint_is_readonly_global :: proc(name: string) -> bool {
 		return true
 	}
 	return false
-}
-
-// lint_check_no_import_assign (no-import-assign, L2048): uses the semantic
-// model to check whether any assignment target resolves to an import binding.
-lint_check_no_import_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
-	if e == nil || !lint_rule_enabled(l, .L2048_NoImportAssign) { return }
-	if l.semantic == nil { return }
-	id, ok := e.left.(^Identifier)
-	if !ok || id == nil { return }
-	// Search the semantic model for an import symbol with this name.
-	for i in 1..<len(l.semantic.symbols) {
-		sym := &l.semantic.symbols[i]
-		if sym.name == id.name && sym.kind == .Import {
-			info := lint_rule_info(.L2048_NoImportAssign)
-			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2048_NoImportAssign, info.default_message)
-			return
-		}
-	}
-}
-
-// lint_check_no_class_assign (no-class-assign, L2049): flags assignment to a
-// name that was declared as a class in the same file.
-lint_check_no_class_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
-	if e == nil || !lint_rule_enabled(l, .L2049_NoClassAssign) { return }
-	if l.semantic == nil { return }
-	id, ok := e.left.(^Identifier)
-	if !ok || id == nil { return }
-	for i in 1..<len(l.semantic.symbols) {
-		sym := &l.semantic.symbols[i]
-		if sym.name == id.name && sym.kind == .Class {
-			info := lint_rule_info(.L2049_NoClassAssign)
-			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2049_NoClassAssign, info.default_message)
-			return
-		}
-	}
-}
-
-// lint_check_no_func_assign (no-func-assign, L2050): flags assignment to a
-// name that was declared as a function declaration in the same file.
-lint_check_no_func_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {
-	if e == nil || !lint_rule_enabled(l, .L2050_NoFuncAssign) { return }
-	if l.semantic == nil { return }
-	id, ok := e.left.(^Identifier)
-	if !ok || id == nil { return }
-	for i in 1..<len(l.semantic.symbols) {
-		sym := &l.semantic.symbols[i]
-		if sym.name == id.name && sym.kind == .Function {
-			info := lint_rule_info(.L2050_NoFuncAssign)
-			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L2050_NoFuncAssign, info.default_message)
-			return
-		}
-	}
 }
 
 // lint_check_no_promise_exec_return (no-promise-executor-return, L2051):
@@ -2820,6 +2741,19 @@ lint_check_no_return_await :: proc(l: ^Linter, v: ^ReturnStatement) {
 	lint_report(l, u32(await.loc.start), u32(await.loc.end), .L4104_NoReturnAwait, info.default_message)
 }
 
+// lint_check_prefer_regex_literals (prefer-regex-literals, L4105): flags
+// `new RegExp("...")` / `RegExp("...")` whose first argument is a string
+// literal — a regex literal `/.../ ` is clearer and compiled once.
+lint_check_prefer_regex_literals :: proc(l: ^Linter, callee: ^Expression, args: []^Expression) {
+	if callee == nil || !lint_rule_enabled(l, .L4105_PreferRegexLiterals) { return }
+	id, ok := callee^.(^Identifier)
+	if !ok || id == nil || id.name != "RegExp" { return }
+	if len(args) == 0 { return }
+	if _, is_str := args[0]^.(^StringLiteral); !is_str { return }
+	info := lint_rule_info(.L4105_PreferRegexLiterals)
+	lint_report(l, u32(id.loc.start), u32(id.loc.end), .L4105_PreferRegexLiterals, info.default_message)
+}
+
 // lint_check_no_lonely_if (no-lonely-if, L4042): flags an `else` block whose
 // only statement is an `if` — should be `else if` instead.
 lint_check_no_lonely_if :: proc(l: ^Linter, v: ^IfStatement) {
@@ -3002,23 +2936,44 @@ lint_check_prefer_arrow_callback :: proc(l: ^Linter, e: ^CallExpression) {
 	}
 }
 
-// lint_check_no_else_return (no-else-return, L4053): flags `else` after an
-// `if` block that ends with `return`.
+// An else-if chain can lose its final else only when every preceding branch returns.
 lint_check_no_else_return :: proc(l: ^Linter, v: ^IfStatement) {
 	if v == nil || !lint_rule_enabled(l, .L4053_NoElseReturn) { return }
-	// Must have an else branch.
-	alt, has_alt := v.alternate.(^Statement)
-	if !has_alt || alt == nil { return }
-	// Consequent must end with return.
-	if !lint_block_ends_with_return(v.consequent) { return }
-	info := lint_rule_info(.L4053_NoElseReturn)
-	lint_report(l, u32(alt^.(^BlockStatement).loc.start) if alt != nil else 0,
-		u32(alt^.(^BlockStatement).loc.end) if alt != nil else 0,
-		.L4053_NoElseReturn, info.default_message)
+	for branch := v; branch != nil; {
+		alt, ok := branch.alternate.(^Statement)
+		if !ok || alt == nil || !lint_else_consequent_returns(branch.consequent) { return }
+		if nested, ok := alt^.(^IfStatement); ok { branch = nested; continue }
+		start := get_statement_loc(branch.consequent).end
+		end := get_statement_loc(alt).start
+		if start > end { return }
+		lint_report(l, start, end, .L4053_NoElseReturn, lint_rule_info(.L4053_NoElseReturn).default_message)
+		return
+	}
 }
 
-lint_block_ends_with_return :: proc(s: ^Statement) -> bool {
+lint_else_consequent_returns :: proc(s: ^Statement) -> bool {
 	if s == nil { return false }
+	if block, ok := s^.(^BlockStatement); ok && block != nil {
+		for child in block.body { if lint_else_child_returns(child) { return true } }
+		return false
+	}
+	return lint_else_child_returns(s)
+}
+
+lint_else_child_returns :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	if _, ok := s^.(^ReturnStatement); ok { return true }
+	if branch, ok := s^.(^IfStatement); ok && branch != nil {
+		if alt, ok := branch.alternate.(^Statement); ok {
+			return lint_else_ends_with_return(branch.consequent) && lint_else_ends_with_return(alt)
+		}
+	}
+	return false
+}
+
+lint_else_ends_with_return :: proc(s: ^Statement) -> bool {
+	if s == nil { return false }
+	if _, ok := s^.(^ReturnStatement); ok { return true }
 	blk, ok := s^.(^BlockStatement)
 	if !ok || blk == nil || len(blk.body) == 0 { return false }
 	last := blk.body[len(blk.body) - 1]
@@ -3168,23 +3123,6 @@ lint_check_prefer_spread :: proc(l: ^Linter, e: ^CallExpression) {
 	}
 }
 
-// lint_check_no_param_reassign (no-param-reassign, L4058): flags assignment
-// to a function parameter name. Uses the semantic model.
-lint_check_no_param_reassign :: proc(l: ^Linter, e: ^AssignmentExpression) {
-	if e == nil || !lint_rule_enabled(l, .L4058_NoParamReassign) { return }
-	if l.semantic == nil { return }
-	id, ok := e.left.(^Identifier)
-	if !ok || id == nil { return }
-	for i in 1..<len(l.semantic.symbols) {
-		sym := &l.semantic.symbols[i]
-		if sym.name == id.name && sym.kind == .Param {
-			info := lint_rule_info(.L4058_NoParamReassign)
-			lint_report(l, u32(id.loc.start), u32(id.loc.end), .L4058_NoParamReassign, info.default_message)
-			return
-		}
-	}
-}
-
 // lint_check_no_inferrable_types (no-inferrable-types, L3007): flags
 // `const x: number = 5` where the type annotation matches the initializer.
 lint_check_no_inferrable_types :: proc(l: ^Linter, d: ^VariableDeclaration) {
@@ -3252,15 +3190,18 @@ lint_check_no_buffer_constructor :: proc(l: ^Linter, e: ^CallExpression) {
 lint_check_no_octal_escape :: proc(l: ^Linter, e: ^StringLiteral) {
 	if e == nil || !lint_rule_enabled(l, .L4078_NoOctalEscape) { return }
 	raw := e.raw
-	for i in 0..<len(raw) {
-		if raw[i] == '\\' && i + 1 < len(raw) {
-			next := raw[i + 1]
-			if next >= '0' && next <= '7' {
-				info := lint_rule_info(.L4078_NoOctalEscape)
-				lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4078_NoOctalEscape, info.default_message)
-				return
-			}
+	for index := 0; index + 1 < len(raw); index += 1 {
+		if raw[index] != '\\' { continue }
+		index += 1
+		escaped := raw[index]
+		if escaped == '0' {
+			if index + 1 >= len(raw) || raw[index + 1] < '0' || raw[index + 1] > '9' { continue }
+		} else if escaped < '1' || escaped > '7' {
+			continue
 		}
+		info := lint_rule_info(.L4078_NoOctalEscape)
+		lint_report(l, e.loc.start, e.loc.end, .L4078_NoOctalEscape, info.default_message)
+		return
 	}
 }
 
@@ -3431,16 +3372,18 @@ lint_check_no_new_symbol :: proc(l: ^Linter, e: ^NewExpression) {
 	lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4065_NoNewSymbol, info.default_message)
 }
 
-// lint_check_no_multiline_strings (no-multi-str, L4066): flags string literals
-// whose value contains a newline (backslash continuation).
+// The cooked value omits line continuations, so inspect the raw spelling.
 lint_check_no_multiline_strings :: proc(l: ^Linter, e: ^StringLiteral) {
 	if e == nil || !lint_rule_enabled(l, .L4066_NoMultilineStrings) { return }
-	for ch in e.value {
-		if ch == '\n' {
-			info := lint_rule_info(.L4066_NoMultilineStrings)
-			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L4066_NoMultilineStrings, info.default_message)
-			return
-		}
+	raw := transmute([]byte)e.raw
+	for index := 0; index + 1 < len(raw); index += 1 {
+		if raw[index] != '\\' { continue }
+		index += 1
+		if raw[index] != '\n' && raw[index] != '\r' && !is_ls_ps_at(raw, index) { continue }
+		info := lint_rule_info(.L4066_NoMultilineStrings)
+		start := e.loc.start + u32(index - 1)
+		lint_report(l, start, start + 1, .L4066_NoMultilineStrings, info.default_message)
+		return
 	}
 }
 
@@ -3623,7 +3566,7 @@ lint_scan_unsafe_finally :: proc(l: ^Linter, stmt: ^Statement) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement:
-		sloc := lint_stmt_loc(stmt)
+		sloc := get_statement_loc(stmt)
 		info := lint_rule_info(.L4024_NoUnsafeFinally)
 		lint_report(l, u32(sloc.start), u32(sloc.end), .L4024_NoUnsafeFinally, info.default_message)
 	case ^BlockStatement:
@@ -3750,19 +3693,35 @@ lint_check_no_extra_boolean_cast :: proc(l: ^Linter, test: ^Expression, start, e
 	}
 }
 
-lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
+lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding := LintHookBinding{owner=.Anonymous}) {
 	if expr == nil { return }
+	if len(l.suppression_marks) > 0 {
+		#partial switch _ in expr^ {
+		case ^JSXText, ^JSXEmptyExpression, ^JSXSpreadChild:
+		case: lint_suppression_boundaries(l, get_expression_loc(expr))
+		}
+	}
 	switch e in expr^ {
 	case ^MemberExpression:
 		if e != nil {
+			if ctx.dependencies != nil { lint_dependency_member(ctx.dependencies, e) }
+			lint_queue_console_member(l, e)
 			lint_check_no_proto(l, e); lint_check_no_iterator(l, e); lint_check_no_caller(l, e); lint_check_prefer_dot_notation(l, e)
 			lint_walk_expr(l, ctx, e.object)
 			if e.computed && e.property != nil { lint_walk_expr(l, ctx, e.property) }
 		}
 	case ^CallExpression:
-		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_check_no_buffer_constructor(l, e); lint_check_prefer_exponentiation_operator(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil && lint_rule_enabled(l, .L2046_GetterReturn) { lint_queue_getter_descriptors(l, e) }
+		if ctx.dependencies != nil && e != nil { lint_dependency_call(ctx.dependencies, e) }
+		if ctx.hooks != nil && e != nil { lint_check_react_hook(l, ctx.hooks, e) }
+		if e != nil { lint_queue_regexp_call(l, e.loc, e.callee, e.arguments[:]) }
+		if e != nil { lint_check_obj_calls(l, e); lint_check_prototype_builtins(l, e); lint_check_no_eval(l, e); lint_check_no_implied_eval(l, e); lint_check_symbol_description(l, e); lint_check_no_alert(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_prefer_numeric_literals(l, e); lint_check_no_useless_call(l, e); lint_check_prefer_arrow_callback(l, e); lint_check_prefer_spread(l, e); lint_check_no_require_imports(l, e); lint_check_no_buffer_constructor(l, e); lint_check_prefer_exponentiation_operator(l, e); lint_check_prefer_regex_literals(l, e.callee, e.arguments[:]); lint_walk_expr(l, ctx, e.callee); lint_hook_arguments(l, ctx, e) }
+		if e != nil && .Suggestion in l.fix_kinds && .Dangerous in l.fix_kinds {
+			lint_fix_console_call(l, expr, e.loc, .Value)
+		}
 	case ^NewExpression:
-		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_new_symbol(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
+		if e != nil { lint_queue_regexp_call(l, e.loc, e.callee, e.arguments[:]) }
+		if e != nil { lint_check_async_promise(l, e); lint_check_new_native(l, e); lint_check_no_array_constructor(l, e); lint_check_no_new_wrappers(l, e); lint_check_no_new_func(l, e); lint_check_no_new_object(l, e); lint_check_no_new_symbol(l, e); lint_check_no_unsafe_optional_chaining_call(l, e.callee); lint_check_no_promise_exec_return(l, e); lint_check_prefer_regex_literals(l, e.callee, e.arguments[:]); lint_walk_expr(l, ctx, e.callee); for a in e.arguments { lint_walk_expr(l, ctx, a) } }
 	case ^ConditionalExpression:
 		if e != nil {
 			lint_check_constant_condition(l, e.test, u32(e.loc.start), u32(e.loc.end))
@@ -3771,34 +3730,57 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 			lint_check_no_unneeded_ternary(l, e)
 			lint_check_no_ternary(l, e)
 			lint_walk_expr(l, ctx, e.test)
-			lint_walk_expr(l, ctx, e.consequent)
-			lint_walk_expr(l, ctx, e.alternate)
+			lint_walk_hook_expr(l, ctx, e.consequent, .Conditional)
+			lint_walk_hook_expr(l, ctx, e.alternate, .Conditional)
 		}
 	case ^BinaryExpression:     if e != nil { lint_check_eqeqeq(l, e); lint_check_binary(l, e); lint_check_valid_typeof(l, e); lint_check_no_useless_concat(l, e); lint_check_no_bitwise(l, e); lint_check_yoda(l, e); lint_check_no_instanceof(l, e); lint_check_no_mixed_operators(l, e); lint_check_no_comparison_with_nan(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
-	case ^AssignmentExpression: if e != nil { lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_no_global_assign(l, e); lint_check_no_import_assign(l, e); lint_check_no_class_assign(l, e); lint_check_no_func_assign(l, e); lint_check_no_param_reassign(l, e); lint_check_operator_assignment(l, e); lint_check_no_multi_assign(l, e); lint_walk_expr(l, ctx, e.left); lint_walk_expr(l, ctx, e.right) }
+	case ^LogicalExpression:    if e != nil { lint_walk_expr(l, ctx, e.left); lint_walk_hook_expr(l, ctx, e.right, .Conditional) }
+	case ^AssignmentExpression:
+		if e != nil {
+			lint_check_self_assign(l, e); lint_check_no_extend_native(l, e); lint_check_operator_assignment(l, e); lint_check_no_multi_assign(l, e)
+			if ctx.dependencies != nil { lint_dependency_record_write(ctx.dependencies, e.left) }
+			lint_walk_expr(l, ctx, e.left, {owner=.Anonymous, assignment_pattern=true})
+			owner := LintHookBinding{owner=.Anonymous}
+			if ctx.hooks != nil && !binding.assignment_pattern && e.operator == .Assign && e.left != nil {
+				if id, named := e.left^.(^Identifier); named { owner.name = id.name }
+			}
+			#partial switch e.operator {
+			case .AssignLogicalAnd, .AssignLogicalOr, .AssignNullish:
+				lint_walk_hook_expr(l, ctx, e.right, .Conditional)
+			case:
+				lint_walk_expr(l, ctx, e.right, owner)
+			}
+		}
 	case ^SequenceExpression:   if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ArrayExpression:
 		if e != nil {
 			lint_check_sparse_array(l, e)
 			for el in e.elements {
-				if inner, ok := el.(^Expression); ok && inner != nil { lint_walk_expr(l, ctx, inner) }
+				if inner, ok := el.(^Expression); ok && inner != nil {
+					lint_walk_expr(l, ctx, inner, {owner=.Anonymous, assignment_pattern=binding.assignment_pattern})
+				}
 			}
 		}
 	case ^ObjectExpression:
 		if e != nil {
 			lint_check_dupe_keys(l, e)
 			for prop in e.properties {
-				lint_check_getter_return_obj(l, prop)
+				if prop.kind == .Get { lint_getter_function(l, prop.value) }
 				lint_check_no_useless_computed_key(l, prop)
 				if prop.computed && prop.key != nil { lint_walk_expr(l, ctx, prop.key) }
-				if prop.value != nil { lint_walk_expr(l, ctx, prop.value) }
+				if prop.value != nil {
+					owner := LintHookBinding{owner=.Anonymous, assignment_pattern=binding.assignment_pattern}
+					if ctx.hooks != nil && !binding.assignment_pattern && !prop.computed && prop.key != nil {
+						if id, named := prop.key^.(^Identifier); named { owner.name = id.name }
+					}
+					lint_walk_expr(l, ctx, prop.value, owner)
+				}
 			}
 		}
 	case ^SpreadElement:           if e != nil { lint_walk_expr(l, ctx, e.argument) }
 	case ^UnaryExpression:         if e != nil { lint_check_delete_var(l, e); lint_check_no_void(l, e); lint_walk_expr(l, ctx, e.argument) }
 	case ^UpdateExpression:        if e != nil { lint_check_no_plusplus(l, e); lint_walk_expr(l, ctx, e.argument) }
-	case ^ParenthesizedExpression: if e != nil { lint_walk_expr(l, ctx, e.expression) }
+	case ^ParenthesizedExpression: if e != nil { lint_walk_expr(l, ctx, e.expression, binding) }
 	case ^AwaitExpression:         if e != nil { lint_walk_expr(l, ctx, e.argument) }
 	case ^YieldExpression:
 		if e != nil {
@@ -3808,13 +3790,13 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^TaggedTemplateExpression:  if e != nil { lint_walk_expr(l, ctx, e.tag); lint_walk_expr(l, ctx, e.quasi) }
 	case ^TemplateLiteral:           if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
 	case ^ImportExpression:          if e != nil { lint_walk_expr(l, ctx, e.source); lint_walk_expr(l, ctx, e.options) }
-	case ^FunctionExpression:        if e != nil { lint_walk_function(l, ctx, e) }
-	case ^ArrowFunctionExpression:   lint_walk_arrow(l, ctx, e)
+	case ^FunctionExpression:        if e != nil { lint_walk_function(l, ctx, e, binding) }
+	case ^ArrowFunctionExpression:   lint_walk_arrow(l, ctx, e, binding)
 	case ^ClassExpression:           if e != nil { lint_walk_class(l, ctx, e) }
-	case ^TSAsExpression:            if e != nil { lint_walk_expr(l, ctx, e.expression) }
-	case ^TSSatisfiesExpression:     if e != nil { lint_walk_expr(l, ctx, e.expression) }
+	case ^TSAsExpression:            if e != nil { lint_walk_expr(l, ctx, e.expression, binding) }
+	case ^TSSatisfiesExpression:     if e != nil { lint_walk_expr(l, ctx, e.expression, binding) }
 	case ^TSNonNullExpression:       if e != nil { lint_check_ts_non_null(l, e); lint_walk_expr(l, ctx, e.expression) }
-	case ^TSTypeAssertion:           if e != nil { lint_walk_expr(l, ctx, e.expression) }
+	case ^TSTypeAssertion:           if e != nil { lint_walk_expr(l, ctx, e.expression, binding) }
 	case ^TSInstantiationExpression: if e != nil { lint_walk_expr(l, ctx, e.expression) }
 	case ^JSXElement:
 		if e != nil {
@@ -3828,18 +3810,20 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^NumericLiteral:
 		if e != nil { lint_check_no_loss_of_precision(l, e) }
 	case ^RegExpLiteral:
+		if e != nil && lint_rule_enabled(l, .L4106_NoUselessBackreference) {
+			lint_check_regexp_backreferences(l, e.loc, e.pattern, e.flags, e.loc.start + 1)
+		}
 		if e != nil { lint_check_no_control_regex(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
 	case ^StringLiteral:
 		if e != nil { lint_check_no_script_url(l, e); lint_check_template_curly_in_string(l, e); lint_check_no_multiline_strings(l, e); lint_check_no_octal_escape(l, e) }
+	case ^JSXExpressionContainer:
+		// Attribute values reach this walk directly. JSX children enter through lint_walk_jsx_child.
+		if e != nil { lint_walk_expr(l, ctx, e.expression, {owner=.Callback}) }
 	case ^NullLiteral, ^BooleanLiteral, ^BigIntLiteral,
 	     ^Identifier, ^PrivateIdentifier, ^ThisExpression, ^Super,
-	     ^MetaProperty, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
+	     ^MetaProperty, ^JSXText, ^JSXEmptyExpression,
 	     ^JSXSpreadChild:
-		// Leaf / handled via JSX child walk. Literals, identifiers, this/super,
-		// meta-property and JSXText carry no child Expression. JSXExpressionContainer
-		// / JSXSpreadChild are reached as JSXChild via lint_walk_jsx_child when
-		// they appear inside an element; as bare expressions they carry no
-		// rule-relevant children for M1.
+		// Spread children are visited by lint_walk_jsx_child.
 	}
 }
 
@@ -3855,7 +3839,7 @@ lint_walk_jsx_child :: proc(l: ^Linter, ctx: ^LintContext, child: JSXChild) {
 	case ^JSXFragment:
 		if v != nil { for ch in v.children { lint_walk_jsx_child(l, ctx, ch) } }
 	case ^JSXExpressionContainer:
-		if v != nil && v.expression != nil { lint_walk_expr(l, ctx, v.expression) }
+		if v != nil && v.expression != nil { lint_walk_expr(l, ctx, v.expression, {owner=.Callback}) }
 	case ^JSXSpreadChild:
 		if v != nil { lint_walk_expr(l, ctx, v.expression) }
 	}
@@ -3864,6 +3848,7 @@ lint_walk_jsx_child :: proc(l: ^Linter, ctx: ^LintContext, child: JSXChild) {
 lint_walk_jsx_attr :: proc(l: ^Linter, ctx: ^LintContext, attr: JSXAttributeItem) {
 	#partial switch a in attr {
 	case JSXAttribute:
+		if len(l.suppression_marks) > 0 { lint_suppression_boundaries(l, a.loc) }
 		if val, ok := a.value.(^Expression); ok && val != nil { lint_walk_expr(l, ctx, val) }
 	case ^JSXSpreadAttribute:
 		if a != nil && a.argument != nil { lint_walk_expr(l, ctx, a.argument) }
@@ -3876,12 +3861,26 @@ LintOverride :: struct {
 	enabled:      bool,
 	severity:     Severity,
 	set_severity: bool,
+	equality:     Maybe(LintEqualityOptions),
+	prefer_const: Maybe(LintPreferConstOptions),
+	fallthrough_options: Maybe(LintFallthroughOptions),
+	getter_allow_implicit: Maybe(bool),
+	custom_hooks: Maybe(^LintCustomHooks),
+	console_allow: Maybe(map[string]bool),
+}
+
+LintSettings :: struct {
+	overrides: []LintOverride,
+	globals: LintGlobalSettings,
+	dialect: LintConfigDialect,
 }
 
 // LintConfigOverride is a per-glob rule block from a config `overrides` array:
 // its `rules` apply only to files whose path matches one of `globs`.
 LintConfigOverride :: struct {
 	globs: []string,
+	globals: LintGlobalConfig,
+	react: bool,
 	rules: []LintOverride,
 }
 
@@ -3891,6 +3890,15 @@ lint_rule_by_name :: proc(name: string) -> (LintRule, bool) {
 	// Resolve by scanning the static info table so every rule — including the
 	// L40xx set — is reachable by name without a hand-maintained parallel switch
 	// (which historically drifted and left ~90 rules unaddressable via --rule).
+	// These names were assigned twice. Select the codes used by the
+	// front-end visitors so name-based configuration reaches them.
+	switch name {
+	case "react/rules-of-hooks", "react-hooks/rules-of-hooks": return .L4107_RulesOfHooks, true
+	case "react/exhaustive-deps", "react-hooks/exhaustive-deps": return .L4108_ExhaustiveDeps, true
+	case "no-void": return .L4045_NoVoid, true
+	case "no-multi-str": return .L4066_NoMultilineStrings, true
+	case "no-octal-escape": return .L4078_NoOctalEscape, true
+	}
 	if name == "" { return .None, false }
 	for rule in LintRule {
 		if rule == .None { continue }
@@ -3939,7 +3947,13 @@ lint_severity_alias :: proc(name: string, level: string) -> (LintOverride, bool)
 // unrecognised names/levels are skipped so callers stay forward-compatible
 // with rule names this build does not know. The loop is bounded by the text
 // length (TigerStyle: put a limit on everything).
-lint_parse_rules_text :: proc(text: string, out: ^[dynamic]LintOverride) {
+lint_parse_rules_text :: proc(text: string, out: ^[dynamic]LintOverride) -> bool {
+	if strings.has_prefix(text, "{") {
+		value, err := json.parse(text, parse_integers=true, allocator=context.temp_allocator)
+		rules, valid := value.(json.Object)
+		if !valid || err != .None { return false }
+		return lint_parse_rules_object(rules, out, context.temp_allocator)
+	}
 	start := 0
 	for i := 0; i <= len(text); i += 1 {
 		if i < len(text) && text[i] != '\n' { continue }
@@ -3948,129 +3962,77 @@ lint_parse_rules_text :: proc(text: string, out: ^[dynamic]LintOverride) {
 		if len(token) == 0 { continue }
 		if ov, ok := lint_parse_rule_flag(token); ok { append(out, ov) }
 	}
+	return true
 }
 
-// lint_discover_config searches for a `kessel.lint.json` file starting at
-// `start_dir` and walking up toward the filesystem root, returning the path of
-// the first match (true) or "" (false) when none is found. This mirrors
-// ESLint's upward config search so a bare `kessel lint <files>` picks up a
-// project config without an explicit `--config`. The walk is capped at 64
-// levels so a pathological path can never loop unbounded (TigerStyle).
-lint_discover_config :: proc(start_dir: string) -> (string, bool) {
-	dir := start_dir
-	for _ in 0..<64 {
-		candidate := fmt.tprintf("%s/kessel.lint.json", dir)
-		if os.exists(candidate) { return candidate, true }
-		parent := os.dir(dir)
-		if parent == dir { break }
-		dir = parent
+// Configuration accepts ESLint's numeric severities and oxlint's severity
+// aliases. Rule-specific option objects need a rule implementation to consume them.
+lint_config_level :: proc(level: json.Value) -> (string, bool) {
+	#partial switch v in level {
+	case json.Integer:
+		levels := [3]string{"off", "warn", "error"}
+		if v >= 0 && v < len(levels) { return levels[v], true }
+	case json.String:
+		switch string(v) {
+		case "allow", "off": return "off", true
+		case "warn": return "warn", true
+		case "deny", "error": return "error", true
+		}
 	}
 	return "", false
 }
 
-// lint_dir_of returns the directory portion of a path (everything up to and
-// including the last `/`), or "" when the path has no separator.
-lint_dir_of :: proc(path: string) -> string {
-	for i := len(path) - 1; i >= 0; i -= 1 {
-		if path[i] == '/' { return path[:i + 1] }
-	}
-	return ""
-}
-
-// lint_join_path joins a base directory with a (possibly relative) path.
-// Absolute `rel` values are returned as-is; otherwise `dir + rel` is temp-
-// allocated. A leading `./` on `rel` is stripped.
-lint_join_path :: proc(dir: string, rel: string) -> string {
-	if len(rel) > 0 && rel[0] == '/' { return rel }
-	r := rel
-	if len(r) >= 2 && r[0] == '.' && r[1] == '/' { r = r[2:] }
-	if len(dir) == 0 { return r }
-	return fmt.tprintf("%s%s", dir, r)
-}
-
-// lint_load_config reads a `kessel.lint.json` config file and appends the
-// resolved per-rule overrides into `out`. Shape:
-//   { "rules": { "no-debugger": "off", "eqeqeq": "error" } }
-// Unknown rule names and non-string levels are skipped silently (forward-
-// compatible). Returns false only when the file cannot be read or is not a
-// valid JSON object. CLI `--rule` flags are applied AFTER these so the CLI
-// wins.
-lint_load_config :: proc(path: string, out: ^[dynamic]LintOverride, ignore_out: ^[dynamic]string = nil, overrides_out: ^[dynamic]LintConfigOverride = nil, depth: int = 0) -> bool {
-	data, read_err := os.read_entire_file_from_path(path, context.temp_allocator)
-	if read_err != nil { return false }
-	v, err := json.parse(data, allocator = context.temp_allocator)
-	if err != .None { return false }
-	obj, is_obj := v.(json.Object)
-	if !is_obj { return false }
-	// extends: load one or more parent configs first (relative to this file's
-	// directory) so this config's own settings override them. Depth-guarded
-	// against cycles / runaway inheritance.
-	if depth < 16 {
-		if ext_v, has_ext := obj["extends"]; has_ext {
-			base_dir := lint_dir_of(path)
-			#partial switch ev in ext_v {
-			case json.String:
-				lint_load_config(lint_join_path(base_dir, string(ev)), out, ignore_out, overrides_out, depth + 1)
-			case json.Array:
-				for p_v in ev {
-					if p, is_str := p_v.(json.String); is_str {
-						lint_load_config(lint_join_path(base_dir, string(p)), out, ignore_out, overrides_out, depth + 1)
-					}
-				}
-			}
+lint_parse_rules_object :: proc(rules: json.Object, out: ^[dynamic]LintOverride, allocator := context.allocator) -> bool {
+	for name, setting in rules {
+		rule, found := lint_rule_by_name(name)
+		if !found { continue }
+		level_value := setting
+		options: []json.Value
+		if list, is_array := setting.(json.Array); is_array {
+			if len(list) == 0 { return false }
+			level_value = list[0]
+			options = list[1:]
 		}
-	}
-	// ignorePatterns: array of glob strings; matching files are skipped entirely.
-	if ignore_out != nil {
-		if ig_v, has_ig := obj["ignorePatterns"]; has_ig {
-			if ig_arr, is_arr := ig_v.(json.Array); is_arr {
-				for pat_v in ig_arr {
-					if pat, is_str := pat_v.(json.String); is_str {
-						append(ignore_out, strings.clone(string(pat)))
-					}
-				}
-			}
+		level, valid := lint_config_level(level_value)
+		if !valid { continue }
+		ov, ok := lint_override_from_level(rule, level)
+		if !ok { continue }
+		#partial switch rule {
+		case .L1003_Eqeqeq:
+			settings, valid_options := lint_equality_options(options)
+			if !valid_options { return false }
+			ov.equality = settings
+		case .L2045_NoFallthrough:
+			settings, valid_options := lint_fallthrough_options(options, allocator)
+			if !valid_options { return false }
+			ov.fallthrough_options = settings
+		case .L2046_GetterReturn:
+			allow, valid := lint_getter_options(options)
+			if !valid { return false }
+			ov.getter_allow_implicit = allow
+		case .L4012_PreferConst:
+			settings, valid_options := lint_prefer_const_options(options)
+			if !valid_options { return false }
+			ov.prefer_const = settings
+		case .L4108_ExhaustiveDeps:
+			hooks, valid_options := lint_dependency_options(options, allocator)
+			if !valid_options { return false }
+			ov.custom_hooks = hooks
+		case .L4037_NoConsole:
+			allow, valid_options := lint_console_options(options, allocator)
+			if !valid_options { return false }
+			ov.console_allow = allow
+		case:
+			if len(options) != 0 { continue }
 		}
-	}
-	// overrides: [{ files: [globs], rules: { name: level } }] — the rules in each
-	// block apply only to files matching one of its globs.
-	if overrides_out != nil {
-		if ov_v, has_ov := obj["overrides"]; has_ov {
-			if ov_arr, is_arr := ov_v.(json.Array); is_arr {
-				for blk_v in ov_arr {
-					if co, ok := lint_parse_override_block(blk_v); ok {
-						append(overrides_out, co)
-					}
-				}
-			}
-		}
-	}
-	if rules_v, has_rules := obj["rules"]; has_rules {
-		rules, is_rules := rules_v.(json.Object)
-		if !is_rules { return false }
-		lint_parse_rules_object(rules, out)
+		append(out, ov)
 	}
 	return true
 }
 
-// lint_parse_rules_object appends a LintOverride for each valid `name: level`
-// entry in a config `rules` object. Unknown names / non-string levels skip.
-lint_parse_rules_object :: proc(rules: json.Object, out: ^[dynamic]LintOverride) {
-	for name, lvl_v in rules {
-		lvl, is_str := lvl_v.(json.String)
-		if !is_str { continue }
-		rule, have := lint_rule_by_name(name)
-		if !have { continue }
-		if ov, ok2 := lint_override_from_level(rule, string(lvl)); ok2 {
-			append(out, ov)
-		}
-	}
-}
-
 // lint_parse_override_block parses one `overrides` array element into a
 // LintConfigOverride. Requires a non-empty `files` glob array; `rules` is
-// optional. Glob strings and rule slices are heap-cloned to outlive the
-// temp-allocated JSON.
+// optional. The parsed config owns the pattern strings for the command lifetime.
 lint_parse_override_block :: proc(blk_v: json.Value) -> (LintConfigOverride, bool) {
 	blk, is_obj := blk_v.(json.Object)
 	if !is_obj { return LintConfigOverride{}, false }
@@ -4080,16 +4042,18 @@ lint_parse_override_block :: proc(blk_v: json.Value) -> (LintConfigOverride, boo
 	if !is_arr || len(files_arr) == 0 { return LintConfigOverride{}, false }
 	globs := make([dynamic]string)
 	for g_v in files_arr {
-		if g, is_str := g_v.(json.String); is_str { append(&globs, strings.clone(string(g))) }
+		if g, is_str := g_v.(json.String); is_str { append(&globs, string(g)) }
 	}
 	if len(globs) == 0 { return LintConfigOverride{}, false }
 	rules := make([dynamic]LintOverride)
 	if rules_v, has_rules := blk["rules"]; has_rules {
 		if robj, is_robj := rules_v.(json.Object); is_robj {
-			lint_parse_rules_object(robj, &rules)
+			if !lint_parse_rules_object(robj, &rules) { return {}, false }
 		}
 	}
-	return LintConfigOverride{globs = globs[:], rules = rules[:]}, true
+	globals, valid_globals := lint_globals_parse(blk)
+	if !valid_globals { return {}, false }
+	return LintConfigOverride{globs=globs[:], rules=rules[:], globals=globals, react=lint_config_react_plugin(blk)}, true
 }
 
 // lint_glob_match performs a full-string glob match where `*` matches any run
@@ -4161,40 +4125,57 @@ lint_str_contains :: proc(haystack: string, needle: string) -> bool {
 	return false
 }
 
+// Explicit module extensions carry strict semantics even without an import or export.
+lint_parse_config :: proc(label: string, config: ParseConfig) -> ParseConfig {
+	resolved := config
+	if config.source_type_override == nil && !config.strict_source_type {
+		if strings.has_suffix(label, ".mjs") || strings.has_suffix(label, ".mts") {
+			resolved.source_type_override = .Module
+		}
+	}
+	return resolved
+}
+
 // lint_run_for_job runs the lint pass over a parsed ParseJob, populating the
 // returned Linter's diagnostics. `overrides` apply per-rule enable/severity
 // config (from `--rule` flags or a config file) before the walk. The arena
 // allocator is the job's parse arena (rule state is freed wholesale when the
 // job closes). Returns the Linter by value so the caller can render
 // `l.diagnostics`.
-lint_run_for_job :: proc(job: ^ParseJob, overrides: []LintOverride = nil) -> Linter {
+lint_run_for_job :: proc(job: ^ParseJob, settings: LintSettings = {}, fix_kinds: LintFixKinds = {}, suppression_edits := false, suggest_edits := false) -> Linter {
+	assert(job != nil)
 	l := init_linter(job.arena_alloc)
-	for ov in overrides {
+	l.globals = settings.globals
+	l.fix_kinds = fix_kinds
+	if fix_kinds != {} { l.fixes = make(map[LintFixKey]LintEdit, job.arena_alloc) }
+	for ov in settings.overrides {
 		l.enabled[ov.rule] = ov.enabled
 		if ov.set_severity { l.severity[ov.rule] = ov.severity }
+		if settings, ok := ov.equality.?; ok { l.equality = settings }
+		if settings, ok := ov.prefer_const.?; ok { l.prefer_const = settings }
+		if settings, ok := ov.fallthrough_options.?; ok { l.fallthrough_options = settings }
+		if allow, ok := ov.getter_allow_implicit.?; ok { l.getter_allow_implicit = allow }
+		if hooks, ok := ov.custom_hooks.?; ok { l.custom_hooks = hooks }
+		if allow, ok := ov.console_allow.?; ok { l.console_allow = allow }
 	}
-	if job == nil || job.program == nil { return l }
+	if job.program == nil { return l }
+	if suggest_edits && lint_rule_enabled(&l, .L4108_ExhaustiveDeps) {
+		// An allocated map enables individual suggestions during the lint walk.
+		l.suggestions = make(map[LintSuggestionKey]LintSuggestion, 8, job.arena_alloc)
+	}
 	l.source = job.lexer.source
+	l.comments = job.lexer.comments[:]
+	if suppression_edits {
+		l.suppression_marks = make([]u64, len(l.source) / 64 + 1, job.arena_alloc)
+	}
+	// Oxlint delegates TypeScript getters to the type checker. Native Kessel configs
+	// keep the rule available for projects that use the standalone linter.
+	if settings.dialect == .Oxlint && (job.lang == .TS || job.lang == .TSX) { l.enabled[.L2046_GetterReturn] = false }
 	ctx := LintContext{ lang = job.lang }
 	lint_program(&l, &ctx, job.program)
-	// Phase 8c: filter diagnostics suppressed by disable directives.
-	if job.lexer.num_lines > 0 {
-		lint_apply_disable_directives(&l, job.lexer.source, job.lexer.line_offsets[:job.lexer.num_lines])
-	}
+	lint_apply_disable_directives(&l, &job.lexer, settings.dialect)
 	return l
 }
-
-// ============================================================================
-// Disable directives (Phase 8c)
-//
-// Scans source text for ESLint-style disable comments:
-//   // eslint-disable-next-line [rule, ...]
-//   /* eslint-disable [rule, ...] */
-//   /* eslint-enable [rule, ...] */
-//   // eslint-disable-line [rule, ...]
-//
-// After the lint walk, diagnostics on suppressed lines are removed.
-// ============================================================================
 
 // lint_offset_to_line returns the 0-based line number for a byte offset.
 lint_offset_to_line :: proc(line_offsets: []u32, offset: u32) -> int {
@@ -4204,154 +4185,6 @@ lint_offset_to_line :: proc(line_offsets: []u32, offset: u32) -> int {
 		if line_offsets[mid] <= offset { lo = mid + 1 } else { hi = mid }
 	}
 	return lo - 1 if lo > 0 else 0
-}
-
-// lint_directive_rule_list returns the comma-separated rule names that follow a
-// disable/enable directive keyword. An empty slice means "all rules", matching
-// ESLint's bare `// eslint-disable-next-line` (no rule = suppress everything).
-lint_directive_rule_list :: proc(comment_text: string, keyword: string) -> []string {
-	if len(comment_text) < len(keyword) { return nil }
-	rest := lint_trim_spaces(comment_text[len(keyword):])
-	if len(rest) == 0 { return nil }
-	out := make([dynamic]string, 0, context.temp_allocator)
-	start := 0
-	for j := 0; j <= len(rest); j += 1 {
-		if j == len(rest) || rest[j] == ',' {
-			name := lint_trim_spaces(rest[start:j])
-			if len(name) > 0 { append(&out, name) }
-			start = j + 1
-		}
-	}
-	return out[:]
-}
-
-// lint_suppress_line records suppression for one line. An empty `rules` slice
-// blanket-suppresses the line; otherwise only the named rules are suppressed.
-lint_suppress_line :: proc(all_lines: ^map[int]bool, line_rules: ^map[int]map[string]bool, line: int, rules: []string) {
-	if len(rules) == 0 {
-		all_lines^[line] = true
-		return
-	}
-	set, ok := line_rules^[line]
-	if !ok { set = make(map[string]bool, 0, context.temp_allocator) }
-	for r in rules { set[r] = true }
-	line_rules^[line] = set
-}
-
-// lint_diag_suppressed reports whether a diagnostic on `line` for rule `code`
-// is suppressed by a blanket line entry or a targeted per-rule entry.
-lint_diag_suppressed :: proc(all_lines: map[int]bool, line_rules: map[int]map[string]bool, line: int, code: LintRule) -> bool {
-	if all_lines[line] { return true }
-	set, ok := line_rules[line]
-	if !ok { return false }
-	return set[lint_rule_info(code).name]
-}
-
-// lint_scan_directive applies a single disable/enable directive comment to the
-// suppression maps and returns the updated open-range state. Centralizes all
-// directive branching so the caller only walks source and slices comments.
-lint_scan_directive :: proc(
-	text: string, line: int,
-	all_lines: ^map[int]bool, line_rules: ^map[int]map[string]bool,
-	range_active: bool, range_start_line: int, range_rules: []string,
-) -> (bool, int, []string) {
-	if lint_starts_with(text, "eslint-disable-next-line") {
-		lint_suppress_line(all_lines, line_rules, line + 1, lint_directive_rule_list(text, "eslint-disable-next-line"))
-	} else if lint_starts_with(text, "eslint-disable-line") {
-		lint_suppress_line(all_lines, line_rules, line, lint_directive_rule_list(text, "eslint-disable-line"))
-	} else if lint_starts_with(text, "eslint-enable") {
-		if range_active {
-			for ln := range_start_line; ln <= line; ln += 1 {
-				lint_suppress_line(all_lines, line_rules, ln, range_rules)
-			}
-			return false, 0, nil
-		}
-	} else if lint_starts_with(text, "eslint-disable") {
-		return true, line, lint_directive_rule_list(text, "eslint-disable")
-	}
-	return range_active, range_start_line, range_rules
-}
-
-lint_apply_disable_directives :: proc(l: ^Linter, source: string, line_offsets: []u32) {
-	if len(l.diagnostics) == 0 { return }
-
-	// `suppressed_lines` blanket-suppresses a line; `suppressed_line_rules`
-	// suppresses only the rules named on a `// eslint-disable-* rule, …` line.
-	suppressed_lines := make(map[int]bool, 0, context.temp_allocator)
-	suppressed_line_rules := make(map[int]map[string]bool, 0, context.temp_allocator)
-
-	// Range tracking for /* eslint-disable [rules] */ … /* eslint-enable */.
-	range_active := false
-	range_start_line := 0
-	range_rules: []string
-
-	i := 0
-	for i < len(source) {
-		ch := source[i]
-		if ch == '/' && i + 1 < len(source) && (source[i+1] == '/' || source[i+1] == '*') {
-			block := source[i+1] == '*'
-			comment_start := i + 2
-			comment_end := comment_start
-			if block {
-				for comment_end + 1 < len(source) {
-					if source[comment_end] == '*' && source[comment_end+1] == '/' { break }
-					comment_end += 1
-				}
-			} else {
-				for comment_end < len(source) && source[comment_end] != '\n' { comment_end += 1 }
-			}
-			text := lint_trim_spaces(source[comment_start:comment_end])
-			line := lint_offset_to_line(line_offsets, u32(i))
-			range_active, range_start_line, range_rules = lint_scan_directive(
-				text, line, &suppressed_lines, &suppressed_line_rules,
-				range_active, range_start_line, range_rules)
-			if block {
-				i = comment_end + 2 if comment_end + 1 < len(source) else len(source)
-			} else {
-				i = comment_end
-			}
-			continue
-		}
-		// Skip string literals to avoid false matches.
-		if ch == '\'' || ch == '"' || ch == '`' {
-			i += 1
-			for i < len(source) && source[i] != ch {
-				if source[i] == '\\' { i += 1 }
-				i += 1
-			}
-		}
-		i += 1
-	}
-
-	// An unclosed disable block suppresses through to end of file.
-	if range_active {
-		last_line := len(line_offsets)
-		for ln := range_start_line; ln <= last_line; ln += 1 {
-			lint_suppress_line(&suppressed_lines, &suppressed_line_rules, ln, range_rules)
-		}
-	}
-
-	if len(suppressed_lines) == 0 && len(suppressed_line_rules) == 0 { return }
-
-	// Compact diagnostics, dropping any that a directive suppresses.
-	write_idx := 0
-	for idx in 0..<len(l.diagnostics) {
-		diag_line := lint_offset_to_line(line_offsets, l.diagnostics[idx].start)
-		if lint_diag_suppressed(suppressed_lines, suppressed_line_rules, diag_line, l.diagnostics[idx].lint_code) {
-			continue
-		}
-		l.diagnostics[write_idx] = l.diagnostics[idx]
-		write_idx += 1
-	}
-	resize(&l.diagnostics, write_idx)
-}
-
-lint_trim_spaces :: proc(s: string) -> string {
-	start := 0
-	for start < len(s) && (s[start] == ' ' || s[start] == '\t') { start += 1 }
-	end := len(s)
-	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') { end -= 1 }
-	return s[start:end]
 }
 
 lint_starts_with :: proc(s: string, prefix: string) -> bool {
@@ -4367,22 +4200,50 @@ lint_starts_with :: proc(s: string, prefix: string) -> bool {
 // "message","line","column","endLine","endColumn"}]}].
 // ============================================================================
 
-lint_render_json :: proc(source: string, file_path: string, line_offsets: []u32, diagnostics: []ParseError) {
-	fmt.eprintf("[{{\"filePath\":\"%s\",\"messages\":[\n", file_path)
-	for diag, idx in diagnostics {
-		line := lint_offset_to_line(line_offsets, diag.start)
-		col := int(diag.start) - int(line_offsets[line]) + 1 if line < len(line_offsets) else 1
-		end_line := lint_offset_to_line(line_offsets, diag.end)
-		end_col := int(diag.end) - int(line_offsets[end_line]) + 1 if end_line < len(line_offsets) else 1
-		sev := 1 if diag.severity == .Warning else 2
-		rule_id := lint_rule_info(diag.lint_code).name if diag.lint_code != .None else ""
-		fmt.eprintf(
-			"{{\"ruleId\":\"%s\",\"severity\":%d,\"message\":\"%s\",\"line\":%d,\"column\":%d,\"endLine\":%d,\"endColumn\":%d}}",
-			rule_id, sev, diag.message, line + 1, col, end_line + 1, end_col,
-		)
-		if idx < len(diagnostics) - 1 { fmt.eprintf(",\n") }
+LintJSONMessage :: struct {
+	rule_id: Maybe(string) `json:"ruleId"`,
+	severity: int,
+	message: string,
+	line, column: u32,
+	end_line: u32 `json:"endLine"`,
+	end_column: u32 `json:"endColumn"`,
+	fatal: Maybe(bool) `json:"fatal,omitempty"`,
+}
+
+LintJSONFile :: struct {
+	path: string `json:"filePath"`,
+	messages: []LintJSONMessage,
+}
+
+// Encode each file before its parse arena closes. Filenames, diagnostic text,
+// and source locations can all reference memory owned by that job.
+lint_json_append_file :: proc(report: ^[dynamic]u8, path: string, job: ^ParseJob, lint_diagnostics: []ParseError) {
+	context.allocator = job.arena_alloc
+	messages := make([dynamic]LintJSONMessage, 0, len(job.parser.errors) + len(lint_diagnostics))
+	for diagnostics in ([2][]ParseError{job.parser.errors[:], lint_diagnostics}) {
+		for diag in diagnostics {
+			line, column := offset_to_line_col(job.lexer.line_offsets, diag.start)
+			end_line, end_column := offset_to_line_col(job.lexer.line_offsets, max(diag.start, diag.end))
+			message := LintJSONMessage{
+				message=diag.message, severity=1 if diag.severity == .Warning else 2,
+				line=line, column=column, end_line=end_line, end_column=end_column,
+			}
+			if diag.lint_code != .None {
+				message.rule_id = lint_rule_info(diag.lint_code).name
+			} else if diag.severity == .Error {
+				message.fatal = true
+			}
+			append(&messages, message)
+		}
 	}
-	fmt.eprintf("\n]}}]\n")
+	encoded, err := json.marshal(LintJSONFile{path, messages[:]}, {spec=.JSON, pretty=false})
+	if err != nil {
+		fmt.eprintln("Error: could not encode lint diagnostics")
+		os.exit(2)
+	}
+	assert(len(report^) >= 1)
+	if len(report^) > 1 { append(report, ',') }
+	append(report, ..encoded)
 }
 
 // lint_render_unix emits one diagnostic per line in the classic ESLint `unix`

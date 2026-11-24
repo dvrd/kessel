@@ -1,6 +1,6 @@
-#+build windows
+#+build windows, wasi
 
-// Windows stub for the mmap path — `source_read` always falls back to
+// Windows and WASI stub for the mmap path — `source_read` always falls back to
 // `os.read_entire_file_from_path`.
 //
 // A future Windows path could use `CreateFileMapping` / `MapViewOfFile`,

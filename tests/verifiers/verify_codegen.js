@@ -36,7 +36,9 @@ const CORPUS_LIMIT = CORPUS_LIMIT_IDX > 0
 // `--minified` runs the round-trip with the codegen in minified mode
 // (`kessel codegen --minified`). The reparsed AST must still match
 // the original — a true regression-grade test of the minifier.
-const MINIFIED = process.argv.includes('--minified');
+const MODES = process.argv.includes('--both-modes')
+  ? ['pretty', 'minified']
+  : [process.argv.includes('--minified') ? 'minified' : 'pretty'];
 
 const MAX_FAILURES_PRINTED = parseInt(
   process.env.MAX_FAILURES_PRINTED || '25', 10,
@@ -200,18 +202,28 @@ function parseToAst(filePath, dialect) {
   // in default-export position, `(await x) ** y` for the **-precedence
   // exception) survive the round-trip. The codegen call below uses the
   // same flag so emit and re-parse stay symmetric.
-  const args = ['parse', filePath, '--json', '--preserve-parens'];
+  // The comparison reads structure. Indentation can dwarf the AST on deep inputs.
+  const args = ['parse', filePath, '--json', '--compact', '--preserve-parens'];
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
-  const out = execFileSync(KESSEL, args, {
-    maxBuffer: 256 * 1024 * 1024,
-    stdio: ['ignore', 'pipe', 'ignore'],
-  });
-  return JSON.parse(out.toString('utf8'));
+  try {
+    const out = execFileSync(KESSEL, args, {
+      maxBuffer: 256 * 1024 * 1024,
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const program = JSON.parse(out.toString('utf8'));
+    if (program?.type !== 'Program' || !Array.isArray(program.body) ||
+        (program.errors !== undefined && !Array.isArray(program.errors))) {
+      throw new Error('Expected an ESTree Program with a statement list and optional diagnostics array');
+    }
+    return program;
+  } catch (error) {
+    throw new Error(`Parser invocation failed for ${filePath}: ${error.message}`, { cause: error });
+  }
 }
 
-function codegen(filePath, dialect) {
+function codegen(filePath, dialect, mode) {
   const args = ['codegen', filePath, '--preserve-parens'];
-  if (MINIFIED) args.push('--minified');
+  if (mode === 'minified') args.push('--minified');
   if (dialect && dialect !== 'js') args.push('--lang=' + dialect);
   return execFileSync(KESSEL, args, {
     maxBuffer: 256 * 1024 * 1024,
@@ -230,62 +242,44 @@ const STRIP_KEYS = new Set(['start', 'end', 'range', 'loc', 'raw']);
 
 // Stripped only at the Program root:
 //   - `errors` — re-parse must succeed cleanly, checked above the diff.
-//   - `comments` — codegen does not emit comments yet (tracked as a
-//     separate work-item). Comparing them would drown out real bugs.
+//   - `comments` — preservation and placement are checked separately by
+//     verify_codegen_comments.js.
 const STRIP_TOP_LEVEL = new Set(['errors', 'comments']);
 
-function normalize(node, isRoot = false) {
-  if (node === null || node === undefined) return node;
-  if (Array.isArray(node)) return node.map(c => normalize(c, false));
-  if (typeof node !== 'object') return node;
-  const out = {};
-  for (const k of Object.keys(node)) {
-    if (STRIP_KEYS.has(k)) continue;
-    if (isRoot && STRIP_TOP_LEVEL.has(k)) continue;
-    out[k] = normalize(node[k], false);
-  }
-  return out;
-}
-
-// Walk two normalized trees and return the first divergence as a string,
-// or null on full equality. The string includes the JSON-path so triage
-// is fast: e.g. `body[0].declarations[0].init.value`.
-function firstDiff(a, b, p = '$') {
-  if (a === b) return null;
-  if (typeof a !== typeof b) {
-    return `${p}: type ${typeof a} vs ${typeof b}`;
-  }
-  if (a === null || b === null) {
-    return `${p}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`;
-  }
-  if (Array.isArray(a) || Array.isArray(b)) {
-    if (!Array.isArray(a) || !Array.isArray(b)) {
-      return `${p}: array vs non-array`;
+// Keep the traversal on the heap so a valid long operator chain can be compared
+// on every supported Node version. Visit keys in the original diagnostic order.
+function firstDiff(original, regenerated) {
+  const pending = [{ a: original, b: regenerated, path: '$' }];
+  while (pending.length) {
+    const { a, b, path } = pending.pop();
+    if (a === b) continue;
+    if (typeof a !== typeof b) return `${path}: type ${typeof a} vs ${typeof b}`;
+    if (a === null || b === null || typeof a !== 'object') {
+      const describe = v => v !== null && typeof v === 'object' ? v.type || 'object' : JSON.stringify(v);
+      return `${path}: ${describe(a)} vs ${describe(b)}`;
     }
-    if (a.length !== b.length) {
-      return `${p}: length ${a.length} vs ${b.length}`;
+    if (Array.isArray(a) || Array.isArray(b)) {
+      if (!Array.isArray(a) || !Array.isArray(b)) return `${path}: array vs non-array`;
+      if (a.length !== b.length) return `${path}: length ${a.length} vs ${b.length}`;
+      for (let i = a.length - 1; i >= 0; i--) {
+        pending.push({ a: a[i], b: b[i], path: `${path}[${i}]` });
+      }
+      continue;
     }
-    for (let i = 0; i < a.length; i++) {
-      const d = firstDiff(a[i], b[i], `${p}[${i}]`);
-      if (d) return d;
-    }
-    return null;
-  }
-  if (typeof a === 'object') {
-    const ka = Object.keys(a).sort();
-    const kb = Object.keys(b).sort();
+    const keep = key => !STRIP_KEYS.has(key) && !(path === '$' && STRIP_TOP_LEVEL.has(key));
+    const ka = Object.keys(a).filter(keep).sort();
+    const kb = Object.keys(b).filter(keep).sort();
     if (ka.length !== kb.length || ka.some((k, i) => k !== kb[i])) {
-      const only_a = ka.filter(k => !(k in b));
-      const only_b = kb.filter(k => !(k in a));
-      return `${p}: key drift {only_a:[${only_a}], only_b:[${only_b}]}`;
+      const onlyA = ka.filter(k => !Object.hasOwn(b, k));
+      const onlyB = kb.filter(k => !Object.hasOwn(a, k));
+      return `${path}: key drift {only_a:[${onlyA}], only_b:[${onlyB}]}`;
     }
-    for (const k of ka) {
-      const d = firstDiff(a[k], b[k], `${p}.${k}`);
-      if (d) return d;
+    for (let i = ka.length - 1; i >= 0; i--) {
+      const k = ka[i];
+      pending.push({ a: a[k], b: b[k], path: `${path}.${k}` });
     }
-    return null;
   }
-  return `${p}: ${JSON.stringify(a)} vs ${JSON.stringify(b)}`;
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -295,22 +289,28 @@ function firstDiff(a, b, p = '$') {
 function roundtrip(fixturePath, tmpRoot) {
   const dialect = detectDialect(fixturePath);
   // Step 1: parse original.
-  let astA;
-  try {
-    astA = parseToAst(fixturePath, dialect);
-  } catch (e) {
-    return { kind: 'skip', reason: 'parse_invoke_failed: ' + (e.message || e) };
-  }
+  // A source rejection is an explicit CLI diagnostic. Starting the process
+  // and decoding its response must succeed even for a known printer failure.
+  const astA = parseToAst(fixturePath, dialect);
   if (astA.errors && astA.errors.length > 0) {
     return { kind: 'skip', reason: 'parse_errors_in_source' };
   }
 
+  for (const mode of MODES) {
+    const result = checkPrintedFixture(fixturePath, tmpRoot, dialect, astA, mode);
+    if (result.kind === 'fail') return { ...result, detail: mode + ': ' + result.detail };
+  }
+  return { kind: 'pass' };
+}
+
+function checkPrintedFixture(fixturePath, tmpRoot, dialect, original, mode) {
   // Step 2: codegen. Refuses to emit if there were parse errors, but we
   // already filtered those above. A non-zero exit here is a real failure.
   let src;
   try {
-    src = codegen(fixturePath, dialect);
+    src = codegen(fixturePath, dialect, mode);
   } catch (e) {
+    if (!Number.isInteger(e.status) || e.signal) throw e;
     return { kind: 'fail', stage: 'codegen', detail: (e.stderr || '').toString().trim() || (e.message || String(e)) };
   }
 
@@ -322,12 +322,7 @@ function roundtrip(fixturePath, tmpRoot) {
   const base = path.basename(fixturePath, path.extname(fixturePath));
   const tmp = path.join(tmpRoot, `${base}.regen${ext}`);
   fs.writeFileSync(tmp, src);
-  let astB;
-  try {
-    astB = parseToAst(tmp, dialect);
-  } catch (e) {
-    return { kind: 'fail', stage: 'reparse_invoke', detail: (e.message || String(e)) };
-  }
+  const astB = parseToAst(tmp, dialect);
   if (astB.errors && astB.errors.length > 0) {
     return {
       kind: 'fail',
@@ -338,9 +333,7 @@ function roundtrip(fixturePath, tmpRoot) {
   }
 
   // Step 4: structural diff.
-  const a = normalize(astA, true);
-  const b = normalize(astB, true);
-  const diff = firstDiff(a, b);
+  const diff = firstDiff(original, astB);
   if (diff) {
     return { kind: 'fail', stage: 'ast_diff', detail: diff };
   }

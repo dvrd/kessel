@@ -296,7 +296,7 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 57,
+      "end": 56,
       "value": " Numéricos: hex, binary, octal, exp notation, decimals"
     }
   ]

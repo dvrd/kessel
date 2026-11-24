@@ -990,109 +990,109 @@
     {
       "type": "Line",
       "start": 448,
-      "end": 525,
+      "end": 523,
       "value": "    `{...}` — i.e. `\"value\": {null}` (invalid JSON). Fix: #partial switch"
     },
     {
       "type": "Line",
-      "start": 526,
-      "end": 599,
+      "start": 524,
+      "end": 597,
       "value": "    on the variant; wrap only when print_pattern_ast will actually emit"
     },
     {
       "type": "Line",
-      "start": 600,
-      "end": 618,
+      "start": 598,
+      "end": 616,
       "value": "    JSON fields."
     },
     {
       "type": "Line",
-      "start": 619,
-      "end": 621,
+      "start": 617,
+      "end": 619,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 622,
-      "end": 698,
+      "start": 620,
+      "end": 694,
       "value": " Methodology: exercise the exact surface the bug lived on — ArrayPattern"
     },
     {
       "type": "Line",
-      "start": 699,
-      "end": 772,
+      "start": 695,
+      "end": 768,
       "value": " with holes, ObjectPattern with AssignmentPattern values (`{ a = 1 }`),"
     },
     {
       "type": "Line",
-      "start": 773,
-      "end": 848,
+      "start": 769,
+      "end": 844,
       "value": " ObjectPattern with RestElement values (`{ ...rest }`), and nested mixes."
     },
     {
       "type": "Line",
-      "start": 849,
-      "end": 924,
+      "start": 845,
+      "end": 920,
       "value": " The verifier both asserts the node types are present AND runs the output"
     },
     {
       "type": "Line",
-      "start": 925,
-      "end": 996,
+      "start": 921,
+      "end": 992,
       "value": " through JSON.parse, which fails hard on the invalid-JSON regression."
     },
     {
       "type": "Line",
-      "start": 998,
-      "end": 1044,
+      "start": 994,
+      "end": 1040,
       "value": " ArrayPattern: dense + sparse (holes) + rest"
     },
     {
       "type": "Line",
-      "start": 1139,
-      "end": 1180,
+      "start": 1135,
+      "end": 1176,
       "value": " ObjectPattern with every value variant"
     },
     {
       "type": "Line",
-      "start": 1222,
-      "end": 1241,
+      "start": 1218,
+      "end": 1237,
       "value": " Identifier value"
     },
     {
       "type": "Line",
-      "start": 1283,
-      "end": 1319,
+      "start": 1279,
+      "end": 1315,
       "value": " AssignmentPattern value (default)"
     },
     {
       "type": "Line",
-      "start": 1361,
-      "end": 1392,
+      "start": 1357,
+      "end": 1388,
       "value": " AssignmentPattern with alias"
     },
     {
       "type": "Line",
-      "start": 1434,
-      "end": 1454,
+      "start": 1430,
+      "end": 1450,
       "value": " RestElement value"
     },
     {
       "type": "Line",
-      "start": 1496,
-      "end": 1520,
+      "start": 1492,
+      "end": 1516,
       "value": " ArrayPattern as value"
     },
     {
       "type": "Line",
-      "start": 1562,
-      "end": 1587,
+      "start": 1558,
+      "end": 1583,
       "value": " ObjectPattern as value"
     },
     {
       "type": "Line",
-      "start": 1589,
-      "end": 1663,
+      "start": 1585,
+      "end": 1659,
       "value": " Function params exercise the same printer from a different entry point."
     }
   ]

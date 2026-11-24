@@ -731,7 +731,7 @@ typescript/tests/cases/conformance/classes/propertyMemberDeclarations/abstractPr
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessibilityModifiers.ts:21:20: 'private' modifier must precede 'static' modifier
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/accessorsOverrideProperty7.ts:3:1: Abstract property cannot have an initializer
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/autoAccessorDisallowedModifiers.ts:2:23: Expected '(', got identifier 'a'
-typescript/tests/cases/conformance/classes/propertyMemberDeclarations/canFollowGetSetKeyword.ts:7:6: Setter must have exactly one formal parameter
+typescript/tests/cases/conformance/classes/propertyMemberDeclarations/canFollowGetSetKeyword.ts:11:7: An accessor cannot be a generator
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/derivedUninitializedPropertyDeclaration.ts:15:17: 'declare' modifier cannot be used here
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/memberFunctionDeclarations/memberFunctionOverloadMixingStaticAndInstance.ts:2:5: Function implementation is missing or not immediately following the declaration
 typescript/tests/cases/conformance/classes/propertyMemberDeclarations/propertyAndAccessorWithSameName.ts:3:5: Duplicate identifier 'x'.
@@ -1033,7 +1033,7 @@ typescript/tests/cases/conformance/importAssertion/importAssertion1.ts::3.ts:8:1
 typescript/tests/cases/conformance/importAssertion/importAssertion4.ts:1:34: Expected '{', got end of input
 typescript/tests/cases/conformance/importAssertion/importAssertion5.ts:1:36: Expected '}', got end of input
 typescript/tests/cases/conformance/importAttributes/importAttributes1.ts::3.ts:8:18: 'import()' requires a specifier
-typescript/tests/cases/conformance/importAttributes/importAttributes10.ts::./b.ts:22:5: Expected ')', got ','
+typescript/tests/cases/conformance/importAttributes/importAttributes10.ts::./b.ts:22:5: Expected '}', got ','
 typescript/tests/cases/conformance/importAttributes/importAttributes4.ts:1:34: Expected '{', got end of input
 typescript/tests/cases/conformance/importAttributes/importAttributes5.ts:1:36: Expected '}', got end of input
 typescript/tests/cases/conformance/importAttributes/importAttributes6.ts:1:51: Only string literals are allowed as import attribute values

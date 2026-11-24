@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Parser playground · Kessel</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">Kessel</div>
+      <h1>Parser playground</h1>
+      <p>Inspect the syntax tree, review diagnostics, or preview formatted imports and exports in your browser.</p>
+    </header>
+    <div class="controls">
+      <label>Language
+        <select id="language">
+          <option value="js">JavaScript</option><option value="jsx">JSX</option>
+          <option value="ts">TypeScript</option><option value="tsx" selected>TSX</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="semantics"> Semantic diagnostics</label>
+    </div>
+    <div class="workspace">
+      <section aria-labelledby="source-label">
+        <div class="bar"><label for="source" id="source-label">Source</label></div>
+        <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="status">type Props = { name: string };
+
+export function Greeting({ name }: Props) {
+  return &lt;h1&gt;Hello, {name}!&lt;/h1&gt;;
+}
+</textarea>
+      </section>
+      <section aria-label="Parser output">
+        <div class="bar">
+          <div class="views" role="group" aria-label="Output view">
+            <button id="tree" type="button" aria-pressed="true" aria-controls="output">AST</button>
+            <button id="formatted" type="button" aria-pressed="false" aria-controls="output">Formatted</button>
+            <button id="errors" type="button" aria-pressed="false" aria-controls="output">Diagnostics</button>
+          </div>
+          <a id="download" download="kessel-ast.json" hidden>Download JSON</a>
+        </div>
+        <pre id="output" tabindex="0" aria-label="Parser output"></pre>
+      </section>
+    </div>
+    <div class="feedback"><p id="status" role="status">Loading parser…</p><button id="retry" type="button" hidden>Retry loading</button></div>
+    <noscript>Enable JavaScript to run the parser.</noscript>
+  </main>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

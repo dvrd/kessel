@@ -52,31 +52,31 @@
     {
       "type": "Line",
       "start": 69,
-      "end": 136,
+      "end": 135,
       "value": " production (ECMA-262 §12.10). A LineTerminator between `return`"
     },
     {
       "type": "Line",
-      "start": 138,
-      "end": 211,
+      "start": 137,
+      "end": 210,
       "value": " and an ArgumentExpression triggers ASI, so `return\\r\\n1` must parse as"
     },
     {
       "type": "Line",
-      "start": 213,
-      "end": 285,
+      "start": 212,
+      "end": 284,
       "value": " `return; 1;` (two statements) and NOT as `return 1;` (one statement)."
     },
     {
       "type": "Line",
-      "start": 287,
-      "end": 358,
+      "start": 286,
+      "end": 355,
       "value": " CRLF is counted as a single LineTerminator pair — it must not trip"
     },
     {
       "type": "Line",
-      "start": 360,
-      "end": 423,
+      "start": 357,
+      "end": 420,
       "value": " the parser into double-ASI or leave a stray empty statement."
     }
   ]

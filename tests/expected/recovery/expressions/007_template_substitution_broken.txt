@@ -76,13 +76,13 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 72,
+      "end": 70,
       "value": " Template literal with a broken substitution — the closing `${` must"
     },
     {
       "type": "Line",
-      "start": 73,
-      "end": 119,
+      "start": 71,
+      "end": 117,
       "value": " not swallow the outer statement terminator."
     }
   ],

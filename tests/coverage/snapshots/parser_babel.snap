@@ -179,16 +179,16 @@ babel/packages/babel-parser/test/fixtures/core/uncategorised/432/input.js:1:1: U
 babel/packages/babel-parser/test/fixtures/core/uncategorised/433/input.js:1:1: Unterminated block comment
 babel/packages/babel-parser/test/fixtures/core/uncategorised/434/input.js:1:1: Unterminated block comment
 babel/packages/babel-parser/test/fixtures/core/uncategorised/435/input.js:2:1: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/core/uncategorised/436/input.js:1:2: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/core/uncategorised/436/input.js:2:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/core/uncategorised/437/input.js:2:1: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/core/uncategorised/438/input.js:2:2: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/core/uncategorised/438/input.js:3:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/core/uncategorised/439/input.js:2:1: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/core/uncategorised/440/input.js:2:2: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/core/uncategorised/440/input.js:3:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/core/uncategorised/441/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/core/uncategorised/442/input.js:2:1: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/core/uncategorised/442/input.js:3:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/core/uncategorised/443/input.js:2:3: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/core/uncategorised/444/input.js:2:4: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/core/uncategorised/445/input.js:2:3: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/core/uncategorised/444/input.js:3:3: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/core/uncategorised/445/input.js:3:3: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/core/uncategorised/446/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/447/input.js:1:1: Unexpected token '\u005c'
 babel/packages/babel-parser/test/fixtures/core/uncategorised/448/input.js:1:1: Unexpected token '\'
@@ -1352,12 +1352,12 @@ babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0152/i
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0153/input.js:1:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0154/input.js:1:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0155/input.js:2:1: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0156/input.js:2:2: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0156/input.js:3:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0157/input.js:1:3: Expected semicolon
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0158/input.js:2:1: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0158/input.js:3:1: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0159/input.js:2:3: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0160/input.js:2:4: Unexpected closing token
-babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0161/input.js:2:3: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0160/input.js:3:3: Unexpected closing token
+babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0161/input.js:3:3: Unexpected closing token
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0162/input.js:1:1: Unexpected token '\'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0163/input.js:1:1: Unexpected token '\u005c'
 babel/packages/babel-parser/test/fixtures/esprima/invalid-syntax/migrated_0164/input.js:1:1: Unexpected token '\'

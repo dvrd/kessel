@@ -47,8 +47,10 @@ const T = {
   JSXMemberExpression: 90, JSXNamespacedName: 91, JSXSpreadChild: 92,
   TSTypeAnnotation: 93, TSTypeReference: 94, TSAsExpression: 95,
   TSSatisfiesExpression: 96, TSNonNullExpression: 97,
-  TSTypeAssertion: 98, TSInstantiationExpression: 99,
+  TSTypeAssertion: 98, TSInstantiationExpression: 99, TypedRecord: 100, TypedPrefix: 101,
 };
+
+const RESERVED_FIELDS = new Set(['type', 'start', 'end', '__proto__', 'prototype', 'constructor']);
 
 const TYPE_NAMES = [
   'Program', 'Identifier', 'PrivateIdentifier',
@@ -84,7 +86,7 @@ const TYPE_NAMES = [
   'JSXMemberExpression', 'JSXNamespacedName', 'JSXSpreadChild',
   'TSTypeAnnotation', 'TSTypeReference', 'TSAsExpression',
   'TSSatisfiesExpression', 'TSNonNullExpression',
-  'TSTypeAssertion', 'TSInstantiationExpression',
+  'TSTypeAssertion', 'TSInstantiationExpression', 'TypedRecord',
 ];
 
 const VAR_KINDS = ['var', 'let', 'const', 'using', 'await using'];
@@ -98,7 +100,7 @@ const RESOURCE_BUDGET = Object.freeze({
 // Value type tags — must match BinValType in binary_emitter.odin.
 // VT_NODE and VT_NULL_NODE are above the BinNodeType range (0..99)
 // to avoid collisions when peeking at the first byte of a field.
-const VT_NULL = 0, VT_STR = 4;
+const VT_STR = 4;
 const VT_NODE = 0xFD, VT_NULL_NODE = 0xFE;
 
 /**
@@ -107,13 +109,13 @@ const VT_NODE = 0xFD, VT_NULL_NODE = 0xFE;
  * @param {string} source - Original source text (for string resolution)
  * @returns {{ program: object, errors: Array }}
  */
-function decode(buffer, source) {
+function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) {
   const dv = new DataView(buffer.buffer || buffer, buffer.byteOffset || 0, buffer.byteLength || buffer.length);
   let off = 0;
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          3 or 4
+  //   4  version          3 through 8
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -121,15 +123,17 @@ function decode(buffer, source) {
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version !== 3 && version !== 4) throw new Error('Unsupported binary AST version: ' + version);
+  if (version < 3 || version > 8) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
   const errorCount = dv.getUint32(20, true);
+  // Version 7 inferred the output shape from the presence of typed records.
+  const tsShape = version === 7 || (version >= 8 && dv.getUint8(strTableOff - 1) === 1);
   off = 24;
 
   // Build string table
-  const strings = buildStringTable(dv, strTableOff, buffer, source);
+  const strings = buildStringTable(dv, strTableOff, source, sourceBytes);
 
   // Read node stream
   let depth = 0;
@@ -137,7 +141,7 @@ function decode(buffer, source) {
 
   // Decode errors section, if present. Layout depends on `version`:
   //   v3: u32 start, u32 end, u32 msg_len, msg_len bytes (UTF-8). 12B fixed.
-  //   v4: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
+  //   v4 through v6: u32 start, u32 end, u16 code, u8 severity, u8 _pad, u32 msg_len,
   //       msg_len bytes (UTF-8). 16B fixed.
   // `code` of 0 means 'no stable code' (legacy / un-migrated site).
   // Severity: 0 = 'error', 1 = 'warning'.
@@ -180,6 +184,15 @@ function decode(buffer, source) {
   function readBool() { if (off >= dv.byteLength) return false; return dv.getUint8(off++) !== 0; }
   function readStr() { const idx = readU32(); return idx < strings.length ? strings[idx] : ''; }
 
+  // Older streams stored these children as string indexes without individual
+  // spans. Preserve the historic shape when reading an existing buffer.
+  function readChild(legacyType, start, end, optional = false) {
+    if (optional && readU8() !== (version >= 6 ? VT_NODE : VT_STR)) return null;
+    if (version >= 6) return readNode();
+    if (legacyType === 'Literal') return { type: 'Literal', value: readStr(), start, end };
+    return { type: 'Identifier', name: readStr(), start, end };
+  }
+
   function readNodeOrNull() {
     if (off >= strTableOff) return null;
     const tag = dv.getUint8(off);
@@ -212,6 +225,28 @@ function decode(buffer, source) {
     return arr;
   }
 
+  // Version 7 adds named ESTree fields for native TypeScript nodes.
+  function readRecordFields(node) {
+    const limit = errorsOff || strTableOff;
+    for (let count = 0; count < 64 && off < limit; count++) {
+      const kind = readU8();
+      if (kind === 0) return;
+      const key = readStr();
+      if (!key || RESERVED_FIELDS.has(key)) {
+        throw new Error('Invalid binary AST field at ' + off);
+      }
+      switch (kind) {
+        case 1: node[key] = readNode(); break;
+        case 2: node[key] = readNodeArray(); break;
+        case 3: node[key] = readStr(); break;
+        case 4: node[key] = readU8() !== 0; break;
+        case 5: node[key] = null; break;
+        default: throw new Error('Invalid binary AST field kind ' + kind);
+      }
+    }
+    throw new Error('Unterminated binary AST fields at ' + off);
+  }
+
   function readNode() {
     if (off >= strTableOff) return null;
     if (++depth > RESOURCE_BUDGET.astDepth) throw new Error('readNode depth exceeded ' + RESOURCE_BUDGET.astDepth + ' at offset ' + off);
@@ -223,6 +258,12 @@ function decode(buffer, source) {
       off++;
       --depth;
       return null;
+    }
+    let fields;
+    if (peek === T.TypedPrefix && version >= 7) {
+      off++;
+      fields = {};
+      readRecordFields(fields);
     }
     const { typeId, start, end } = readNodeHeader();
     const type = TYPE_NAMES[typeId];
@@ -255,9 +296,11 @@ function decode(buffer, source) {
         break;
       case T.BooleanLiteral:
         node.value = readBool();
+        if (version >= 7) node.raw = node.value ? 'true' : 'false';
         break;
       case T.NullLiteral:
         node.value = null;
+        if (version >= 7) node.raw = 'null';
         break;
       case T.BigIntLiteral:
         node.value = null; // BigInt can't be JSON'd
@@ -308,8 +351,7 @@ function decode(buffer, source) {
         break;
       case T.FunctionExpression:
       case T.FunctionDeclaration: {
-        const idTag = readU8();
-        node.id = idTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null;
+        node.id = readChild('Identifier', start, end, true);
         node.async = readBool();
         node.generator = readBool();
         node.params = readFunctionParams();
@@ -324,8 +366,7 @@ function decode(buffer, source) {
         break;
       case T.ClassExpression:
       case T.ClassDeclaration: {
-        const idTag = readU8();
-        node.id = idTag === 4 ? { type: 'Identifier', name: readStr(), start, end } : null;
+        node.id = readChild('Identifier', start, end, true);
         node.superClass = readNodeOrNull();
         node.body = readNode(); // ClassBody
         break;
@@ -340,12 +381,15 @@ function decode(buffer, source) {
         node.key = readNodeOrNull();
         node.value = readNodeOrNull();
         break;
-      case T.PropertyDefinition:
+      case T.PropertyDefinition: {
         node.computed = readBool();
-        node.static = readBool();
+        const flags = readU8();
+        node.static = version < 5 ? flags !== 0 : Boolean(flags & 1);
+        if (version >= 5 && (flags & 2)) node.declare = true;
         node.key = readNodeOrNull();
         node.value = readNodeOrNull();
         break;
+      }
       case T.StaticBlock:
         node.body = readNodeOrNull(); // wrapping expression (FunctionExpression)
         break;
@@ -400,8 +444,8 @@ function decode(buffer, source) {
         node.source = readNode();
         break;
       case T.MetaProperty:
-        node.meta = { type: 'Identifier', name: readStr(), start, end };
-        node.property = { type: 'Identifier', name: readStr(), start, end };
+        node.meta = readChild('Identifier', start, end);
+        node.property = readChild('Identifier', start, end);
         break;
       case T.ChainExpression:
       case T.ParenthesizedExpression:
@@ -422,12 +466,11 @@ function decode(buffer, source) {
         break;
       case T.BreakStatement:
       case T.ContinueStatement: {
-        const labelTag = readU8();
-        node.label = labelTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null;
+        node.label = readChild('Identifier', start, end, true);
         break;
       }
       case T.LabeledStatement:
-        node.label = { type: 'Identifier', name: readStr(), start, end };
+        node.label = readChild('Identifier', start, end);
         node.body = readNode();
         break;
       case T.IfStatement:
@@ -506,34 +549,38 @@ function decode(buffer, source) {
         node.argument = readNode();
         break;
       case T.ImportDeclaration:
+        if (tsShape) node.importKind = 'value';
         node.specifiers = readNodeArray();
-        node.source = { type: 'Literal', value: readStr(), start, end };
+        node.source = readChild('Literal', start, end);
         break;
       case T.ImportSpecifier:
-        node.imported = { type: 'Identifier', name: readStr(), start, end };
-        node.local = { type: 'Identifier', name: readStr(), start, end };
+        if (tsShape) node.importKind = 'value';
+        node.imported = readChild('Identifier', start, end);
+        node.local = readChild('Identifier', start, end);
         break;
       case T.ImportDefaultSpecifier:
       case T.ImportNamespaceSpecifier:
-        node.local = { type: 'Identifier', name: readStr(), start, end };
+        node.local = readChild('Identifier', start, end);
         break;
       case T.ExportNamedDeclaration:
         node.declaration = readNodeOrNull();
         node.specifiers = readNodeArray();
-        { const srcTag = readU8();
-          node.source = srcTag === VT_STR ? { type: 'Literal', value: readStr(), start, end } : null; }
+        node.source = readChild('Literal', start, end, true);
+        if (tsShape) node.exportKind = version === 7 && node.declaration?.declare ? 'type' : 'value';
         break;
       case T.ExportDefaultDeclaration:
         node.declaration = readNode();
+        if (tsShape) node.exportKind = 'value';
         break;
       case T.ExportAllDeclaration:
-        node.source = { type: 'Literal', value: readStr(), start, end };
-        { const expTag = readU8();
-          node.exported = expTag === VT_STR ? { type: 'Identifier', name: readStr(), start, end } : null; }
+        if (tsShape) node.exportKind = 'value';
+        node.source = readChild('Literal', start, end);
+        node.exported = readChild('Identifier', start, end, true);
         break;
       case T.ExportSpecifier:
-        node.local = { type: 'Identifier', name: readStr(), start, end };
-        node.exported = { type: 'Identifier', name: readStr(), start, end };
+        if (tsShape) node.exportKind = 'value';
+        node.local = readChild('Identifier', start, end);
+        node.exported = readChild('Identifier', start, end);
         break;
       // ===================== JSX =====================
       case T.JSXElement:
@@ -589,6 +636,11 @@ function decode(buffer, source) {
         node.expression = readNode();
         break;
       // ===================== TypeScript =====================
+      case T.TypedRecord:
+        if (version < 7) throw new Error('Typed AST record requires version 7');
+        node.type = readStr();
+        readRecordFields(node);
+        break;
       case T.TSTypeAnnotation:
       case T.TSTypeReference:
         // TS types — not decoded for JS consumers. Skip.
@@ -604,6 +656,7 @@ function decode(buffer, source) {
         // Unknown node type — skip
         break;
     }
+    if (fields) Object.assign(node, fields);
     --depth;
     return node;
   }
@@ -617,7 +670,9 @@ function decode(buffer, source) {
       if (defTag === VT_NODE) {
         // AssignmentPattern wrapping
         const def = readNode();
-        params[i] = { type: 'AssignmentPattern', start: pat.start, end: def.end, left: pat, right: def };
+        // Older libraries could omit either side during parser recovery.
+        const start = pat?.start ?? def?.start ?? 0;
+        params[i] = { type: 'AssignmentPattern', start, end: def?.end ?? pat?.end ?? start, left: pat, right: def };
       } else {
         params[i] = pat;
       }
@@ -626,30 +681,33 @@ function decode(buffer, source) {
   }
 }
 
-function buildStringTable(dv, tableOff, buffer, source) {
-  const buf = buffer.buffer ? new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength) : buffer;
+function buildStringTable(dv, tableOff, source, sourceBytes) {
+  const buf = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+  // Both offsets and lengths on the wire count UTF-8 bytes. Only ASCII
+  // sources can be sliced by those offsets directly as JavaScript strings.
+  const ascii = sourceBytes.length === source.length;
+  const decoder = new TextDecoder('utf-8', { ignoreBOM: true });
   const strings = [];
   let off = tableOff;
+  let tableEnd = buf.length;
 
-  while (off + 8 <= buf.length) {
+  while (off + 8 <= tableEnd) {
     const rawOff = dv.getUint32(off, true);
     const len = dv.getUint32(off + 4, true);
     off += 8;
-
-    if (len === 0) {
-      strings.push('');
-      continue;
-    }
 
     const isCooked = (rawOff & 0x80000000) !== 0;
     const cleanOff = rawOff & 0x7FFFFFFF;
 
     if (isCooked) {
-      // Read from buffer
-      strings.push(new TextDecoder().decode(buf.slice(cleanOff, cleanOff + len)));
-    } else {
-      // Slice from source
+      // Cooked payloads follow the entries. The first payload marks the
+      // end of the table, even when that payload is an empty string.
+      tableEnd = Math.min(tableEnd, cleanOff);
+      strings.push(decoder.decode(buf.subarray(cleanOff, cleanOff + len)));
+    } else if (ascii) {
       strings.push(source.slice(cleanOff, cleanOff + len));
+    } else {
+      strings.push(decoder.decode(sourceBytes.subarray(cleanOff, cleanOff + len)));
     }
   }
   return strings;

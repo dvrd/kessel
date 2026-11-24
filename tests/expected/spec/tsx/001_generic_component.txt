@@ -761,7 +761,7 @@
                                   "end": 1545,
                                   "expression": {
                                     "type": "TSAsExpression",
-                                    "start": 1491,
+                                    "start": 1490,
                                     "end": 1544,
                                     "expression": {
                                       "type": "ConditionalExpression",
@@ -1556,109 +1556,109 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 74,
+      "end": 72,
       "value": " Realistic TSX generic-component pattern. Exercises the JSX↔TS-generic"
     },
     {
       "type": "Line",
-      "start": 75,
-      "end": 143,
+      "start": 73,
+      "end": 141,
       "value": " disambiguation surface that the ambiguity/ fixtures cover only as"
     },
     {
       "type": "Line",
-      "start": 144,
-      "end": 212,
+      "start": 142,
+      "end": 210,
       "value": " minimal stress tests. Here the same surface appears as it does in"
     },
     {
       "type": "Line",
-      "start": 213,
-      "end": 283,
+      "start": 211,
+      "end": 281,
       "value": " real component libraries (zustand, framer-motion, react-bootstrap):"
     },
     {
       "type": "Line",
-      "start": 284,
-      "end": 286,
+      "start": 282,
+      "end": 284,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 287,
-      "end": 357,
+      "start": 285,
+      "end": 355,
       "value": "   * Generic function component declaration `<T,>` with the trailing"
     },
     {
       "type": "Line",
-      "start": 358,
-      "end": 424,
+      "start": 356,
+      "end": 422,
       "value": "     comma syntax used by tsx-friendly projects to avoid the JSX"
     },
     {
       "type": "Line",
-      "start": 425,
-      "end": 475,
+      "start": 423,
+      "end": 473,
       "value": "     parser interpreting `<T>` as an opening tag"
     },
     {
       "type": "Line",
-      "start": 476,
-      "end": 544,
+      "start": 474,
+      "end": 542,
       "value": "   * An interface defining the prop shape with optional / required"
     },
     {
       "type": "Line",
-      "start": 545,
-      "end": 608,
+      "start": 543,
+      "end": 606,
       "value": "     fields and a generic on the function-typed `render` prop"
     },
     {
       "type": "Line",
-      "start": 609,
-      "end": 663,
+      "start": 607,
+      "end": 661,
       "value": "   * `as` cast inside a JSXExpressionContainer child"
     },
     {
       "type": "Line",
-      "start": 664,
-      "end": 733,
+      "start": 662,
+      "end": 729,
       "value": "   * Generic call-form construction `List<User>({...})` — the JSX"
     },
     {
       "type": "Line",
-      "start": 734,
-      "end": 797,
+      "start": 730,
+      "end": 793,
       "value": "     call-site type-argument form `<List<User> />` is not yet"
     },
     {
       "type": "Line",
-      "start": 798,
-      "end": 868,
+      "start": 794,
+      "end": 864,
       "value": "     supported by kessel (matches parsers like swc; OXC accepts it)."
     },
     {
       "type": "Line",
-      "start": 869,
-      "end": 939,
+      "start": 865,
+      "end": 935,
       "value": "     Demonstrating the call-form keeps the fixture green while still"
     },
     {
       "type": "Line",
-      "start": 940,
-      "end": 991,
+      "start": 936,
+      "end": 987,
       "value": "     exercising the generic-on-component pattern."
     },
     {
       "type": "Line",
-      "start": 992,
-      "end": 994,
+      "start": 988,
+      "end": 990,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 995,
-      "end": 1054,
+      "start": 991,
+      "end": 1050,
       "value": " Parsed with --lang=tsx (auto-discovered from spec/tsx/)."
     }
   ]

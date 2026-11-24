@@ -1,4 +1,8 @@
 {
   "oxc_git_commit": "b0817ae6459a91be4ad98cfe1006cb5656de9994",
-  "oxc_parser_npm": "0.127.0"
+  "oxc_parser_npm": "0.127.0",
+  "oxc_minify_npm": "0.127.0",
+  "oxc_transform_npm": "0.127.0",
+  "oxlint_npm": "1.60.0",
+  "prettier_npm": "3.8.3"
 }

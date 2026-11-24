@@ -12,6 +12,7 @@ resolver = "2"
 [workspace.dependencies]
 oxc_allocator = { path = "../../../oxc/crates/oxc_allocator" }
 oxc_parser    = { path = "../../../oxc/crates/oxc_parser" }
+oxc_semantic  = { path = "../../../oxc/crates/oxc_semantic" }
 oxc_span      = { path = "../../../oxc/crates/oxc_span" }
 oxc_ast       = { path = "../../../oxc/crates/oxc_ast", features = ["serialize"] }
 oxc_estree    = { path = "../../../oxc/crates/oxc_estree", features = ["serialize"] }

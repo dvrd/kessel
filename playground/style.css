@@ -1,0 +1,46 @@
+:root {
+  color-scheme: dark;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #0a0c12;
+  color: #e8eaf0;
+  --muted: #a0a8b7;
+  --border: #323a4b;
+  --accent: #ff906c;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { width: min(100% - 3rem, 88rem); margin: 0 auto; padding: 2.5rem 0 1rem; }
+.brand { color: var(--accent); font-weight: 750; }
+h1 { font-size: clamp(2rem, 4vw, 3.5rem); letter-spacing: -.05em; margin: .9rem 0 .5rem; }
+p { color: var(--muted); line-height: 1.55; }
+header p { margin: 0; }
+.controls, .controls label, .views, .bar { display: flex; align-items: center; }
+.controls { flex-wrap: wrap; gap: 1.25rem; margin: 1.8rem 0 1rem; }
+.controls label { gap: .55rem; font-size: .9rem; }
+select, button, textarea { font: inherit; }
+select { border: 1px solid var(--border); border-radius: 5px; background: #171c26; color: inherit; padding: .42rem; }
+input { accent-color: var(--accent); }
+.workspace { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+section { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: #10141d; }
+.bar { height: 3rem; padding: 0 .9rem; gap: .5rem; justify-content: space-between; border-bottom: 1px solid var(--border); }
+#source-label, .views button { font-size: .875rem; font-weight: 600; }
+.views { align-self: stretch; gap: .8rem; }
+button { padding: 0 .15rem; height: 100%; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+button[aria-pressed=true] { color: var(--accent); border-bottom-color: currentColor; }
+a { color: var(--accent); font-size: .8rem; text-underline-offset: .2em; }
+textarea, pre {
+  margin: 0; padding: 1rem; width: 100%; height: clamp(20rem, 52vh, 44rem); overflow: auto;
+  font: .875rem/1.65 "JetBrains Mono", "SFMono-Regular", Consolas, monospace; tab-size: 2;
+  border: 0; color: inherit; background: transparent; display: block;
+}
+textarea { resize: none; }
+#status { font-size: .85rem; }
+.feedback { display: flex; align-items: center; gap: 1rem; }
+#retry { color: var(--accent); height: auto; text-decoration: underline; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+@media (max-width: 700px) {
+  main { width: calc(100% - 1.5rem); padding-top: 1.25rem; }
+  .workspace { grid-template-columns: minmax(0, 1fr); }
+  textarea, pre { height: 17rem; }
+  .controls { gap: .65rem 1rem; }
+}

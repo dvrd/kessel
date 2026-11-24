@@ -19,8 +19,10 @@ on:
       - 'bench/**'
       - 'scripts/xcheck.sh'
       - '.github/workflows/ci.yml'
+      - '.github/workflows/primary-tests.yml'
       - '.github/workflows/deprecate.yml'
       - '.gitignore'
+      - '.cruft/**'
   # Manual escape hatch — force a release for docs-only commits, or rerun
   # a release that was skipped by paths-ignore.
   workflow_dispatch:
@@ -52,6 +54,13 @@ jobs:
             echo "should_release=true" >> "$GITHUB_OUTPUT"
           fi
 
+  verify:
+    needs: check
+    if: needs.check.outputs.should_release == 'true'
+    uses: ./.github/workflows/primary-tests.yml
+    with:
+      release_checks: true
+
   # ---------------------------------------------------------------------------
   # version — compute the next version once, share with every downstream job.
   #
@@ -82,52 +91,7 @@ jobs:
           node-version: '22'
 
       - id: compute
-        run: |
-          set -euo pipefail
-
-          # 1. Current published version (or sentinel 0.1.0 if 404).
-          CURRENT=$(npm view @dvrdlibs/kessel version 2>/dev/null || echo "")
-          if [[ -z "$CURRENT" ]]; then
-            CURRENT="0.1.0"
-            echo "Package not yet on registry; starting from sentinel $CURRENT"
-          else
-            echo "Current published version: $CURRENT"
-          fi
-
-          # 2. Commits since the last v* tag (or whole history if none).
-          LAST_TAG=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo "")
-          if [[ -z "$LAST_TAG" ]]; then
-            RANGE="HEAD"
-            echo "No v* tag found; scanning entire history"
-          else
-            RANGE="$LAST_TAG..HEAD"
-            echo "Scanning commits since $LAST_TAG"
-          fi
-          COMMITS=$(git log --format="%s" $RANGE)
-
-          # Use here-strings (<<<) rather than pipes: `echo | grep -q` would
-          # SIGPIPE on early `-q` exit, which set -o pipefail propagates as a
-          # failure (exit 141), making every branch fall through to patch.
-          if grep -qE "^(feat|refactor)(\(.+\))?!:|BREAKING CHANGE" <<< "$COMMITS"; then
-            BUMP="major"
-          elif grep -qE "^(feat|refactor)(\(.+\))?:" <<< "$COMMITS"; then
-            BUMP="minor"
-          else
-            BUMP="patch"
-          fi
-
-          # 3. Apply the bump.
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-          case "$BUMP" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-          NEW="$MAJOR.$MINOR.$PATCH"
-
-          echo "version=$NEW" >> "$GITHUB_OUTPUT"
-          echo "bump=$BUMP" >> "$GITHUB_OUTPUT"
-          echo "=== Bump $CURRENT → $NEW ($BUMP) ==="
+        run: node scripts/next_release_version.js
 
   # ---------------------------------------------------------------------------
   # build — produce libkessel.{dylib,so,dll} for every target. One artifact
@@ -141,10 +105,12 @@ jobs:
     if: needs.check.outputs.should_release == 'true'
     strategy:
       fail-fast: true
-      matrix:
+      matrix: &native_targets
         include:
-          - os: macos-14
+          - os: macos-15
             target: darwin-arm64
+            # Preserve the deployment target of the published arm64 library.
+            deployment_flag: -minimum-os-version:14.0.0
             ext: dylib
             ldflags: '-extra-linker-flags:"-undefined dynamic_lookup"'
           - os: macos-15-intel
@@ -171,6 +137,7 @@ jobs:
         uses: laytan/setup-odin@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          release: dev-2026-11
 
       - name: Set up MSVC (Windows)
         if: runner.os == 'Windows'
@@ -184,7 +151,7 @@ jobs:
           mkdir -p bin
           cd bin
           odin build ../src \
-            -build-mode:shared \
+            ${{ matrix.deployment_flag }} -build-mode:shared \
             -out:libkessel.${{ matrix.ext }} \
             -o:speed \
             -no-bounds-check \
@@ -206,12 +173,64 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Build and smoke test CLI
+        shell: bash
+        run: |
+          cli=kessel
+          if [[ "$RUNNER_OS" == Windows ]]; then cli=kessel.exe; fi
+          (cd bin && odin build ../src ${{ matrix.deployment_flag }} -out:"$cli" -o:speed -no-bounds-check)
+          node tests/verifiers/verify_cli_smoke.js "bin/$cli"
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kessel-cli-${{ matrix.target }}
+          path: bin/kessel${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+
       - name: Smoke test (npm)
         shell: bash
         run: |
           cd npm/kessel
-          npm install
+          npm ci
           node test.js
+
+      - name: Compare CLI and npm TypeScript ASTs with Oxc
+        shell: bash
+        run: |
+          npm ci --prefix bench --ignore-scripts --no-audit --no-fund
+          node tests/verifiers/verify_npm_typescript.js --cli
+          node tests/verifiers/verify_npm_typescript.js --preload-koffi
+
+      - name: Test isolated npm bindings
+        shell: bash
+        run: bash tests/runners/npm_coexistence.sh
+
+      - name: Test packed install (Node 22)
+        shell: bash
+        env:
+          KESSEL_PACKAGE_VERSION: ${{ needs.version.outputs.version }}
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test packed install (Node 18)
+        shell: bash
+        env:
+          KESSEL_PACKAGE_VERSION: ${{ needs.version.outputs.version }}
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test packed install (Node 24)
+        shell: bash
+        env:
+          KESSEL_PACKAGE_VERSION: ${{ needs.version.outputs.version }}
+        run: bash tests/runners/npm_pack_smoke.sh
 
       - uses: actions/upload-artifact@v4
         with:
@@ -232,7 +251,7 @@ jobs:
   # registry are dead weight but harmless.
   # ---------------------------------------------------------------------------
   publish-platforms:
-    needs: [check, version, build]
+    needs: [check, verify, version, build]
     if: needs.check.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     permissions:
@@ -331,6 +350,10 @@ jobs:
           '
           cat package.json
 
+      - name: Refresh npm lockfile
+        working-directory: npm/kessel
+        run: npm install --package-lock-only --ignore-scripts
+
       - name: Generate CHANGELOG entry
         run: |
           set -euo pipefail
@@ -342,13 +365,13 @@ jobs:
           {
             echo "## [$VERSION] - $TODAY"
             echo ""
-            ALL_COMMITS=$(git log --format="%s" $RANGE)
-            FEATS=$(grep -E "^feat" <<< "$ALL_COMMITS" || true)
-            FIXES=$(grep -E "^fix" <<< "$ALL_COMMITS" || true)
-            PERFS=$(grep -E "^perf" <<< "$ALL_COMMITS" || true)
-            [[ -n "$FEATS" ]] && { echo "### Added"; sed 's/^/- /' <<< "$FEATS"; echo ""; }
-            [[ -n "$FIXES" ]] && { echo "### Fixed"; sed 's/^/- /' <<< "$FIXES"; echo ""; }
-            [[ -n "$PERFS" ]] && { echo "### Performance"; sed 's/^/- /' <<< "$PERFS"; echo ""; }
+            ALL_COMMITS=$(git log --format="- %s" "$RANGE")
+            FEATS=$(grep -E "^- feat" <<< "$ALL_COMMITS" || true)
+            FIXES=$(grep -E "^- fix" <<< "$ALL_COMMITS" || true)
+            PERFS=$(grep -E "^- perf" <<< "$ALL_COMMITS" || true)
+            [[ -n "$FEATS" ]] && printf '### Added\n%s\n\n' "$FEATS"
+            [[ -n "$FIXES" ]] && printf '### Fixed\n%s\n\n' "$FIXES"
+            [[ -n "$PERFS" ]] && printf '### Performance\n%s\n\n' "$PERFS"
           } > /tmp/new_entry.md
 
           # Prepend the new entry after the changelog header (first 5 lines
@@ -373,7 +396,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add npm/kessel/package.json npm/kessel/CHANGELOG.md CHANGELOG.md
+          git add npm/kessel/package.json npm/kessel/package-lock.json npm/kessel/CHANGELOG.md CHANGELOG.md
           git commit -m "release: v${{ needs.version.outputs.version }}"
           git tag -a "v${{ needs.version.outputs.version }}" -m "v${{ needs.version.outputs.version }}"
           git push
@@ -388,3 +411,29 @@ jobs:
           npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  verify-published:
+    needs: [version, publish-main]
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix: *native_targets
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: libkessel-${{ matrix.target }}
+          path: release-artifact
+      - name: Verify published SDK from a clean consumer
+        shell: bash
+        env:
+          KESSEL_RELEASE_VERSION: ${{ needs.version.outputs.version }}
+          KESSEL_PACKAGE_BINARY: ${{ github.workspace }}/release-artifact/libkessel.${{ matrix.ext }}
+        run: bash tests/runners/npm_registry_smoke.sh "$KESSEL_RELEASE_VERSION"

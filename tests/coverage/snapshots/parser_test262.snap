@@ -2300,8 +2300,8 @@ test262/test/language/expressions/postfix-decrement/arguments.js:26:1: Update of
 test262/test/language/expressions/postfix-decrement/eval.js:26:1: Update of 'eval' is not allowed in strict mode
 test262/test/language/expressions/postfix-decrement/line-terminator-carriage-return.js:17:3: Unexpected token after prefix '--'
 test262/test/language/expressions/postfix-decrement/line-terminator-line-feed.js:17:3: Unexpected token after prefix '--'
-test262/test/language/expressions/postfix-decrement/line-terminator-line-separator.js:16:7: Unexpected token after prefix '--'
-test262/test/language/expressions/postfix-decrement/line-terminator-paragraph-separator.js:16:7: Unexpected token after prefix '--'
+test262/test/language/expressions/postfix-decrement/line-terminator-line-separator.js:17:3: Unexpected token after prefix '--'
+test262/test/language/expressions/postfix-decrement/line-terminator-paragraph-separator.js:17:3: Unexpected token after prefix '--'
 test262/test/language/expressions/postfix-decrement/target-cover-newtarget.js:30:17: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-decrement/target-cover-yieldexpr.js:33:12: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-decrement/target-newtarget.js:30:15: Invalid left-hand side expression in postfix operation
@@ -2311,8 +2311,8 @@ test262/test/language/expressions/postfix-increment/arguments.js:22:1: Update of
 test262/test/language/expressions/postfix-increment/eval.js:22:1: Update of 'eval' is not allowed in strict mode
 test262/test/language/expressions/postfix-increment/line-terminator-carriage-return.js:17:3: Unexpected token after prefix '++'
 test262/test/language/expressions/postfix-increment/line-terminator-line-feed.js:17:3: Unexpected token after prefix '++'
-test262/test/language/expressions/postfix-increment/line-terminator-line-separator.js:16:7: Unexpected token after prefix '++'
-test262/test/language/expressions/postfix-increment/line-terminator-paragraph-separator.js:16:7: Unexpected token after prefix '++'
+test262/test/language/expressions/postfix-increment/line-terminator-line-separator.js:17:3: Unexpected token after prefix '++'
+test262/test/language/expressions/postfix-increment/line-terminator-paragraph-separator.js:17:3: Unexpected token after prefix '++'
 test262/test/language/expressions/postfix-increment/target-cover-newtarget.js:30:17: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-increment/target-cover-yieldexpr.js:33:12: Invalid left-hand side expression in postfix operation
 test262/test/language/expressions/postfix-increment/target-newtarget.js:30:15: Invalid left-hand side expression in postfix operation
@@ -2550,14 +2550,14 @@ test262/test/language/line-terminators/S7.3_A6_T1.js:17:1: Keyword 'var' must no
 test262/test/language/line-terminators/S7.3_A6_T2.js:17:1: Keyword 'var' must not contain escaped characters
 test262/test/language/line-terminators/S7.3_A6_T3.js:17:1: Keyword 'var' must not contain escaped characters
 test262/test/language/line-terminators/S7.3_A6_T4.js:17:1: Keyword 'var' must not contain escaped characters
-test262/test/language/line-terminators/invalid-comment-single-cr.js:16:10: Expected semicolon
+test262/test/language/line-terminators/invalid-comment-single-cr.js:17:7: Expected semicolon
 test262/test/language/line-terminators/invalid-comment-single-lf.js:17:6: Expected semicolon
-test262/test/language/line-terminators/invalid-comment-single-ls.js:17:22: Unexpected token '??'
-test262/test/language/line-terminators/invalid-comment-single-ps.js:15:22: Unexpected token '??'
-test262/test/language/line-terminators/invalid-regexp-cr.js:18:1: Expected expression after operator
+test262/test/language/line-terminators/invalid-comment-single-ls.js:18:1: Unexpected token '??'
+test262/test/language/line-terminators/invalid-comment-single-ps.js:16:1: Unexpected token '??'
+test262/test/language/line-terminators/invalid-regexp-cr.js:19:1: Expected expression after operator
 test262/test/language/line-terminators/invalid-regexp-lf.js:19:1: Expected expression after operator
-test262/test/language/line-terminators/invalid-regexp-ls.js:18:1: Expected expression after operator
-test262/test/language/line-terminators/invalid-regexp-ps.js:18:1: Expected expression after operator
+test262/test/language/line-terminators/invalid-regexp-ls.js:19:1: Expected expression after operator
+test262/test/language/line-terminators/invalid-regexp-ps.js:19:1: Expected expression after operator
 test262/test/language/line-terminators/invalid-string-cr.js:16:2: Unterminated string literal
 test262/test/language/line-terminators/invalid-string-lf.js:16:2: Unterminated string literal
 test262/test/language/literals/bigint/binary-invalid-digit.js:26:3: Expected semicolon
@@ -2820,10 +2820,10 @@ test262/test/language/literals/regexp/named-groups/invalid-punctuator-within-gro
 test262/test/language/literals/regexp/named-groups/invalid-punctuator-within-groupspecifier.js:15:5: Invalid named capture group name
 test262/test/language/literals/regexp/named-groups/invalid-unterminated-groupspecifier-u.js:15:5: Unterminated named capture group
 test262/test/language/literals/regexp/named-groups/invalid-unterminated-groupspecifier.js:15:5: Unterminated named capture group
-test262/test/language/literals/regexp/regexp-first-char-no-line-separator.js:34:1: Expected expression after operator
-test262/test/language/literals/regexp/regexp-first-char-no-paragraph-separator.js:34:1: Expected expression after operator
-test262/test/language/literals/regexp/regexp-source-char-no-line-separator.js:33:1: Expected expression after operator
-test262/test/language/literals/regexp/regexp-source-char-no-paragraph-separator.js:34:1: Expected expression after operator
+test262/test/language/literals/regexp/regexp-first-char-no-line-separator.js:35:1: Expected expression after operator
+test262/test/language/literals/regexp/regexp-first-char-no-paragraph-separator.js:35:1: Expected expression after operator
+test262/test/language/literals/regexp/regexp-source-char-no-line-separator.js:35:1: Expected expression after operator
+test262/test/language/literals/regexp/regexp-source-char-no-paragraph-separator.js:37:1: Expected expression after operator
 test262/test/language/literals/regexp/u-invalid-class-escape.js:23:2: Invalid '\c' escape: control letter must be ASCII letter
 test262/test/language/literals/regexp/u-invalid-extended-pattern-char.js:20:2: Invalid extended pattern character '{' in u-mode
 test262/test/language/literals/regexp/u-invalid-identity-escape.js:22:2: Invalid identity escape in u-mode regular expression
@@ -3021,8 +3021,8 @@ test262/test/language/module-code/parse-err-export-dflt-let.js:15:16: 'export de
 test262/test/language/module-code/parse-err-export-dflt-var.js:15:16: 'export default' cannot be followed by a variable declaration
 test262/test/language/module-code/parse-err-hoist-lex-fun.js:25:10: Identifier 'f' has already been declared
 test262/test/language/module-code/parse-err-hoist-lex-gen.js:27:11: Identifier 'g' has already been declared
-test262/test/language/module-code/parse-err-invoke-anon-fun-decl.js:26:29: Unexpected token after 'export default function' declaration
-test262/test/language/module-code/parse-err-invoke-anon-gen-decl.js:28:31: Unexpected token after 'export default function' declaration
+test262/test/language/module-code/parse-err-invoke-anon-fun-decl.js:26:31: Empty parenthesized expression
+test262/test/language/module-code/parse-err-invoke-anon-gen-decl.js:28:33: Empty parenthesized expression
 test262/test/language/module-code/parse-err-return.js:32:7: 'return' outside of function
 test262/test/language/module-code/parse-err-semi-dflt-expr.js:27:21: Unexpected token following export default expression
 test262/test/language/module-code/parse-err-semi-export-star.js:27:49: Expected semicolon after export declaration

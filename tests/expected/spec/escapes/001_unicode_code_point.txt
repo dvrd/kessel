@@ -98,37 +98,37 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 68,
+      "end": 65,
       "value": " ECMA-262 §12.9.4 — \\u{H...H} code-point escape. Decodes to the"
     },
     {
       "type": "Line",
-      "start": 69,
-      "end": 141,
+      "start": 66,
+      "end": 138,
       "value": " indicated Unicode code point. Valid range: 0x0 .. 0x10FFFF inclusive."
     },
     {
       "type": "Line",
-      "start": 172,
-      "end": 185,
+      "start": 169,
+      "end": 182,
       "value": " U+0000 NUL"
     },
     {
       "type": "Line",
-      "start": 216,
-      "end": 229,
+      "start": 213,
+      "end": 226,
       "value": " U+0041 'A'"
     },
     {
       "type": "Line",
-      "start": 260,
-      "end": 290,
+      "start": 257,
+      "end": 287,
       "value": " supplementary plane (emoji)"
     },
     {
       "type": "Line",
-      "start": 321,
-      "end": 348,
+      "start": 318,
+      "end": 345,
       "value": " upper bound (must parse)"
     }
   ]

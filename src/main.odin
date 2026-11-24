@@ -5,6 +5,7 @@ import "core:fmt"
 import "core:io"
 import mvirtual "core:mem/virtual"
 import "core:os"
+import "core:path/filepath"
 import "core:slice"
 import "core:strings"
 import "core:time"
@@ -148,8 +149,10 @@ main :: proc() {
 			} else if parse_raw {
 				if parse_out_dir != "" {
 					base := filepath_base(parse_files[0])
-					out_path := strings.concatenate({parse_out_dir, "/", base, ".bin"})
-					parse_file_raw_to_disk(parse_files[0], out_path, cli)
+					out_path := strings.concatenate({parse_out_dir, filepath.SEPARATOR_STRING, base, ".bin"})
+					if !parse_output_directory(parse_out_dir) { os.exit(1) }
+					ok, _, _ := parse_file_raw_to_disk(parse_files[0], out_path, cli)
+					if !ok { os.exit(1) }
 				} else {
 					raw_transfer_file(parse_files[0], "", cli)
 				}
@@ -162,7 +165,10 @@ main :: proc() {
 				if parse_workers < 1 { parse_workers = 1 }
 			}
 			if parse_out_dir == "" { parse_out_dir = parse_raw ? "tmp/raw" : "tmp/ast" }
-			parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli)
+			if !parse_many(parse_files[:], parse_workers, parse_out_dir, parse_raw, cli) {
+				flush_stdout_writer()
+				os.exit(1)
+			}
 		}
 		delete(parse_files)
 
@@ -199,6 +205,20 @@ main :: proc() {
 		}
 		file_path := os.args[2]
 		lex_file(file_path)
+
+	case "regexp":
+		exit_status := cli_regexp_ast(os.args[2:])
+		flush_stdout_writer()
+		if exit_status != 0 { os.exit(exit_status) }
+
+	case "module-lex":
+		if len(os.args) != 3 {
+			fmt.eprintln("Usage: kessel module-lex <file>")
+			os.exit(2)
+		}
+		exit_status := cli_module_lex(os.args[2])
+		flush_stdout_writer()
+		if exit_status != 0 { os.exit(exit_status) }
 
 	case "microbench":
 		if len(os.args) < 4 {
@@ -297,6 +317,12 @@ main :: proc() {
 		run_server_mode(cli)
 
 	case "lint":
+		if len(os.args) == 3 && os.args[2] == "--list-rules" {
+			exit_status := cli_lint_list_rules()
+			flush_stdout_writer()
+			if exit_status != 0 { os.exit(exit_status) }
+			return
+		}
 		if len(os.args) < 3 {
 			out_println("Error: lint command requires at least one file")
 			out_println("Usage: kessel lint <files...>")
@@ -304,20 +330,21 @@ main :: proc() {
 			os.exit(1)
 		}
 		cli := cli_config_default()
+		watch := false
 		lint_files := make([dynamic]string)
 		lint_overrides := make([dynamic]LintOverride)
 		lint_config_path := ""
 		lint_format := "default"
 		lint_quiet := false
 		lint_max_warnings := -1
-		lint_ignores := make([dynamic]string)
-		lint_glob_overrides := make([dynamic]LintConfigOverride)
+		lint_nested_config := true
+		fix_kinds: LintFixKinds
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
 			arg := os.args[i]
 			switch {
-			case arg == "--config" && i + 1 < len(os.args):
+			case (arg == "--config" || arg == "-c") && i + 1 < len(os.args):
 				lint_config_path = os.args[i+1]
 				i += 2
 			case len(arg) > 9 && arg[:9] == "--config=":
@@ -328,6 +355,43 @@ main :: proc() {
 				i += 2
 			case len(arg) > 9 && arg[:9] == "--format=":
 				lint_format = arg[9:]
+				i += 1
+			case arg == "--list-rules":
+				fmt.eprintln("Error: --list-rules must be used alone")
+				os.exit(2)
+			case arg == "--watch":
+				watch = true
+				i += 1
+			case arg == "--fix":
+				fix_kinds += {.Fix}
+				i += 1
+			case arg == "--fix-suggestions":
+				fix_kinds += {.Suggestion}
+				i += 1
+			case arg == "--fix-dangerously":
+				fix_kinds += {.Dangerous}
+				i += 1
+			case arg == "--disable-nested-config":
+				lint_nested_config = false
+				i += 1
+			case arg == "--report-unused-disable-directives":
+				ov, _ := lint_override_from_level(.L9001_UnusedDirective, "warn")
+				append(&lint_overrides, ov)
+				i += 1
+			case arg == "--report-unused-disable-directives-severity" || strings.has_prefix(arg, "--report-unused-disable-directives-severity="):
+				level := ""
+				if arg == "--report-unused-disable-directives-severity" {
+					i += 1
+					if i < len(os.args) { level = os.args[i] }
+				} else {
+					level = arg[len("--report-unused-disable-directives-severity="):]
+				}
+				ov, ok := lint_override_from_level(.L9001_UnusedDirective, level)
+				if !ok {
+					fmt.eprintln("Error: --report-unused-disable-directives-severity requires off, warn or error")
+					os.exit(2)
+				}
+				append(&lint_overrides, ov)
 				i += 1
 			case arg == "--quiet":
 				lint_quiet = true
@@ -364,13 +428,13 @@ main :: proc() {
 					os.exit(2)
 				}
 				i += 1
-			case arg == "--deny" && i + 1 < len(os.args):
+			case (arg == "--deny" || arg == "-D") && i + 1 < len(os.args):
 				if ov, ok := lint_severity_alias(os.args[i+1], "error"); ok { append(&lint_overrides, ov) }
 				i += 2
-			case arg == "--warn" && i + 1 < len(os.args):
+			case (arg == "--warn" || arg == "-W") && i + 1 < len(os.args):
 				if ov, ok := lint_severity_alias(os.args[i+1], "warn"); ok { append(&lint_overrides, ov) }
 				i += 2
-			case arg == "--allow" && i + 1 < len(os.args):
+			case (arg == "--allow" || arg == "-A") && i + 1 < len(os.args):
 				if ov, ok := lint_severity_alias(os.args[i+1], "off"); ok { append(&lint_overrides, ov) }
 				i += 2
 			case:
@@ -378,73 +442,43 @@ main :: proc() {
 				i += 1
 			}
 		}
-		had_errors := false
-		// With no explicit --config, search upward from the working directory
-		// for a kessel.lint.json so a project config is picked up automatically
-		// (ESLint-style). An explicit --config always wins.
-		if lint_config_path == "" {
-			if cwd, cwd_err := os.getwd(context.temp_allocator); cwd_err == nil {
-				if p, ok := lint_discover_config(cwd); ok { lint_config_path = p }
-			}
+		options := CLILintOptions{
+			cli = cli, overrides = lint_overrides[:], config_path = lint_config_path,
+			format = lint_format, quiet = lint_quiet, nested_config = lint_nested_config,
+			max_warnings = lint_max_warnings, fix_kinds = fix_kinds,
 		}
-		// Config-file overrides apply first; CLI --rule flags win because they
-		// are appended after and lint_run_for_job applies overrides in order.
-		if lint_config_path != "" {
-			merged := make([dynamic]LintOverride)
-			if !lint_load_config(lint_config_path, &merged, &lint_ignores, &lint_glob_overrides) {
-				fmt.eprintf("Error: could not read lint config: %s\n", lint_config_path)
-				os.exit(2)
-			}
-			for ov in lint_overrides { append(&merged, ov) }
-			delete(lint_overrides)
-			lint_overrides = merged
-		}
-		lint_warn_count := 0
-		// Reused per-file buffer for base overrides + any matching per-glob
-		// `overrides` block. Config overrides are applied after base rules (more
-		// specific wins); lint_run_for_job applies the slice in order.
-		eff_buf := make([dynamic]LintOverride)
-		for f in lint_files {
-			if lint_path_ignored(lint_ignores[:], f) { continue }
-			eff := lint_overrides[:]
-			if len(lint_glob_overrides) > 0 {
-				clear(&eff_buf)
-				append(&eff_buf, ..lint_overrides[:])
-				for co in lint_glob_overrides {
-					if lint_path_ignored(co.globs, f) { append(&eff_buf, ..co.rules) }
-				}
-				eff = eff_buf[:]
-			}
-			if lint_file(f, cli, eff, lint_format, lint_quiet, &lint_warn_count) { had_errors = true }
-		}
-		delete(eff_buf)
-		// Warning-failure policy (kessel is stricter than ESLint by default):
-		//   --max-warnings N : fail iff the warning total exceeds N.
-		//   --quiet          : warnings neither print nor fail; only errors fail.
-		//   (neither)        : any warning fails the run, like any other diagnostic.
-		if lint_max_warnings >= 0 {
-			if lint_warn_count > lint_max_warnings {
-				fmt.eprintf("Error: too many warnings (%d, max allowed %d)\n", lint_warn_count, lint_max_warnings)
-				had_errors = true
-			}
-		} else if !lint_quiet && lint_warn_count > 0 {
-			had_errors = true
-		}
+		status := cli_run_files(lint_files[:], options, watch)
 		delete(lint_files)
 		delete(lint_overrides)
 		flush_stdout_writer()
-		if had_errors { os.exit(1) }
+		if status != 0 { os.exit(status) }
 
-	case "codegen":
+	case "dts":
+		if len(os.args) != 3 { fmt.eprintln("Usage: kessel dts <file.ts>"); os.exit(2) }
+		status := cli_declarations(os.args[2])
+		flush_stdout_writer()
+		if status != 0 { os.exit(status) }
+
+	case "fmt":
+		exit_status := cli_format_file(os.args[2:])
+		flush_stdout_writer()
+		if exit_status != 0 { os.exit(exit_status) }
+
+	case "resolve":
+		exit_status := cli_resolve_module(os.args[2:])
+		flush_stdout_writer()
+		if exit_status != 0 { os.exit(exit_status) }
+
+	case "codegen", "minify":
+		optimize := command == "minify"
 		if len(os.args) < 3 {
-			out_println("Error: codegen command requires a file path")
-			out_println("Usage: kessel codegen <file> [--minified] [--sourcemap[=inline|external]]")
+			out_printf("Usage: kessel %s <file> [--sourcemap]\n", command)
 			flush_stdout_writer()
 			os.exit(1)
 		}
 		cli := cli_config_default()
 		cg_file := ""
-		cg_minified := false
+		options := PrintOptions{minified = optimize, compress = optimize, mangle = optimize}
 		// Source-map output mode. Three states:
 		//   - ""        : no sourcemap (default).
 		//   - "inline"  : embed the map as a base64 data URI in a
@@ -458,8 +492,16 @@ main :: proc() {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
 			arg := os.args[i]
 			switch {
+			case optimize && cli_parse_jsx_pragma(arg, &options.pragma, &options.pragma_frag):
+				i += 1
+			case optimize && arg == "--no-mangle":
+				options.mangle = false
+				i += 1
+			case command == "minify" && arg == "--no-compress":
+				options.compress = false
+				i += 1
 			case arg == "--minified":
-				cg_minified = true
+				options.minified = true
 				i += 1
 			case arg == "--sourcemap", arg == "--sourcemap=inline":
 				cg_sourcemap = "inline"
@@ -468,56 +510,103 @@ main :: proc() {
 				cg_sourcemap = "external"
 				i += 1
 			case:
-				if cg_file == "" {
+				if cg_file == "" && !strings.has_prefix(arg, "--") {
 					cg_file = arg
 					i += 1
 				} else {
-					fmt.eprintf("Error: unrecognised argument '%s' for `kessel codegen`\n", arg)
+					fmt.eprintf("Error: unrecognised argument '%s' for `kessel %s`\n", arg, command)
 					os.exit(2)
 				}
 			}
 		}
 		if cg_file == "" {
-			out_println("Error: codegen command requires a file path")
+			out_printf("Error: %s requires a file path\n", command)
 			flush_stdout_writer()
 			os.exit(1)
 		}
-		codegen_file(cg_file, cli, cg_minified, cg_sourcemap)
+		codegen_file(cg_file, cli, options, cg_sourcemap)
 
-	case "strip-types":
+	case "transform", "strip-types":
 		if len(os.args) < 3 {
-			out_println("Error: strip-types command requires a file path")
-			out_println("Usage: kessel strip-types <file> [--minified]")
+			out_printf("Error: %s command requires a file path\n", command)
+			out_printf("Usage: kessel %s <file> [--minified]\n", command)
 			flush_stdout_writer()
 			os.exit(1)
 		}
 		cli := cli_config_default()
+		watch := false
 		st_file := ""
-		st_minified := false
+		transform_options := TransformOptions{}
 		i := 2
 		for i < len(os.args) {
 			if cli_try_parse_flag(&cli, os.args, &i) { continue }
 			arg := os.args[i]
 			switch {
+			case command == "transform" && arg == "--watch":
+				watch = true
+				i += 1
 			case arg == "--minified":
-				st_minified = true
+				transform_options.minified = true
+				i += 1
+			case command == "transform" && (arg == "--sourcemap" || arg == "--sourcemap=inline"):
+				transform_options.source_map = true
+				i += 1
+			case command == "transform" && arg == "--jsx-allow-namespaces":
+				transform_options.allow_namespaces = true
+				i += 1
+			case command == "transform" && arg == "--jsx-no-pure":
+				transform_options.omit_pure = true
+				i += 1
+			case command == "transform" && arg == "--jsx-development":
+				transform_options.development = true
+				i += 1
+			case command == "transform" && (arg == "--define" || strings.has_prefix(arg, "--define=")):
+				if arg == "--define" {
+					i += 1
+					if i >= len(os.args) { fmt.eprintln("Error: --define requires NAME=EXPRESSION"); os.exit(2) }
+					arg = os.args[i]
+				} else { arg = strings.trim_prefix(arg, "--define=") }
+				separator := strings.index_byte(arg, '=')
+				if separator <= 0 || separator + 1 == len(arg) { fmt.eprintln("Error: --define requires NAME=EXPRESSION"); os.exit(2) }
+				if transform_options.define == nil { transform_options.define = make(map[string]string, context.allocator) }
+				transform_options.define[arg[:separator]] = arg[separator + 1:]
+				i += 1
+			case command == "transform" && arg == "--lower-using":
+				transform_options.lower_using = true
+				i += 1
+			case command == "transform" && arg == "--optimize-const-enums":
+				transform_options.optimize_const_enums = true
+				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--jsx="):
+				transform_options.jsx = strings.trim_prefix(arg, "--jsx=")
+				if transform_options.jsx != "classic" && transform_options.jsx != "automatic" && transform_options.jsx != "preserve" {
+					fmt.eprintln("Error: --jsx requires classic, automatic, or preserve")
+					os.exit(2)
+				}
+				i += 1
+			case command == "transform" && cli_parse_jsx_pragma(arg, &transform_options.pragma, &transform_options.pragma_frag):
+				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--jsx-import-source="):
+				transform_options.import_source = strings.trim_prefix(arg, "--jsx-import-source=")
+				if transform_options.import_source == "" { fmt.eprintln("Error: empty JSX import source"); os.exit(2) }
 				i += 1
 			case:
-				if st_file == "" {
+				if st_file == "" && !strings.has_prefix(arg, "--") {
 					st_file = arg
 					i += 1
 				} else {
-					fmt.eprintf("Error: unrecognised argument '%s' for `kessel strip-types`\n", arg)
+					fmt.eprintf("Error: unrecognised argument '%s' for kessel %s\n", arg, command)
 					os.exit(2)
 				}
 			}
 		}
 		if st_file == "" {
-			out_println("Error: strip-types command requires a file path")
+			out_printf("Error: %s command requires a file path\n", command)
 			flush_stdout_writer()
 			os.exit(1)
 		}
-		strip_types_file(st_file, cli, st_minified)
+		status := cli_run_files({st_file}, CLITransformOptions{cli, transform_options, command}, watch)
+		if status != 0 { os.exit(status) }
 
 	case "help", "-h", "--help":
 		print_usage()
@@ -552,10 +641,22 @@ print_usage :: proc() {
 	out_println("                                   Parallel parse, write JSON per file (default: tmp/ast/).")
 	out_println("  parse <files...> --raw [--out-dir D] [--workers N]")
 	out_println("                                   Parallel parse, write raw binary per file (default: tmp/raw/).")
+	out_println("  dts <file.ts>                   Emit isolated TypeScript declarations to stdout.")
+	out_println("  fmt <file>                      Format module imports and exports to stdout.")
+	out_println("  resolve <specifier> --from F   Resolve a module and print its path as JSON.")
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
+	out_println("  lint/fmt/transform --watch      Repeat the command when input files change.")
+	out_println("  lint --list-rules               Print the lint rule catalogue as JSON.")
+	out_println("  minify <file> [--no-compress] [--no-mangle] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
+	out_println("                                  Options: --no-compress, --no-mangle.")
 	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
+	out_println("  transform <file> [--define NAME=EXPRESSION] [--jsx=classic|automatic|preserve] [--jsx-development] [--jsx-import-source=X] [--jsx-pragma=X] [--jsx-pragma-frag=X] [--minified] [--sourcemap]")
 	out_println("  strip-types <file> [--minified] Erase TypeScript types, emit plain JavaScript.")
+	out_println("  transform --lower-using          Lower explicit resource management declarations.")
+	out_println("  transform --optimize-const-enums Inline constant TypeScript enum members.")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")
+	out_println("  module-lex <file>               Scan module dependencies and exports.")
+	out_println("  regexp <pattern> [--flags F]    Build a regexp tree and print it as JSON.")
 	out_println("  microbench parse <file> [--iterations N]   Parse benchmark (default 100).")
 	out_println("  microbench lex <file> [--iterations N]     Lex benchmark (default 100).")
 	out_println("  profile parse <file> [--iterations N]      Parser profile with stats (default 100).")
@@ -682,31 +783,9 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 	// shape without ambient globals. See src/emitter.odin.
 	e: Emitter
 	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
-	defer emitter_destroy(&e, context.allocator)
+	defer emitter_destroy(&e)
 
-	emitter_build_utf16(&e, job.source.data, context.allocator)
-	if e.cfg.loc {
-		build_line_table(&job.lexer)
-		emitter_adopt_lines(&e, job.lexer.line_offsets)
-	}
-
-	// Body of the JSON output: "{\n" + Program + [module record] + [errors] + "\n}\n".
-	// Build it unconditionally so emitter state is well-formed, but only
-	// flush to stdout when the user asked for it via --json.
-	emit_raw(&e, "{\n")
-	hb_info: Maybe(HashbangInfo)
-	if job.lexer.has_hashbang {
-		hb_info = HashbangInfo{value = job.lexer.hashbang_value, start = job.lexer.hashbang_start, end = job.lexer.hashbang_end}
-	}
-	emit_program(&e, job.program, 1, job.lexer.comments[:], hb_info)
-
-	if e.cfg.module_record {
-		emit_module_record(&e, &job.parser, 1)
-	}
-
-	emit_errors(&e, &job.parser, 1)
-
-	emit_raw(&e, "\n}\n")
+	emit_job_json(&e, &job)
 
 	if cli.emit_json {
 		// Single write to stdout for the JSON body. --compact mode
@@ -769,41 +848,31 @@ parse_file :: proc(file_path: string, cli: CliConfig) {
 //
 // Mirrors `parse_file`: open a ParseJob, run the parse, then run the lint pass
 // (src/lint.odin) and render its diagnostics with the shared rustc-style
-// renderer. Returns true if any diagnostic was reported so the caller can set
+// renderer. Reports read failures separately so a watch can continue with the
+// other inputs. Returns the error-level diagnostic status so the caller can set
 // a non-zero process exit. Parse errors are surfaced first; the lint pass runs
 // regardless (a partial AST is still walkable and the visitor is nil-safe).
-lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride = nil, format: string = "default", quiet: bool = false, warn_total: ^int = nil) -> bool {
+lint_file :: proc(file_path: string, cli: CliConfig, settings: LintSettings = {}, format: string = "default", quiet: bool = false, warn_total: ^int = nil, json_report: ^[dynamic]u8 = nil) -> (diagnostics, read_ok: bool) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+	if !parse_job_open(&job, file_path, lint_parse_config(file_path, parse_config_from_cli(cli))) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
-		os.exit(1)
+		return false, false
 	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 
-	// Ensure the line table exists for offset->line/col mapping in the renderer.
-	if job.parser.lexer != nil && job.parser.lexer.num_lines == 0 {
-		build_line_table(job.parser.lexer)
-	}
-
-	had_output := false
-	// Surface parse errors first (same shape as `kessel parse`).
-	if len(job.parser.errors) > 0 && job.parser.lexer != nil {
-		render_pretty_diagnostics(
-			job.parser.lexer.source,
-			file_path,
-			job.parser.lexer.line_offsets[:job.parser.lexer.num_lines],
-			job.parser.errors[:],
-			cli.color,
-		)
-		had_output = true
+	lex := &job.lexer
+	if lex.num_lines == 0 { build_line_table(lex) }
+	parse_errors := job.parser.errors[:]
+	if format != "json" && len(parse_errors) > 0 {
+		render_pretty_diagnostics(lex.source, file_path, lex.line_offsets, parse_errors, cli.color)
 	}
 
 	// Run the lint pass. Count severities over the full set (before any --quiet
 	// filtering) so --max-warnings still sees suppressed warnings. Warnings fail
 	// the run by default (kessel is stricter than ESLint here); --quiet and
 	// --max-warnings relax that in the caller.
-	l := lint_run_for_job(&job, overrides)
+	l := lint_run_for_job(&job, settings)
 	error_count := 0
 	warning_count := 0
 	for d in l.diagnostics {
@@ -820,46 +889,56 @@ lint_file :: proc(file_path: string, cli: CliConfig, overrides: []LintOverride =
 		diags = diags[:w]
 	}
 
-	if len(diags) > 0 && job.parser.lexer != nil {
-		if had_output { fmt.eprintln() }
-		lofs := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
+	if format == "json" {
+		assert(json_report != nil)
+		lint_json_append_file(json_report, file_path, &job, diags)
+	} else if len(diags) > 0 {
+		if len(parse_errors) > 0 { fmt.eprintln() }
+		lofs := lex.line_offsets
 		switch format {
-		case "json":
-			lint_render_json(job.parser.lexer.source, file_path, lofs, diags)
 		case "unix":
-			lint_render_unix(job.parser.lexer.source, file_path, lofs, diags)
+			lint_render_unix(lex.source, file_path, lofs, diags)
 		case "github":
-			lint_render_github(job.parser.lexer.source, file_path, lofs, diags)
+			lint_render_github(lex.source, file_path, lofs, diags)
 		case "compact":
-			lint_render_compact(job.parser.lexer.source, file_path, lofs, diags)
+			lint_render_compact(lex.source, file_path, lofs, diags)
 		case "checkstyle":
-			lint_render_checkstyle(job.parser.lexer.source, file_path, lofs, diags)
+			lint_render_checkstyle(lex.source, file_path, lofs, diags)
 		case "gitlab":
-			lint_render_gitlab(job.parser.lexer.source, file_path, lofs, diags)
+			lint_render_gitlab(lex.source, file_path, lofs, diags)
 		case "junit":
-			lint_render_junit(job.parser.lexer.source, file_path, lofs, diags)
+			lint_render_junit(lex.source, file_path, lofs, diags)
 		case:
 			render_pretty_diagnostics(
-				job.parser.lexer.source,
+				lex.source,
 				file_path,
 				lofs,
 				diags,
 				cli.color,
 			)
 		}
-		had_output = true
 	}
-	_ = had_output
 
 	// Exit-1 conditions: a parse error, or an error-severity lint diagnostic.
-	return len(job.parser.errors) > 0 || error_count > 0
+	return len(parse_errors) > 0 || error_count > 0, true
 }
 
 // ============================================================================
 // Codegen: parse and emit JS source from the AST
 // ============================================================================
 
-codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool, sourcemap_mode: string = "") {
+cli_parse_jsx_pragma :: proc(arg: string, pragma, fragment: ^string) -> bool {
+	for prefix, index in ([2]string{"--jsx-pragma=", "--jsx-pragma-frag="}) {
+		if !strings.has_prefix(arg, prefix) { continue }
+		value := arg[len(prefix):]
+		if !jsx_pragma_valid(value) { fmt.eprintln("Error: invalid JSX pragma binding"); os.exit(2) }
+		if index == 0 { pragma^ = value } else { fragment^ = value }
+		return true
+	}
+	return false
+}
+
+codegen_file :: proc(file_path: string, cli: CliConfig, options: PrintOptions, sourcemap_mode: string) {
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
@@ -887,49 +966,12 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool, sourcema
 		os.exit(1)
 	}
 
-	cfg := CodegenConfig{minified = minified, indent = "  "}
 	cg: Codegen
-	codegen_init(&cg, cfg, len(job.source.data), context.allocator)
-	defer codegen_destroy(&cg, context.allocator)
-
-	// Wire the source map recorder if the caller asked for one. The
-	// recorder borrows the lexer's line-offset table; nothing here owns
-	// or frees it. sourcemap_destroy frees only the records slice.
 	sm: SourceMap
 	want_sm := sourcemap_mode != ""
-	if want_sm {
-		// The lexer builds its line-offset table lazily — it is only
-		// populated when diagnostics are rendered. Force it here so the
-		// source map's src_offset → (line, col) conversion has data to
-		// work with. Without this the lazy table is empty and every
-		// source position collapses to (0, 0) silently.
-		if job.parser.lexer.num_lines == 0 {
-			build_line_table(job.parser.lexer)
-		}
-		line_offsets := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
-		sourcemap_init(&sm, string(job.source.data), line_offsets)
-		codegen_enable_sourcemap(&cg, &sm)
-	}
+	codegen_print_job(&job, &cg, options, &sm if want_sm else nil)
+	defer codegen_destroy(&cg, context.allocator)
 	defer if want_sm { sourcemap_destroy(&sm) }
-
-	// Hashbang lives on the lexer (ES2023 Program.hashbang). Codegen must
-	// re-emit `#!...\n` at the very start before any other output — the
-	// hashbang production requires byte offset 0.
-	if job.lexer.has_hashbang {
-		cg_str(&cg, "#!")
-		cg_str(&cg, job.lexer.hashbang_value)
-		// Hashbang is a line comment; it MUST end with a real newline,
-		// even in minified mode, otherwise the next token glues onto the
-		// hashbang line and gets swallowed as part of the comment.
-		cg_byte(&cg, '\n')
-	}
-	codegen_program(&cg, job.program)
-
-	// Guarantee a trailing newline in pretty mode so shell redirection
-	// produces well-formed text files. Minified output is left as-is.
-	if !minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
-		cg_byte(&cg, '\n')
-	}
 
 	// Source-map trailer. The CLI currently writes to stdout only, so
 	// `external` mode degrades into `inline` (writing `<file>.map` would
@@ -955,18 +997,56 @@ codegen_file :: proc(file_path: string, cli: CliConfig, minified: bool, sourcema
 	os.write(os.stdout, cg.buf[:cg.pos])
 }
 
-// `kessel strip-types <file>` — parse TS/TSX and re-emit plain JavaScript with
-// all erasable TypeScript syntax removed (annotations, generics, interfaces,
-// `as` / `satisfies`, type-only imports/exports, etc.). Non-erasable TS that
-// carries runtime meaning (enum, namespace-with-body, `import =`, `export =`,
-// parameter properties, abstract members) cannot be erased without a lowering
-// pass; the first one is reported on stderr and the command exits non-zero
-// rather than emit invalid JavaScript. Mirrors codegen_file otherwise.
-strip_types_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
+strip_types_module_kind :: proc(job: ^ParseJob) -> StripModuleKind {
+	explicit_module := strings.has_suffix(job.source_path, ".mts") || strings.has_suffix(job.source_path, ".mjs")
+	if kind, forced := job.config.source_type_override.?; forced {
+		if kind == .Script { return .Script }
+		explicit_module = true
+	} else if job.config.strict_source_type || job.is_commonjs {
+		return .Script
+	}
+	live_esm := explicit_module || job.parser.has_top_level_await || len(job.parser.importMetas) != 0
+	is_module := live_esm || job.program.type == .Module
+	requires_commonjs_import := false
+	for statement in job.program.body {
+		alias: ^TSImportEqualsDeclaration
+		#partial switch declaration in statement^ {
+		case ^TSExportAssignment:
+			return .Script
+		case ^TSImportEqualsDeclaration:
+			alias = declaration
+		case ^ImportDeclaration: live_esm = live_esm || declaration.import_kind != .Type
+		case ^ExportAllDeclaration: live_esm = live_esm || declaration.export_kind != .Type
+		case ^ExportDefaultDeclaration: live_esm = live_esm || !strip_default_export_is_erased(declaration)
+		case ^ExportNamedDeclaration:
+			live_esm = live_esm || strip_statement_has_runtime(statement^)
+			if exported, present := declaration.declaration.?; present {
+				alias, _ = exported^.(^TSImportEqualsDeclaration)
+			}
+		}
+		if alias == nil { continue }
+		if _, external := alias.module_reference.(^TSExternalModuleReference); !external { continue }
+		if alias.import_kind == .Type { is_module = true } else { requires_commonjs_import = true }
+	}
+	if requires_commonjs_import {
+		// Unqualified .ts with only require-style runtime imports keeps its CommonJS binding.
+		return .ESM_With_Require if live_esm else .Script
+	}
+	return .ESM if is_module else .Script
+}
+
+// `kessel strip-types <file>` erases type syntax and lowers supported runtime
+// TypeScript constructs. It reports the first unsupported runtime construct
+// on stderr and exits before writing JavaScript.
+transform_file :: proc(file_path: string, cli: CliConfig, options: TransformOptions, command: string) -> int {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+	parse_config := parse_config_from_cli(cli)
+	// Parentheses can bound an optional chain or control how erased assertions
+	// group with surrounding expressions.
+	parse_config.preserve_parens = true
+	if !parse_job_open(&job, file_path, parse_config) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
-		os.exit(1)
+		return 1
 	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
@@ -984,34 +1064,34 @@ strip_types_file :: proc(file_path: string, cli: CliConfig, minified: bool) {
 				cli.color,
 			)
 		}
-		os.exit(1)
+		return 1
 	}
 
-	cfg := CodegenConfig{minified = minified, indent = "  ", strip_types = true}
 	cg: Codegen
-	codegen_init(&cg, cfg, len(job.source.data), context.allocator)
+	sm: SourceMap
+	map_out := &sm if options.source_map else nil
+	diagnostic := transform_generate(&job, &cg, options, map_out)
 	defer codegen_destroy(&cg, context.allocator)
-
-	if job.lexer.has_hashbang {
-		cg_str(&cg, "#!")
-		cg_str(&cg, job.lexer.hashbang_value)
-		cg_byte(&cg, '\n')
+	defer if map_out != nil { sourcemap_destroy(map_out) }
+	if diag, failed := diagnostic.?; failed {
+		if command == "strip-types" {
+			fmt.eprintf("error: %s: cannot strip non-erasable TypeScript: %s\n", file_path, diag.what)
+		} else {
+			fmt.eprintf("error: %s at byte %d: %s\n", file_path, diag.loc.start, diag.what)
+		}
+		return 1
 	}
-	codegen_program(&cg, job.program)
-
-	// Fail loudly on any non-erasable TS construct rather than emit broken JS.
-	if diag, ok := cg.strip_diag.?; ok {
-		fmt.eprintf(
-			"error: %s: cannot strip non-erasable TypeScript: %s\n",
-			file_path, diag.what,
-		)
-		os.exit(1)
-	}
-
-	if !minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
+	if map_out != nil {
+		map_json := sourcemap_to_json(map_out, file_path, file_path, string(cg.buf[:cg.pos]), true)
+		defer delete(map_json)
+		encoded := base64_encode(transmute([]byte)map_json)
+		defer delete(encoded)
+		cg_str(&cg, "//# sourceMappingURL=data:application/json;base64,")
+		cg_str(&cg, string(encoded))
 		cg_byte(&cg, '\n')
 	}
 	os.write(os.stdout, cg.buf[:cg.pos])
+	return 0
 }
 
 // ============================================================================
@@ -1029,7 +1109,7 @@ parse_file_binary :: proc(file_path: string, cli: CliConfig) {
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	be: BinaryEmitter
-	binary_emitter_init(&be, string(job.source.data), context.allocator)
+	binary_emitter_init(&be, string(job.source.data), context.allocator, job.parser.allocator, allow_ts_mode(&job.parser))
 	defer binary_emitter_destroy(&be, context.allocator)
 
 	bin_emit_program(&be, job.program)
@@ -1097,7 +1177,10 @@ raw_transfer_file :: proc(file_path: string, out_path: string, cli: CliConfig) {
 
 parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		return false, 0, 0
+	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
@@ -1107,9 +1190,9 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	// `direct_buf` is gone.
 	e: Emitter
 	emitter_init(&e, emit_config_from_cli(cli, job.lang), len(job.source.data), context.allocator)
-	defer emitter_destroy(&e, context.allocator)
+	defer emitter_destroy(&e)
 
-	emitter_build_utf16(&e, job.source.data, context.allocator)
+	emitter_build_utf16(&e, job.source.data)
 	if e.cfg.loc {
 		build_line_table(&job.lexer)
 		emitter_adopt_lines(&e, job.lexer.line_offsets)
@@ -1122,7 +1205,10 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 	}
 	emit_raw(&e, "}\n")
 
-	_ = os.write_entire_file(out_path, e.buf[:e.pos])
+	if err := os.write_entire_file(out_path, e.buf[:e.pos]); err != nil {
+		fmt.eprintf("Error: Could not write %s: %v\n", out_path, err)
+		return false, 0, 0
+	}
 
 	return true, len(job.source.data), len(job.parser.errors)
 }
@@ -1133,13 +1219,17 @@ parse_file_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) 
 
 parse_file_raw_to_disk :: proc(file_path: string, out_path: string, cli: CliConfig) -> (ok: bool, file_size: int, error_count: int) {
 	job: ParseJob
-	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) { return false, 0, 0 }
+	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
+		fmt.eprintf("Error: Could not read file: %s\n", file_path)
+		return false, 0, 0
+	}
 	defer parse_job_close(&job)
 	parse_job_run(&job)
 	if cli.show_semantic_errors { checker_run_for_job(&job) }
 
 	result := produce_raw_buffer_from_job(&job)
 	if !write_raw_buffer(result, out_path) {
+		fmt.eprintf("Error: Could not write %s\n", out_path)
 		return false, 0, 0
 	}
 	return true, len(job.source.data), result.error_count
@@ -1171,7 +1261,8 @@ worker_proc :: proc(data: rawptr) {
 		base := filepath_base(ctx.files[i])
 		ext := ".json"
 		if ctx.write_raw { ext = ".bin" }
-		out_path := strings.concatenate({ctx.out_dir, "/", base, ext})
+		out_path := strings.concatenate({ctx.out_dir, filepath.SEPARATOR_STRING, base, ext})
+		defer delete(out_path)
 		success: bool
 		bytes: int
 		errs: int
@@ -1235,22 +1326,17 @@ filepath_base :: proc(path: string) -> string {
 	return path
 }
 
-mkdir_p :: proc(path: string) {
-	for i in 0..<len(path) {
-		if path[i] == '/' && i > 0 {
-			os.make_directory(path[:i])
-		}
-	}
-	os.make_directory(path)
+parse_output_directory :: proc(path: string) -> bool {
+	err := os.make_directory_all(path, os.Permissions_Default_Directory)
+	if err == nil { return true }
+	if err == .Exist && os.is_directory(path) { return true }
+	fmt.eprintf("Error: Could not create output directory %s: %v\n", path, err)
+	return false
 }
 
-parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) {
-	if len(files) == 0 {
-		out_println("No files to parse.")
-		return
-	}
-
-	mkdir_p(out_dir)
+parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: bool, cli: CliConfig) -> bool {
+	assert(len(files) > 1)
+	if !parse_output_directory(out_dir) { return false }
 
 	// Pre-initialize thread-unsafe global tables before spawning workers.
 	init_char_class_table()
@@ -1311,7 +1397,7 @@ parse_many :: proc(files: []string, n_workers: int, out_dir: string, write_raw: 
 	}
 	out_printf("  Workers: %d\n", actual_workers)
 	out_printf("  Output:  %s/\n", out_dir)
-	os.flush(os.stdout)
+	return total_parsed == len(files)
 }
 // Microbench Command (in-process parse measurements)
 // ============================================================================
@@ -1560,8 +1646,8 @@ microbench_codegen :: proc(file_path: string, iterations: int, minified: bool, c
 	// and the AST in cache before the measured loop.
 	{
 		cg: Codegen
-		codegen_init(&cg, cfg, file_size, context.allocator)
-		codegen_program(&cg, job.program)
+		codegen_init(&cg, cfg, string(job.source.data), context.allocator)
+		codegen_program(&cg, job.program, job.lexer.comments[:])
 		codegen_destroy(&cg, context.allocator)
 	}
 
@@ -1572,8 +1658,8 @@ microbench_codegen :: proc(file_path: string, iterations: int, minified: bool, c
 	for _ in 0..<iterations {
 		start := time.tick_now()
 		cg: Codegen
-		codegen_init(&cg, cfg, file_size, context.allocator)
-		codegen_program(&cg, job.program)
+		codegen_init(&cg, cfg, string(job.source.data), context.allocator)
+		codegen_program(&cg, job.program, job.lexer.comments[:])
 		output_bytes_last = cg.pos
 		codegen_destroy(&cg, context.allocator)
 		elapsed := time.tick_since(start)

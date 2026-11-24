@@ -38,20 +38,29 @@ and matches the reference parser on every invalid input in the corpora.
 
 Kessel can emit JavaScript / TypeScript source back from an AST. The same
 binary that parses your code can round-trip it through `bin/kessel codegen`
-(pretty or `--minified`). The codegen is gated by a round-trip property test:
-`parse → codegen → re-parse` must produce an equal AST.
+(pretty or `--minified`). The gate compares the ASTs from the original and
+regenerated source with positions and comment metadata removed.
+
+Both modes preserve license notices and optimizer annotations attached to
+supported calls and functions. Dynamic imports retain webpack, Vite, and
+Turbopack hints in both modes. Pretty output also preserves ordinary comments
+between statements and class members, around object literal properties, and
+inside argument lists for calls, constructors, and dynamic imports. Empty
+argument lists, class bodies, static blocks, and object literals retain their comments.
+
+Latest completed optimized round-trip run
 
 | Corpus | Round-trip pass | Known divergences |
 |---|---:|---:|
 | Spec (in-tree) | 253 / 253 | 0 |
 | ESTree | 39 / 39 | 0 |
-| Babel | 2 620 / 2 636 | 16 (baselined) |
-| test262 | 44 181 / 44 186 | 5 (baselined) |
-| TypeScript | 16 957 / 17 004 | 47 (baselined) |
+| Babel | 2 636 / 2 636 | 0 |
+| test262 | 44 186 / 44 186 | 0 |
+| TypeScript | 17 004 / 17 004 | 0 |
 
-Remaining 68 divergences across the three vendored corpora are tracked in
-`tests/baselines/codegen_known_failures.txt` and surface in
-`task test:codegen:full`; the gate fails on any NEW divergence.
+`task test:codegen:full` prints each runnable fixture in both pretty and
+minified modes. Both outputs must reparse to the original AST. Known
+divergences are tracked in `tests/baselines/codegen_known_failures.txt`.
 
 ## Installation
 
@@ -92,18 +101,39 @@ bin/kessel parse src/*.js --workers 8 --out-dir tmp/ast
 # Tokenize
 bin/kessel lex app.js
 
-# Codegen — emit JS source back from the AST (round-trip / minify)
+# Scan module requests and export names
+bin/kessel module-lex app.js
+
+# Inspect a regular expression pattern
+bin/kessel regexp '(?<word>[a-z]+)' --flags u
+
+# Resolve a package or TypeScript alias from an importing file
+bin/kessel resolve lodash --from src/app.js --require
+bin/kessel resolve '@app/utils' --from src/app.ts --tsconfig tsconfig.json
+
+# Codegen — emit source back from the AST
 bin/kessel codegen app.js
 bin/kessel codegen app.js --minified
 
-# Lint — walk the AST and report lint diagnostics (162 built-in rules)
+# Minify JS and JSX expressions and shorten local binding names
+bin/kessel minify app.js --sourcemap
+bin/kessel minify app.js --no-mangle
+bin/kessel minify view.jsx --jsx-pragma=ui.create --jsx-pragma-frag=ui.Fragment
+
+# Lint — walk the AST and report lint diagnostics
 bin/kessel lint app.js
+bin/kessel lint --list-rules
 bin/kessel lint src/*.ts --rule no-console:error --rule eqeqeq:warn
 bin/kessel lint app.js --format=json          # also: unix, github, compact, checkstyle
 bin/kessel lint app.js --config kessel.lint.json
+bin/kessel lint --watch src/*.ts
 
-# Strip TypeScript types — re-emit plain JavaScript (erasable-only)
+# Strip TypeScript types and lower supported runtime declarations
 bin/kessel strip-types app.ts
+
+# Lower TSX to JavaScript using React.createElement
+bin/kessel transform app.tsx --jsx=classic
+bin/kessel transform app.tsx --jsx=automatic --jsx-import-source=preact
 
 # Benchmark
 bin/kessel microbench parse app.js --iterations 500
@@ -112,6 +142,83 @@ bin/kessel microbench parse app.js --iterations 500 --ast-only
 # Long-lived server mode (reads paths from stdin, writes framed JSON)
 bin/kessel server --compact
 ```
+
+`kessel fmt <file>` prints imports, named re-exports, export lists and data literals.
+A single `const`, `let` or `var` binding or a default export can contain nested
+objects and arrays. The formatter handles shorthand and computed keys, spreads
+of supported values, sparse arrays and numeric rows. Simple TypeScript type
+names, qualified names and array types are supported, including chained
+assertions such as `as const satisfies Project.Config`.
+
+Use `--print-width 60 --single-quote` to wrap at 60 columns and prefer single
+quotes. The defaults are 80 columns and two-space indentation. Unsupported
+statements, statements with internal comments and `prettier-ignore` targets
+retain their original source. Use `--end-of-line lf|crlf|cr|auto` for generated
+line breaks. The editor detects the document's convention automatically.
+
+Add `--watch` to `lint`, `fmt`, or `transform` to run once and repeat after saves.
+The CLI polls the named paths, including files replaced by an editor's atomic save.
+Shell globs select their files when the command starts.
+Lint also tracks its explicit or discovered configs and their `extends` chain.
+Fixing a syntax error or restoring a missing file triggers another run. Results go
+to their usual output streams. JSON lint output emits one array per completed pass.
+Use Ctrl-C to stop.
+
+### TypeScript declaration files
+
+Run `kessel dts src/api.ts > api.d.ts` to emit an experimental single-file
+declaration. Kessel follows public signatures to the imports and local types
+they use, and removes function bodies and unrelated private declarations.
+It supports functions, overloads, typed and literal bindings, classes, enums,
+interfaces, aliases, namespaces, and re-exports. Diagnostics on stderr give the code and
+UTF-8 byte range. A failed emit exits with status 1 and writes no declarations.
+Class index signatures and nested or merged namespaces retain private types used
+by public signatures. Computed interface and type-literal members can refer to
+local or imported keys. Some computed class members and inferred types remain in development.
+
+The experimental `module-lex` command emits JSON with imports, re-exports,
+`import.meta`, source and defer imports, and export names. Export records
+include the local binding when available, including aliased, destructured, and
+multiple variable bindings. The scanner also recognizes common TypeScript
+declaration exports and external `import = require(...)` declarations.
+Spans use UTF-8 byte offsets.
+
+`resolve` prints a JSON object with `kind` and `path`. It uses ESM lookup by
+default. Pass `--require` for CommonJS, repeat `--condition` to add package
+conditions, or repeat `--main-field` to set the order of legacy entry fields
+such as `module` and `main`. Repeat `--alias name=target` for explicit module
+aliases. A trailing `$` on a name makes the alias match only that specifier.
+Use `--no-main-fields` to skip legacy manifest entries and try directory entry names directly.
+Projects with custom package directories can repeat `--module-dir`. For example,
+`--module-dir vendor --module-dir node_modules` checks every ancestor's
+`vendor` directory before looking in `node_modules`. Absolute directories are
+checked once. Use `--no-module-dirs` to disable package directory lookup.
+For CommonJS lookups and legacy package entries, repeat `--extension` to set
+the suffix order and `--main-file` to set directory entry names. For example,
+`--extension .ts --extension .js --main-file index` tries `index.ts` before
+`index.js` in a directory. Pass `--no-extensions` or `--no-main-files` to
+disable the corresponding search. Relative ESM imports and explicit package
+export and import targets still require exact paths.
+Use `--exports-fields '["exports",["tooling","public"]]'` to select the first
+present package export map. Use `--imports-fields '[["tooling","private"],"imports"]'`
+to search private import maps in order. A nested array names a path in
+`package.json`. An empty list disables that map lookup.
+An explicit suffix can opt into substitution. For example,
+`--extension-alias .js=.ts,.js` resolves a request for `./entry.js` to
+`entry.ts` first, then `entry.js`. The order also applies to explicit package
+entry paths. An empty replacement tries the filename without its suffix.
+
+Pass `--browser` for the browser export condition and package browser field
+remaps. An ignored module produces `{"kind":"ignored","path":""}`.
+An explicit `--tsconfig` adds TypeScript path
+aliases and bundler-style source extension lookup for mapped targets. With
+`rootDirs: ["src", "generated"]`, a relative import of `./theme.css` from
+`src/app.ts` can resolve to `generated/theme.d.css.ts`. Kessel checks the
+import’s physical directory first, then the other roots in declaration order.
+
+`regexp` accepts a pattern without slash delimiters and emits a JSON tree.
+Use the `root`, `first_child`, and `next_sibling` indices to traverse it. Index
+zero marks an absent link. Node spans use UTF-8 byte offsets.
 
 Errors are pretty-printed (rustc-style) by default with stable K-codes
 (`K1xxx` lexer, `K2xxx`/`K3xxx` parser, `K4xxx` TypeScript-specific). Pass
@@ -155,14 +262,43 @@ programmatic handling. Full API and visitor helpers documented in
 
 ### Linting (`kessel lint`)
 
-162 built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
+Built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
 rules are default-on; style/restriction rules are default-off and enabled
 explicitly. Every rule is addressable by its ESLint-style kebab-case name.
+Use `kessel lint --list-rules` to see the registered names, codes, and defaults.
+`task lint:parity:report` compares registered names against the pinned oxlint
+rule inventory.
+
+In `.oxlintrc.json`, `"plugins": ["react"]` enables
+`react/exhaustive-deps` at the correctness category's severity (warning by
+default). Set `"categories": { "pedantic": "warn" }` to enable
+`react/rules-of-hooks` as well. An override can enable the plugin for a file
+glob. Rule-specific settings take precedence over the category defaults.
+
+Enable `react/rules-of-hooks` to flag hook calls in ordinary functions, loops,
+or branches that can skip a hook between renders. For example,
+`kessel lint View.tsx --rule react/rules-of-hooks:warn` reports a conditional
+`useEffect` call. Setting the rule in a workspace's `.oxlintrc.json` also
+enables the diagnostic on unsaved buffers in the development extension.
+
+Enable `react/exhaustive-deps` to check dependencies captured by `useEffect`,
+`useLayoutEffect`, `useMemo`, `useCallback` and `useImperativeHandle`. A missing
+dependency highlights the array. In the editor, its related locations point to
+the values read by the callback. To check custom hooks as well, use a rule
+setting such as `["warn", { "additionalHooks": "^useRemoteEffect$" }]`.
+Pass both `--fix-suggestions` and `--fix-dangerously` to add missing entries
+and remove duplicate or unnecessary dependencies. These edits can change when
+an effect runs. For an inline `useMemo` or `useCallback` with no array, Kessel
+can create one from the values the callback reads.
 
 | Flag | Description |
 |---|---|
 | `--rule <name>:off\|warn\|error` | Override a rule's severity (repeatable) |
-| `--config <file>` | Load a `kessel.lint.json` (auto-discovered upward from cwd if omitted) |
+| `--config <file>`, `-c <file>` | Use one configuration for every input |
+| `--disable-nested-config` | Use the discovered root configuration for every input |
+| `--fix` | Remove debugger statements, apply safe strict equality comparisons, and convert eligible `let` declarations to `const` |
+| `--fix-suggestions` | Remove reported unused disable comments and unused rule names |
+| `--fix-dangerously` | Allow strict equality edits that may change coercion behavior |
 | `--format=<fmt>` | Output format: `default`, `json`, `unix`, `github`, `compact`, `checkstyle`, `gitlab`, `junit` |
 | `--quiet` | Report errors only — warnings are neither printed nor counted toward the exit code |
 | `--max-warnings <N>` | Return non-zero only if the warning total exceeds `N` (CI gate) |
@@ -172,32 +308,90 @@ By default kessel is stricter than ESLint: **any** diagnostic (error or
 warning) yields a non-zero exit. `--quiet` and `--max-warnings` opt into the
 looser ESLint-style policy where warnings are tolerated.
 
-The `kessel.lint.json` config file sets per-rule severities and file globs to
-skip:
+Kessel searches upward from the working directory for `kessel.lint.json` or
+`.oxlintrc.json`. The Kessel file takes priority when both exist in one
+directory. Each input within that project uses its nearest configuration.
+A nested configuration can inherit the root settings through `extends`.
+An explicit CLI rule level takes priority over matching file overrides.
+
+The assignment rules resolve each name to its declaration. For example,
+`no-import-assign` flags writes to an imported namespace, including
+`Reflect.set(ns, key, value)`. A function parameter also named `ns` has
+its own binding. `no-const-assign` covers both `const` and `using`.
+Enable `no-undef` for unresolved names in JavaScript and JSX.
+
+Use `globals` to declare names supplied by your application. A `readonly`
+name can be read, and `no-global-assign` reports writes to it. A `writable`
+name can also be reassigned. Use `env` to load host globals such as Node's
+`process`, the browser's `document`, or Jest's `describe`. Both fields
+work in per-file overrides.
+
+Enable `prefer-const` to find `let` bindings that are never reassigned.
+Set `["warn", {"destructuring": "all", "ignoreReadBeforeAssign": true}]`
+to report a destructuring pattern only when all its bindings qualify and
+skip variables read before initialization. The fixer changes the keyword
+when every binding in the declaration can use `const`. A separate first
+assignment or a direct `eval` in scope keeps the declaration editable by hand.
+
+Fix modes operate on each file's enabled rules. For example,
+`kessel lint --fix -D eqeqeq app.js` changes `1 == 2` to `1 === 2`.
+Use `--fix-suggestions --report-unused-disable-directives` to clean up
+suppressions. Combine all three flags to apply all available edits.
+Kessel reparses each edit pass and reports diagnostics at their final
+locations. Input with syntax errors is preserved. The CLI replaces each
+changed file atomically, follows symlinks, and skips replacement if it
+would split a hard link.
+
+With `--format=json`, stderr contains one array for the entire invocation.
+Each linted file has a `messages` array. A syntax error carries `fatal: true`
+and a null `ruleId`. The exit status still reflects `--max-warnings`.
+
+Both filenames support the rules, ignores and overrides shown below. Kessel
+recognizes rule names listed by `kessel lint --list-rules` and accepts string
+levels, numeric levels from 0 to 2, and single-element severity arrays. The
+`eqeqeq` rule also accepts `["warn", "smart"]` for literal, `typeof`, and
+null comparisons, or `["error", "always", {"null": "ignore"}]` for a
+null-specific exception. The `null` setting accepts `always`, `ignore`,
+and `never`.
+
+Enable `no-console` to report reads, calls, and assignments to statically named
+properties on the global console. For example, `["warn", {"allow": ["warn",
+"error"]}]` permits those two methods. Locally declared and imported consoles are exempt.
+With `--fix-suggestions`, Kessel can remove a standalone call and its arguments.
+Removing a call used as a value also requires `--fix-dangerously`.
 
 ```json
 {
   "ignorePatterns": ["dist", "*.min.js"],
+  "env": { "browser": true },
+  "globals": { "APP_VERSION": "readonly" },
   "rules": { "eqeqeq": "error", "no-console": "warn", "no-debugger": "off" },
   "overrides": [
-    { "files": ["*.test.js"], "rules": { "no-debugger": "error" } }
+    { "files": ["*.test.js"], "env": { "jest": true }, "rules": { "no-debugger": "error" } }
   ]
 }
 ```
 
 Glob patterns in `ignorePatterns` support `*` (any run, including `/`) and `?`
-(one character), matched against the full path and the basename; a literal name
+(one character), matched against the project-relative path and the basename; a literal name
 like `dist` matches an exact path, basename, prefix, or interior segment. Each
 `overrides` block layers its `rules` on top of the base rules for files matching
 one of its `files` globs (more specific wins). An `"extends": "./base.json"`
 key (string or array) inherits one or more parent configs first, resolved
 relative to the config file, so the child's own settings override them.
+For `.oxlintrc.json`, define top-level `globals` and `env` in the selected
+file. Like the pinned oxlint, Kessel inherits parent rules and matching
+overrides while taking those two top-level fields from the child. Standard
+ECMAScript globals are available even with an empty environment. When two
+hosts disagree about writability, Kessel uses the alphabetically first
+matching host. For example, AMD and PhantomJS disagree on `require`.
+Set its access in `globals` to get the same result across tools.
 
-Inline suppression uses ESLint-compatible disable directives, including
-targeted per-rule suppression:
+Lint accepts both `eslint-` and `oxlint-` comment directives. For example, a
+next-line directive can name a rule and explain why the line is exempt.
 
 ```js
-// eslint-disable-next-line no-console
+// oxlint-disable-next-line no-console -- print the CLI result
 console.log(x);
 
 /* eslint-disable no-debugger */
@@ -205,8 +399,16 @@ debugger;
 /* eslint-enable no-debugger */
 ```
 
-A bare `// eslint-disable-next-line` (no rule names) suppresses every rule on
-the next line; naming rules suppresses only those.
+A bare `// oxlint-disable` opens a range for all rules. `disable-line` and
+`disable-next-line` apply to one line. With `.oxlintrc.json`, a bare `enable`
+closes the blanket range, and a named `enable` closes the range opened with
+that rule name. Both ranges can be active at once. With `kessel.lint.json`
+or standalone defaults, a bare `enable` restores all rules.
+
+Pass `--report-unused-disable-directives` to see warnings for unused directives
+and unused names within a directive. Set the level with
+`--report-unused-disable-directives-severity off|warn|error` or the
+`options.reportUnusedDisableDirectives` field in `kessel.lint.json`.
 
 
 ## Tests
@@ -227,9 +429,16 @@ task test:release             # Zero-tolerance pre-release chain (~13 min)
 | `task test:fuzz` | 100 random valid programs, diff vs reference |
 | `task test:fuzz:invalid` | 300 mutated/invalid inputs — no crashes or hangs |
 | `task test:codegen` | Spec-corpus round-trip: parse → codegen → re-parse → AST equality (~2s) |
-| `task test:codegen:full` | Same, swept across spec + estree + Babel + test262 + TS corpora (~73K fixtures, ~10 min) |
+| `task test:codegen:full` | Pretty and minified round trips across spec, ESTree, Babel, test262, and TypeScript (~73K fixtures) |
+| `task test:watch` | CLI watch lifecycle, atomic saves, configuration changes, error recovery, and autofix |
+| `task test:format` | Module and data-literal formatting against Prettier 3.8.3 fixtures, idempotence, source preservation, and CLI errors |
+| `task test:format:real` | Check that formatted files in the 467-file release corpus retain their syntax and comments and stay unchanged on a second pass |
+| `task test:transform:reference` | Execute classic and automatic JSX fixtures and compare runtime behavior with the pinned OXC transformer |
 | `task test:bench:regression` | 10 curated files vs baselines, fails on >5% regression |
 | `task test:conformance:report` | Print conformance summary from snap files |
+
+To compare formatter output directly with an installed Prettier 3.8.3, set
+`KESSEL_PRETTIER` to its absolute package directory and run `task test:format`.
 
 ### OXC Oracle
 
@@ -279,6 +488,9 @@ Three-pass pipeline:
 | `src/diagnostic_render.odin` | Pretty (rustc-style) error renderer |
 | `src/lexer.odin` | SIMD lexer, two-token lookahead |
 | `src/regex.odin` | ES2025 §22.2.1 regex pattern validator |
+| `src/regex_ast.odin` | Regexp tree, character values, and syntax diagnostics |
+| `src/module_lexer.odin` | AST-free module dependency and export scan |
+| `src/module_resolver*.odin` | Node, browser, and TypeScript module resolution |
 | `src/ast.odin` | All AST struct/union definitions |
 | `src/raw_transfer.odin` | Zero-copy binary AST buffer wire format |
 | `src/main.odin` | CLI dispatch + worker pool + server mode |
@@ -294,24 +506,56 @@ Three-pass pipeline:
 
 ## Roadmap
 
-Kessel is the first piece of a broader JS/TS toolchain. The parser, semantic
-checker, and codegen are **complete** — 100% parser + semantic conformance, with
-a verified `parse → codegen → re-parse` round-trip. The remaining phases are
-downstream consumers of the finished ESTree AST.
+Kessel is the first piece of a broader JS/TS toolchain. The parser and
+semantic checker pass the pinned conformance suites. The latest printer
+results are in the [codegen section](#codegen).
 
 | Phase | Surface | Status |
 |---|---|---|
 | 1 | SIMD lexer | ✅ Complete |
 | 2 | Pratt parser (ES2015–ES2025, TS, JSX/TSX) | ✅ Complete |
 | 3 | Semantic checker (ECMA-262 early errors) | ✅ Complete |
-| — | Codegen + source maps + binary/raw-transfer emitters | ✅ Complete |
-| 4 | **Linter (`kessel lint`)** | 🚧 162 rules (targeting oxlint's ~500) |
-| 5 | Transformer — TS type-stripping (`kessel strip-types`) | 🚧 In progress (M1 shipped) |
-| 6 | Semantic model · CFG · resolver · regexp AST (enablers) | Planned |
-| 7 | Formatter (`kessel fmt`, Prettier-compatible) | Planned |
-| 8 | Minifier + mangler (`kessel minify`) | Planned |
-| 9 | Isolated declarations (`kessel dts`) | Planned |
-| 10 | Bundler + language server | Planned |
+| — | Codegen + source maps + binary/raw-transfer emitters | Implemented, codegen parity in progress |
+| 4 | **Linter (`kessel lint`)** | 🚧 Built-in lint rules with a pinned oxlint parity inventory |
+| 5 | Transformer (`kessel transform`, `transformSync`) | TypeScript lowering, classic and automatic JSX runtimes, and build-time global replacements. Target lowering, decorators, and React Refresh remain open. |
+| 6 | Semantic model · CFG · resolver · module lexer · regexp AST | In progress |
+| 7 | Formatter (`kessel fmt`, `formatSync`) | Wraps import and export lists and nested data literals at the configured width. General statement and expression formatting, JSX layout and comment placement remain open. |
+| 8 | Minifier + mangler (`kessel minify`, `minifySync`) | Experimental. Folds JS and JSX numeric and boolean expressions, joins adjacent declarations, and shortens local JS and JSX bindings. Preserves JSX tag semantics and factory pragmas. TypeScript retains its binding names and initializer expressions for type inference. |
+| 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. The TypeScript reference suite covers namespaces, class index signatures and computed interface members. Some computed class members and inferred types remain open. |
+| 10 | Bundler + language server | The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. Bundling remains planned. |
+
+Run `task build:vscode` to create an installable VSIX for your platform.
+Run `task test:vscode` to exercise the installed extension in a disposable VS Code profile.
+
+### Browser playground
+
+Build the standalone playground with `task build:wasm` using Odin and `wasm-ld`.
+Serve it with `python3 -m http.server 8080 --bind 127.0.0.1 --directory bin/playground`
+and open `http://localhost:8080`. The files in `bin/playground/` can also be served
+from any static host. The browser worker parses JS, JSX, TS and TSX locally and
+displays the same ESTree JSON and optional semantic diagnostics as the CLI.
+The Formatted tab previews the native formatter and downloads the result
+as a source file. Each document can contain up to 256 KiB of UTF-8. Downloads
+include the complete result when the preview is truncated.
+
+To embed the parser, copy `parser.mjs` and `kessel.wasm` together and use the module
+in a browser or worker with Web Crypto. Each instance can parse multiple documents.
+
+```js
+import { createParser } from './parser.mjs';
+
+const bytes = await (await fetch('./kessel.wasm')).arrayBuffer();
+const parser = createParser(await WebAssembly.compile(bytes));
+const tree = parser.parse('const id: number = 1;', { language: 'ts', semanticErrors: true });
+const formatted = parser.format("export{type Id}from'./model';", { language: 'ts', singleQuote: true });
+```
+
+The formatter accepts the same layout options as the Node SDK. Syntax errors
+carry code `Invalid_Syntax` and an `offset` in UTF-8 bytes.
+`task test:wasm` checks parser and formatter output, UTF-8 limits and repeated calls.
+For the UI test, run `npm ci --prefix playground`, install the pinned browser with
+`(cd playground && npx playwright install --only-shell chromium)`, then run
+`task test:wasm:browser`.
 
 **Mission:** full feature parity with the entire [OXC suite](https://oxc.rs)
 — parser, linter, transformer, formatter, minifier, resolver, isolated
@@ -319,15 +563,55 @@ declarations, semantic analysis, and Node/WASM bindings. The exhaustive
 component-by-component breakdown of all remaining work lives in `HANDOFF.md`
 under "OXC Suite Parity — Master Roadmap".
 
-The transformer is the active phase. Its first capability, `kessel strip-types`,
-re-emits plain JavaScript from TS/TSX input by erasing all *erasable* TypeScript
-syntax (type annotations, generics, interfaces, type aliases, `as` / `satisfies`
+The transformer's first capability, `kessel strip-types`, erases TypeScript
+syntax from TS/TSX input (type annotations, generics, interfaces, type aliases, `as` / `satisfies`
 / non-null / type-assertion expressions, type-only imports/exports, `declare`,
-class-member modifiers, abstract/overload members). Non-erasable TS that carries
-runtime meaning (`enum`, namespace-with-body, `import =`, `export =`, parameter
-properties) is rejected with a clear error rather than mis-compiled — matching
-Node's `--experimental-strip-types` erasable-only contract. See `HANDOFF.md` for
-the milestone breakdown.
+class-member modifiers, abstract/overload members). It also lowers supported
+runtime constructs such as enums, namespaces, and parameter properties. Namespace
+exports share an object across merged declarations. Files whose only ES module
+declarations erase retain their module scope through an empty export. When an ES
+module uses TypeScript's `import = require()` syntax, the generated JavaScript
+uses Node's `createRequire(import.meta.url)` to resolve the dependency. In derived
+constructors, parameter-property assignments run after `super()` initializes
+the instance.
+
+Use a repeatable `--define` option to replace globals at build time.
+
+```sh
+kessel transform app.tsx --jsx=classic --define 'process.env.NODE_ENV="production"' --define '__DEV__=false'
+```
+
+Each value is a JavaScript expression. Kessel resolves names after TypeScript
+and JSX lowering, so function parameters and other local bindings keep their
+values. A rule for `import.meta.env.*` supplies a fallback for static property
+accesses. An exact property rule takes precedence. A key such as `typeof DEBUG`
+replaces the entire `typeof` expression.
+
+Pass `--lower-using` to lower `using` and `await using` for older runtimes.
+The generated code registers disposers as declarations execute and releases them
+in reverse order when a block, loop iteration, function, or module exits.
+Top-level resources keep ES module exports live during initialization and cleanup.
+
+Pass `--optimize-const-enums` to `kessel transform` to inline constant enum
+member reads and omit local enum objects when all uses were replaced.
+Exported enums retain their runtime object. The default keeps runtime enums.
+
+`kessel transform` supports the same TypeScript lowering and preserves JSX by
+default. Pass `--jsx=classic` for `React.createElement`. Set the factory and
+fragment bindings with `--jsx-pragma=ui.make` and `--jsx-pragma-frag=ui.Fragment`,
+or with leading `@jsx` and `@jsxFrag` comments. Use `--sourcemap` for an inline
+source map, `--jsx-no-pure` to omit pure-call annotations, and
+`--jsx-allow-namespaces` to emit namespaced tags as strings.
+
+Use `--jsx=automatic` to generate imports from `react/jsx-runtime` in ES
+modules and `require` calls in scripts. Select another runtime with
+`--jsx-import-source=preact` or a leading `@jsxImportSource` comment. A
+leading `@jsxRuntime classic` or `@jsxRuntime automatic` can override the
+selected runtime for one file.
+
+Add `--jsx-development` to either runtime to record the original filename,
+line, and column for each element. Automatic mode uses `jsxDEV` from
+`jsx-dev-runtime`. Classic mode supplies the `__source` and `__self` props.
 
 ## Releases
 
@@ -338,7 +622,15 @@ The npm package is published automatically on every push to `main` whose convent
 - `fix:` / `perf:` / `chore:` / etc. → patch bump
 - Docs-only and CI-only commits don't trigger a release
 
-The pipeline (`.github/workflows/release.yml`) builds all five platform binaries, publishes the five `@dvrdlibs/kessel-<target>` sub-packages with Sigstore provenance, then publishes the main `@dvrdlibs/kessel` package with `optionalDependencies` pinned to the same version. If any sub-package fails to publish, the main package stays at its previous version and users are unaffected.
+Pull requests targeting `main` run the full local release gate on GitHub Actions.
+The release workflow repeats the gate on the revision it will publish. It
+downloads the 467 checksum-pinned real-world inputs and compares the candidate
+and reference parser on the same runner. The npm checks parse the same corpus
+through both asynchronous execution paths.
+
+The pipeline (`.github/workflows/release.yml`) builds and smoke-tests the CLI
+for all five targets and uploads the executables as Actions artifacts. It also
+builds the native libraries, publishes the five `@dvrdlibs/kessel-<target>` sub-packages with Sigstore provenance, then publishes the main `@dvrdlibs/kessel` package with `optionalDependencies` pinned to the same version. If any sub-package fails to publish, the main package stays at its previous version and users are unaffected.
 
 Manual override: `gh workflow run Release --repo dvrd/kessel`.
 

@@ -74,6 +74,9 @@ if [[ -f "$LINT_DIR/config/undef.js" ]]; then
   check_rule "no-undef:error"        "$LINT_DIR/config/undef.js"      1
   check_rule "no-undef:error"        "$LINT_DIR/config/undef-ok.js"   0
 fi
+check_rule "no-param-reassign:error" "$LINT_DIR/config/param-reassign.js" 1
+check_rule "no-param-reassign:error" "$LINT_DIR/config/param-reassign-ok.js" 0
+check_rule "no-param-reassign:error" "$LINT_DIR/config/param-reassign-jsx.jsx" 1
 if [[ -f "$LINT_DIR/config/unused.js" ]]; then
   check_rule "no-unused-vars:error"  "$LINT_DIR/config/unused.js"     1
   check_rule "no-unused-vars:error"  "$LINT_DIR/config/unused-ok.js"  0
@@ -158,6 +161,28 @@ if [[ -f "$LINT_DIR/config/no-new.js" ]]; then
 fi
 if [[ -f "$LINT_DIR/config/no-return-await.js" ]]; then
   check_rule "no-return-await:error"  "$LINT_DIR/config/no-return-await.js"  1
+fi
+if [[ -f "$LINT_DIR/config/prefer-regex-literals.js" ]]; then
+  check_rule "prefer-regex-literals:error" "$LINT_DIR/config/prefer-regex-literals.js" 1
+fi
+
+check_rule "no-void:error" "$LINT_DIR/config/no-void.js" 1
+check_rule "no-multi-str:error" "$LINT_DIR/config/no-multi-str.js" 1
+check_rule "no-multi-str:error" "$LINT_DIR/config/no-multi-str-ok.js" 0
+check "$LINT_DIR/config/no-octal-escape.js" 1
+check_rule "no-octal-escape:off" "$LINT_DIR/config/no-octal-escape.js" 0
+check_rule "no-useless-backreference:off" "$LINT_DIR/fail/no-useless-backreference.js" 0
+backreference_out=$("$BIN" lint --format=json "$LINT_DIR/fail/no-useless-backreference.js" 2>&1)
+if node -e '
+  const assert = require("node:assert/strict");
+  const [result] = JSON.parse(require("node:fs").readFileSync(0, "utf8"));
+  assert.deepEqual(result.messages.map(({ line, ruleId }) => [line, ruleId]),
+    Array.from({ length: 8 }, (_, index) => [index + 1, "no-useless-backreference"]));
+' <<< "$backreference_out"; then
+  pass=$((pass + 1))
+else
+  fail=$((fail + 1))
+  echo "FAIL: no-useless-backreference diagnostics" >&2
 fi
 
 # Output formatters (Phase 8e): --format={unix,github,json} must emit the

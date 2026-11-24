@@ -1274,61 +1274,61 @@
     {
       "type": "Line",
       "start": 74,
-      "end": 152,
+      "end": 146,
       "value": " based on \"compact ≈ 9×, pretty ≈ 20×\" before ClassBody emit was full."
     },
     {
       "type": "Line",
-      "start": 153,
-      "end": 225,
+      "start": 147,
+      "end": 219,
       "value": " With full emit the pretty-mode expansion for class-heavy code exceeds"
     },
     {
       "type": "Line",
-      "start": 226,
-      "end": 297,
+      "start": 220,
+      "end": 290,
       "value": " 20× source, causing an out-of-bounds write around src/main.odin:62."
     },
     {
       "type": "Line",
-      "start": 298,
-      "end": 366,
+      "start": 291,
+      "end": 359,
       "value": " Fixed: direct_reserve() grows direct_buf by doubling before every"
     },
     {
       "type": "Line",
-      "start": 367,
-      "end": 429,
+      "start": 360,
+      "end": 422,
       "value": " direct-mode write so the estimate is only a starting point."
     },
     {
       "type": "Line",
-      "start": 430,
-      "end": 432,
+      "start": 423,
+      "end": 425,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 433,
-      "end": 506,
+      "start": 426,
+      "end": 499,
       "value": " This fixture keeps the source small but forces a large JSON by packing"
     },
     {
       "type": "Line",
-      "start": 507,
-      "end": 578,
+      "start": 500,
+      "end": 571,
       "value": " many short class members; each member costs ~200-400 bytes in pretty"
     },
     {
       "type": "Line",
-      "start": 579,
-      "end": 649,
+      "start": 572,
+      "end": 642,
       "value": " JSON (MethodDefinition + FunctionExpression + body + indent), so 20"
     },
     {
       "type": "Line",
-      "start": 650,
-      "end": 690,
+      "start": 643,
+      "end": 682,
       "value": " members easily push past 20× source."
     }
   ]

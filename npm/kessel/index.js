@@ -2,7 +2,7 @@
  * kessel — fast JavaScript/TypeScript/JSX/TSX parser.
  *
  * Native shared library binding via koffi FFI + binary AST decode.
- * No process spawn, no JSON serialization. Returns ESTree-compatible ASTs.
+ * The parser returns ESTree-compatible ASTs without spawning a process or serializing JSON.
  *
  * Usage:
  *   const { parseSync, parseAsync } = require('@dvrdlibs/kessel');
@@ -51,14 +51,38 @@ function findLib() {
 // Load the library and define FFI signatures
 // ---------------------------------------------------------------------------
 
+const ASYNC_STACK_MIN_BYTES = 2 * 1024 * 1024;
+const nativeAsyncStackReady = prepareNativeAsyncStack();
 const lib = koffi.load(findLib());
+// Electron's V8 memory cage requires buffers allocated by the runtime. Copy
+// into a JS-owned Buffer before the parser releases its result.
+const copyIntoElectronBuffer = process.versions.electron
+  ? koffi.load(process.platform === 'win32' ? 'ucrtbase.dll' : null)
+      .func('memcpy', 'void *', ['void *', 'const void *', 'size_t'])
+  : null;
+
+function prepareNativeAsyncStack() {
+  if (koffi.config().async_stack_size >= ASYNC_STACK_MIN_BYTES) return true;
+  try {
+    // Match Koffi's default synchronous stack. The parser can need much
+    // more than the 128 KiB reserved for a default asynchronous call.
+    koffi.config({ async_stack_size: ASYNC_STACK_MIN_BYTES });
+    return true;
+  } catch (error) {
+    // Other consumers can lock the shared config by loading a library first.
+    if (error.message !== 'Cannot change Koffi configuration once a library has been loaded') throw error;
+    return false;
+  }
+}
 
 // Handle-based ParseResult. The `handle` field is an opaque owning pointer
 // returned by kessel_parse_binary; the caller MUST pass it back to
 // kessel_free_result once the buffer has been copied into JS-owned memory.
 // Moving the free off a thread-local slot lets parseAsync hand the parse
 // to a libuv worker thread and free from the main thread without leaking.
-const ParseResult = koffi.struct('KesselParseResult', {
+// Koffi registers named types across modules. Anonymous structs allow
+// separate installations to bind their own ABI in the same process.
+const ParseResult = koffi.struct({
   handle:  'void *',
   buf_ptr: 'void *',
   buf_len: 'int32',
@@ -86,6 +110,25 @@ try {
   // Older development libraries expose only kessel_parse_binary. Keep a
   // compatibility path so source checkouts fail soft until rebuilt.
 }
+
+function optionalTool(symbol, parameters) {
+  try {
+    return lib.func(symbol, ParseResult, parameters);
+  } catch (_) {
+    // A published parser library from before these tools can still serve parsing.
+    return null;
+  }
+}
+
+const _module_lex = optionalTool('kessel_module_lex', ['void *', 'int32']);
+const _regex_ast = optionalTool('kessel_regex_ast', ['void *', 'int32', 'void *', 'int32']);
+const _resolve_module = optionalTool('kessel_resolve_module', ['void *', 'int32']);
+const _lint_fix = optionalTool('kessel_lint_fix', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
+const _lint_project = optionalTool('kessel_lint_project', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
+const _format = optionalTool('kessel_format', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
+const _isolated_declaration = optionalTool('kessel_isolated_declaration', ['void *', 'int32', 'void *', 'int32']);
+const _transform = optionalTool('kessel_transform', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
+const _minify = optionalTool('kessel_minify', ['void *', 'int32', 'void *', 'int32', 'void *', 'int32']);
 
 // ---------------------------------------------------------------------------
 // Language detection
@@ -178,25 +221,13 @@ function resolveNativeOptions(opts) {
 function parseSync(filename, source, opts) {
   const sourceBuf = Buffer.from(source, 'utf8');
   const result = callParseBinary(sourceBuf, filename, opts);
-  return finishParse(result, source, filename);
+  return finishParse(result, source, sourceBuf, filename);
 }
 
 /**
- * Parse source code asynchronously on a libuv worker thread.
- *
- * Same signature and return shape as {@link parseSync}, but the native
- * parse runs off the Node main thread via koffi's `.async()`. The Node
- * event loop stays responsive during the parse and concurrent calls fan
- * out across libuv's worker pool (default 4 threads, raise with
- * `UV_THREADPOOL_SIZE` env var if you need more parallelism).
- *
- * Throughput characteristics:
- *   - For one-shot parses, parseAsync is marginally slower than parseSync
- *     because the FFI call has a small thread-handoff overhead (~10-50µs).
- *   - For N concurrent parses on M-core hosts, parseAsync scales close to
- *     min(N, UV_THREADPOOL_SIZE) until the pool saturates.
- *   - The post-parse JS work (binary decode + enrichErrors) still runs on
- *     the awaiting thread; only the native parse itself is offloaded.
+ * Asynchronously parse source off the calling thread and return an
+ * ESTree-compatible AST. Uses libuv or a dedicated Node worker depending
+ * on Koffi's stack configuration.
  *
  * @param {string} filename  File path or synthetic name (drives language detection).
  * @param {string} source    Source code to parse.
@@ -205,6 +236,10 @@ function parseSync(filename, source, opts) {
  */
 function parseAsync(filename, source, opts) {
   const sourceBuf = Buffer.from(source, 'utf8');
+  if (!nativeAsyncStackReady) {
+    const { parseOnWorker } = require('./async-fallback');
+    return parseOnWorker(filename, source, opts, koffi.config().max_async_calls);
+  }
   // koffi.func.async runs the FFI call on a libuv worker thread and
   // delivers the result via a Node-style callback. We wrap it as a
   // Promise so the public API matches OXC's parseAsync shape. The
@@ -215,7 +250,7 @@ function parseAsync(filename, source, opts) {
   return new Promise(function (resolve, reject) {
     callParseBinaryAsync(sourceBuf, filename, opts, function (err, result) {
       if (err) { reject(err); return; }
-      try { resolve(finishParse(result, source, filename)); }
+      try { resolve(finishParse(result, source, sourceBuf, filename)); }
       catch (e) { reject(e); }
     });
   });
@@ -277,7 +312,7 @@ function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
 // enrich. Centralised so parseSync and parseAsync surface identical
 // errors and identical AST shapes — the only difference between the two
 // is which thread runs `_parse_binary`.
-function finishParse(result, source, filename) {
+function finishParse(result, source, sourceBytes, filename) {
   if (!result.buf_ptr || result.buf_len <= 0) {
     // Handle may still be non-null even when the parse couldn't produce a
     // buffer (e.g. parse_job_open_inline failed); free defensively before
@@ -289,12 +324,27 @@ function finishParse(result, source, filename) {
     };
   }
 
-  const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
-  _free_result(result.handle);
+  let buf;
+  try {
+    buf = copyNativeBytes(result.buf_ptr, result.buf_len);
+  } finally {
+    _free_result(result.handle);
+  }
 
-  const decoded = decode(buf, source);
+  const decoded = decode(buf, source, sourceBytes);
   enrichErrors(decoded.errors, source, filename);
   return decoded;
+}
+
+function copyNativeBytes(pointer, length) {
+  if (copyIntoElectronBuffer) {
+    const buffer = Buffer.allocUnsafe(length);
+    copyIntoElectronBuffer(buffer, pointer, length);
+    return buffer;
+  }
+  // Copy before freeing the native result. Koffi's typed-array decoder can
+  // crash when a different Koffi version has already been loaded.
+  return Buffer.from(new Uint8Array(koffi.view(pointer, length)));
 }
 
 // ---------------------------------------------------------------------------
@@ -323,21 +373,19 @@ function enrichErrors(errors, source, filename) {
 }
 
 function computeLineStarts(sourceBytes) {
-  // Offsets where each line begins, measured in UTF-8 bytes — same unit
-  // as ParseError.start/end and as everything the Odin parser sees.
-  // Previously we walked source.charCodeAt(i), which is a UTF-16 code-
-  // unit index; for ASCII / BMP source the two indexings agreed, but a
-  // non-BMP character (e.g. an emoji, encoded as 4 UTF-8 bytes / 2 UTF-16
-  // surrogates) pushed every subsequent LF's table entry low by one
-  // position per non-BMP char between offset 0 and the LF — shifting
-  // line numbers off for everything past the first non-BMP byte.
-  //
-  // We only scan for LF (0x0A): CRLF sequences contribute one LF which
-  // we capture; bare CR (classic Mac) is rare on disk and unsupported
-  // here without losing fidelity for the common case.
+  // Diagnostic offsets and columns count UTF-8 bytes. CRLF is one line break.
   const starts = [0];
   for (let i = 0; i < sourceBytes.length; i++) {
-    if (sourceBytes[i] === 0x0A) starts.push(i + 1);
+    const byte = sourceBytes[i];
+    if (byte === 0x0D) {
+      if (sourceBytes[i + 1] === 0x0A) i++;
+    } else if (byte === 0xE2 && sourceBytes[i + 1] === 0x80 &&
+               (sourceBytes[i + 2] === 0xA8 || sourceBytes[i + 2] === 0xA9)) {
+      i += 2;
+    } else if (byte !== 0x0A) {
+      continue;
+    }
+    starts.push(i + 1);
   }
   return starts;
 }
@@ -363,7 +411,7 @@ function offsetToLineColumn(offset, lineStarts) {
 // (not a string — the JSON has already been round-tripped through
 // JSON.parse for the caller's convenience). `errors` is non-empty when
 // the parse failed, in which case `code` is the empty string.
-const CodegenResult = koffi.struct('KesselCodegenResult', {
+const CodegenResult = koffi.struct({
   handle:   'void *',
   code_ptr: 'void *',
   code_len: 'int32',
@@ -437,11 +485,11 @@ function codegen(source, options) {
       return { code: '', map: null, errors: [{ message: 'parse failed' }] };
     }
     const code = r.code_len > 0
-      ? Buffer.from(koffi.decode(r.code_ptr, 'uint8_t', r.code_len)).toString('utf8')
+      ? copyNativeBytes(r.code_ptr, r.code_len).toString('utf8')
       : '';
     let map = null;
     if (wantMap && r.map_len > 0) {
-      const mapBytes = Buffer.from(koffi.decode(r.map_ptr, 'uint8_t', r.map_len)).toString('utf8');
+      const mapBytes = copyNativeBytes(r.map_ptr, r.map_len).toString('utf8');
       map = JSON.parse(mapBytes);
     }
     return { code, map, errors: [] };
@@ -461,14 +509,71 @@ function codegen(source, options) {
 // unknown rule names.
 function serializeRules(rules) {
   if (!rules || typeof rules !== 'object') return null;
-  const lines = [];
-  for (const name of Object.keys(rules)) {
-    const level = rules[name];
-    if (typeof level !== 'string') continue;
-    lines.push(`${name}:${level}`);
+  const settings = Object.create(null);
+  let structured = false;
+  for (const [name, value] of Object.entries(rules)) {
+    if (typeof value === 'string') {
+      settings[name] = value === 'allow' ? 'off' : value === 'deny' ? 'error' : value;
+      continue;
+    }
+    if (typeof value !== 'number' && !Array.isArray(value)) continue;
+    const [level, ...options] = Array.isArray(value) ? value : [value];
+    if (![0, 1, 2, 'allow', 'off', 'warn', 'deny', 'error'].includes(level)) {
+      throw new TypeError('Invalid lint severity for ' + name);
+    }
+    if (options.length > 0 && name === 'prefer-const') {
+      const [settings] = options;
+      if (options.length !== 1 || !settings || typeof settings !== 'object' || Array.isArray(settings) ||
+          Object.entries(settings).some(([key, option]) =>
+            key === 'destructuring' ? !['all', 'any'].includes(option) :
+            key !== 'ignoreReadBeforeAssign' || typeof option !== 'boolean')) {
+        throw new TypeError('Invalid prefer-const options');
+      }
+    } else if (options.length > 0 && ['exhaustive-deps', 'react/exhaustive-deps', 'react-hooks/exhaustive-deps'].includes(name)) {
+      const [config] = options;
+      if (options.length !== 1 || !config || typeof config !== 'object' || Array.isArray(config) ||
+          Object.keys(config).some(key => key !== 'additionalHooks' || typeof config[key] !== 'string')) {
+        throw new TypeError('Invalid exhaustive-deps options');
+      }
+    } else if (options.length > 0 && name === 'no-fallthrough') {
+      const [config] = options;
+      if (options.length !== 1 || !config || typeof config !== 'object' || Array.isArray(config) ||
+          Object.entries(config).some(([key, value]) => key === 'commentPattern'
+            ? value !== null && typeof value !== 'string'
+            : !['allowEmptyCase', 'reportUnusedFallthroughComment'].includes(key) || typeof value !== 'boolean')) {
+        throw new TypeError('Invalid no-fallthrough options');
+      }
+    } else if (options.length > 0 && name === 'getter-return') {
+      const [settings] = options;
+      if (options.length !== 1 || !settings || typeof settings !== 'object' || Array.isArray(settings) ||
+          Object.entries(settings).some(([key, value]) => key !== 'allowImplicit' || typeof value !== 'boolean')) {
+        throw new TypeError('Invalid getter-return options');
+      }
+    } else if (options.length > 0 && name === 'no-console') {
+      const [config] = options;
+      if (options.length !== 1 || !config || typeof config !== 'object' || Array.isArray(config) ||
+          Object.keys(config).some(key => key !== 'allow') ||
+          ('allow' in config && (!Array.isArray(config.allow) || !config.allow.every(method => typeof method === 'string')))) {
+        throw new TypeError('Invalid no-console options');
+      }
+    } else if (options.length > 0) {
+      if (name !== 'eqeqeq' || options.length > 2 || !['always', 'smart', 'allow-null'].includes(options[0])) {
+        throw new TypeError('Unsupported lint options for ' + name);
+      }
+      if (options.length === 2) {
+        const extra = options[1];
+        if (!extra || typeof extra !== 'object' || Array.isArray(extra) ||
+            Object.keys(extra).some(key => key !== 'null' || !['always', 'ignore', 'never'].includes(extra[key]))) {
+          throw new TypeError('Invalid eqeqeq null comparison options');
+        }
+      }
+    }
+    structured = true;
+    settings[name] = value;
   }
-  if (lines.length === 0) return null;
-  return Buffer.from(lines.join('\n'), 'utf8');
+  if (structured) return Buffer.from(JSON.stringify(settings), 'utf8');
+  const lines = Object.entries(settings).map(([name, level]) => name + ':' + level);
+  return lines.length ? Buffer.from(lines.join('\n'), 'utf8') : null;
 }
 
 // Decodes the compact lint wire format emitted by kessel_lint_binary
@@ -516,7 +621,7 @@ function decodeLintBuffer(buf) {
  *                           `rules` maps a kebab-case rule name to a level
  *                           ('off' | 'warn' | 'error'); unknown names are
  *                           ignored. Overrides the built-in default rule set.
- * @returns {{ diagnostics: Array }}
+ * @returns {{ diagnostics: Array, output?: string }} Output is present when fixes changed the source.
  */
 function lintSync(filename, source, opts) {
   if (!_lint_binary) {
@@ -525,23 +630,276 @@ function lintSync(filename, source, opts) {
   if (typeof source !== 'string') {
     throw new TypeError('kessel.lintSync(filename, source, opts): source must be a string');
   }
-  const sourceBuf = Buffer.from(source, 'utf8');
+  let sourceBuf = toolInput(source, 'source');
   const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
   const lang = resolveLang(filename, opts);
-  const rulesBuf = serializeRules(opts && opts.rules);
+  let rules = opts && opts.rules;
+  if (opts && opts.reportUnusedDisableDirectives !== undefined) {
+    const level = opts.reportUnusedDisableDirectives;
+    if (!['off', 'warn', 'error'].includes(level)) {
+      throw new TypeError('reportUnusedDisableDirectives must be off, warn or error');
+    }
+    rules = { ...rules, 'unused-disable-directive': level };
+  }
+  const rulesBuf = serializeRules(rules);
+  let output;
+  for (const key of ['fix', 'fixSuggestions', 'fixDangerously', 'includeFixes', 'includeSuggestions', 'includeSuppressions']) {
+    if (opts?.[key] !== undefined && typeof opts[key] !== 'boolean') {
+      throw new TypeError(key + ' must be a boolean');
+    }
+  }
+  const useProject = opts?.workspaceRoot !== undefined;
+  const projectDiagnostics = useProject || opts?.includeFixes || opts?.includeSuggestions || opts?.includeSuppressions;
+  if (projectDiagnostics || opts?.fix || opts?.fixSuggestions || opts?.fixDangerously) {
+    if (useProject && (typeof opts.workspaceRoot !== 'string' || !path.isAbsolute(opts.workspaceRoot))) {
+      throw new TypeError('workspaceRoot must be an absolute directory');
+    }
+    const settings = toolInput(JSON.stringify({
+      lang, fix: !!opts.fix, suggestions: !!opts.fixSuggestions, dangerous: !!opts.fixDangerously,
+      include_fixes: !!opts.includeFixes, include_suggestions: !!opts.includeSuggestions,
+      include_suppressions: !!opts.includeSuppressions,
+      rules: rulesBuf?.toString('utf8') || '', workspace: opts.workspaceRoot,
+    }), 'options');
+    if (projectDiagnostics) {
+      const file = useProject ? toolInput(path.resolve(opts.workspaceRoot, filename), 'filename') : filenameBuf;
+      const project = readToolResult(_lint_project, 'lintSync project', file, sourceBuf, settings);
+      const diagnostics = project.diagnostics || [];
+      enrichErrors(diagnostics, project.output ?? source, filename);
+      return project.output == null ? { diagnostics } : { diagnostics, output: project.output };
+    }
+    const fixed = readToolResult(_lint_fix, 'lintSync autofix', filenameBuf, sourceBuf, settings);
+    if (typeof fixed.output === 'string') {
+      output = fixed.output;
+      source = output;
+      sourceBuf = toolInput(source, 'output');
+    }
+  }
   const result = _lint_binary(
     sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length, lang,
     rulesBuf, rulesBuf ? rulesBuf.length : 0,
   );
   if (!result.buf_ptr || result.buf_len <= 0) {
     if (result.handle) _free_result(result.handle);
-    return { diagnostics: [] };
+    if (result.buf_len === -1) throw new TypeError('Invalid lint rule settings');
+    throw new Error('kessel: could not read native lint diagnostics');
   }
-  const buf = Buffer.from(koffi.decode(result.buf_ptr, koffi.array('uint8', result.buf_len)));
-  _free_result(result.handle);
+  let buf;
+  try {
+    buf = copyNativeBytes(result.buf_ptr, result.buf_len);
+  } finally {
+    _free_result(result.handle);
+  }
   const diagnostics = decodeLintBuffer(buf);
   enrichErrors(diagnostics, source, filename);
-  return { diagnostics };
+  return output === undefined ? { diagnostics } : { diagnostics, output };
 }
 
-module.exports = { parseSync, parseAsync, codegen, lintSync };
+function toolInput(value, name) {
+  if (typeof value !== 'string') throw new TypeError(`kessel: ${name} must be a string`);
+  const buffer = Buffer.from(value, 'utf8');
+  if (buffer.length > 0x7fffffff) throw new RangeError(`kessel: ${name} exceeds the native input limit`);
+  return buffer;
+}
+
+function readToolResult(native, operation, ...inputs) {
+  if (!native) throw new Error(`kessel: rebuild the native library to use ${operation}`);
+  const result = native(...inputs.flatMap(input => [input, input.length]));
+  let payload;
+  try {
+    if (!result.buf_ptr || result.buf_len <= 0) throw new Error(`kessel: ${operation} failed`);
+    payload = copyNativeBytes(result.buf_ptr, result.buf_len).toString('utf8');
+  } finally {
+    if (result.handle) _free_result(result.handle);
+  }
+  const value = JSON.parse(payload);
+  if (typeof value.code === 'string') {
+    const ErrorType = /^Invalid_(Syntax|Pattern|Flags)$/.test(value.code) ? SyntaxError : Error;
+    const error = new ErrorType(`kessel: ${value.message || operation + ' failed'}`);
+    error.code = value.code;
+    if (value.offset !== null) error.offset = value.offset;
+    throw error;
+  }
+  return value;
+}
+
+function scanModuleSync(source) {
+  return readToolResult(_module_lex, 'scanModuleSync', toolInput(source, 'source'));
+}
+
+function parseRegExpSync(pattern, flags = '') {
+  return readToolResult(_regex_ast, 'parseRegExpSync',
+    toolInput(pattern, 'pattern'), toolInput(flags, 'flags'));
+}
+
+function toolStringList(value, name, allowEmpty = false) {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || Array.from(value).some(item =>
+    typeof item !== 'string' || (!allowEmpty && item.length === 0) || item.includes('\0'))) {
+    const expected = allowEmpty ? 'strings' : 'non-empty strings';
+    throw new TypeError(`kessel: ${name} must contain ${expected} without NUL bytes`);
+  }
+  return value;
+}
+
+function resolverManifestFields(value, name) {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) throw new TypeError(`kessel: ${name} must be an array of keys or key paths`);
+  return Array.from(value, entry => {
+    const path = typeof entry === 'string' ? [entry] : entry;
+    if (!Array.isArray(path) || Array.from(path).some(key => typeof key !== 'string')) {
+      throw new TypeError(`kessel: ${name} must contain strings or arrays of strings`);
+    }
+    return path;
+  });
+}
+
+function resolverOptions(options) {
+  if (options === null || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('kessel: resolver options must be an object');
+  }
+  const { mode = 'import', tsconfig = '', browser = false, preserveSymlinks = false,
+    mainFields, exportsFields, importsFields, extensions, mainFiles, modules, conditions, aliases = [], extensionAlias = {} } = options;
+  if (mode !== 'import' && mode !== 'require') throw new TypeError('kessel: mode must be import or require');
+  if (typeof tsconfig !== 'string') throw new TypeError('kessel: tsconfig must be a string');
+  if (typeof browser !== 'boolean' || typeof preserveSymlinks !== 'boolean') {
+    throw new TypeError('kessel: browser and preserveSymlinks must be booleans');
+  }
+  if (!Array.isArray(aliases)) throw new TypeError('kessel: aliases must be an array');
+  if (extensionAlias === null || typeof extensionAlias !== 'object' || Array.isArray(extensionAlias)) {
+    throw new TypeError('kessel: extensionAlias must map suffixes to arrays of replacements');
+  }
+  const suffixes = Object.entries(extensionAlias).map(([from, targets]) => {
+    if (from.length === 0 || from.includes('\0') || !Array.isArray(targets)) {
+      throw new TypeError('kessel: each extensionAlias entry requires a suffix and an array');
+    }
+    return [from, toolStringList(targets, 'extensionAlias', true)];
+  });
+  return {
+    mode,
+    options: {
+      browser, preserve_symlinks: preserveSymlinks, typescript_config: tsconfig,
+      exports_fields: resolverManifestFields(exportsFields, 'exportsFields'),
+      imports_fields: resolverManifestFields(importsFields, 'importsFields'),
+      main_fields: toolStringList(typeof mainFields === 'string' ? [mainFields] : mainFields, 'mainFields', true),
+      modules: toolStringList(typeof modules === 'string' ? [modules] : modules, 'modules', true),
+      extensions: toolStringList(extensions, 'extensions', true),
+      extension_alias: Object.fromEntries(suffixes),
+      main_files: toolStringList(mainFiles, 'mainFiles'),
+      conditions: toolStringList(conditions, 'conditions'),
+      aliases: Array.from(aliases, alias => {
+        if (!alias || typeof alias !== 'object' || typeof alias.name !== 'string' ||
+            typeof alias.target !== 'string' || (alias.exact !== undefined && typeof alias.exact !== 'boolean')) {
+          throw new TypeError('kessel: each alias requires a name and a target string');
+        }
+        return { name: alias.name, target: alias.target, exact: alias.exact === true };
+      }),
+    },
+  };
+}
+
+function resolveModuleSync(specifier, importer, options = {}) {
+  if (typeof specifier !== 'string' || typeof importer !== 'string') {
+    throw new TypeError('kessel: specifier and importer must be strings');
+  }
+  const request = resolverOptions(options);
+  const json = JSON.stringify({
+    specifier, importer, require_mode: request.mode === 'require', options: request.options,
+  });
+  const value = readToolResult(_resolve_module, 'resolveModuleSync', toolInput(json, 'resolver request'));
+  return { kind: value.kind.toLowerCase(), path: value.path };
+}
+
+function formatSync(filename, source, options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('kessel: format options must be an object');
+  }
+  const { printWidth = 80, tabWidth = 2, useTabs = false, singleQuote = false,
+    bracketSpacing = true, trailingComma = 'all', endOfLine = 'lf' } = options;
+  if (!Number.isInteger(printWidth) || printWidth < 1 || printWidth > 0x7fffffff) {
+    throw new RangeError('kessel: printWidth must be a positive 32-bit integer');
+  }
+  if (!Number.isInteger(tabWidth) || tabWidth < 0 || tabWidth > 16) {
+    throw new RangeError('kessel: tabWidth must be an integer between 0 and 16');
+  }
+  if ([useTabs, singleQuote, bracketSpacing].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: useTabs, singleQuote and bracketSpacing must be booleans');
+  }
+  if (!['all', 'es5', 'none'].includes(trailingComma)) {
+    throw new TypeError('kessel: trailingComma must be all, es5 or none');
+  }
+  if (!['lf', 'crlf', 'cr', 'auto'].includes(endOfLine)) {
+    throw new TypeError('kessel: endOfLine must be lf, crlf, cr or auto');
+  }
+  const settings = { print_width: printWidth, tab_width: tabWidth, use_tabs: useTabs,
+    single_quote: singleQuote, bracket_spacing: bracketSpacing, trailing_comma: trailingComma !== 'none',
+    end_of_line: endOfLine };
+  return readToolResult(_format, 'formatSync', toolInput(filename, 'filename'),
+    toolInput(source, 'source'), Buffer.from(JSON.stringify(settings)));
+}
+
+function isolatedDeclarationSync(filename, source) {
+  return readToolResult(_isolated_declaration, 'isolatedDeclarationSync',
+    toolInput(filename, 'filename'), toolInput(source, 'source'));
+}
+
+function transformSync(filename, source, options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('kessel: transform options must be an object');
+  }
+  const { jsx = 'preserve', minified = false, sourceMap = false } = options;
+  const { typescript = {}, explicitResourceManagement = false, define } = options;
+  if (define !== undefined && (define === null || typeof define !== 'object' ||
+      ![Object.prototype, null].includes(Object.getPrototypeOf(define)) ||
+      Object.values(define).some(value => typeof value !== 'string'))) {
+    throw new TypeError('kessel: define must map names to JavaScript expression strings');
+  }
+  if (typeof explicitResourceManagement !== 'boolean') throw new TypeError('kessel: explicitResourceManagement must be a boolean');
+  if (typescript === null || typeof typescript !== 'object' || Array.isArray(typescript)) {
+    throw new TypeError('kessel: typescript options must be an object');
+  }
+  const { optimizeConstEnums = false } = typescript;
+  if (typeof optimizeConstEnums !== 'boolean') throw new TypeError('kessel: optimizeConstEnums must be a boolean');
+  const settingsObject = typeof jsx === 'object' && jsx !== null && !Array.isArray(jsx);
+  const runtime = settingsObject ? jsx.runtime : jsx;
+  if (runtime !== 'classic' && runtime !== 'automatic' && !(runtime === 'preserve' && !settingsObject)) {
+    throw new TypeError('kessel: jsx must select preserve, classic, or automatic');
+  }
+  const { pragma, pragmaFrag, importSource, development = false, pure = true, throwIfNamespace = true } = settingsObject ? jsx : {};
+  for (const value of [pragma, pragmaFrag, importSource]) {
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
+      throw new TypeError('kessel: pragma, pragmaFrag, and importSource must be non-empty strings');
+    }
+  }
+  if ([minified, sourceMap, development, pure, throwIfNamespace].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: minified, sourceMap, development, pure and throwIfNamespace must be booleans');
+  }
+  const settings = JSON.stringify({ define, jsx: runtime, pragma, pragma_frag: pragmaFrag, import_source: importSource,
+    omit_pure: !pure, allow_namespaces: !throwIfNamespace, development, minified, source_map: sourceMap,
+    optimize_const_enums: optimizeConstEnums, lower_using: explicitResourceManagement });
+  return generatedCode(_transform, 'transformSync', filename, source, settings);
+}
+
+function minifySync(filename, source, options = {}) {
+  if (!options || typeof options !== 'object' || Array.isArray(options)) {
+    throw new TypeError('kessel: minify options must be an object');
+  }
+  const { compress = true, mangle = true, sourceMap = false, jsx = {} } = options;
+  if (!jsx || typeof jsx !== 'object' || Array.isArray(jsx)) throw new TypeError('kessel: jsx must be an object');
+  const { pragma, pragmaFrag } = jsx;
+  if ([pragma, pragmaFrag].some(value => value !== undefined && (typeof value !== 'string' || !value.length))) {
+    throw new TypeError('kessel: JSX pragma and pragmaFrag must be nonempty strings');
+  }
+  if ([compress, mangle, sourceMap].some(value => typeof value !== 'boolean')) {
+    throw new TypeError('kessel: compress, mangle and sourceMap must be booleans');
+  }
+  return generatedCode(_minify, 'minifySync', filename, source,
+    JSON.stringify({ compress, mangle, source_map: sourceMap, pragma, pragma_frag: pragmaFrag }));
+}
+
+function generatedCode(native, name, filename, source, settings) {
+  const result = readToolResult(native, name, toolInput(filename, 'filename'),
+    toolInput(source, 'source'), toolInput(settings, 'options'));
+  return { code: result.output, map: result.map_json ? JSON.parse(result.map_json) : null, errors: result.errors || [] };
+}
+
+module.exports = { parseSync, parseAsync, codegen, lintSync, scanModuleSync, parseRegExpSync, resolveModuleSync, formatSync, isolatedDeclarationSync, transformSync, minifySync };

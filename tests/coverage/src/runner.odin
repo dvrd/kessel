@@ -286,8 +286,8 @@ run_one_suite :: proc(
 }
 
 // run_json_validate — validate a .json fixture using Odin's JSON parser.
-// Reports TS1327-equivalent errors for invalid JSON (single-quoted keys,
-// computed properties, trailing commas, etc.).
+// Reports TS1327-equivalent errors for invalid JSON (for example,
+// single-quoted keys and computed properties).
 @(private="file")
 run_json_validate :: proc(fix: Fixture, record_alloc: runtime.Allocator) -> TestResult {
 	// Empty JSON is valid (produces null/undefined).
@@ -298,6 +298,11 @@ run_json_validate :: proc(fix: Fixture, record_alloc: runtime.Allocator) -> Test
 	}
 	bytes := transmute([]u8)fix.code
 	_, err := json.parse(bytes, .JSON, false, context.temp_allocator)
+	if err != nil {
+		if normalized := json_without_trailing_commas(fix.code); normalized != nil {
+			_, err = json.parse(normalized, .JSON, false, context.temp_allocator)
+		}
+	}
 	if err != nil {
 		diag := fmt.tprintf("JSON parse error")
 		if fix.should_fail {
@@ -316,5 +321,41 @@ run_json_validate :: proc(fix: Fixture, record_alloc: runtime.Allocator) -> Test
 		return TestResult{tag = .IncorrectlyPassed}
 	}
 	return TestResult{tag = .Passed}
+}
+
+// TypeScript accepts a trailing comma after a JSON property or array element.
+// Leave the rest of the grammar to the strict JSON parser.
+@(private="file")
+json_without_trailing_commas :: proc(source: string) -> []u8 {
+	tokenizer := json.make_tokenizer(source, .JSON, false)
+	normalized: []u8
+	previous_kind: json.Token_Kind
+	trailing_comma := -1
+	for _ in 0..<len(source) {
+		token, err := json.get_token(&tokenizer)
+		if token.kind == .EOF { return normalized }
+		if err != nil { return nil }
+
+		if trailing_comma >= 0 {
+			if token.kind == .Close_Brace || token.kind == .Close_Bracket {
+				if normalized == nil {
+					normalized = slice.clone(transmute([]u8)source, context.temp_allocator)
+				}
+				assert(normalized[trailing_comma] == ',')
+				normalized[trailing_comma] = ' '
+			}
+			trailing_comma = -1
+		}
+
+		if token.kind == .Comma {
+			#partial switch previous_kind {
+			case .String, .Integer, .Float, .True, .False, .Null, .Close_Brace, .Close_Bracket:
+				assert(token.offset < len(source))
+				trailing_comma = token.offset
+			}
+		}
+		previous_kind = token.kind
+	}
+	return normalized
 }
 

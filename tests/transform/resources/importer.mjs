@@ -1,0 +1,10 @@
+import assert from "node:assert/strict";
+import Published, * as api from "./module.mjs";
+import { events } from "./observer.mjs";
+assert.deepEqual(events, ["first", "second", "module-end", "async-start", "async-end", "close-second", "close-first"]);
+assert.equal(api.liveFunction(), 13);
+assert.equal(api.early, 13);
+assert.equal(Published, api.AlsoPublished);
+assert.equal(Published.label, "Published");
+assert.deepEqual(api.Example.observed, ["first", "second"]);
+console.log("module lifetimes passed");

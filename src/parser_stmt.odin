@@ -1008,6 +1008,7 @@ parse_for_statement :: proc(p: ^Parser) -> ^Statement {
 	// plain-await rules.
 	if await {
 		parse_for_await_validate(p)
+		if !p.ctx.in_function { p.has_top_level_await = true }
 	}
 
 	if !expect_token(p, .LParen) {
@@ -1890,7 +1891,9 @@ parse_with_statement :: proc(p: ^Parser) -> ^Statement {
 // Declarations
 // ============================================================================
 
-parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body := false) -> ^Statement {
+FunctionParseForm :: enum { Declaration, Expression, Default_Export }
+
+parse_function_declaration :: proc(p: ^Parser, form := FunctionParseForm.Declaration, allow_no_body := false) -> ^Statement {
 	start := cur_loc(p)
 	// Handle async prefix
 	async := false
@@ -1908,7 +1911,7 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 
 	generator := match_token(p, .Mul)
 
-	id := parse_function_decl_name(p, is_expr, async, generator)
+	id := parse_function_decl_name(p, form, async, generator)
 
 	// TypeScript generic type parameters: `function foo<T, U>(...)`
 	type_parameters: Maybe(^TSTypeParameterDeclaration)
@@ -1926,11 +1929,11 @@ parse_function_declaration :: proc(p: ^Parser, is_expr := false, allow_no_body :
 		return_type = parse_ts_return_type_annotation(p)
 	}
 
-	body, body_strict, is_ts_no_body := parse_function_decl_body(p, is_expr, allow_no_body, async, generator)
+	body, body_strict, is_ts_no_body := parse_function_decl_body(p, form == .Expression, allow_no_body, async, generator)
 
 	check_function_decl_retro(p, start, id, params[:], body, body_strict, async, is_ts_no_body)
 
-	return build_function_decl(p, start, id, params, body, generator, async, type_parameters, return_type, is_ts_no_body, is_expr)
+	return build_function_decl(p, start, id, params, body, generator, async, type_parameters, return_type, is_ts_no_body, form == .Expression)
 }
 
 // parse_function_decl_params parses the parenthesised FormalParameters of a
@@ -2046,10 +2049,7 @@ parse_function_decl_body :: proc(p: ^Parser, is_expr, allow_no_body, async, gene
 	// Function EXPRESSIONS always require a body (TS overload signatures only
 	// apply to function DECLARATIONS / class methods). `const x = function();`
 	// is invalid even in TS mode.
-	// Exception: `export default function foo(): T;` is parsed with is_expr=true
-	// (expression form) but is semantically a declaration with overload signatures.
-	// Allow no-body when in_export_default so TS overload sigs work.
-	allow_no_body_here := (!is_expr || p.in_export_default) && (allow_no_body || p.ctx.in_ambient || allow_ts_mode(p))
+	allow_no_body_here := !is_expr && (allow_no_body || p.ctx.in_ambient || allow_ts_mode(p))
 	// Ambient function: `declare function f(): T;` (with or without
 	// semicolon - ASI applies in .d.ts files where `export declare
 	// function parse(...): Promise<R>` is followed by a newline and the
@@ -2296,25 +2296,23 @@ check_ts_function_signature_params :: proc(p: ^Parser, params: []FunctionParamet
 // reservation early errors (await / yield / enum / strict-reserved). Returns
 // the parsed name, or nil for an anonymous function expression. Pure leaf:
 // control flow stays in parse_function_declaration.
-parse_function_decl_name :: proc(p: ^Parser, is_expr, async, generator: bool) -> Maybe(BindingIdentifier) {
+parse_function_decl_name :: proc(p: ^Parser, form: FunctionParseForm, async, generator: bool) -> Maybe(BindingIdentifier) {
 	id: Maybe(BindingIdentifier)
 
 	// For function names, only binding-identifier-capable tokens qualify.
 	// Property-name keywords (null, true, false, if, enum, class, etc.)
 	// are NOT valid as FunctionDeclaration / FunctionExpression names.
 	has_name := is_token(p, .Identifier) || can_be_binding_identifier(p.cur_type)
-	if !is_expr || has_name {
-		if has_name {
-			current := snap_current(p)
-			id = BindingIdentifier{
-				loc  = loc_from_token(&current),
-				name = current.value,
-			}
-			check_function_name_reservations(p, &current, is_expr, async, generator)
-			eat(p)
-		} else if !is_expr {
-			report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
+	if has_name {
+		current := snap_current(p)
+		id = BindingIdentifier{
+			loc = loc_from_token(&current),
+			name = current.value,
 		}
+		check_function_name_reservations(p, &current, form, async, generator)
+		eat(p)
+	} else if form == .Declaration {
+		report_error_coded(p, .K2070_RequiredFormOrBinding, "Function declaration requires a name")
 	}
 	return id
 }
@@ -2323,14 +2321,14 @@ parse_function_decl_name :: proc(p: ^Parser, is_expr, async, generator: bool) ->
 // reservation early errors for a function name token (await / yield / enum /
 // strict-reserved). Emit-only leaf; the name value + node are built by the
 // caller. `current` is the snapped name token.
-check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_expr, async, generator: bool) {
+check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, form: FunctionParseForm, async, generator: bool) {
 	// §15.8.1 / §15.5.1 / §15.9.1 - the BindingIdentifier of an
 	// AsyncFunctionExpression / GeneratorExpression /
 	// AsyncGeneratorExpression is parsed under [+Await] / [+Yield],
 	// so `await` / `yield` cannot be used as the function name in
 	// expression position. The Declaration form's binding is in the
 	// enclosing context.
-	if is_expr && async && current.value == "await" {
+	if form != .Declaration && async && current.value == "await" {
 		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
 			"'await' cannot be used as the name of an async function expression")
 	}
@@ -2341,7 +2339,7 @@ check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_exp
 	// default context (where the strict-mode reservation kicks in
 	// at the semantic checker via
 	// ck_check_binding_identifier_strict on the function name).
-	if is_expr && generator && current.value == "yield" && !p.in_export_default {
+	if form == .Expression && generator && current.value == "yield" {
 		report_error_coded(p, .K3010_AwaitYieldAsBindingName,
 			"'yield' cannot be used as the name of a generator function expression")
 	}
@@ -2373,7 +2371,7 @@ check_function_name_reservations :: proc(p: ^Parser, current: ^TokenSnap, is_exp
 	if current.value == "enum" {
 		report_error_coded(p, .K4054_EnumInvalid, "'enum' is a reserved word and cannot be used as a function name")
 	}
-	if !is_expr {
+	if form == .Declaration {
 		check_function_decl_name_context(p, current)
 	}
 	// Strict-mode FutureReservedWords as function name.
@@ -2625,9 +2623,6 @@ parse_function_param_rest :: proc(p: ^Parser, param: ^FunctionParameter) -> ^Fun
 			ann := parse_ts_type_annotation(p)
 			if ident, ok := arg_pattern.(^Identifier); ok {
 				ident.type_annotation = ann
-				if ann != nil && ann.loc.end > ident.loc.end {
-					ident.loc.end = ann.loc.end
-				}
 			}
 		}
 		rest.loc.end = prev_end_offset(p)
@@ -3009,6 +3004,14 @@ parse_class_extends :: proc(p: ^Parser) -> (Maybe(^Expression), Maybe(^TSTypePar
 		// `class C extends (() => {}){}` IS legal (paren promotes to primary);
 		// `class C extends async () => {}{}` is a SyntaxError (no parens).
 		if sc, have := super_class.(^Expression); have && sc != nil {
+			// A line break can make the expression parser claim the heritage
+			// arguments as an instantiation. A closing parenthesis instead
+			// means the instantiation belongs to the parenthesized expression.
+			if inst, ok := sc^.(^TSInstantiationExpression); ok && inst != nil &&
+			   super_type_arguments == nil && inst.loc.end == prev_end_offset(p) {
+				super_class = inst.expression
+				super_type_arguments = inst.type_arguments
+			}
 			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
 				// Check for parentheses via backward source scan.
 				arrow_start := int(arrow.loc.start)
@@ -3818,11 +3821,11 @@ class_member_is_constructor_impl :: proc(elem: ClassElement) -> bool {
 }
 
 // class_member_dup_should_skip reports whether a non-constructor element is
-// excluded from the duplicate map: TS overload signatures (body-less methods),
-// override methods (may legally repeat), and abstract members.
+// excluded from the duplicate map: TS overload signatures, override
+// fields or methods, and abstract members.
 class_member_dup_should_skip :: proc(elem: ClassElement) -> bool {
+	if elem.override_ && (elem.kind == .Field || elem.kind == .Method) { return true }
 	if elem.kind == .Method {
-		if elem.override_ { return true }
 		if val, have := elem.value.?; have && val != nil {
 			if fn, is_fn := val^.(^FunctionExpression); is_fn && fn != nil {
 				if fn.body.loc.end <= fn.body.loc.start {
@@ -4117,7 +4120,8 @@ check_class_private_dup :: proc(p: ^Parser, elem: ClassElement, seen: ^map[strin
 		if prev.has_get && prev.get_static != elem.static { static_mismatch = true }
 		prev.has_set = true
 		prev.set_static = elem.static
-	case .Method, .Constructor, .StaticBlock:
+	case .IndexSignature: unreachable() // Index signatures have no private name.
+	case .Method, .Constructor, .StaticBlock, .Field:
 		if prev.has_get || prev.has_set || prev.has_other { dup = true }
 		prev.has_other = true
 	}
@@ -4291,52 +4295,27 @@ parse_class_member_modifiers :: proc(p: ^Parser) -> ClassMemberModifiers {
 }
 
 
-// try_consume_ts_class_index_signature detects and consumes a TS index
-// signature in a class body (`[s: string]: number`) when the `[` clearly
-// opens one (`[ Identifier (: | ?:) ...`). Mirrors parse_ts_object_member's
-// index-signature arm. Returns true when an index signature was consumed —
-// the caller then drops the element (returns nil), matching the existing
-// pattern for parser-intentionally-dropped elements (TS overload signatures
-// don't materialize either). Returns false when the `[` is an ordinary
-// computed property key; the lexer cursor is left untouched in that case so
-// the caller can parse the computed key.
-try_consume_ts_class_index_signature :: proc(p: ^Parser, accessibility: ClassAccessibility, access_name: string) -> bool {
+// Probe the bracketed member without consuming a computed property key.
+try_parse_class_index_signature :: proc(p: ^Parser, start: Loc, mods: ^ClassMemberModifiers) -> ^ClassElement {
+	assert(is_token(p, .LBracket))
 	ensure_nxt(p)
-	if !(allow_ts_mode(p) && p.lexer.nxt.kind == .Identifier) {
-		return false
+	if !allow_ts_mode(p) || !ts_index_parameter_name(p.lexer.nxt.kind) { return nil }
+	bracket := cur_loc(p)
+	saved := lexer_snapshot(p)
+	eat(p)
+	if !ts_index_parameter_ahead(p) {
+		lexer_restore(p, saved)
+		return nil
 	}
-	// Two-token lookahead: nxt is the identifier, nxt.nxt would be `:`.
-	// We don't have a 2-tok-ahead helper, so snapshot+probe.
-	snap := lexer_snapshot(p)
-	eat(p)  // consume `[`
-	eat(p)  // consume identifier
-	ensure_nxt(p)
-	is_index_sig := is_token(p, .Colon) ||
-	                (is_token(p, .Question) && p.lexer.nxt.kind == .Colon)
-	lexer_restore(p, snap)
-	if !is_index_sig {
-		return false
+	if mods.accessibility != .None {
+		report_error_coded_span(p, .K4032_ModifierMisplaced, bracket.start, bracket.end, fmt.tprintf("'%s' modifier cannot appear on an index signature", mods.access_name))
 	}
-	// Confirmed: parse and discard the index signature. Same shape
-	// as parse_ts_object_member's index-signature arm.
-	if accessibility != .None {
-		report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", access_name))
-	}
-	eat(p)            // `[`
-	eat(p)            // identifier
-	if match_token(p, .Question) {
-		report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
-	}
-	expect_token(p, .Colon)
-	_ = parse_ts_type(p)
-	expect_token(p, .RBracket)
-	if is_token(p, .Colon) && allow_ts_mode(p) {
-		_ = parse_ts_type_annotation(p)
-	} else if allow_ts_mode(p) {
-		report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-	}
-	match_semicolon_or_asi(p)
-	return true
+	sig := parse_ts_index_signature(p, start, readonly = mods.is_readonly, static_ = mods.static_, in_class = true)
+	elem := new_node(p, ClassElement)
+	elem.kind = .IndexSignature
+	elem.loc = sig^.(TSIndexSignature).loc
+	elem.typing.index_signature = sig
+	return elem
 }
 
 // parse_class_accessor_keyword — `accessor` (Stage-3 decorators auto-accessor)
@@ -4392,6 +4371,8 @@ parse_class_get_set_keyword :: proc(p: ^Parser, is_async: bool) -> (ClassElement
 	if !is_token(p, .Get) && !is_token(p, .Set) { return .Method, false }
 	is_getter := is_token(p, .Get)
 	next := peek_token(p)
+	// A star after a line terminator starts a new generator method.
+	if next.type == .Mul && next.had_line_terminator { return .Method, false }
 	looks_like_accessor_name := next.type == .Identifier || next.type == .String ||
 		next.type == .Number || next.type == .BigInt || next.type == .LBracket ||
 		next.type == .Mul || next.type == .PrivateIdentifier ||
@@ -4525,8 +4506,7 @@ parse_class_field_initializer :: proc(p: ^Parser, is_declare, is_readonly, is_ab
 // ClassElementName carries the result of parsing a class member's key:
 // the key expression, the (possibly constructor-promoted) element kind, and
 // whether the key was computed. drop=true means the element should be swallowed
-// without materialising a node (a TS class index signature or a malformed
-// computed key) — the caller returns nil.
+// without materialising a node (for example, a malformed computed key) — the caller returns nil.
 ClassElementName :: struct {
 	key:      ^Expression,
 	kind:     ClassElementKind,
@@ -4544,7 +4524,6 @@ parse_class_element_name :: proc(
 	kind_in: ClassElementKind,
 	static_, is_async, is_generator: bool,
 	accessibility: ClassAccessibility,
-	access_name: string,
 ) -> ClassElementName {
 	if is_token(p, .PrivateIdentifier) {
 		return parse_class_name_private(p, kind_in, accessibility)
@@ -4557,7 +4536,7 @@ parse_class_element_name :: proc(
 	} else if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) {
 		return parse_class_name_identifier(p, kind_in, is_async, is_generator, static_)
 	} else if is_token(p, .LBracket) {
-		return parse_class_name_computed(p, kind_in, accessibility, access_name)
+		return parse_class_name_computed(p, kind_in)
 	}
 	report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected method or property name")
 	return ClassElementName{drop = true}
@@ -4698,25 +4677,9 @@ parse_class_name_identifier :: proc(p: ^Parser, kind_in: ClassElementKind, is_as
 	return ClassElementName{key = key, kind = kind, computed = false}
 }
 
-// parse_class_name_computed builds a computed `[expr]` class member name (or
-// drops a TS class index signature), rejecting an array-literal computed key.
-parse_class_name_computed :: proc(p: ^Parser, kind: ClassElementKind, accessibility: ClassAccessibility, access_name: string) -> ClassElementName {
+// Parse a computed class member after index signatures have been disambiguated.
+parse_class_name_computed :: proc(p: ^Parser, kind: ClassElementKind) -> ClassElementName {
 	key: ^Expression
-	// TS index signature in class body: `[s: string]: number`. Detect by
-	// peeking `[ Identifier : ...`. The interface-body parser
-	// (parse_ts_object_member) handles this; class bodies need the same
-	// detection. Without it, `[s: string]` is misparsed as a computed
-	// property key, choking on `:` while looking for `]`.
-	// cluster. Skipped at the AST level for
-	// now - the parser accepts the syntax, the corpus smoke gate passes,
-	// and a proper TSIndexSignature class-element node can come in W7+
-	// when the deep walker starts comparing class bodies.
-	// Return nil so the class-body loop swallows the element without
-	// erroring - mirrors the existing pattern for elements that the parser
-	// intentionally drops (TS overload signatures don't materialize either).
-	if try_consume_ts_class_index_signature(p, accessibility, access_name) {
-		return ClassElementName{drop = true}
-	}
 	// Computed property: [expr]
 	eat(p)
 	// `[` opens a fresh expression context - the enclosing for-head
@@ -4746,7 +4709,6 @@ ClassFieldParts :: struct {
 	key:             ^Expression,
 	type_annotation: Maybe(^TSTypeAnnotation),
 	decorators:      [dynamic]Decorator,
-	kind:            ClassElementKind,
 	accessibility:   ClassAccessibility,
 	computed:        bool,
 	static_:         bool,
@@ -4807,7 +4769,7 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	elem.loc = parts.start
 	elem.key = parts.key
 	elem.value = value
-	elem.kind = parts.kind  // Still .Method but value is not a function
+	elem.kind = .Field
 	// Use the parsed `computed` flag so `static [propname]` fields
 	// emit with computed=true - the §15.7.1 "static prototype" check
 	// gates on !elem.computed, so the previous hardcoded `false` made
@@ -4817,7 +4779,7 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	elem.is_accessor = parts.is_accessor
 	elem.abstract = parts.is_abstract
 	elem.decorators = parts.decorators
-	elem.type_annotation = parts.type_annotation
+	elem.typing.annotation = parts.type_annotation
 	elem.optional = parts.optional
 	if parts.is_accessor && parts.optional {
 		report_error_coded(p, .K4032_ModifierMisplaced, "An 'accessor' property cannot be declared optional")
@@ -4826,6 +4788,7 @@ parse_class_field_element :: proc(p: ^Parser, parts: ClassFieldParts) -> ^ClassE
 	elem.accessibility = parts.accessibility
 	elem.readonly = parts.is_readonly
 	elem.override_ = parts.is_override
+	elem.declare = parts.is_declare
 
 	elem.loc.end = prev_end_offset(p)
 	return elem
@@ -5310,7 +5273,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	static_       := mods.static_
 	is_abstract   := mods.is_abstract
 	accessibility := mods.accessibility
-	access_name   := mods.access_name
 	is_readonly   := mods.is_readonly
 	is_override   := mods.is_override
 	is_declare    := mods.is_declare
@@ -5340,7 +5302,10 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 	}
 
 	// Parse method/property name (private / literal / identifier / computed).
-	name_res := parse_class_element_name(p, kind, static_, is_async, is_generator, accessibility, access_name)
+	if is_token(p, .LBracket) {
+		if elem := try_parse_class_index_signature(p, start, &mods); elem != nil { return elem }
+	}
+	name_res := parse_class_element_name(p, kind, static_, is_async, is_generator, accessibility)
 	if name_res.drop {
 		return nil
 	}
@@ -5392,7 +5357,6 @@ parse_class_element :: proc(p: ^Parser) -> ^ClassElement {
 			key             = key,
 			type_annotation = field_type_ann,
 			decorators      = decorators,
-			kind            = kind,
 			accessibility   = accessibility,
 			computed        = computed,
 			static_         = static_,
@@ -5568,6 +5532,7 @@ parse_var_decl_kind :: proc(p: ^Parser, kind_override: Maybe(VariableKind)) -> (
 }
 
 check_var_decl_kind_placement :: proc(p: ^Parser, kind: VariableKind, in_for: bool) {
+	if kind == .AwaitUsing && !p.ctx.in_function { p.has_top_level_await = true }
 	// TS18054 — `await using` inside a class static block is invalid.
 	// Static blocks run synchronously and `await` is not available.
 	if kind == .AwaitUsing && p.ctx.in_static_block {

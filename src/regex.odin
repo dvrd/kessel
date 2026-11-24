@@ -48,6 +48,7 @@ RegexValidator :: struct {
 	source:    []u8,                      // borrowed
 	errors:    [dynamic]RegexDiagnostic,  // owned, built per-call
 	allocator: mem.Allocator,
+	defer_v_string_negation: bool,
 }
 
 // regex_validate is the public entry point. Builds a RegexValidator,
@@ -63,11 +64,13 @@ regex_validate :: proc(
 	pat_start, pat_end: u32,
 	has_u, has_v:     bool,
 	alloc:            mem.Allocator,
+	defer_v_string_negation := false,
 ) -> []RegexDiagnostic {
 	v: RegexValidator
 	v.source    = source
 	v.errors    = make([dynamic]RegexDiagnostic, 0, 4, alloc)
 	v.allocator = alloc
+	v.defer_v_string_negation = defer_v_string_negation
 	regex_validate_pattern(&v, pat_start, pat_end, has_u, has_v)
 	return v.errors[:]
 }
@@ -1661,7 +1664,7 @@ regex_validate_v_mode_class :: proc(v: ^RegexValidator, pat_start, pat_end: u32)
 			nest_depth -= 1
 			if nest_depth <= 0 {
 				// Class closes. Check negated-class + property-of-strings.
-				if class_is_negated && class_has_prop_of_strings {
+				if class_is_negated && class_has_prop_of_strings && !v.defer_v_string_negation {
 					append(&v.errors, RegexDiagnostic{
 						offset = u32(class_open_off),
 						message = "Invalid negated character class containing property of strings in v-mode",

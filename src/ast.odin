@@ -351,6 +351,22 @@ TSFunctionParam :: struct {
 	optional:        bool,
 }
 
+// Signature parameters keep their annotation separately from the binding pattern.
+// A default value belongs to the assignment wrapper, after the typed binding.
+ts_param_binding_fields :: proc(
+	loc: Loc, annotation: Maybe(^TSTypeAnnotation), optional: bool, param: ^TSFunctionParam,
+) -> (Loc, Maybe(^TSTypeAnnotation), bool) {
+	if param == nil { return loc, annotation, optional }
+	binding := loc
+	if _, assignment := param.pattern.(^AssignmentPattern); !assignment {
+		binding = param.loc
+	} else if ann, typed := param.type_annotation.?; typed {
+		binding.end = ann.loc.end
+	}
+	ann := param.type_annotation if param.type_annotation != nil else annotation
+	return binding, ann, optional || param.optional
+}
+
 // Type literal / object type: `{ x: number; y: string }`
 TSTypeLiteral :: struct {
 	loc:     Loc,
@@ -464,6 +480,27 @@ TSImportType :: struct {
 	qualifier:       Maybe(^Expression),
 	type_parameters: Maybe(^TSTypeParameterInstantiation),
 	is_typeof:       bool,
+	has_options:     bool,
+	import_start:    u32,
+}
+
+// The raw v1 prefix retains the existing offsets. Only imports with an options
+// object allocate the additional pointer.
+TSImportTypeWithOptions :: struct {
+	base:    TSImportType,
+	options: ^Expression,
+}
+
+#assert(offset_of(TSImportType, import_start) == offset_of(TSImportType, is_typeof) + 4)
+#assert(offset_of(TSImportTypeWithOptions, options) == size_of(TSImportType))
+
+ts_import_type_options :: proc(node: ^TSImportType) -> ^Expression {
+	if !node.has_options { return nil }
+	return (cast(^TSImportTypeWithOptions)node).options
+}
+
+ts_import_type_loc :: proc(node: ^TSImportType) -> Loc {
+	return {max(node.loc.start, node.import_start), node.loc.end}
 }
 
 // `as` expression: `expr as Type`
@@ -1142,6 +1179,8 @@ ClassElementKind :: enum {
 	Set,
 	Constructor,
 	StaticBlock,  // ES2022 static { ... }
+	Field,
+	IndexSignature,
 }
 
 // TS class-member visibility modifier. .None means no modifier was written
@@ -1155,6 +1194,15 @@ ClassAccessibility :: enum u8 {
 	Protected,
 }
 
+// The element kind selects the active type pointer. Both alternatives occupy the
+// existing field annotation slot in the raw arena format.
+ClassElementType :: struct #raw_union {
+	annotation:      Maybe(^TSTypeAnnotation),
+	index_signature: ^TSSignature,
+}
+#assert(size_of(ClassElementType) == size_of(Maybe(^TSTypeAnnotation)))
+#assert(align_of(ClassElementType) == align_of(Maybe(^TSTypeAnnotation)))
+
 ClassElement :: struct {
 	loc:             Loc,
 	key:             ^Expression,
@@ -1165,12 +1213,13 @@ ClassElement :: struct {
 	is_accessor:     bool, // `accessor` keyword — emits as "AccessorProperty"
 	decorators:      [dynamic]Decorator,
 	abstract:        bool,
-	type_annotation: Maybe(^TSTypeAnnotation),  // TS: `foo: T`
+	typing:          ClassElementType,
 	optional:        bool,                        // TS: `foo?:`
 	definite:        bool,                        // TS: `foo!:` (definite assignment)
 	accessibility:   ClassAccessibility,          // TS: public/private/protected
 	readonly:        bool,                        // TS: readonly
 	override_:       bool,                        // TS: override
+	declare:         bool,                        // TS: type-only field. Fits in raw transfer v1 tail padding.
 }
 
 ClassExpression :: struct {
@@ -1423,6 +1472,15 @@ ExportSpecifier :: struct {
 	loc:       Loc,
 	local:     ExportSpecifierName,
 	exported:  ExportSpecifierName,
+}
+
+// An inline type modifier precedes the local name in the source span.
+export_specifier_is_type :: proc(spec: ^ExportSpecifier) -> bool {
+	switch local in spec.local {
+	case IdentifierName: return spec.loc.start < local.loc.start
+	case ^StringLiteral: return local != nil && spec.loc.start < local.loc.start
+	}
+	return false
 }
 
 ExportNamedDeclaration :: struct {

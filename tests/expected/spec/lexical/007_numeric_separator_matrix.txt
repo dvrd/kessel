@@ -199,13 +199,13 @@
     {
       "type": "Line",
       "start": 148,
-      "end": 224,
+      "end": 222,
       "value": " the separators stripped from the cooked value — a `1_000` is the number"
     },
     {
       "type": "Line",
-      "start": 225,
-      "end": 269,
+      "start": 223,
+      "end": 267,
       "value": " 1000, not `1` followed by something else."
     }
   ]

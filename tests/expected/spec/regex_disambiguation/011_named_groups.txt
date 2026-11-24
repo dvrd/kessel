@@ -140,7 +140,7 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 52,
+      "end": 50,
       "value": " ES2018 — named capture groups + backreferences."
     }
   ]

@@ -54,25 +54,25 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 75,
+      "end": 72,
       "value": " ECMA-262 §12.9.4 — LineContinuation inside a StringLiteral: backslash"
     },
     {
       "type": "Line",
-      "start": 76,
-      "end": 145,
+      "start": 73,
+      "end": 142,
       "value": " immediately followed by LineTerminatorSequence. Evaluates to empty"
     },
     {
       "type": "Line",
-      "start": 146,
-      "end": 219,
+      "start": 143,
+      "end": 216,
       "value": " string (NOT a literal newline), joining the two halves of the literal."
     },
     {
       "type": "Line",
-      "start": 247,
-      "end": 303,
+      "start": 244,
+      "end": 300,
       "value": " Kessel must produce StringLiteral.value === \"abcdef\"."
     }
   ]

@@ -7,44 +7,40 @@ on:
     branches: [main]
 
 jobs:
-  # Canonical full-test job. POSIX-only because tests/runners/run_tests.sh
-  # and the coverage harness assume bash + GNU tools. Runs on Apple Silicon
-  # to exercise the NEON SIMD path.
   test:
-    name: test (darwin-arm64, full)
-    runs-on: macos-14
+    uses: ./.github/workflows/primary-tests.yml
+    with:
+      release_checks: ${{ github.event_name == 'pull_request' }}
+
+  playground:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install Odin
-        uses: laytan/setup-odin@v2
+      - uses: laytan/setup-odin@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install Task
-        uses: arduino/setup-task@v2
+          token: ${{ github.token }}
+          release: dev-2026-11
+      - uses: arduino/setup-task@v2
         with:
           version: '3.x'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
+          repo-token: ${{ github.token }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-
-      - name: Build
-        run: task build
-
-      - name: Build shared library
-        run: task build:lib
-
-      - name: Test (unit)
-        run: tests/runners/run_tests.sh --update
-
-      - name: Test npm package
+      - name: Install the WebAssembly linker
         run: |
-          cd npm/kessel
-          npm install
-          node test.js
+          if ! command -v wasm-ld >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y lld
+          fi
+      - name: Install headless Chromium
+        working-directory: playground
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx --no-install playwright install --with-deps --only-shell chromium
+      - run: task test:wasm:browser
 
   # Portability matrix. Proves each release target compiles cleanly and the
   # FFI binding works end-to-end. Does NOT publish anything.
@@ -68,8 +64,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-14
+          - os: macos-15
             target: darwin-arm64
+            # Preserve the deployment target of the published arm64 library.
+            deployment_flag: -minimum-os-version:14.0.0
             ext: dylib
             ldflags: '-extra-linker-flags:"-undefined dynamic_lookup"'
           - os: macos-15-intel
@@ -96,6 +94,7 @@ jobs:
         uses: laytan/setup-odin@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          release: dev-2026-11
 
       # Activate MSVC build environment on Windows so link.exe can find
       # Windows SDK libraries (kernel32.lib, msvcrt.lib, ...). Without
@@ -112,8 +111,8 @@ jobs:
           node-version: '22'
 
       # Build shared library. We inline the `odin build` invocation instead
-      # of calling `task build:lib` because the Taskfile hard-codes mac
-      # linker flags. OS-conditional flags live here in the matrix.
+      # of calling `task build:lib` to use the release deployment target
+      # and print linker commands for each platform.
       #
       # We `cd bin` first because on Windows Odin places per-package
       # intermediate .obj files in the output directory but invokes
@@ -127,7 +126,7 @@ jobs:
           mkdir -p bin
           cd bin
           odin build ../src \
-            -build-mode:shared \
+            ${{ matrix.deployment_flag }} -build-mode:shared \
             -out:libkessel.${{ matrix.ext }} \
             -o:speed \
             -no-bounds-check \
@@ -137,12 +136,85 @@ jobs:
       # npm/kessel/index.js findLib() searches ../../bin/libkessel.<ext> first
       # (the repo-root build), so the build output above is picked up without
       # any staging step.
+      - name: Build and smoke test CLI
+        shell: bash
+        run: |
+          cli=kessel
+          if [[ "$RUNNER_OS" == Windows ]]; then cli=kessel.exe; fi
+          (cd bin && odin build ../src ${{ matrix.deployment_flag }} -out:"$cli" -o:speed -no-bounds-check)
+          node tests/verifiers/verify_cli_smoke.js "bin/$cli"
+          node tests/verifiers/verify_watch.js "bin/$cli"
+
+      - name: Upload CLI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kessel-cli-${{ matrix.target }}
+          path: bin/kessel${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+
       - name: Smoke test (npm)
         shell: bash
         run: |
           cd npm/kessel
-          npm install
+          npm ci
           node test.js
+
+      - name: Compare CLI and npm TypeScript ASTs with Oxc
+        shell: bash
+        run: |
+          npm ci --prefix bench --ignore-scripts --no-audit --no-fund
+          node tests/verifiers/verify_npm_typescript.js --cli
+          node tests/verifiers/verify_npm_typescript.js --preload-koffi
+
+      - name: Compare native TypeScript declarations
+        if: matrix.target == 'linux-x64'
+        run: node tests/verifiers/verify_declarations.js
+
+      - name: Test isolated npm bindings
+        shell: bash
+        run: bash tests/runners/npm_coexistence.sh
+
+      - name: Test packed install (Node 22)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Test packed install (Node 18)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Test packed install (Node 24)
+        shell: bash
+        run: bash tests/runners/npm_pack_smoke.sh
+
+      - name: Package editor extension
+        run: |
+          npm ci --prefix editors/vscode --ignore-scripts --no-audit --no-fund
+          node editors/vscode/package_vsix.js
+
+      - name: Test installed editor extension
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            xvfb-run -a node editors/vscode/test/run.js
+          else
+            node editors/vscode/test/run.js
+          fi
+
+      - name: Upload editor extension
+        uses: actions/upload-artifact@v4
+        with:
+          name: kessel-vscode-${{ matrix.target }}
+          path: bin/*.vsix
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

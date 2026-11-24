@@ -1,0 +1,7 @@
+{
+  "name": "kessel-playground-tests",
+  "private": true,
+  "devDependencies": {
+    "playwright": "1.58.2"
+  }
+}

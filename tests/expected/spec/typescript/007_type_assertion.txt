@@ -92,13 +92,13 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 69,
+      "end": 67,
       "value": " TS `<Type>expr` assertion syntax (not available in TSX — clashes"
     },
     {
       "type": "Line",
-      "start": 70,
-      "end": 140,
+      "start": 68,
+      "end": 138,
       "value": " with JSX). ESTree/TS: TSTypeAssertion.expression + .typeAnnotation."
     }
   ]

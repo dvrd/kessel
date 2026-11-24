@@ -1,0 +1,53 @@
+{
+  "name": "kessel",
+  "displayName": "Kessel",
+  "description": "JavaScript, JSX, TypeScript and TSX diagnostics, safe lint fixes and module formatting.",
+  "version": "0.1.0",
+  "publisher": "dvrd",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvrd/kessel.git",
+    "directory": "editors/vscode"
+  },
+  "engines": { "vscode": "^1.91.0" },
+  "categories": ["Linters", "Formatters"],
+  "extensionKind": ["workspace"],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "main": "./extension.js",
+  "files": ["extension.js", "README.md", "LICENSE", "npm/kessel/**", "bin/**", "node_modules/**"],
+  "contributes": {
+    "configuration": {
+      "title": "Kessel",
+      "properties": {
+        "kessel.rules": {
+          "type": "object",
+          "default": {},
+          "scope": "window",
+          "description": "Override lint rules from project configuration in this editor window."
+        },
+        "kessel.reportUnusedDisableDirectives": {
+          "type": ["string", "null"],
+          "enum": [null, "off", "warn", "error"],
+          "default": null,
+          "scope": "window",
+          "description": "Set the severity of unused lint suppression comments. The default uses project configuration."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "koffi": "3.3.8",
+    "vscode-languageclient": "11.0.0"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.1"
+  }
+}

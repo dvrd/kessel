@@ -98,6 +98,7 @@ ParseConfig :: struct {
 	// --preserve-parens: wrap `(expr)` in ParenthesizedExpression nodes
 	// (Acorn / OXC extension; not in ESTree core).
 	preserve_parens: bool,
+	allow_legacy_module_names: bool, // TypeScript declaration emit accepts the historical namespace spelling.
 
 	// Bench-only: skip scope tracking, duplicate-binding detection,
 	// post-parse verify_scopes. Matches OXC's permissive default and
@@ -398,6 +399,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 
 	job.parser.force_strict     = job.config.force_strict
 	job.parser.preserve_parens  = job.config.preserve_parens
+	job.parser.allow_legacy_module_names = job.config.allow_legacy_module_names
 	job.parser.ast_only         = job.config.ast_only
 	job.parser.resource_budget  = parse_resource_budget_normalize(job.config.resource_budget)
 	job.lexer.skip_regex_validation = job.config.ast_only

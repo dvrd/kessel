@@ -1,0 +1,247 @@
+[
+  {
+    "name": "nested settings",
+    "source": "export const config={enabled:true,ports:[80,443],paths:{source:'src',out:'dist'}};",
+    "options": {
+      "printWidth": 28
+    },
+    "parser": "typescript",
+    "expected": "export const config = {\n  enabled: true,\n  ports: [80, 443],\n  paths: {\n    source: \"src\",\n    out: \"dist\",\n  },\n};\n"
+  },
+  {
+    "name": "typed binding",
+    "source": "let config:Settings={theme:'night',palette:['ink','paper','accent']};",
+    "options": {
+      "printWidth": 36,
+      "tabWidth": 4,
+      "singleQuote": true
+    },
+    "parser": "typescript",
+    "expected": "let config: Settings = {\n    theme: 'night',\n    palette: [\n        'ink',\n        'paper',\n        'accent',\n    ],\n};\n"
+  },
+  {
+    "name": "default export",
+    "source": "export default {features:{lint:true,format:false},servers:['local','test']};",
+    "options": {
+      "printWidth": 20,
+      "bracketSpacing": false
+    },
+    "parser": "typescript",
+    "expected": "export default {\n  features: {\n    lint: true,\n    format: false,\n  },\n  servers: [\n    \"local\",\n    \"test\",\n  ],\n};\n"
+  },
+  {
+    "name": "numeric rows",
+    "source": "const matrix=[[1,2,3],[4,5,6]];",
+    "options": {
+      "printWidth": 18,
+      "trailingComma": "none"
+    },
+    "parser": "typescript",
+    "expected": "const matrix = [\n  [1, 2, 3],\n  [4, 5, 6]\n];\n"
+  },
+  {
+    "name": "object rows",
+    "source": "const matrix=[{name:'a',value:1},{name:'b',value:2}];",
+    "options": {
+      "printWidth": 32,
+      "useTabs": true
+    },
+    "parser": "typescript",
+    "expected": "const matrix = [\n\t{ name: \"a\", value: 1 },\n\t{ name: \"b\", value: 2 },\n];\n"
+  },
+  {
+    "name": "sparse array",
+    "source": "let slots=[,first,,last,,];",
+    "options": {
+      "printWidth": 28
+    },
+    "parser": "typescript",
+    "expected": "let slots = [\n  ,\n  first,\n  ,\n  last,\n  ,\n];\n"
+  },
+  {
+    "name": "numeric fill",
+    "source": "var ports=[1,20,300,4000,50,6,7,8,9,10];",
+    "options": {
+      "printWidth": 36,
+      "tabWidth": 4,
+      "singleQuote": true
+    },
+    "parser": "typescript",
+    "expected": "var ports = [\n    1, 20, 300, 4000, 50, 6, 7, 8,\n    9, 10,\n];\n"
+  },
+  {
+    "name": "negative fill",
+    "source": "const offset=[-1,-2,+3,40,-5];",
+    "options": {
+      "printWidth": 20,
+      "bracketSpacing": false
+    },
+    "parser": "typescript",
+    "expected": "const offset = [\n  -1, -2, +3, 40,\n  -5,\n];\n"
+  },
+  {
+    "name": "computed keys and spread",
+    "source": "const values={...defaults,local,[key]:'value','hello-world':2,'hello':3};",
+    "options": {
+      "printWidth": 18,
+      "trailingComma": "none"
+    },
+    "parser": "typescript",
+    "expected": "const values = {\n  ...defaults,\n  local,\n  [key]: \"value\",\n  \"hello-world\": 2,\n  hello: 3\n};\n"
+  },
+  {
+    "name": "blank lines",
+    "source": "const o={first:1,\n\nsecond:[1,\n\n2]};",
+    "options": {
+      "printWidth": 32,
+      "useTabs": true
+    },
+    "parser": "typescript",
+    "expected": "const o = {\n\tfirst: 1,\n\n\tsecond: [\n\t\t1,\n\n\t\t2,\n\t],\n};\n"
+  },
+  {
+    "name": "preserve object breaks",
+    "source": "const x={outer:{\n inner:1,another:2},list:[]};",
+    "options": {
+      "printWidth": 28
+    },
+    "parser": "typescript",
+    "expected": "const x = {\n  outer: {\n    inner: 1,\n    another: 2,\n  },\n  list: [],\n};\n"
+  },
+  {
+    "name": "readonly literal",
+    "source": "export const x={modes:['fast','safe']} as const;",
+    "options": {
+      "printWidth": 36,
+      "tabWidth": 4,
+      "singleQuote": true
+    },
+    "parser": "typescript",
+    "expected": "export const x = {\n    modes: ['fast', 'safe'],\n} as const;\n"
+  },
+  {
+    "name": "type constraint",
+    "source": "const config={enabled:true,path:base} satisfies Settings;",
+    "options": {
+      "printWidth": 20,
+      "bracketSpacing": false
+    },
+    "parser": "typescript",
+    "expected": "const config = {\n  enabled: true,\n  path: base,\n} satisfies Settings;\n"
+  },
+  {
+    "name": "multiple statements",
+    "source": "import{p}from'm';const x=[1,2];export default {x,p};",
+    "options": {
+      "printWidth": 18,
+      "trailingComma": "none"
+    },
+    "parser": "typescript",
+    "expected": "import { p } from \"m\";\nconst x = [1, 2];\nexport default {\n  x,\n  p\n};\n"
+  },
+  {
+    "name": "empty and nested",
+    "source": "const x={a:[],b:{},c:[{},[[]]]};",
+    "options": {
+      "printWidth": 32,
+      "useTabs": true
+    },
+    "parser": "typescript",
+    "expected": "const x = {\n\ta: [],\n\tb: {},\n\tc: [{}, [[]]],\n};\n"
+  },
+  {
+    "name": "single and double quotes",
+    "source": "const x={\"ordinary\":'she said \"go\"',\"with-dash\":\"don't\"};",
+    "options": {
+      "printWidth": 28
+    },
+    "parser": "typescript",
+    "expected": "const x = {\n  ordinary: 'she said \"go\"',\n  \"with-dash\": \"don't\",\n};\n"
+  },
+  {
+    "name": "reference under long key",
+    "source": "const value={longProperty:identifier,extraordinarilyLong:true,nothingHere:null};",
+    "options": {
+      "printWidth": 36,
+      "tabWidth": 4,
+      "singleQuote": true
+    },
+    "parser": "typescript",
+    "expected": "const value = {\n    longProperty: identifier,\n    extraordinarilyLong: true,\n    nothingHere: null,\n};\n"
+  },
+  {
+    "name": "unicode",
+    "source": "const 配置={主题:'昼',列表:['甲','乙']};",
+    "options": {
+      "printWidth": 20,
+      "bracketSpacing": false
+    },
+    "parser": "typescript",
+    "expected": "const 配置 = {\n  主题: \"昼\",\n  列表: [\n    \"甲\",\n    \"乙\",\n  ],\n};\n"
+  },
+  {
+    "name": "long name",
+    "source": "const extraordinarilyLongName={port:123};",
+    "options": {
+      "printWidth": 18,
+      "trailingComma": "none"
+    },
+    "parser": "typescript",
+    "expected": "const extraordinarilyLongName =\n  { port: 123 };\n"
+  },
+  {
+    "name": "mixed spread array",
+    "source": "let arr=[null,...items,true];",
+    "options": {
+      "printWidth": 32,
+      "useTabs": true
+    },
+    "parser": "typescript",
+    "expected": "let arr = [\n\tnull,\n\t...items,\n\ttrue,\n];\n"
+  },
+  {
+    "name": "bracketed literal source",
+    "source": "const x=({nested:([('hi')])});",
+    "options": {
+      "printWidth": 28
+    },
+    "parser": "typescript",
+    "expected": "const x = {\n  nested: [\"hi\"],\n};\n"
+  },
+  {
+    "name": "constant checked against a qualified type",
+    "source": "export const config={ports:[80,443],cache:true} as const satisfies Project.Config;",
+    "options": {
+      "printWidth": 32
+    },
+    "parser": "typescript",
+    "expected": "export const config = {\n  ports: [80, 443],\n  cache: true,\n} as const satisfies Project.Config;\n"
+  },
+  {
+    "name": "typed array with chained assertions",
+    "source": "let rows:Project.Row[]=[first,second] as Project.Row[] satisfies Project.Row[];",
+    "options": {
+      "printWidth": 44
+    },
+    "parser": "typescript",
+    "expected": "let rows: Project.Row[] = [\n  first,\n  second,\n] as Project.Row[] satisfies Project.Row[];\n"
+  },
+  {
+    "name": "computed and literal prototype keys",
+    "source": "const settings={\"__proto__\":base,[\"__proto__\"]:null,...rest};",
+    "options": {
+      "printWidth": 30
+    },
+    "parser": "typescript",
+    "expected": "const settings = {\n  __proto__: base,\n  [\"__proto__\"]: null,\n  ...rest,\n};\n"
+  },
+  {
+    "name": "long keys with signed or bigint values",
+    "source": "const data={longProperty:-12,anotherProperty:1234567890123456789n};",
+    "options": {
+      "printWidth": 16
+    },
+    "parser": "typescript",
+    "expected": "const data = {\n  longProperty:\n    -12,\n  anotherProperty:\n    1234567890123456789n,\n};\n"
+  }
+]

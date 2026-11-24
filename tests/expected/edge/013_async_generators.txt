@@ -507,13 +507,13 @@
     {
       "type": "Line",
       "start": 425,
-      "end": 491,
+      "end": 489,
       "value": " Wrap for-await in an async function — for-await is only valid"
     },
     {
       "type": "Line",
-      "start": 492,
-      "end": 541,
+      "start": 490,
+      "end": 539,
       "value": " inside async functions or at module top level."
     }
   ]
