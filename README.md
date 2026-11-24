@@ -143,18 +143,25 @@ bin/kessel microbench parse app.js --iterations 500 --ast-only
 bin/kessel server --compact
 ```
 
-`kessel fmt <file>` prints imports, named re-exports, export lists and data literals.
-A single `const`, `let` or `var` binding or a default export can contain nested
-objects and arrays. The formatter handles shorthand and computed keys, spreads
-of supported values, sparse arrays and numeric rows. Simple TypeScript type
-names, qualified names and array types are supported, including chained
-assertions such as `as const satisfies Project.Config`.
+`kessel fmt <file>` prints JavaScript in the layout of Prettier 3.8.3. It formats
+declarations, functions, arrow functions, classes, calls, member chains,
+operators, objects, arrays, template literals, destructuring, control flow and
+module syntax. Comments between statements, class members, object properties
+and switch cases move with the code around them. In TypeScript files it also
+formats data declarations with simple type names, qualified names and array
+types, including chained assertions such as `as const satisfies Project.Config`.
 
 Use `--print-width 60 --single-quote` to wrap at 60 columns and prefer single
-quotes. The defaults are 80 columns and two-space indentation. Unsupported
-statements, statements with internal comments and `prettier-ignore` targets
-retain their original source. Use `--end-of-line lf|crlf|cr|auto` for generated
-line breaks. The editor detects the document's convention automatically.
+quotes. The defaults are 80 columns and two-space indentation. Use
+`--trailing-comma all|es5|none` and `--end-of-line lf|crlf|cr|auto` as in
+Prettier. The editor detects the document's line endings automatically.
+
+A statement keeps its original source when the formatter cannot yet print it
+as Prettier would. That covers other TypeScript syntax, JSX, decorators,
+comments inside an expression or a parameter list, and `prettier-ignore`
+targets. A statement also keeps its source when Prettier's layout for it would
+change on a second run, so formatting a file twice never changes it. The
+output is parsed again before it is returned.
 
 Add `--watch` to `lint`, `fmt`, or `transform` to run once and repeat after saves.
 The CLI polls the named paths, including files replaced by an editor's atomic save.
@@ -431,8 +438,8 @@ task test:release             # Zero-tolerance pre-release chain (~13 min)
 | `task test:codegen` | Spec-corpus round-trip: parse → codegen → re-parse → AST equality (~2s) |
 | `task test:codegen:full` | Pretty and minified round trips across spec, ESTree, Babel, test262, and TypeScript (~73K fixtures) |
 | `task test:watch` | CLI watch lifecycle, atomic saves, configuration changes, error recovery, and autofix |
-| `task test:format` | Module and data-literal formatting against Prettier 3.8.3 fixtures, idempotence, source preservation, and CLI errors |
-| `task test:format:real` | Check that formatted files in the 467-file release corpus retain their syntax and comments and stay unchanged on a second pass |
+| `task test:format` | Statement, expression, comment, module and data-literal formatting against Prettier 3.8.3 fixtures, idempotence, source preservation, and CLI errors |
+| `task test:format:real` | Check that formatted files in the 467-file release corpus retain their syntax tree and comments and stay unchanged on a second pass |
 | `task test:transform:reference` | Execute classic and automatic JSX fixtures and compare runtime behavior with the pinned OXC transformer |
 | `task test:bench:regression` | 10 curated files vs baselines, fails on >5% regression |
 | `task test:conformance:report` | Print conformance summary from snap files |
@@ -519,7 +526,7 @@ results are in the [codegen section](#codegen).
 | 4 | **Linter (`kessel lint`)** | 🚧 Built-in lint rules with a pinned oxlint parity inventory |
 | 5 | Transformer (`kessel transform`, `transformSync`) | TypeScript lowering, classic and automatic JSX runtimes, and build-time global replacements. Target lowering, decorators, and React Refresh remain open. |
 | 6 | Semantic model · CFG · resolver · module lexer · regexp AST | In progress |
-| 7 | Formatter (`kessel fmt`, `formatSync`) | Wraps import and export lists and nested data literals at the configured width. General statement and expression formatting, JSX layout and comment placement remain open. |
+| 7 | Formatter (`kessel fmt`, `formatSync`) | Prints JavaScript statements, expressions and classes in Prettier 3.8.3's layout, with comments that stand between list items. TypeScript syntax, JSX layout, decorators and comments inside expressions remain open and keep their source. |
 | 8 | Minifier + mangler (`kessel minify`, `minifySync`) | Experimental. Folds JS and JSX numeric and boolean expressions, joins adjacent declarations, and shortens local JS and JSX bindings. Preserves JSX tag semantics and factory pragmas. TypeScript retains its binding names and initializer expressions for type inference. |
 | 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. The TypeScript reference suite covers namespaces, class index signatures and computed interface members. Some computed class members and inferred types remain open. |
 | 10 | Bundler + language server | The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. Bundling remains planned. |
