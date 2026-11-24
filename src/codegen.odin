@@ -1131,9 +1131,12 @@ gen_function_declaration :: proc(cg: ^Codegen, s: ^FunctionDeclaration) {
 	// regen loses its ambient marker (and a body-less function without
 	// `declare` is a parse error).
 	if s.declare && !cg.cfg.strip_types { cg_str(cg, "declare ") }
-	name := ""
-	if id, ok := s.id.?; ok { name = id.name }
-	gen_function_expression_like(cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters, s.return_type, true)
+	name, name_start := "", u32(0)
+	if id, ok := s.id.?; ok { name, name_start = id.name, id.loc.start }
+	gen_function_expression_like(
+		cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters,
+		s.return_type, true, name_start,
+	)
 }
 
 gen_variable_declaration :: proc(
@@ -1202,9 +1205,12 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 	// downstream consumers see.
 	if s.declare  && !cg.cfg.strip_types { cg_str(cg, "declare ") }
 	if s.abstract && !cg.cfg.strip_types { cg_str(cg, "abstract ") }
-	name := ""
-	if id, ok := s.id.?; ok { name = id.name }
-	gen_class_like(cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements)
+	name, name_start := "", u32(0)
+	if id, ok := s.id.?; ok { name, name_start = id.name, id.loc.start }
+	gen_class_like(
+		cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements,
+		name_start,
+	)
 }
 
 cg_name_is_quoted :: proc(cg: ^Codegen, start: u32) -> bool {
@@ -1573,6 +1579,10 @@ gen_pattern_identifier :: proc(cg: ^Codegen, e: ^Identifier) {
 			return
 		}
 	}
+	if cg.sm != nil {
+		cg_indent(cg)
+		sourcemap_record(cg.sm, u32(cg.pos), e.loc.start)
+	}
 	cg_str(cg, e.name)
 	if cg.cfg.strip_types { return }
 	if e.optional { cg_byte(cg, '?') }
@@ -1745,12 +1755,14 @@ gen_function_expression_like :: proc(
 	type_parameters: Maybe(^TSTypeParameterDeclaration),
 	return_type: Maybe(^TSTypeAnnotation),
 	is_decl: bool,
+	name_start: u32,
 ) {
 	if async { cg_str(cg, "async ") }
 	cg_str(cg, "function")
 	if generator { cg_byte(cg, '*') }
 	if len(name) > 0 {
 		cg_hard_space(cg)
+		sourcemap_record(cg.sm, u32(cg.pos), name_start)
 		cg_str(cg, name)
 	}
 	gen_function_params_and_body(cg, async, generator, params, body, no_body, type_parameters, return_type)
@@ -1860,10 +1872,15 @@ gen_class_like :: proc(
 	type_parameters: Maybe(^TSTypeParameterDeclaration),
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation),
 	implements_list: [dynamic]TSInterfaceHeritage,
+	name_start: u32,
 ) {
 	_ = super_type_arguments
 	cg_str(cg, "class")
-	if len(name) > 0 { cg_hard_space(cg); cg_str(cg, name) }
+	if len(name) > 0 {
+		cg_hard_space(cg)
+		sourcemap_record(cg.sm, u32(cg.pos), name_start)
+		cg_str(cg, name)
+	}
 	gen_ts_type_parameter_declaration(cg, type_parameters)
 	if sc, ok := super_class.?; ok {
 		cg_str(cg, " extends ")
@@ -2368,9 +2385,12 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 }
 
 gen_function_expression :: proc(cg: ^Codegen, e: ^FunctionExpression) {
-	name := ""
-	if id, ok := e.id.?; ok { name = id.name }
-	gen_function_expression_like(cg, e.async, e.generator, name, e.params[:], e.body, e.no_body, e.type_parameters, e.return_type, false)
+	name, name_start := "", u32(0)
+	if id, ok := e.id.?; ok { name, name_start = id.name, id.loc.start }
+	gen_function_expression_like(
+		cg, e.async, e.generator, name, e.params[:], e.body, e.no_body, e.type_parameters,
+		e.return_type, false, name_start,
+	)
 }
 
 gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression, ctx: CodegenExpressionContext) {
@@ -2419,9 +2439,12 @@ gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
 		gen_decorator(cg, d)
 		cg_hard_space(cg)
 	}
-	name := ""
-	if id, ok := e.id.?; ok { name = id.name }
-	gen_class_like(cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements)
+	name, name_start := "", u32(0)
+	if id, ok := e.id.?; ok { name, name_start = id.name, id.loc.start }
+	gen_class_like(
+		cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements,
+		name_start,
+	)
 }
 
 gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
@@ -2462,6 +2485,8 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 		}
 		cg_byte(cg, e.optional ? '?' : '.')
 		if e.optional { cg_byte(cg, '.') }
+		// Debuggers resolve a member name through the mapping at its first byte.
+		sourcemap_record(cg.sm, u32(cg.pos), loc_from_expr(e.property).start)
 		gen_expression_raw(cg, e.property)
 	}
 }
