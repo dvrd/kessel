@@ -223,10 +223,10 @@ bundle_shake :: proc(g: ^BundleGraph) {
 		for name in bundle_export_names(g, entry) {
 			append(&work, BundleShakeItem{kind = .Target, target = bundle_resolve_hoisted(g, entry, name, 0)})
 		}
-		if g.options.format != .ESM && len(entry.export_names) != 0 && entry.wrap == .None {
-			// CommonJS and IIFE consumers receive the entry's namespace object.
-			entry.needs_namespace = true
-		}
+		// CommonJS and IIFE consumers receive the entry's namespace object.
+		// A named IIFE global gets one even when the entry exports nothing.
+		wanted := len(entry.export_names) != 0 if g.options.format == .CJS else g.options.global_name != ""
+		if g.options.format != .ESM && wanted && entry.wrap == .None { entry.needs_namespace = true }
 	}
 	for len(work) > 0 {
 		item := pop(&work)

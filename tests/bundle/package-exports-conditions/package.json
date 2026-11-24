@@ -1,0 +1,1 @@
+{ "name": "scoped-app", "exports": "./self.mjs", "imports": { "#mapped": "./mapped.mjs" } }

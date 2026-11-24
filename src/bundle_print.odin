@@ -174,7 +174,7 @@ bundle_print_records :: proc(g: ^BundleGraph, module: ^BundleModule, renamed: ^m
 		case record.kind == .Require && target.wrap == .CJS:
 			text = fmt.aprintf("%s()", target.wrapper_name, allocator = g.alloc)
 		case record.kind == .Require:
-			g.helpers.used += {.ToCommonJS, .CopyProps, .DefProp}
+			g.helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
 			text = fmt.aprintf("%s(%s())", g.helpers.names[.ToCommonJS], target.wrapper_name, allocator = g.alloc)
 		case target.wrap == .CJS:
 			g.helpers.used += {.ToESM, .CopyProps, .DefProp}

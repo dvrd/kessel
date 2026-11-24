@@ -35,10 +35,12 @@ function describe(value, depth = 0, seen = new Set()) {
   let result;
   if (Array.isArray(value)) {
     result = '[' + value.map(item => describe(item, depth + 1, seen)).join(', ') + ']';
-  } else if (value instanceof Error) {
+  } else if (isError(value)) {
     result = `[${value.name}: ${value.message}]`;
   } else {
-    const keys = Object.keys(value).sort();
+    // The CommonJS form of an ES module carries an __esModule marker that
+    // the module itself never exported.
+    const keys = Object.keys(value).filter(key => depth > 0 || key !== '__esModule').sort();
     result = '{' + keys.map(key => {
       let item;
       try { item = describe(value[key], depth + 1, seen); } catch (error) { item = `[throws ${error.name}: ${error.message}]`; }
@@ -49,8 +51,13 @@ function describe(value, depth = 0, seen = new Set()) {
   return result;
 }
 
+// An iife bundle runs in its own realm, where `instanceof Error` is false.
+function isError(value) {
+  return value instanceof Error || Object.prototype.toString.call(value) === '[object Error]';
+}
+
 function report(label, error) {
-  const shown = error instanceof Error ? `${error.name}: ${error.message}` : describe(error);
+  const shown = isError(error) ? `${error.name}: ${error.message}` : describe(error);
   console.log(`${label} ${shown}`);
 }
 
@@ -64,7 +71,7 @@ try {
   } else if (kind === 'cjs') {
     exported = createRequire(import.meta.url)(file);
   } else {
-    const context = vm.createContext({ console, setTimeout, queueMicrotask, Promise });
+    const context = vm.createContext({ console, process, setTimeout, setImmediate, queueMicrotask });
     vm.runInContext(readFileSync(file, 'utf8'), context, { filename: file });
     exported = globalName ? context[globalName] : undefined;
   }

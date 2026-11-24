@@ -8,8 +8,10 @@
 //
 // fixture.json (all keys optional):
 //   entry      entry file name (default: the first entry.* present)
-//   formats    output formats to check (default: ["esm", "cjs"]; ESM-only
-//              features such as top-level await list ["esm"])
+//   formats    output formats to check (default: ["esm", "cjs", "iife"];
+//              ESM-only features such as top-level await list ["esm"], and
+//              fixtures that need Node's require() leave out "iife", which
+//              runs in a bare realm)
 //   args       extra bundler arguments
 //   expected   name of a file holding the expected behaviour, for inputs
 //              Node cannot run natively (JSX, bundler-style resolution)
@@ -19,7 +21,7 @@
 // Usage: node verify_bundle.js [kessel-binary] [--only=<fixture>] [--reference=<esbuild module dir>]
 
 const assert = require('node:assert/strict');
-const { spawnSync } = require('node:child_process');
+const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
@@ -56,10 +58,22 @@ function materialize(name) {
   return target;
 }
 
-function run(kind, file, flags = []) {
-  const result = spawnSync(process.execPath, [harness, kind, file, ...flags], {
-    encoding: 'utf8', timeout: 30000, cwd: path.dirname(file),
-    env: { ...process.env, NODE_NO_WARNINGS: '1' },
+// Fixtures run concurrently, so child processes are asynchronous.
+function execute(command, argv, options) {
+  return new Promise(resolve => {
+    const child = spawn(command, argv, { ...options, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '', stderr = '';
+    child.stdout.setEncoding('utf8').on('data', chunk => { stdout += chunk; });
+    child.stderr.setEncoding('utf8').on('data', chunk => { stderr += chunk; });
+    const timer = setTimeout(() => child.kill('SIGKILL'), 120000);
+    child.on('error', error => { clearTimeout(timer); resolve({ status: null, signal: 'spawn', stdout, stderr: String(error) }); });
+    child.on('close', (status, signal) => { clearTimeout(timer); resolve({ status, signal, stdout, stderr }); });
+  });
+}
+
+async function run(kind, file, flags = []) {
+  const result = await execute(process.execPath, [harness, kind, file, ...flags], {
+    cwd: path.dirname(file), env: { ...process.env, NODE_NO_WARNINGS: '1' },
   });
   assert.equal(result.signal, null, `${file}: harness killed by ${result.signal}`);
   // Paths differ between the fixture and the bundle; behaviour must not.
@@ -67,9 +81,7 @@ function run(kind, file, flags = []) {
 }
 
 function bundle(source, entry, outfile, format, extra) {
-  return spawnSync(binary, ['bundle', entry, '--outfile', outfile, '--format', format, ...extra], {
-    encoding: 'utf8', cwd: source, maxBuffer: 256 * 1024 * 1024,
-  });
+  return execute(binary, ['bundle', entry, '--outfile', outfile, '--format', format, ...extra], { cwd: source });
 }
 
 function entryKind(source, entry) {
@@ -84,7 +96,7 @@ function entryKind(source, entry) {
 let checks = 0;
 const failures = [];
 
-function checkFixture(name) {
+async function checkFixture(name) {
   const source = materialize(name);
   const configFile = path.join(source, 'fixture.json');
   const config = fs.existsSync(configFile) ? JSON.parse(fs.readFileSync(configFile, 'utf8')) : {};
@@ -95,7 +107,7 @@ function checkFixture(name) {
   fs.mkdirSync(out, { recursive: true });
 
   if (config.error) {
-    const result = bundle(source, entry, path.join(out, 'error.mjs'), 'esm', extra);
+    const result = await bundle(source, entry, path.join(out, 'error.mjs'), 'esm', extra);
     checks += 1;
     assert.equal(result.status, 1, `${name}: expected the build to fail\n${result.stderr}`);
     assert.ok(result.stderr.includes(config.error), `${name}: expected "${config.error}" in\n${result.stderr}`);
@@ -106,11 +118,11 @@ function checkFixture(name) {
   const sourceKind = entryKind(source, entry);
   const expected = config.expected
     ? fs.readFileSync(path.join(source, config.expected), 'utf8')
-    : run(sourceKind, path.join(source, entry));
+    : await run(sourceKind, path.join(source, entry));
   assert.ok(/^(EXPORTS|THROWN) /m.test(expected), `${name}: the original produced no result\n${expected}`);
 
   const variants = [];
-  for (const format of config.formats || ['esm', 'cjs']) {
+  for (const format of config.formats || ['esm', 'cjs', 'iife']) {
     variants.push({ format, flags: [] });
     variants.push({ format, flags: ['--no-tree-shaking'] });
     variants.push({ format, flags: ['--minify'] });
@@ -118,14 +130,21 @@ function checkFixture(name) {
   for (const variant of variants) {
     const label = `${name} [${variant.format}${variant.flags.length ? ' ' + variant.flags.join(' ') : ''}]`;
     const suffix = variant.flags.join('').replaceAll('-', '');
-    const outfile = path.join(out, `bundle${suffix}.${variant.format === 'esm' ? 'mjs' : 'cjs'}`);
-    const built = bundle(source, entry, outfile, variant.format, [...extra, ...variant.flags]);
+    const extension = { esm: 'mjs', cjs: 'cjs', iife: 'iife.js' }[variant.format];
+    const outfile = path.join(out, `bundle${suffix}.${extension}`);
+    const formatFlags = variant.format === 'iife' ? ['--global-name', 'bundleResult'] : [];
+    const built = await bundle(source, entry, outfile, variant.format, [...extra, ...formatFlags, ...variant.flags]);
     checks += 1;
     assert.equal(built.status, 0, `${label}: build failed\n${built.stderr}`);
     // An ESM bundle of a CommonJS entry exports module.exports as its default.
-    const flags = variant.format === 'esm' && sourceKind === 'cjs' ? ['--default'] : [];
-    const actual = run(variant.format, outfile, flags);
-    assert.equal(actual, expected, `${label}: behaviour differs from the original`);
+    let flags = variant.format === 'esm' && sourceKind === 'cjs' ? ['--default'] : [];
+    if (variant.format === 'iife') flags = ['--global=bundleResult'];
+    const actual = await run(variant.format, outfile, flags);
+    // Minification renames function-local bindings, and V8 quotes the binding
+    // name in a TDZ error. The error must still occur; its spelling may differ.
+    const comparable = text => variant.flags.includes('--minify')
+      ? text.replace(/Cannot access '[^']+' before initialization/g, "Cannot access '?' before initialization") : text;
+    assert.equal(comparable(actual), comparable(expected), `${label}: behaviour differs from the original`);
     if (variant.format === 'esm' && variant.flags.length === 0) {
       const code = fs.readFileSync(outfile, 'utf8');
       for (const text of config.contains || []) assert.ok(code.includes(text), `${label}: missing ${JSON.stringify(text)}`);
@@ -135,7 +154,7 @@ function checkFixture(name) {
   if (reference && !config.expected) {
     const outfile = path.join(out, 'reference.mjs');
     reference.buildSync({ entryPoints: [path.join(source, entry)], bundle: true, format: 'esm', platform: 'node', outfile, logLevel: 'silent' });
-    const actual = run('esm', outfile, sourceKind === 'cjs' ? ['--default'] : []);
+    const actual = await run('esm', outfile, sourceKind === 'cjs' ? ['--default'] : []);
     console.log(`  reference ${actual === expected ? 'agrees with' : 'DIFFERS from'} Node on ${name}`);
   }
 }
@@ -143,14 +162,24 @@ function checkFixture(name) {
 const names = fs.readdirSync(fixturesDir, { withFileTypes: true })
   .filter(item => item.isDirectory() && (!only || item.name === only)).map(item => item.name).sort();
 assert.ok(names.length > 0, 'no bundle fixtures found');
-for (const name of names) {
-  try {
-    checkFixture(name);
-  } catch (error) {
-    failures.push(name);
-    console.error(`FAIL ${name}\n${error.message}\n`);
-  }
+// A small pool keeps the gate fast without starving the other work on the machine.
+async function main() {
+  const queue = [...names];
+  const workers = Array.from({ length: Math.min(4, os.availableParallelism()) }, async () => {
+    while (queue.length > 0) {
+      const name = queue.shift();
+      try {
+        await checkFixture(name);
+      } catch (error) {
+        failures.push(name);
+        console.error(`FAIL ${name}\n${error.message}\n`);
+      }
+    }
+  });
+  await Promise.all(workers);
+  fs.rmSync(temp, { recursive: true, force: true });
+  console.log(`bundle fixtures: ${names.length - failures.length}/${names.length} passed (${checks} bundle runs)`);
+  if (failures.length > 0) process.exit(1);
 }
-fs.rmSync(temp, { recursive: true, force: true });
-console.log(`bundle fixtures: ${names.length - failures.length}/${names.length} passed (${checks} bundle runs)`);
-if (failures.length > 0) process.exit(1);
+
+main();

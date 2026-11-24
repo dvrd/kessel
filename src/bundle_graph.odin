@@ -172,6 +172,8 @@ bundle_module_transform :: proc(g: ^BundleGraph, module: ^BundleModule) -> bool 
 	if job.lang == .JSX || job.lang == .TSX {
 		options.jsx = g.options.jsx if g.options.jsx != "" else "classic"
 		options.import_source = g.options.jsx_import_source
+		options.pragma = g.options.jsx_factory
+		options.pragma_frag = g.options.jsx_fragment
 	}
 	cg: Codegen
 	sm: SourceMap

@@ -7,7 +7,7 @@ import "core:os"
 import "core:path/filepath"
 import "core:strings"
 
-CLI_BUNDLE_USAGE :: "Usage: kessel bundle <entry> [--outfile <file> | --outdir <directory>] [--format esm|cjs|iife] [--platform node|browser] [--external <name>] [--minify] [--sourcemap] [--global-name <name>] [--condition <name>] [--main-field <name>] [--tsconfig <file>] [--jsx=classic|automatic] [--jsx-import-source=<name>] [--no-tree-shaking]"
+CLI_BUNDLE_USAGE :: "Usage: kessel bundle <entry> [--outfile <file> | --outdir <directory>] [--format esm|cjs|iife] [--platform node|browser] [--external <name>] [--minify] [--sourcemap] [--global-name <name>] [--condition <name>] [--main-field <name>] [--tsconfig <file>] [--jsx=classic|automatic] [--jsx-factory <name>] [--jsx-fragment <name>] [--jsx-import-source=<name>] [--no-tree-shaking]"
 
 @(private="file")
 CLIBundleArguments :: struct {
@@ -57,7 +57,8 @@ cli_bundle_arguments :: proc(args: []string, arguments: ^CLIBundleArguments) -> 
 		case "--sourcemap":       options.source_map = true
 		case "--no-tree-shaking": options.tree_shaking = false
 		case "--outfile", "--outdir", "--format", "--platform", "--external", "--global-name",
-		     "--condition", "--main-field", "--tsconfig", "--jsx", "--jsx-import-source":
+		     "--condition", "--main-field", "--tsconfig", "--jsx", "--jsx-import-source",
+		     "--jsx-factory", "--jsx-fragment":
 			if value == "" {
 				i += 1
 				if i == len(args) {
@@ -105,6 +106,12 @@ cli_bundle_value :: proc(arguments: ^CLIBundleArguments, flag, value: string) ->
 	case "--main-field":  append(&arguments.main_fields, value)
 	case "--tsconfig":    options.tsconfig = value
 	case "--jsx-import-source": options.jsx_import_source = value
+	case "--jsx-factory", "--jsx-fragment":
+		if !jsx_pragma_valid(value) {
+			fmt.eprintf("Error: %s requires a binding such as h or React.createElement\n", flag)
+			return false
+		}
+		if flag == "--jsx-factory" { options.jsx_factory = value } else { options.jsx_fragment = value }
 	case "--global-name":
 		if !bundle_is_identifier(value) {
 			fmt.eprintln("Error: --global-name requires an identifier")

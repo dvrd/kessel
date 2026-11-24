@@ -88,6 +88,8 @@ BundleOptions :: struct {
 	global_name:  string,   // IIFE only
 	jsx:          string,   // "classic" or "automatic"
 	jsx_import_source: string,
+	jsx_factory:  string,   // classic runtime; empty selects React.createElement
+	jsx_fragment: string,
 	minify:       bool,
 	source_map:   bool,
 	tree_shaking: bool,

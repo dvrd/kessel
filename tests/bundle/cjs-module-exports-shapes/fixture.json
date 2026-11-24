@@ -1,0 +1,10 @@
+{
+  "args": [
+    "--external",
+    "__none__"
+  ],
+  "formats": [
+    "esm",
+    "cjs"
+  ]
+}

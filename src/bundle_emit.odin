@@ -115,7 +115,7 @@ bundle_emit_namespaces :: proc(e: ^BundleEmit) {
 	}
 	entry := g.modules[0]
 	if g.options.format == .CJS && entry.wrap == .None && entry.needs_namespace {
-		helpers.used += {.ToCommonJS, .CopyProps, .DefProp}
+		helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
 		fmt.sbprintf(&e.body, "module.exports = %s(%s);\n", helpers.names[.ToCommonJS], entry.namespace_name)
 	}
 }
@@ -137,7 +137,7 @@ bundle_emit_tail :: proc(e: ^BundleEmit, entry: ^BundleModule) {
 	}
 	if g.options.format == .IIFE {
 		if g.options.global_name != "" && entry.needs_namespace {
-			helpers.used += {.ToCommonJS, .CopyProps, .DefProp}
+			helpers.used += {.ToCommonJS, .CopyProps, .DefProp, .Namespace}
 			fmt.sbprintf(&e.body, "return %s(%s);\n", helpers.names[.ToCommonJS], entry.namespace_name)
 		}
 		return
@@ -189,6 +189,7 @@ bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^Bun
 		strings.write_string(header, "(function () {\n\"use strict\";\n")
 	}
 	if g.options.format == .ESM { bundle_emit_external_imports(g, header) }
+	bundle_emit_file_paths(g, header)
 	bundle_emit_helpers(g, header)
 	if g.options.format != .ESM { bundle_emit_external_requires(g, header) }
 	interop := make([dynamic]string, g.alloc)
@@ -198,6 +199,34 @@ bundle_emit_header :: proc(e: ^BundleEmit, header: ^strings.Builder, entry: ^Bun
 		}
 	}
 	if len(interop) != 0 { fmt.sbprintf(header, "var %s;\n", strings.join(interop[:], ", ", g.alloc)) }
+}
+
+// CommonJS code may read __filename and __dirname. After bundling the only
+// file there is to name is the bundle, which is what CommonJS output gives for
+// free; ESM output for Node derives the same values from import.meta.url.
+@(private="file")
+bundle_emit_file_paths :: proc(g: ^BundleGraph, header: ^strings.Builder) {
+	if g.options.format == .CJS { return }
+	user: ^BundleModule
+	for module in g.modules {
+		if !module.included || user != nil { continue }
+		for ref in module.model.refs {
+			if ref.resolved != SYMBOL_UNRESOLVED { continue }
+			if ref.name == "__filename" || ref.name == "__dirname" { user = module; break }
+		}
+	}
+	if user == nil { return }
+	if g.options.format != .ESM || g.options.platform != .Node {
+		bundle_warning(g, user, nil, "__filename and __dirname are not defined in this output format")
+		return
+	}
+	to_path := bundle_unique_name(g, "__fileURLToPath")
+	directory := bundle_unique_name(g, "__pathDirname")
+	bundle_template(header, `import { fileURLToPath as @0 } from "node:url";
+import { dirname as @1 } from "node:path";
+var __filename = @0(import.meta.url);
+var __dirname = @1(__filename);
+`, to_path, directory)
 }
 
 @(private="file")
@@ -353,16 +382,23 @@ var @1 = (value, nodeMode) => {
 `, helpers.esm_cache, n[.ToESM], helpers.esm_cache, n[.DefProp], n[.CopyProps])
 	}
 	if .ToCommonJS in used {
+		// What require() of an ES module returns in Node: the namespace
+		// itself, or, when there is a default export, a namespace-shaped copy
+		// flagged with __esModule so transpiled importers find the default.
+		// A "module.exports" export overrides both.
 		bundle_template(header, `var @0 = new WeakMap();
 var @1 = (namespace) => {
-  var result = @2.get(namespace);
+  if ("module.exports" in namespace) return namespace["module.exports"];
+  if (!("default" in namespace)) return namespace;
+  var result = @0.get(namespace);
   if (!result) {
-    result = @3(@4({}, "__esModule", { value: true }), namespace);
-    @5.set(namespace, result);
+    result = @2(@3(), "__esModule", { value: true, enumerable: true });
+    result = Object.freeze(@4(result, namespace));
+    @0.set(namespace, result);
   }
   return result;
 };
-`, helpers.cjs_cache, n[.ToCommonJS], helpers.cjs_cache, n[.CopyProps], n[.DefProp], helpers.cjs_cache)
+`, helpers.cjs_cache, n[.ToCommonJS], n[.DefProp], n[.Namespace], n[.CopyProps])
 	}
 	if .Require in used {
 		if g.options.format == .ESM && g.options.platform == .Node {
