@@ -865,6 +865,7 @@ function transformSync(filename, source, options = {}) {
     throw new TypeError('kessel: jsx must select preserve, classic, or automatic');
   }
   const { pragma, pragmaFrag, importSource, development = false, pure = true, throwIfNamespace = true } = settingsObject ? jsx : {};
+  const lowering = transformLoweringSettings(options, settingsObject ? jsx.refresh : undefined);
   for (const value of [pragma, pragmaFrag, importSource]) {
     if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
       throw new TypeError('kessel: pragma, pragmaFrag, and importSource must be non-empty strings');
@@ -875,8 +876,36 @@ function transformSync(filename, source, options = {}) {
   }
   const settings = JSON.stringify({ define, jsx: runtime, pragma, pragma_frag: pragmaFrag, import_source: importSource,
     omit_pure: !pure, allow_namespaces: !throwIfNamespace, development, minified, source_map: sourceMap,
-    optimize_const_enums: optimizeConstEnums, lower_using: explicitResourceManagement });
+    optimize_const_enums: optimizeConstEnums, lower_using: explicitResourceManagement, ...lowering });
   return generatedCode(_transform, 'transformSync', filename, source, settings);
+}
+
+// Decorator, target and React Refresh options, validated and renamed for the native transformer.
+function transformLoweringSettings(options, refresh = false) {
+  const { target = 'esnext', decorator = {} } = options;
+  if (typeof target !== 'string' || !/^(es6|es20(1[5-9]|2[0-4])|esnext)$/i.test(target)) {
+    throw new TypeError('kessel: target must be a string from es2015 to es2024, or esnext');
+  }
+  if (decorator === null || typeof decorator !== 'object' || Array.isArray(decorator)) {
+    throw new TypeError('kessel: decorator options must be an object');
+  }
+  const { legacy = false, emitDecoratorMetadata = false } = decorator;
+  if (typeof legacy !== 'boolean' || typeof emitDecoratorMetadata !== 'boolean') {
+    throw new TypeError('kessel: decorator.legacy and decorator.emitDecoratorMetadata must be booleans');
+  }
+  if (emitDecoratorMetadata && !legacy) throw new TypeError('kessel: emitDecoratorMetadata requires decorator.legacy');
+  const refreshObject = typeof refresh === 'object' && refresh !== null && !Array.isArray(refresh);
+  if (typeof refresh !== 'boolean' && !refreshObject) throw new TypeError('kessel: jsx.refresh must be a boolean or an object');
+  const { refreshReg, refreshSig, emitFullSignatures = false } = refreshObject ? refresh : {};
+  for (const value of [refreshReg, refreshSig]) {
+    if (value !== undefined && (typeof value !== 'string' || value.length === 0)) {
+      throw new TypeError('kessel: refreshReg and refreshSig must be non-empty strings');
+    }
+  }
+  if (typeof emitFullSignatures !== 'boolean') throw new TypeError('kessel: emitFullSignatures must be a boolean');
+  return { target, decorators: legacy ? 'legacy' : 'preserve', emit_decorator_metadata: emitDecoratorMetadata,
+    refresh: refresh !== false, refresh_reg: refreshReg, refresh_sig: refreshSig,
+    refresh_full_signatures: emitFullSignatures };
 }
 
 function minifySync(filename, source, options = {}) {

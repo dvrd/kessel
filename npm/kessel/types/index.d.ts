@@ -265,15 +265,35 @@ export interface TransformOptions {
     development?: boolean;
     pure?: boolean;
     throwIfNamespace?: boolean;
+    refresh?: boolean | ReactRefreshOptions;
   } | {
     runtime: 'automatic';
     importSource?: string;
     development?: boolean;
     pure?: boolean;
     throwIfNamespace?: boolean;
+    refresh?: boolean | ReactRefreshOptions;
   };
+  /**
+   * Lower syntax newer than this ECMAScript edition: exponentiation, optional catch binding,
+   * optional chaining, nullish coalescing, logical assignment and numeric separators.
+   * Newer syntax with no lowering is reported in `errors`. Defaults to 'esnext'.
+   */
+  target?: 'es2015' | 'es2016' | 'es2017' | 'es2018' | 'es2019' | 'es2020' | 'es2021' | 'es2022' | 'es2023' | 'es2024' | 'esnext';
+  /** Lower TypeScript experimental decorators. Without `legacy`, decorators are printed as written. */
+  decorator?: { legacy?: boolean; emitDecoratorMetadata?: boolean };
   minified?: boolean;
   sourceMap?: boolean;
+}
+
+/** React Fast Refresh registration and Hook signatures. */
+export interface ReactRefreshOptions {
+  /** Runtime registration function. Defaults to `$RefreshReg$`. */
+  refreshReg?: string;
+  /** Runtime signature factory. Defaults to `$RefreshSig$`. */
+  refreshSig?: string;
+  /** Emit the readable Hook signature instead of its SHA-1 digest. */
+  emitFullSignatures?: boolean;
 }
 
 export interface GeneratedCode {

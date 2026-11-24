@@ -510,6 +510,10 @@ Parser :: struct {
 	depth_exceeded:    bool,
 	depth_errors_kept: int,
 	depth_error:       ParseError,
+
+	// TypeScript parameter decorators, keyed by the offset of the first token
+	// after them. Nil unless the source has one; only the transformer reads it.
+	param_decorators: map[u32][dynamic]Decorator,
 }
 
 ParserProfile :: struct {

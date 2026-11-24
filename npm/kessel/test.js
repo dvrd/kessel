@@ -1186,6 +1186,32 @@ try {
   } catch (e) { console.error('FAIL: transformSync const enums:', e.message); failed++; }
 
   try {
+    const lowered = transformSync('chain.ts', 'export const read = (a: any) => a?.b ?? 1_000;', { target: 'es2019' });
+    assert.deepEqual(lowered.errors, []);
+    assert.doesNotMatch(lowered.code, /\?\.|\?\?|_000/);
+    assert.match(transformSync('fields.js', 'class C { x = 1; }', { target: 'es2021' }).errors[0].message, /class fields/);
+    const decorated = transformSync('service.ts',
+      'const seen: unknown[] = [];\nfunction mark(target: object, key: string) { seen.push(key); }\n' +
+      'class Service { @mark value: string = ""; }\nglobalThis.seen = seen;',
+      { decorator: { legacy: true, emitDecoratorMetadata: true }, sourceMap: true });
+    assert.deepEqual(decorated.errors, []);
+    assert.match(decorated.code, /"design:type", String/);
+    const state = {};
+    new Function('globalThis', decorated.code)(state);
+    assert.deepEqual(state.seen, ['value']);
+    assert.match(transformSync('service.ts', '@d class C {}').code, /@d/);
+    const refreshed = transformSync('view.jsx', 'import { useState } from "react";\nexport function View() { useState(0); return <a />; }',
+      { jsx: { runtime: 'automatic', refresh: { emitFullSignatures: true, refreshReg: 'register' } } });
+    assert.deepEqual(refreshed.errors, []);
+    assert.match(refreshed.code, /register\(_c, "View"\)/);
+    assert.match(refreshed.code, /_s\(View, "useState\{\(0\)\}"\)/);
+    assert.throws(() => transformSync('a.js', '', { target: 'es5' }), TypeError);
+    assert.throws(() => transformSync('a.js', '', { decorator: { emitDecoratorMetadata: true } }), TypeError);
+    assert.throws(() => transformSync('a.js', '', { jsx: { runtime: 'classic', refresh: 1 } }), TypeError);
+    passed++;
+  } catch (e) { console.error('FAIL: transformSync target, decorators and refresh:', e.message); failed++; }
+
+  try {
     const source = 'function execute(events) { using r = { [Symbol.dispose || Symbol.for("Symbol.dispose")]() { events.push(this.id); }, id: 3 }; events.push(1); }';
     const result = transformSync('resources.cjs', source, { explicitResourceManagement: true, sourceMap: true });
     assert.deepEqual(result.errors, []);

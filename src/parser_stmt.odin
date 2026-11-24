@@ -2530,6 +2530,8 @@ parse_function_param_decorators :: proc(p: ^Parser, param: ^FunctionParameter) -
 	depth_saved, depth_ok := parser_depth_enter(p)
 	defer p.depth_left = depth_saved
 	if !depth_ok { return decorators_seen }
+	decorators: [dynamic]Decorator
+	decorators.allocator = p.allocator
 	if allow_ts_mode(p) {
 		for is_token(p, .At) {
 			if !decorators_seen {
@@ -2538,12 +2540,22 @@ parse_function_param_decorators :: proc(p: ^Parser, param: ^FunctionParameter) -
 					report_error_coded(p, .K4064_DecoratorInvalid, "Decorators are not valid here")
 				}
 			}
+			at := cur_loc(p)
 			eat(p) // consume `@`
 			// Decorator expression: identifier (optionally member-chained / called).
 			// parse_left_hand_side_expr handles `dec`, `a.b`, `dec(args)`.
-			_ = parse_left_hand_side_expr(p)
+			expression := parse_left_hand_side_expr(p)
+			append(&decorators, Decorator{loc = Loc{at.start, p.prev_token_end}, expression = expression})
 		}
 		param.loc = cur_loc(p)
+		// The parameter node has no decorator slot because its layout is part of the
+		// raw-transfer format. The transformer finds them by the parameter's first token.
+		if decorators_seen {
+			if p.param_decorators == nil {
+				p.param_decorators = make(map[u32][dynamic]Decorator, 4, p.allocator)
+			}
+			p.param_decorators[param.loc.start] = decorators
+		}
 	}
 	return decorators_seen
 }

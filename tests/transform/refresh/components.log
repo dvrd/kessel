@@ -1,0 +1,65 @@
+%default% <- object {memo}
+%default%$memo <- function Page
+Arrow <- function Arrow
+Body <- function Body
+Both <- object {memo}
+Both$React.memo <- object {forwardRef}
+Both$React.memo$React.forwardRef <- function (anonymous)
+Counter <- function Counter
+Derived <- function Derived
+Expression <- function Expression
+Factory <- function Made
+Forwarded <- object {forwardRef}
+Forwarded$forwardRef <- function Inner
+Memoized <- object {memo}
+Memoized$memo <- function (anonymous)
+Nested <- function Nested
+Optional <- function Optional
+Plain <- function Plain
+Shadowed <- function Shadowed
+StyledBox <- function StyledDiv
+Themed <- object {theme,themed}
+Wrapped <- object {theme,themed}
+Wrapped$withTheme <- object {memo}
+Wrapped$withTheme$memo <- function (anonymous)
+sign function (anonymous) key=RR4vYtMiSrHJPS3yL8E0WEyr8X8= force=false hooks=[function useCustom]
+  sign object {memo} key=RR4vYtMiSrHJPS3yL8E0WEyr8X8= force=false hooks=[function useCustom]
+  sign object {theme,themed} key=RR4vYtMiSrHJPS3yL8E0WEyr8X8= force=false hooks=[function useCustom]
+sign function (anonymous) key=azDTz/FAyAdbl4fITHgs2trTDfM= force=false hooks=[function useNamespaced]
+  sign object {forwardRef} key=azDTz/FAyAdbl4fITHgs2trTDfM= force=false hooks=[function useNamespaced]
+  sign object {memo} key=azDTz/FAyAdbl4fITHgs2trTDfM= force=false hooks=[function useNamespaced]
+sign function (anonymous) key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+sign function (anonymous) key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  render
+sign function (anonymous) key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  render
+sign function (anonymous) key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  render
+sign function (anonymous) key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  render
+sign function (anonymous) key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  render
+sign function Body key=1SDJc03PycQGqLjYw4O3P20BXZM= force=undefined hooks=[none]
+  render
+sign function Child key=G/325VD1YGW5r1U5Mb9EuaXW+6E= force=undefined hooks=[none]
+sign function Counter key=ZiF9+u6fa4OoIqjK7h5fWA/hXuY= force=false hooks=[function useCustom]
+  render
+sign function Deep key=an8kbXqsFrSIVsWZG3tzppFVvbo= force=false hooks=[function useLocalState]
+sign function Derived key=MIDC75cgc7C/5X7ywAsPaZ2uxKA= force=false hooks=[function useDerived]
+  render
+sign function Inner key=grxgNXd2cx3/xOAvDeujUln+eQM= force=undefined hooks=[none]
+  sign object {forwardRef} key=grxgNXd2cx3/xOAvDeujUln+eQM= force=undefined hooks=[none]
+sign function Nested key=cxz/7eBjuDCsPgfJkw0616gn4WI= force=undefined hooks=[none]
+  render
+sign function Optional key=VQ5cNXg6mUFS89RNpIcaT5qVtEU= force=false hooks=[function useNamespaced, function useCustom]
+  render
+sign function Page key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  sign object {memo} key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+sign function Shadowed key=Nttz+21AjsErhQ/72CIIdvEiS+A= force=true hooks=[function useShape]
+  render
+sign function named key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+  sign function named key=leeqDUSOj0jWWGIHDKROiaMuglQ= force=false hooks=[function useCustom]
+sign function useDerived key=KNlUgBM71e60bh0Ma718WJ9gOGU= force=false hooks=[function useLocalState]
+  render
+sign function useLocalState key=7YWkgkFNdrH75sUMGnHIsv0QzYo= force=undefined hooks=[none]
+  render
