@@ -69,7 +69,7 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 		state.output.output = string(job.source.data)
 		return state.output
 	}
-	state.module = job.program.type == .Module || job.is_commonjs
+	state.module = job.program.type == .Module || job.is_commonjs || dts_external_module(job)
 	codegen_init(&state.writer, {indent = "    "}, string(job.source.data), allocator)
 	dts_index_regions(&state)
 	state.default_name = "_default"
@@ -110,7 +110,31 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 		if a.code != b.code { return a.code < b.code }
 		return a.message < b.message
 	})
+	// One source construct can be printed twice, such as a parameter property
+	// and its constructor parameter. Report each distinct diagnostic once.
+	unique := 0
+	for diagnostic in state.output.errors {
+		if unique > 0 && diagnostic == state.output.errors[unique - 1] { continue }
+		state.output.errors[unique] = diagnostic
+		unique += 1
+	}
+	resize(&state.output.errors, unique)
 	return state.output
+}
+
+// `import x = require("m")` and `export =` make a file an external module even
+// when the parser classifies it as a script, so its locals are not global.
+@(private)
+dts_external_module :: proc(job: ^ParseJob) -> bool {
+	for stmt in job.program.body {
+		assert(stmt != nil)
+		#partial switch s in stmt^ {
+		case ^TSExportAssignment: return true
+		case ^TSImportEqualsDeclaration:
+			if _, external := s.module_reference.(^TSExternalModuleReference); external { return true }
+		}
+	}
+	return false
 }
 
 @(private)

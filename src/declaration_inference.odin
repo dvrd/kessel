@@ -180,9 +180,12 @@ dts_expression_error :: proc(state: ^DeclarationEmit, expr: ^Expression) {
 dts_object :: proc(state: ^DeclarationEmit, object: ^ObjectExpression, literal: bool, depth: int) {
 	cg := &state.writer
 	accessors := make(map[DeclarationPropertyKey]DeclarationObjectAccessor)
+	// A repeated property name keeps its first position and its last definition.
+	latest := make(map[DeclarationPropertyKey]int)
 	cg_byte(cg, '{')
-	for property in object.properties {
+	for property, index in object.properties {
 		symbol := property.computed && dts_global_symbol_member(state, property.key)
+		if key, plain := dts_plain_property_key(property); plain { latest[key] = index }
 		if property.kind == .Get || property.kind == .Set {
 			if property.value == nil { continue }
 			fn, ok := property.value^.(^FunctionExpression)
@@ -200,10 +203,28 @@ dts_object :: proc(state: ^DeclarationEmit, object: ^ObjectExpression, literal: 
 	}
 	for property in object.properties {
 		if property.computed && dts_global_symbol_member(state, property.key) { continue }
-		dts_object_member(state, property, literal, depth, false, &accessors)
+		member := property
+		if key, plain := dts_plain_property_key(property); plain {
+			index, pending := latest[key]
+			if !pending { continue }
+			delete_key(&latest, key)
+			member = object.properties[index]
+		}
+		dts_object_member(state, member, literal, depth, false, &accessors)
 	}
 	if len(object.properties) > 0 { cg_byte(cg, ' ') }
 	cg_byte(cg, '}')
+}
+
+// Only data properties with a statically known name replace one another.
+// Methods, accessors and dynamic names keep their own declarations.
+@(private)
+dts_plain_property_key :: proc(property: Property) -> (key: DeclarationPropertyKey, plain: bool) {
+	if property.kind != .Init || property.shorthand { return }
+	if property.key == nil || property.value == nil { return }
+	if _, spread := property.value^.(^SpreadElement); spread { return }
+	key = dts_member_key(property.key, property.computed)
+	return key, key.dynamic_start == 0
 }
 
 @(private)
@@ -211,6 +232,17 @@ dts_object_member :: proc(state: ^DeclarationEmit, p: Property, literal: bool, d
 	if p.key == nil || p.value == nil { dts_error(state, "TS9015", "Objects that contain spread assignments can't be inferred with --isolatedDeclarations.", p.loc); return }
 	if _, spread := p.value^.(^SpreadElement); spread { dts_error(state, "TS9015", "Objects that contain spread assignments can't be inferred with --isolatedDeclarations.", p.loc); return }
 	if p.shorthand { dts_error(state, "TS9016", "Objects that contain shorthand properties can't be inferred with --isolatedDeclarations.", p.loc); return }
+	cg := &state.writer
+	if _, boolean := p.key^.(^BooleanLiteral); boolean && p.computed {
+		// TypeScript accepts `[true]` as a literal name, then omits the member
+		// because it has no property name. Its value is still checked.
+		start := cg.pos
+		if p.kind == .Init && !dts_infer(state, p.value, literal, depth + 1) {
+			dts_expression_error(state, p.value)
+		}
+		cg.pos = start
+		return
+	}
 	if p.kind == .Get || p.kind == .Set {
 		key := dts_member_key(p.key, p.computed)
 		entry, first := accessors^[key]
@@ -220,7 +252,6 @@ dts_object_member :: proc(state: ^DeclarationEmit, p: Property, literal: bool, d
 		}
 		return
 	}
-	cg := &state.writer
 	cg_byte(cg, ' ')
 	if literal { cg_str(cg, "readonly ") }
 	named := dts_property_key(state, p.key, p.computed, inferred_object = true)

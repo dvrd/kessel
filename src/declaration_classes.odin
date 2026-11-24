@@ -2,7 +2,10 @@ package kessel
 
 
 DeclarationMemberKey :: struct { property: DeclarationPropertyKey, static: bool }
-DeclarationClassMember :: struct { getter, setter: ^FunctionExpression, overload, accessor_error: bool }
+DeclarationClassMember :: struct {
+	getter, setter: ^FunctionExpression,
+	overload, accessor_error, private_emitted: bool,
+}
 
 @(private)
 dts_member_name :: proc(key: ^Expression) -> string {
@@ -26,7 +29,12 @@ dts_class :: proc(state: ^DeclarationEmit, s: ^ClassDeclaration) {
 		root := base
 		for root != nil {
 			if member, property := root^.(^MemberExpression); property && !member.computed { root = member.object; continue }
-			if _, named := root^.(^Identifier); !named { dts_error(state, "TS9021", "Extends clause can't contain an expression with --isolatedDeclarations.", get_expression_loc(base)) }
+			// `extends null` names no binding and is preserved as written.
+			_, named := root^.(^Identifier)
+			_, null := root^.(^NullLiteral)
+			if !named && !(null && root == base) {
+				dts_error(state, "TS9021", "Extends clause can't contain an expression with --isolatedDeclarations.", get_expression_loc(base))
+			}
 			break
 		}
 		dts_reference(state, base, true)
@@ -99,12 +107,11 @@ dts_parameter_properties :: proc(state: ^DeclarationEmit, el: ClassElement) {
 		cg_str(cg, id.name)
 		if id.optional { cg_byte(cg, '?') }
 		if p.accessibility != .Private {
-			if ty, typed := id.type_annotation.?; typed { cg_str(cg, ": "); gen_ts_type(cg, ty.type_annotation) } else {
-				cg_str(cg, ": ")
-				init := p.default_val.? or_else nil
-				if assign, assigned := p.pattern.(^AssignmentPattern); assigned { init = assign.right }
-				dts_infer(state, init, false, 0)
-			}
+			cg_str(cg, ": ")
+			init := p.default_val.? or_else nil
+			if assign, assigned := p.pattern.(^AssignmentPattern); assigned { init = assign.right }
+			// The property is always present, so only `?` adds undefined to it.
+			dts_parameter_type(state, p, id.type_annotation, init, id.optional, true, id.loc, 0)
 		}
 		cg_byte(cg, ';'); cg_newline(cg)
 	}
@@ -124,16 +131,20 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 	entry := members^[key]
 	fn, callable := dts_method_value(el)
 	if callable && entry.overload && !fn.no_body { return }
+	if el.accessibility == .Private && el.kind == .Method {
+		// Every overload of a private method erases to the same bare name.
+		if entry.private_emitted { return }
+		entry.private_emitted = true
+		members^[key] = entry
+	}
 	cg := &state.writer
 	dts_accessibility(cg, el.accessibility)
 	if el.static { cg_str(cg, "static ") }
 	if el.abstract { cg_str(cg, "abstract ") }
 	if el.readonly { cg_str(cg, "readonly ") }
 	if el.is_accessor { cg_str(cg, "accessor ") }
-	if el.accessibility != .Private {
-		if el.kind == .Get { cg_str(cg, "get ") }
-		if el.kind == .Set { cg_str(cg, "set ") }
-	}
+	if el.kind == .Get { cg_str(cg, "get ") }
+	if el.kind == .Set { cg_str(cg, "set ") }
 	static_key := dts_property_key(state, el.key, el.computed)
 	if !static_key && (el.kind != .Method || dts_entity_name_root(el.key) == nil) { return }
 	if el.optional { cg_byte(cg, '?') }
@@ -145,6 +156,9 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 		cg_byte(cg, ')')
 	} else if el.accessibility == .Private {
 		// Private members still distinguish otherwise identical nominal classes.
+		// Their types are erased, and a setter's parameter is always `value`.
+		if el.kind == .Get { cg_str(cg, "()") }
+		if el.kind == .Set { cg_str(cg, "(value)") }
 	} else if el.kind == .Get || el.kind == .Set {
 		dts_accessor(state, el, entry, loc, members)
 	} else if callable {
@@ -211,12 +225,16 @@ dts_method_signature :: proc(state: ^DeclarationEmit, fn: ^FunctionExpression, l
 dts_property_key :: proc(state: ^DeclarationEmit, key: ^Expression, computed: bool, inferred_object := false) -> bool {
 	cg := &state.writer
 	named := true
-	if computed {
-		literal, known := dts_literal_key(key)
-		if known && inferred_object {
+	if inferred_object {
+		// An inferred object type spells literal names canonically: `"a"` as
+		// `a`, `0x10` as `16`, and a computed literal without its brackets.
+		if literal, known := dts_literal_key(key); known {
 			dts_print_object_key(cg, literal)
 			return true
 		}
+	}
+	if computed {
+		_, known := dts_literal_key(key)
 		named = known || dts_global_symbol_member(state, key)
 		if !named {
 			loc := dts_computed_span(state, get_expression_loc(key))
