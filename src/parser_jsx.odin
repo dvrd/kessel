@@ -532,6 +532,9 @@ parse_jsx_text :: proc(p: ^Parser) -> ^JSXText {
 		}
 		resize(&p.lexer.lexer_errors, write)
 	}
+	// The same lookahead recorded comment-shaped text as comments. Inside the
+	// text it is content; after the text it is about to be lexed again.
+	lexer_drop_comments_from(p.lexer, u32(text_start))
 	p.lexer.offset = off
 	p.lexer.cur = lex_token(p.lexer)
 	p.lexer.lit_write_idx ~= 1  // toggle so cur_literal reads the slot just written
