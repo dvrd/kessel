@@ -247,6 +247,64 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
     throw new Error('Unterminated binary AST fields at ' + off);
   }
 
+  // Member, call, binary and logical chains (`a.b.c`, `a()()`, `a + b + c`,
+  // `a && b && c`) are the one kind of nesting the parser does not limit: a
+  // generated million-term concatenation is valid input. The stream stores
+  // a chain outermost-first, so it is decoded with a loop and an explicit
+  // list of open links instead of one readNode call per link, which would
+  // exhaust both the depth budget and the JavaScript stack. Field order on
+  // each node matches what the recursive decoder produced.
+  function isChainType(typeId) {
+    return typeId === T.MemberExpression || typeId === T.CallExpression ||
+      typeId === T.BinaryExpression || typeId === T.LogicalExpression;
+  }
+
+  function readChainInto(top, topTypeId) {
+    const links = [];
+    const linkTypes = [];
+    let node = top;
+    let typeId = topTypeId;
+    let innermost = null;
+    for (;;) {
+      if (typeId === T.MemberExpression) {
+        node.computed = readBool();
+        node.optional = readBool();
+      } else if (typeId === T.CallExpression) {
+        node.optional = readBool();
+      } else {
+        node.operator = readStr();
+      }
+      links.push(node);
+      linkTypes.push(typeId);
+      // The next link follows directly when the chain operand is a bare
+      // chain node; a null tag, a typed prefix or any other node ends it.
+      if (off < strTableOff && isChainType(dv.getUint8(off))) {
+        const header = readNodeHeader();
+        typeId = header.typeId;
+        node = { type: TYPE_NAMES[typeId], start: header.start, end: header.end };
+        continue;
+      }
+      innermost = readNode();
+      break;
+    }
+    let operand = innermost;
+    for (let i = links.length - 1; i >= 0; i--) {
+      const link = links[i];
+      const linkType = linkTypes[i];
+      if (linkType === T.MemberExpression) {
+        link.object = operand;
+        link.property = readNode();
+      } else if (linkType === T.CallExpression) {
+        link.callee = operand;
+        link.arguments = readNodeArray();
+      } else {
+        link.left = operand;
+        link.right = readNode();
+      }
+      operand = link;
+    }
+  }
+
   function readNode() {
     if (off >= strTableOff) return null;
     if (++depth > RESOURCE_BUDGET.astDepth) throw new Error('readNode depth exceeded ' + RESOURCE_BUDGET.astDepth + ' at offset ' + off);
@@ -394,15 +452,10 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.body = readNodeOrNull(); // wrapping expression (FunctionExpression)
         break;
       case T.MemberExpression:
-        node.computed = readBool();
-        node.optional = readBool();
-        node.object = readNode();
-        node.property = readNode();
-        break;
       case T.CallExpression:
-        node.optional = readBool();
-        node.callee = readNode();
-        node.arguments = readNodeArray();
+      case T.BinaryExpression:
+      case T.LogicalExpression:
+        readChainInto(node, typeId);
         break;
       case T.NewExpression:
         node.callee = readNode();
@@ -423,8 +476,6 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.prefix = readBool();
         node.argument = readNode();
         break;
-      case T.BinaryExpression:
-      case T.LogicalExpression:
       case T.AssignmentExpression:
         node.operator = readStr();
         node.left = readNode();

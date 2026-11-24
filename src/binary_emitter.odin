@@ -551,6 +551,79 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 	}
 }
 
+// bin_emit_expression_chain emits a member / call / binary / logical
+// chain. The parser builds these in a loop and does not limit their
+// length, so one frame per link would overflow the stack on a generated
+// million-term expression. The byte stream is identical to the recursive
+// form: every link's header and leading fields on the way down, then the
+// innermost operand, then each link's remaining fields on the way up.
+bin_emit_expression_chain :: proc(be: ^BinaryEmitter, expr: ^Expression) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	if !expr_spine_open(&spine, expr) {
+		// No memory for the chain table: a null node keeps the stream
+		// well-formed, which a partial chain would not.
+		bw_u8(be, u8(BinValType.NullNode))
+		return
+	}
+	defer expr_spine_close(&spine)
+
+	for node in spine.nodes { bin_emit_expression_chain_enter(be, node) }
+	bin_emit_expression(be, spine.leaf)
+	#reverse for node in spine.nodes { bin_emit_expression_chain_leave(be, node) }
+}
+
+// bin_emit_expression_chain_enter writes what precedes a link's chain
+// operand in the stream.
+bin_emit_expression_chain_enter :: proc(be: ^BinaryEmitter, expr: ^Expression) {
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		bin_node_header(be, .MemberExpression, e.loc)
+		bw_bool(be, e.computed)
+		bw_bool(be, e.optional)
+	case ^CallExpression:
+		if e.type_parameters != nil {
+			bin_extra(be)
+			bin_field_type_args(be, e.type_parameters)
+			bin_fields_end(be)
+		}
+		bin_node_header(be, .CallExpression, e.loc)
+		bw_bool(be, e.optional)
+	case ^BinaryExpression:
+		bin_node_header(be, .BinaryExpression, e.loc)
+		bw_string_ref(be, binary_op_to_string(e.operator))
+	case ^LogicalExpression:
+		bin_node_header(be, .LogicalExpression, e.loc)
+		lop_str: string
+		#partial switch e.operator {
+		case .And: lop_str = "&&"
+		case .Or:  lop_str = "||"
+		case .NullishCoalescing: lop_str = "??"
+		}
+		bw_string_ref(be, lop_str)
+	case:
+		unreachable()
+	}
+}
+
+// bin_emit_expression_chain_leave writes what follows a link's chain
+// operand in the stream.
+bin_emit_expression_chain_leave :: proc(be: ^BinaryEmitter, expr: ^Expression) {
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		bin_emit_expression(be, e.property)
+	case ^CallExpression:
+		bw_u32(be, u32(len(e.arguments)))
+		for arg in e.arguments { bin_emit_expression(be, arg) }
+	case ^BinaryExpression:
+		bin_emit_expression(be, e.right)
+	case ^LogicalExpression:
+		bin_emit_expression(be, e.right)
+	case:
+		unreachable()
+	}
+}
+
 bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 	if expr == nil || expression_inner_nil(expr) {
 		bw_u8(be, u8(BinValType.NullNode))
@@ -654,23 +727,9 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		}
 	case ^ClassExpression:
 		bin_emit_class(be, .ClassExpression, e)
-	case ^MemberExpression:
-		bin_node_header(be, .MemberExpression, e.loc)
-		bw_bool(be, e.computed)
-		bw_bool(be, e.optional)
-		bin_emit_expression(be, e.object)
-		bin_emit_expression(be, e.property)
-	case ^CallExpression:
-		if e.type_parameters != nil {
-			bin_extra(be)
-			bin_field_type_args(be, e.type_parameters)
-			bin_fields_end(be)
-		}
-		bin_node_header(be, .CallExpression, e.loc)
-		bw_bool(be, e.optional)
-		bin_emit_expression(be, e.callee)
-		bw_u32(be, u32(len(e.arguments)))
-		for arg in e.arguments { bin_emit_expression(be, arg) }
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		// Unbounded chains: emitted by a loop, not one frame per link.
+		bin_emit_expression_chain(be, expr)
 	case ^NewExpression:
 		if e.type_parameters != nil {
 			bin_extra(be)
@@ -701,22 +760,6 @@ bin_emit_expression :: proc(be: ^BinaryEmitter, expr: ^Expression) {
 		bw_string_ref(be, unary_op_to_string(e.operator))
 		bw_bool(be, e.prefix)
 		bin_emit_expression(be, e.argument)
-	case ^BinaryExpression:
-		bin_node_header(be, .BinaryExpression, e.loc)
-		bw_string_ref(be, binary_op_to_string(e.operator))
-		bin_emit_expression(be, e.left)
-		bin_emit_expression(be, e.right)
-	case ^LogicalExpression:
-		bin_node_header(be, .LogicalExpression, e.loc)
-		lop_str: string
-		#partial switch e.operator {
-		case .And: lop_str = "&&"
-		case .Or:  lop_str = "||"
-		case .NullishCoalescing: lop_str = "??"
-		}
-		bw_string_ref(be, lop_str)
-		bin_emit_expression(be, e.left)
-		bin_emit_expression(be, e.right)
 	case ^AssignmentExpression:
 		bin_node_header(be, .AssignmentExpression, e.loc)
 		bw_string_ref(be, assignment_op_to_string(e.operator))
