@@ -201,18 +201,39 @@ ParseJob :: struct {
 	// Lifecycle bit so close is idempotent.
 	opened: bool,
 
+	// Set when the job was opened over a caller-supplied allocator
+	// (parse_job_open_inline's `backing`). `heap_arena` then takes the
+	// place of `arena`: it draws blocks from that allocator and returns
+	// all of them on close. `arena_ptr` is nil for such a job, so the
+	// consumers that need the contiguous virtual arena (raw transfer,
+	// --stats) do not apply to it.
+	uses_heap_arena: bool,
+	heap_arena:      mem.Dynamic_Arena,
+
 	// Where the allocation guard turns once the job's arena is exhausted,
-	// so that a parse which ran out of memory can still wind down: a
-	// growing virtual arena, i.e. fresh pages from the OS, independent of
-	// the fixed reservation that ran out. Nothing is taken from it until
-	// that happens; close releases it.
-	emergency: mvirtual.Arena,
+	// so that a parse which ran out of memory can still wind down. Nothing
+	// is taken from either until that happens; close releases both.
+	//   emergency       a growing virtual arena: fresh pages from the OS,
+	//                   independent of the fixed reservation that ran out.
+	//   heap_emergency  for a caller-supplied allocator: the same
+	//                   allocator asked for small blocks, which it may
+	//                   still have when it refused a 64 KiB one.
+	emergency:      mvirtual.Arena,
+	heap_emergency: mem.Dynamic_Arena,
 
 	// Sits between the lexer / parser and `arena_alloc` for the duration
 	// of parse_job_run; see alloc_guard.odin. Kept last: it embeds the
 	// emergency reserve, which dwarfs every other field.
 	guard: AllocGuard,
 }
+
+// Block size of the arena layered over a caller-supplied allocator. Larger
+// requests (the node bump pool, big arrays) go to that allocator directly.
+PARSE_JOB_HEAP_BLOCK_SIZE :: 64 * 1024
+// Block size of `heap_emergency`: small, because it is only asked once the
+// allocator has already refused something bigger.
+PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE :: 4 * 1024
+#assert(PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE < PARSE_JOB_HEAP_BLOCK_SIZE)
 
 // ============================================================================
 // Internal helpers — lang / dts / source-type resolution
@@ -309,7 +330,22 @@ parse_job_open :: proc(job: ^ParseJob, path: string, config: ParseConfig) -> boo
 //
 // `label` is the synthetic path used for diagnostics and lang detection
 // (pass e.g. "<test>.ts" to route through TS grammar).
-parse_job_open_inline :: proc(job: ^ParseJob, source: string, config: ParseConfig, label := "<inline>") -> bool {
+//
+// `backing` selects where the job's memory comes from. Left at its zero
+// value (every existing caller) the job reserves its own virtual-memory
+// arena, as before. Given an allocator, the job takes ALL of its memory
+// from it instead: the AST, diagnostics and the lexer's and parser's
+// working state, including the scratch strings they would otherwise put in
+// context.temp_allocator. It asks for 64 KiB blocks plus one allocation per
+// larger request, never frees individually, and returns everything in
+// parse_job_close, so it suits an embedder with a per-request or tracked
+// heap. An allocator that runs out mid-parse is reported as K2085 in
+// job.parser.errors, not as a crash. `backing` must support free and stay
+// valid until close.
+parse_job_open_inline :: proc(
+	job: ^ParseJob, source: string, config: ParseConfig, label := "<inline>",
+	backing := mem.Allocator{},
+) -> bool {
 	job^ = ParseJob{
 		config      = config,
 		source_path = label,
@@ -317,6 +353,19 @@ parse_job_open_inline :: proc(job: ^ParseJob, source: string, config: ParseConfi
 		owns_source = false,
 		owns_arena  = true,
 		opened      = true,
+	}
+
+	if backing.procedure != nil {
+		// The arena itself allocates nothing until first use, so opening
+		// cannot fail here; an exhausted `backing` surfaces during run.
+		mem.dynamic_arena_init(&job.heap_arena, backing, backing,
+			PARSE_JOB_HEAP_BLOCK_SIZE, PARSE_JOB_HEAP_BLOCK_SIZE, 16)
+		mem.dynamic_arena_init(&job.heap_emergency, backing, backing,
+			PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE, PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE, 16)
+		job.uses_heap_arena = true
+		job.arena_alloc = mem.dynamic_arena_allocator(&job.heap_arena)
+		parse_job_resolve(job)
+		return true
 	}
 
 	if err := mvirtual.arena_init_static(&job.arena, arena_reserve_for_source(len(job.source.data))); err != nil {
@@ -407,6 +456,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	// an exhausted arena becomes a K2085 diagnostic instead of a nil
 	// dereference. Later passes keep using job.arena_alloc directly.
 	fallback := mvirtual.arena_allocator(&job.emergency)
+	if job.uses_heap_arena { fallback = mem.dynamic_arena_allocator(&job.heap_emergency) }
 	alloc_guard_init(&job.guard, job.arena_alloc, fallback, &job.lexer.offset)
 	parse_alloc := alloc_guard_allocator(&job.guard)
 
@@ -415,6 +465,17 @@ parse_job_run :: proc(job: ^ParseJob) {
 	// outside the arena, where nothing ever freed it. Route those into the
 	// arena as well.
 	context.allocator = parse_alloc
+
+	// A job over a caller-supplied allocator promises that ALL its memory
+	// comes from that allocator, so the diagnostics' formatted messages
+	// and the parser's scratch tables must not land in the thread's temp
+	// allocator either. Jobs with their own arena keep the caller's temp
+	// allocator, as before.
+	// (Assigned unconditionally: a `context` assignment inside an `if`
+	// block would end with that block.)
+	temp_alloc := context.temp_allocator
+	if job.uses_heap_arena { temp_alloc = parse_alloc }
+	context.temp_allocator = temp_alloc
 
 	init_lexer(&job.lexer, source_str, parse_alloc, job.lex_source_type)
 
@@ -481,8 +542,14 @@ parse_job_reset_arena :: proc(job: ^ParseJob) {
 // `defer` even after open failure.
 parse_job_close :: proc(job: ^ParseJob) {
 	if !job.opened { return }
-	if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
-	mvirtual.arena_destroy(&job.emergency) // no-op when never used
+	if job.uses_heap_arena {
+		// Returns every block and out-of-band allocation to `backing`.
+		mem.dynamic_arena_destroy(&job.heap_arena)
+		mem.dynamic_arena_destroy(&job.heap_emergency)
+	} else {
+		if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
+		mvirtual.arena_destroy(&job.emergency) // no-op when never used
+	}
 	if job.owns_source { source_release(job.source, context.allocator) }
 	job.opened = false
 }

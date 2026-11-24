@@ -548,3 +548,178 @@ test_allocation_failure_served_by_fallback :: proc(t: ^testing.T) {
 	testing.expectf(t, fallback_used_max <= kessel.ALLOC_GUARD_FALLBACK_SIZE_MAX, "fallback cap exceeded: %d", fallback_used_max)
 	log.infof("fallback sweep: %d parses, fallback high-water mark %d bytes", runs, fallback_used_max)
 }
+
+// ----------------------------------------------------------------------------
+// parse_job_open_inline(..., backing)
+// ----------------------------------------------------------------------------
+
+// Counts every allocation request it sees and forwards it. Installed as
+// context.allocator / context.temp_allocator around a job that was given
+// its own allocator, where any request at all is a leak past that allocator.
+@(private="file")
+CountingAllocator :: struct {
+	backing:  mem.Allocator,
+	requests: int,
+}
+
+@(private="file")
+counting_allocator_proc :: proc(
+	allocator_data: rawptr, mode: mem.Allocator_Mode,
+	size, alignment: int,
+	old_memory: rawptr, old_size: int,
+	loc := #caller_location,
+) -> ([]byte, mem.Allocator_Error) {
+	state := (^CountingAllocator)(allocator_data)
+	#partial switch mode {
+	case .Alloc, .Alloc_Non_Zeroed, .Resize, .Resize_Non_Zeroed:
+		if size > 0 { state.requests += 1 }
+	}
+	return state.backing.procedure(state.backing.data, mode, size, alignment, old_memory, old_size, loc)
+}
+
+// Goal: a job opened with a caller-supplied allocator takes all its memory
+// from that allocator and gives all of it back on close.
+//
+// Method: supply a tracking allocator and, for the duration of open / run /
+// close, replace context.allocator and context.temp_allocator with counting
+// allocators. Afterwards the tracker must show allocations made and none
+// outstanding, no bad frees, and the two counters must still be zero. The
+// samples include one full of syntax errors, whose formatted messages are
+// the allocations most likely to stray.
+@(test)
+test_supplied_allocator_owns_all_memory :: proc(t: ^testing.T) {
+	for sample in HARDENING_SAMPLES {
+		tracker: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&tracker, context.allocator)
+		defer mem.tracking_allocator_destroy(&tracker)
+		stray_heap := CountingAllocator{backing = context.allocator}
+		stray_temp := CountingAllocator{backing = context.temp_allocator}
+
+		reference: kessel.ParseJob
+		if !testing.expect(t, kessel.parse_job_open_inline(&reference, sample.source, {}, sample.label)) { continue }
+		kessel.parse_job_run(&reference)
+		reference_errors := len(reference.parser.errors)
+		reference_body := len(reference.program.body)
+		kessel.parse_job_close(&reference)
+
+		errors, body, live_peak: int
+		{
+			context.allocator = mem.Allocator{procedure = counting_allocator_proc, data = &stray_heap}
+			context.temp_allocator = mem.Allocator{procedure = counting_allocator_proc, data = &stray_temp}
+			job: kessel.ParseJob
+			opened := kessel.parse_job_open_inline(&job, sample.source, {}, sample.label, mem.tracking_allocator(&tracker))
+			if !testing.expect(t, opened) { continue }
+			testing.expect(t, job.arena_ptr == nil) // no virtual arena behind the caller's back
+			kessel.parse_job_run(&job)
+			errors = len(job.parser.errors)
+			body = len(job.program.body)
+			live_peak = len(tracker.allocation_map)
+			kessel.parse_job_close(&job)
+			kessel.parse_job_close(&job) // idempotent
+		}
+
+		// Same parse as with the job's own arena.
+		testing.expectf(t, errors == reference_errors && body == reference_body,
+			"%s: %d errors / %d statements, reference %d / %d", sample.label, errors, body, reference_errors, reference_body)
+		testing.expectf(t, live_peak > 0, "%s: nothing was allocated from the supplied allocator", sample.label)
+		testing.expectf(t, len(tracker.allocation_map) == 0,
+			"%s: %d allocations not released on close", sample.label, len(tracker.allocation_map))
+		testing.expectf(t, len(tracker.bad_free_array) == 0, "%s: %d bad frees", sample.label, len(tracker.bad_free_array))
+		testing.expectf(t, tracker.current_memory_allocated == 0,
+			"%s: %d bytes outstanding", sample.label, tracker.current_memory_allocated)
+		testing.expectf(t, stray_heap.requests == 0, "%s: %d requests to context.allocator", sample.label, stray_heap.requests)
+		testing.expectf(t, stray_temp.requests == 0, "%s: %d requests to context.temp_allocator", sample.label, stray_temp.requests)
+	}
+}
+
+// A heap with a ceiling: refuses any request that would take the bytes
+// outstanding in `tracker` past `limit`. Unlike a fixed-buffer arena it
+// honours free, so "everything was released" stays checkable.
+@(private="file")
+LimitedAllocator :: struct {
+	tracker: ^mem.Tracking_Allocator,
+	limit:   i64,
+	refused: int,
+}
+
+@(private="file")
+limited_allocator_proc :: proc(
+	allocator_data: rawptr, mode: mem.Allocator_Mode,
+	size, alignment: int,
+	old_memory: rawptr, old_size: int,
+	loc := #caller_location,
+) -> ([]byte, mem.Allocator_Error) {
+	state := (^LimitedAllocator)(allocator_data)
+	#partial switch mode {
+	case .Alloc, .Alloc_Non_Zeroed, .Resize, .Resize_Non_Zeroed:
+		growth := i64(size) - i64(old_size if old_memory != nil else 0)
+		if state.tracker.current_memory_allocated + growth > state.limit {
+			state.refused += 1
+			return nil, .Out_Of_Memory
+		}
+	}
+	return mem.tracking_allocator_proc(state.tracker, mode, size, alignment, old_memory, old_size, loc)
+}
+
+// Goal: an allocator that is simply too small ("deliberately tiny arena")
+// produces K2085, not a crash, at whatever point it runs dry, and whatever
+// was taken from it is still returned on close.
+//
+// Method: supply a heap with a byte ceiling, raising the ceiling from zero
+// in 512-byte steps until the parse succeeds. The job is opened through the
+// public API, so this covers the whole supplied-allocator arrangement: the
+// 64 KiB block arena, the 4 KiB emergency blocks taken from the same
+// allocator once it refuses a big request, and the guard's inline reserve.
+@(test)
+test_supplied_allocator_too_small :: proc(t: ^testing.T) {
+	LIMIT_STEP :: 512
+	LIMIT_MAX  :: 4 * 1024 * 1024
+	for sample in HARDENING_SAMPLES {
+		reference: kessel.ParseJob
+		if !testing.expect(t, kessel.parse_job_open_inline(&reference, sample.source, {}, sample.label)) { continue }
+		kessel.parse_job_run(&reference)
+		reference_errors := len(reference.parser.errors)
+		reference_body := len(reference.program.body)
+		kessel.parse_job_close(&reference)
+
+		refused_runs := 0
+		succeeded := false
+		for limit := 0; limit <= LIMIT_MAX; limit += LIMIT_STEP {
+			tracker: mem.Tracking_Allocator
+			mem.tracking_allocator_init(&tracker, context.allocator)
+			limited := LimitedAllocator{tracker = &tracker, limit = i64(limit)}
+			supplied := mem.Allocator{procedure = limited_allocator_proc, data = &limited}
+
+			job: kessel.ParseJob
+			if testing.expect(t, kessel.parse_job_open_inline(&job, sample.source, {}, sample.label, supplied)) {
+				kessel.parse_job_run(&job)
+				oom_errors := 0
+				for error in job.parser.errors {
+					if error.code == .K2085_OutOfMemory { oom_errors += 1 }
+				}
+				// A refusal need not be a failure: the node pool asks for
+				// less when its first request is refused. The guard's latch
+				// is the definition of "this parse ran out of memory".
+				if job.guard.failed {
+					testing.expectf(t, limited.refused > 0, "%s, limit %d: latch without a refusal", sample.label, limit)
+					refused_runs += 1
+					testing.expectf(t, oom_errors == 1, "%s, limit %d: %d K2085 errors", sample.label, limit, oom_errors)
+					testing.expectf(t, len(job.program.body) == 0, "%s, limit %d: body not emptied", sample.label, limit)
+				} else {
+					testing.expectf(t, oom_errors == 0, "%s, limit %d: K2085 without a failure", sample.label, limit)
+					testing.expectf(t, len(job.parser.errors) == reference_errors && len(job.program.body) == reference_body,
+						"%s, limit %d: parse differs from the reference", sample.label, limit)
+					succeeded = true
+				}
+				kessel.parse_job_close(&job)
+			}
+			testing.expectf(t, len(tracker.allocation_map) == 0,
+				"%s, limit %d: %d allocations not released", sample.label, limit, len(tracker.allocation_map))
+			testing.expectf(t, len(tracker.bad_free_array) == 0, "%s, limit %d: bad frees", sample.label, limit)
+			mem.tracking_allocator_destroy(&tracker)
+			if succeeded { break }
+		}
+		testing.expectf(t, succeeded, "%s: never fit in %d bytes", sample.label, LIMIT_MAX)
+		testing.expectf(t, refused_runs > 50, "%s: only %d limits were too small", sample.label, refused_runs)
+	}
+}
