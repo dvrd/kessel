@@ -333,6 +333,22 @@ try {
   else { console.error('FAIL: JSX closing tag span', JSON.stringify(errors)); failed++; }
 } catch (e) { console.error('CRASH: JSX closing tag span', e.message); failed++; }
 
+// Program.hashbang: the node oxc-parser emits, or null. It travels in binary
+// version 9; programs without one still use the earlier versions.
+try {
+  const withHashbang = parseSync('cli.js', '#!/usr/bin/env node\nconst x = 1;').program;
+  const expected = { type: 'Hashbang', start: 0, end: 19, value: '/usr/bin/env node' };
+  assert.deepEqual({ ...withHashbang.hashbang }, expected);
+  assert.equal(withHashbang.body[0].type, 'VariableDeclaration');
+  assert.equal(withHashbang.body[0].start, 20);
+  assert.equal(parseSync('plain.js', 'const x = 1;').program.hashbang, null);
+  assert.equal(parseSync('plain.ts', 'const x: number = 1;').program.hashbang, null);
+  const typed = parseSync('cli.ts', '#!/usr/bin/env -S node\nlet x: number;').program;
+  assert.equal(typed.hashbang.value, '/usr/bin/env -S node');
+  assert.equal(typed.body[0].declarations[0].id.typeAnnotation.type, 'TSTypeAnnotation');
+  passed++;
+} catch (e) { console.error('FAIL: Program.hashbang:', e.message); failed++; }
+
 // Valid input must yield zero errors.
 try {
   const { errors } = parseSync('clean.js', 'const x = 1;');

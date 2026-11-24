@@ -48,6 +48,7 @@ const T = {
   TSTypeAnnotation: 93, TSTypeReference: 94, TSAsExpression: 95,
   TSSatisfiesExpression: 96, TSNonNullExpression: 97,
   TSTypeAssertion: 98, TSInstantiationExpression: 99, TypedRecord: 100, TypedPrefix: 101,
+  Hashbang: 102,
 };
 
 const RESERVED_FIELDS = new Set(['type', 'start', 'end', '__proto__', 'prototype', 'constructor']);
@@ -88,6 +89,8 @@ const TYPE_NAMES = [
   'TSSatisfiesExpression', 'TSNonNullExpression',
   'TSTypeAssertion', 'TSInstantiationExpression', 'TypedRecord',
 ];
+// 101 (TypedPrefix) is a prefix byte, never a node type: it stays a hole.
+TYPE_NAMES[T.Hashbang] = 'Hashbang';
 
 const VAR_KINDS = ['var', 'let', 'const', 'using', 'await using'];
 const PROP_KINDS = ['init', 'get', 'set'];
@@ -115,7 +118,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
 
   // Validate header (24 bytes, all little-endian u32):
   //   0  magic            0x4B455354 ('KEST')
-  //   4  version          3 through 8
+  //   4  version          3 through 9
   //   8  node_count
   //  12  string_table_off
   //  16  errors_off       (0 = no errors section, treat as count=0)
@@ -123,7 +126,7 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
   const magic = dv.getUint32(0, true);
   if (magic !== 0x4B455354) throw new Error('Invalid binary AST magic: 0x' + magic.toString(16));
   const version = dv.getUint32(4, true);
-  if (version < 3 || version > 8) throw new Error('Unsupported binary AST version: ' + version);
+  if (version < 3 || version > 9) throw new Error('Unsupported binary AST version: ' + version);
   const nodeCount = dv.getUint32(8, true);
   const strTableOff = dv.getUint32(12, true);
   const errorsOff = dv.getUint32(16, true);
@@ -279,6 +282,12 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
         node.sourceType = readStr();
         node.body = readNodeArray();
         node.directives = readNodeArray();
+        // Version 9 appends the hashbang node. Earlier versions are only
+        // emitted for programs without one.
+        node.hashbang = version >= 9 ? readNodeOrNull() : null;
+        break;
+      case T.Hashbang:
+        node.value = readStr();
         break;
       case T.Identifier:
         node.name = readStr();

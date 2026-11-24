@@ -109,14 +109,25 @@ export interface ParseError {
   severity?: Severity;
 }
 
+/** The `#!...` line a script can start with, as on `Program.hashbang`. */
+export interface Hashbang {
+  type: 'Hashbang';
+  /** The text after `#!`, up to the line terminator. */
+  value: string;
+  start: number;
+  end: number;
+}
+
 /** Result envelope returned by {@link parseSync}. */
 export interface ParseResult {
   /**
    * The ESTree-compatible AST. Typed as the standard `Program` from
    * `@types/estree`; runtime nodes may include TS- or JSX-specific types
    * that aren't part of that spec (narrow via `node.type`).
+   *
+   * `hashbang` is `null` unless the source starts with `#!`.
    */
-  program: Program;
+  program: Program & { hashbang: Hashbang | null };
   /** Parse-time errors. Empty array on success. */
   errors: ParseError[];
 }

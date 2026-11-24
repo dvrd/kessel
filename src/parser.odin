@@ -1595,6 +1595,16 @@ parse_program :: proc(p: ^Parser, source_type: SourceType) -> ^Program {
 	// comments.
 	program.loc.end = u32(p.source_len)
 
+	// The lexer consumed the hashbang before the first token. Put it on the
+	// Program so that library consumers do not have to reach into the lexer.
+	if p.lexer != nil && p.lexer.has_hashbang {
+		assert(p.lexer.hashbang_start <= p.lexer.hashbang_end)
+		program.hashbang = Hashbang{
+			loc   = Loc{start = p.lexer.hashbang_start, end = p.lexer.hashbang_end},
+			value = p.lexer.hashbang_value,
+		}
+	}
+
 	// OXC-TS quirk: in .ts / .tsx mode OXC sets program.start = body[0].start
 	// (skipping leading comments/whitespace), while still ending at source.length.
 	// Mirror that behaviour here so the deep-compare against OXC matches; no

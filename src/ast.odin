@@ -1531,11 +1531,22 @@ SourceType :: enum {
 	Module,
 }
 
+// The `#!...` line a script can start with (ES2023 HashbangComment).
+// `value` is the text after `#!` up to the line terminator; `loc` covers
+// `#!` and that text. Same shape as the `hashbang` field of emitted ESTree.
+Hashbang :: struct {
+	loc:   Loc,
+	value: string,
+}
+
 Program :: struct {
 	loc:        Loc,
 	type:       SourceType,
 	body:       [dynamic]^Statement,
 	directives: [dynamic]Directive,
+	// nil when the source does not start with `#!`. Appended last: the raw
+	// transfer layout addresses the fields above by offset.
+	hashbang:   Maybe(Hashbang),
 }
 
 Expression :: union {
