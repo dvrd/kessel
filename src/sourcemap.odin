@@ -136,22 +136,6 @@ base64_encode :: proc(input: []byte) -> []byte {
 	return out
 }
 
-vlq_encode_into :: proc(buf: ^[dynamic]byte, value: int) {
-	v: u32
-	if value < 0 {
-		v = (u32(-value) << 1) | 1
-	} else {
-		v = u32(value) << 1
-	}
-	for {
-		digit := v & 0x1f
-		v >>= 5
-		if v != 0 { digit |= 0x20 }
-		append(buf, B64[digit])
-		if v == 0 { break }
-	}
-}
-
 // ----------------------------------------------------------------------------
 // Map serialisation
 // ----------------------------------------------------------------------------
@@ -215,42 +199,22 @@ encode_mappings :: proc(sm: ^SourceMap, gen_buf: string) -> string {
 	})
 
 	sb := strings.builder_make()
-	tmp := make([dynamic]byte, 0, 16)
-	defer delete(tmp)
-
-	prev_gen_line: u32 = 0
-	prev_gen_col:  i64 = 0  // resets per generated line
-	prev_src_line: i64 = 0
-	prev_src_col:  i64 = 0
+	// One segment encoder for this map and for SourceMapBuilder
+	// (sourcemap_builder.odin): the delta and separator rules live there.
+	state: SourceMapSegmentState
 	gen_position, src_position: SourceMapPosition
 
 	for rec in sm.records {
 		gen_line, gen_col := sourcemap_position_at(gen_buf, gen_line_offsets, rec.gen_offset, &gen_position)
-
-		// Advance generated-line separators. Each `;` resets the col delta.
-		for prev_gen_line < gen_line {
-			strings.write_byte(&sb, ';')
-			prev_gen_line += 1
-			prev_gen_col = 0
-		}
-		// Comma between segments on the same line.
-		if strings.builder_len(sb) > 0 {
-			last := sb.buf[len(sb.buf) - 1]
-			if last != ';' { strings.write_byte(&sb, ',') }
-		}
-
 		src_line, src_col := sourcemap_position_at(sm.source, src_line_offsets, rec.src_offset, &src_position)
-
-		clear(&tmp)
-		vlq_encode_into(&tmp, int(i64(gen_col) - prev_gen_col))
-		vlq_encode_into(&tmp, 0) // source index (always 0; single-source maps)
-		vlq_encode_into(&tmp, int(i64(src_line) - prev_src_line))
-		vlq_encode_into(&tmp, int(i64(src_col)  - prev_src_col))
-		strings.write_bytes(&sb, tmp[:])
-
-		prev_gen_col = i64(gen_col)
-		prev_src_line = i64(src_line)
-		prev_src_col  = i64(src_col)
+		sourcemap_write_segment(&sb, &state, SourceMapMapping{
+			generated_line   = gen_line,
+			generated_column = gen_col,
+			source           = 0, // single-source maps
+			original_line    = src_line,
+			original_column  = src_col,
+			name             = SOURCEMAP_NO_NAME,
+		})
 	}
 
 	return strings.to_string(sb)
