@@ -90,6 +90,10 @@ FormatCallParts :: struct {
 	is_import: bool,
 	phase:     string,
 	typed:     bool,
+	// The whole expression's span, and the comments that sit between its
+	// arguments, one entry per argument. Nil when there are none.
+	loc:       Loc,
+	comments:  []FormatItemComments,
 }
 
 format_call_parts :: proc(f: ^FormatContext, expr: ^Expression) -> (parts: FormatCallParts) {
@@ -97,11 +101,13 @@ format_call_parts :: proc(f: ^FormatContext, expr: ^Expression) -> (parts: Forma
 	case ^CallExpression:
 		parts.callee = node.callee
 		parts.arguments = node.arguments[:]
+		parts.loc = node.loc
 		parts.optional = node.optional
 		_, parts.typed = node.type_parameters.?
 	case ^NewExpression:
 		parts.callee = node.callee
 		parts.arguments = node.arguments[:]
+		parts.loc = node.loc
 		parts.is_new = true
 		_, parts.typed = node.type_parameters.?
 	case ^ImportExpression:
@@ -112,7 +118,58 @@ format_call_parts :: proc(f: ^FormatContext, expr: ^Expression) -> (parts: Forma
 		parts.is_import = true
 		parts.phase = node.phase
 	}
+	format_call_argument_comments(f, &parts)
 	return parts
+}
+
+// Attaches block comments written inline between the arguments, as in
+// `visit(node, 80 /* Identifier */)`. Each leads the argument after it or
+// trails the one before it. Comments on lines of their own follow rules
+// that are not ported, and the statement then keeps its text.
+@(private = "file")
+format_call_argument_comments :: proc(f: ^FormatContext, parts: ^FormatCallParts) {
+	if parts.is_import || parts.callee == nil || len(parts.arguments) == 0 {return}
+	callee_end := get_expression_loc(parts.callee).end
+	if callee_end >= parts.loc.end || parts.loc.end == 0 {return}
+	if len(format_comments_in(f, callee_end, parts.loc.end)) == 0 {return}
+	open := format_next_code_index(f.source, callee_end)
+	// A parenthesised callee ends before its own closing parenthesis.
+	for open < int(parts.loc.end) && f.source[open] == ')' {
+		open = format_next_code_index(f.source, u32(open + 1))
+	}
+	if open + 1 < len(f.source) && f.source[open] == '?' && f.source[open + 1] == '.' {
+		open = format_next_code_index(f.source, u32(open + 2))
+	}
+	close := parts.loc.end - 1
+	if open >= int(close) || f.source[open] != '(' || f.source[close] != ')' {
+		f.failed = true
+		return
+	}
+	bounds := FormatListBounds{open = u32(open + 1), close = close}
+	count := len(parts.arguments)
+	starts := make([]u32, count, f.alloc)
+	ends := make([]u32, count, f.alloc)
+	for argument, index in parts.arguments {
+		loc := get_expression_loc(argument)
+		starts[index], ends[index] = loc.start, loc.end
+	}
+	// Comments nested in an argument are that argument's business.
+	if !format_gaps_have_comments(f, bounds, starts, ends) {return}
+	for gap in 0 ..= count {
+		low := bounds.open if gap == 0 else ends[gap - 1]
+		high := bounds.close if gap == count else starts[gap]
+		if low < high && !format_comments_are_inline_blocks(f, low, high) {
+			f.failed = true
+			return
+		}
+	}
+	parts.comments, _ = format_list_comments(f, bounds, starts, ends)
+}
+
+@(private = "file")
+format_call_argument_has_comment :: proc(parts: FormatCallParts, index: int) -> bool {
+	if parts.comments == nil {return false}
+	return parts.comments[index].leading != nil || parts.comments[index].trailing != nil
 }
 
 format_call :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
@@ -127,7 +184,12 @@ format_call :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	optional := ft(f, "?.") if parts.optional else nil
 	if format_call_prints_flat(f, expr, parts) {
 		printed := make([]Doc, len(arguments), f.alloc)
-		for argument, index in arguments {printed[index] = format_expr(f, argument, .Arguments)}
+		for argument, index in arguments {
+			printed[index] = format_expr(f, argument, .Arguments)
+			if parts.comments != nil {
+				printed[index] = format_with_comments(f, parts.comments[index], printed[index])
+			}
+		}
 		if !parts.is_import {head = format_expr(f, parts.callee, .Callee)}
 		return fc(
 			f,
@@ -325,6 +387,9 @@ format_call_prints_flat :: proc(
 	if len(arguments) == 1 && format_is_template_on_its_own_line(f, arguments[0]) {return true}
 	call, is_call := expr^.(^CallExpression)
 	plain_call := is_call && !call.optional
+	// A comment on the first argument rules out the module-reference forms.
+	first_commented := len(arguments) > 0 && format_call_argument_has_comment(parts, 0)
+	if first_commented {return format_is_test_call(f, expr, format_parent(f).expr)}
 	// Module references with one string argument never break.
 	if parts.is_import || plain_call {
 		named := parts.is_import
@@ -454,6 +519,13 @@ format_could_expand_argument :: proc(expr: ^Expression, arrow_chain := false) ->
 	case ^FunctionExpression: return true
 	case ^ArrowFunctionExpression:
 		body, is_expression := inner.body.(^Expression)
+		if format_returns_type_reference(inner.return_type) {
+			block, is_block := inner.body.(^BlockStatement)
+			if !is_block {return false}
+			filled := false
+			for stmt in block.body {filled = filled || !format_stmt_is_empty(stmt)}
+			if !filled {return false}
+		}
 		if !is_expression {return true}
 		value := format_expr_unwrap(body)
 		if value == nil {return false}
@@ -637,7 +709,8 @@ format_call_arguments :: proc(f: ^FormatContext, parts: FormatCallParts) -> Doc 
 	arguments := parts.arguments
 	count := len(arguments)
 	if count == 0 {return ft(f, "()")}
-	if format_is_hook_with_deps(arguments) {
+	commented := parts.comments != nil
+	if !commented && format_is_hook_with_deps(arguments) {
 		items := make([]Doc, count, f.alloc)
 		for argument, index in arguments {items[index] = format_call_argument(f, argument)}
 		return fc(f, ft(f, "("), doc_join(f, ft(f, ", "), items), ft(f, ")"))
@@ -646,6 +719,7 @@ format_call_arguments :: proc(f: ^FormatContext, parts: FormatCallParts) -> Doc 
 	printed := make([]Doc, count, f.alloc)
 	for argument, index in arguments {
 		doc := format_call_argument(f, argument)
+		if commented {doc = format_with_comments(f, parts.comments[index], doc)}
 		if index == count - 1 {
 			printed[index] = doc
 		} else if format_is_next_line_empty(f.source, get_expression_loc(argument).end) {
@@ -655,6 +729,10 @@ format_call_arguments :: proc(f: ^FormatContext, parts: FormatCallParts) -> Doc 
 			printed[index] = fc(f, doc, ft(f, ","), doc_line())
 		}
 	}
+	// The layout rules below walk the arguments again, and some follow a
+	// member chain by recursion. An argument too deep to print has already
+	// failed the statement, so they must not look at it.
+	if f.failed {return nil}
 	trailing_comma: Doc
 	if !parts.is_import && f.options.trailing_comma && !f.options.trailing_comma_es5 {
 		trailing_comma = ft(f, ",")
@@ -662,10 +740,10 @@ format_call_arguments :: proc(f: ^FormatContext, parts: FormatCallParts) -> Doc 
 	if any_empty_line || format_is_function_composition(arguments) {
 		return format_all_broken_out(f, printed, trailing_comma)
 	}
-	if format_should_group_first(arguments) {
+	if !format_call_argument_has_comment(parts, 0) && format_should_group_first(arguments) {
 		return format_call_arguments_hug(f, parts, printed, trailing_comma, true)
 	}
-	if format_should_group_last(arguments) {
+	if !format_call_argument_has_comment(parts, count - 1) && format_should_group_last(arguments) {
 		return format_call_arguments_hug(f, parts, printed, trailing_comma, false)
 	}
 	contents := fc(

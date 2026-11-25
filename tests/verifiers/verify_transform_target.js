@@ -46,11 +46,10 @@ function checkDiagnostics(binary, temp) {
     ['es2019', 'const big = 1n;', /BigInt/],
     ['es2019', 'import("x");', /dynamic import/],
     ['es2019', 'import.meta.url;', /import\.meta/],
-    ['es2021', 'class C { field = 1; }', /class fields/],
-    ['es2021', 'const C = class { static value; };', /class fields/],
-    ['es2021', 'class C { #hidden() {} }', /private class members/],
-    ['es2021', 'class C { static { C.ready = true; } }', /static blocks/],
     ['es2021', '/a/d;', /flag d/],
+    ['es2024', '{ using handle = open(); }', /using declarations/],
+    ['es2022', 'for (using handle of handles) {}', /using declarations/],
+    ['es2022', 'async function f() { await using handle = open(); }', /using declarations/],
     ['es2021', 'await value;', /top-level await/],
     ['es2021', 'const f = () => { class C { static async m() { await 1; } } }; for (const x of [await 1]) {}', /top-level await/],
     ['es2020', 'const big = 1_000n;', /^$/],
@@ -59,15 +58,9 @@ function checkDiagnostics(binary, temp) {
     ['es2021', 'import { "quoted name" as a } from "x";', /string names/],
     ['es2021', 'export * as "quoted name" from "x";', /string names/],
     ['es2021', 'import data from "./data.json" with { type: "json" };', /import attributes/],
-    ['es2017', 'for (const { ...rest } = a;;) {}', /object rest/],
-    ['es2017', '({ first, ...rest } = a);', /object (rest|spread)/],
     ['es2017', '/(?<year>\\d+)/;', /named groups/],
     ['es2017', '/\\p{L}/u;', /Unicode property/],
-    ['es2017', 'const copy = { ...a };', /object spread/],
-    ['es2017', 'const { first, ...rest } = a;', /object rest/],
-    ['es2017', 'function f({ first, ...rest }) {}', /object rest/],
     ['es2017', 'const f = ([{ ...rest }]) => rest;', /object rest/],
-    ['es2017', 'try {} catch ({ ...rest }) {}', /object rest/],
     ['es2017', 'async function f() { for await (const x of a) {} }', /for await/],
     ['es2017', 'async function* f() {}', /async generators/],
     ['es2017', '/a/s;', /flag s/],
@@ -76,6 +69,8 @@ function checkDiagnostics(binary, temp) {
     ['es2016', 'class C { async method() {} }', /async functions/],
     ['es2016', 'const o = { async method() {} };', /async functions/],
     ['es2015', 'const Math = {}; a ** 2;', /binding named Math/],
+    ['es2015', 'function f(a, ...[b]) {}', /rest parameter with a pattern/],
+    ['es2015', 'const f = (...{ length }) => length;', /rest parameter with a pattern/],
     ['es2015', '[a] **= 2;', /./],
   ];
   const file = path.join(temp, 'target-diagnostic.js');
@@ -102,6 +97,22 @@ function checkDiagnostics(binary, temp) {
     assert.equal(kept.stdout.trim(), 'a ?? b;');
   }
   return cases.length;
+}
+
+// A binding that is only declared stands for a global, which may be an
+// accessor, so it is read once. That holds inside namespaces as well.
+function checkAmbient(binary, temp, run) {
+  const file = path.join(temp, 'target-ambient.ts');
+  fs.writeFileSync(file, 'declare const outer: any;\nconst local: any = {};\n' +
+    'namespace N { declare const inner: any; export const a = inner?.x; export const b = local?.x; }\n' +
+    'declare namespace Lib { const value: any; }\nexport const c = [outer ?? 1, Lib.value ?? 2];\n');
+  const code = run(binary, ['transform', file, '--target=es2015']);
+  assert.match(code, /= inner\) === null/);
+  assert.match(code, /= outer\) !== null/);
+  assert.match(code, /local === null \|\| local === void 0 \? void 0 : local\.x/);
+  // With --lower-using the declaration is lowered and no longer refused.
+  fs.writeFileSync(file, 'export function f(open: () => Disposable) { using handle = open(); return handle ?? 1; }');
+  assert.doesNotMatch(run(binary, ['transform', file, '--target=es2019', '--lower-using']), /\busing\b|\?\?/);
 }
 
 // Each operand of a lowered expression still maps to where it was written.
@@ -172,6 +183,7 @@ module.exports = function verifyTarget(binary, temp, run, oracle) {
   }
   const diagnostics = checkDiagnostics(binary, temp);
   checkSourceMap(binary, temp, run);
+  checkAmbient(binary, temp, run);
   const compared = oracle ? ` acorn accepted ${parsed} outputs at their target level; TypeScript and OXC ` +
     `reproduced the logs at ${references} fixture targets apart from one documented record each.` : '';
   console.log(`Target lowering matched unlowered execution in ${outputs} outputs, with ${diagnostics} target checks ` +

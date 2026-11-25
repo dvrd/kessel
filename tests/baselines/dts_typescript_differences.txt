@@ -192,7 +192,6 @@ output	compiler	jsxCallbackWithDestructuring.tsx / jsxCallbackWithDestructuring.
 output	compiler	mappedTypeNoTypeNoCrash.ts / mappedTypeNoTypeNoCrash.ts
 output	compiler	newLineInTypeofInstantiation.ts / newLineInTypeofInstantiation.ts
 output	compiler	noUsedBeforeDefinedErrorInTypeContext.ts / noUsedBeforeDefinedErrorInTypeContext.ts
-output	compiler	templateLiteralsInTypes.ts / templateLiteralsInTypes.ts
 output	conformance	enums/enumConstantMembers.ts / enums/enumConstantMembers.ts
 output	conformance	es6/Symbols/symbolDeclarationEmit1.ts / es6/Symbols/symbolDeclarationEmit1.ts
 output	conformance	es6/Symbols/symbolDeclarationEmit14.ts / es6/Symbols/symbolDeclarationEmit14.ts

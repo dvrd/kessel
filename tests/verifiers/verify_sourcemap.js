@@ -146,6 +146,61 @@ const exactCases = [
     source: 'const result = value <\n  <Icon />;',
     markers: ['<Icon'],
   },
+  // Names a debugger resolves: bindings, parameters, destructured names,
+  // function and class names, and member names.
+  {
+    name: 'binding-and-member-names',
+    source: 'function outer(first, { second }, [third]) {\n  const local = first.member.deep;\n' +
+      '  class Inner {}\n  try {} catch (problem) {}\n  return local?.optional;\n}',
+    markers: ['outer', 'first', 'second', 'third', 'local', 'member', 'deep', 'Inner', 'problem', 'optional'],
+  },
+  // Comments inside expressions, patterns and types move the tokens around
+  // them in pretty output and vanish in minified output. Neither may shift
+  // a mapping onto the comment or onto the wrong token.
+  {
+    name: 'array-element-comments',
+    source: 'const list = [\n  // first\n  11, // one\n  /* two */ 22,\n  33 // last\n];',
+    markers: ['11', '22', '33'],
+  },
+  {
+    name: 'parameter-and-operand-comments',
+    source: 'function f(/* a */ alpha, beta /* b */) {\n  return alpha + // why\n    beta.size /* op */ * 3;\n}',
+    markers: ['alpha', 'beta', 'size', '3'],
+  },
+  {
+    name: 'switch-case-comments',
+    source: 'switch (kind) {\n  // about one\n  case 41: // on one\n    run(); // ran\n  /* about two */\n  default:\n    stop();\n}',
+    markers: ['kind', '41', 'run()', 'stop()'],
+  },
+  {
+    name: 'member-chain-comments',
+    source: 'promise\n  // first step\n  .then(handle)\n  /* second step */ .catch(report);',
+    markers: ['promise', 'then', 'handle', 'catch', 'report'],
+  },
+  {
+    name: 'conditional-and-arrow-comments',
+    source: 'const pick = test // the test\n  ? yes /* chosen */\n  : no;\n' +
+      'const g = (item /* arg */) => (\n  // grouped\n  item + 1\n);',
+    markers: ['test', 'yes', 'no', 'item', '1'],
+  },
+  {
+    name: 'hoisted-return-comment',
+    source: 'function h() {\n  return ( // why\n    left && right\n  );\n}',
+    markers: ['return', 'left', 'right'],
+  },
+  {
+    name: 'jsx-comments',
+    extension: '.jsx',
+    source: 'const el = <div /* on tag */ id="a">\n  {/* child */}\n  {value /* held */}\n</div>;',
+    markers: ['<div', '"a"', 'value'],
+  },
+  {
+    name: 'type-member-comments',
+    extension: '.ts',
+    source: 'interface Shape {\n  /** The name. */\n  name: string; // trailing\n  area(): number;\n}\n' +
+      'const shape: /* typed */ Shape = make(/* arg */ 7);',
+    markers: ['interface', 'name:', 'area(', 'shape', 'make(', '7'],
+  },
 ];
 
 for (const { name, source, markers, extension = '.js' } of exactCases) {
