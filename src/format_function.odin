@@ -6,7 +6,6 @@ package kessel
 format_function :: proc(f: ^FormatContext, node: ^FunctionExpression, args: FormatArgs) -> Doc {
 	if node.declare || node.no_body {return format_fail(f)}
 	if _, typed := node.type_parameters.?; typed {return format_fail(f)}
-	if _, typed := node.return_type.?; typed {return format_fail(f)}
 	// A callback that is the last argument keeps its parameters on one line
 	// when the call has other arguments or the parameters are plain names.
 	expand_arg := false
@@ -23,7 +22,11 @@ format_function :: proc(f: ^FormatContext, node: ^FunctionExpression, args: Form
 		ft(f, "async ") if node.async else nil,
 		ft(f, head),
 		name,
-		fg(f, format_function_params(f, node.params[:], expand_arg)),
+		fg(
+			f,
+			format_function_params(f, node.params[:], expand_arg),
+			format_type_annotation(f, node.return_type),
+		),
 		ft(f, " "),
 		format_function_body(f, &node.body),
 	)
@@ -36,6 +39,16 @@ format_params_are_identifiers :: proc(params: []FunctionParameter) -> bool {
 		identifier, plain := param.pattern.(^Identifier)
 		if !plain {return false}
 		if _, typed := identifier.type_annotation.?; typed {return false}
+	}
+	return true
+}
+
+// True when every parameter is a plain name, typed or not.
+@(private = "file")
+format_params_are_names :: proc(params: []FunctionParameter) -> bool {
+	for param in params {
+		if _, defaulted := param.default_val.?; defaulted {return false}
+		if _, plain := param.pattern.(^Identifier); !plain {return false}
 	}
 	return true
 }
@@ -216,9 +229,12 @@ format_arrow_signature :: proc(
 	args: FormatArgs,
 ) -> Doc {
 	if _, typed := node.type_parameters.?; typed {return format_fail(f)}
-	if _, typed := node.return_type.?; typed {return format_fail(f)}
 	expand_arg := args.expand_last_arg || args.expand_first_arg
-	params := fg(f, format_function_params(f, node.params[:], expand_arg))
+	params := fg(
+		f,
+		format_function_params(f, node.params[:], expand_arg),
+		format_type_annotation(f, node.return_type),
+	)
 	return fc(f, ft(f, "async ") if node.async else nil, params)
 }
 
@@ -266,7 +282,10 @@ format_arrow :: proc(f: ^FormatContext, node: ^ArrowFunctionExpression, args: Fo
 	for {
 		append(&signatures, format_arrow_signature(f, tail, args))
 		if !is_chain {break}
-		if !format_params_are_identifiers(tail.params[:]) {should_break_chain = true}
+		if !format_params_are_names(tail.params[:]) {should_break_chain = true}
+		if _, typed := tail.return_type.?; typed && len(tail.params) > 0 {
+			should_break_chain = true
+		}
 		if !format_arrow_body_is_arrow(tail) {break}
 		inner, entered := format_expr_enter(f, tail.body.(^Expression), .Body)
 		if !entered {return nil}

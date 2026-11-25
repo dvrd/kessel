@@ -127,7 +127,9 @@ refresh_name :: proc(r: ^Refresh, prefix: string, counter: ^int) -> string {
 	for {
 		counter^ += 1
 		name := prefix
-		if counter^ > 1 { name = fmt.aprintf("%s%d", prefix, counter^, allocator = r.state.allocator) }
+		if counter^ > 1 {
+			name = fmt.aprintf("%s%d", prefix, counter^, allocator = r.state.allocator)
+		}
 		// A textual test is enough: a name that appears nowhere cannot be bound.
 		if !strings.contains(r.source, name) { return name }
 	}
@@ -159,7 +161,9 @@ refresh_statement :: proc(r: ^Refresh, expression: ^Expression, at: u32) -> ^Sta
 	return statement
 }
 
-refresh_call :: proc(r: ^Refresh, callee: string, arguments: []^Expression, at: u32) -> ^Expression {
+refresh_call :: proc(
+	r: ^Refresh, callee: string, arguments: []^Expression, at: u32,
+) -> ^Expression {
 	return target_call(r.state, refresh_identifier(r, callee, at), arguments, {at, at})
 }
 
@@ -190,7 +194,8 @@ refresh_scope_pop :: proc(r: ^Refresh, list: ^[dynamic]^Statement, index: int, l
 	declaration := new(VariableDeclaration, r.state.allocator)
 	declaration.loc = {at, at}
 	declaration.kind = .Var
-	declaration.declarations = make([dynamic]VariableDeclarator, 0, len(scope.handles), r.state.allocator)
+	count := len(scope.handles)
+	declaration.declarations = make([dynamic]VariableDeclarator, 0, count, r.state.allocator)
 	for handle in scope.handles {
 		id := refresh_identifier(r, handle, at)^.(^Identifier)
 		append(&declaration.declarations, VariableDeclarator{
@@ -230,7 +235,9 @@ refresh_note_factory_call :: proc(r: ^Refresh, call: ^CallExpression) {
 	#partial switch callee in call.callee^ {
 	case ^Identifier: name = callee.name
 	case ^MemberExpression:
-		if property, ok := callee.property^.(^Identifier); ok && !callee.computed { name = property.name }
+		if property, ok := callee.property^.(^Identifier); ok && !callee.computed {
+			name = property.name
+		}
 	}
 	switch name {
 	case "createElement", "jsx", "jsxs", "jsxDEV":
@@ -280,7 +287,9 @@ refresh_enter_block :: proc(r: ^Refresh, change: int) {
 }
 
 // A function body: its own hook calls are collected while it is walked.
-refresh_walk_function_body :: proc(r: ^Refresh, body: ^FunctionBody, loc: Loc) -> Maybe(RefreshSignature) {
+refresh_walk_function_body :: proc(
+	r: ^Refresh, body: ^FunctionBody, loc: Loc) -> Maybe(RefreshSignature,
+) {
 	function := new(RefreshFunction, r.state.allocator)
 	function.calls.allocator = r.state.allocator
 	function.loc = loc
@@ -294,12 +303,15 @@ refresh_walk_function_body :: proc(r: ^Refresh, body: ^FunctionBody, loc: Loc) -
 	if !signed { return nil }
 	// The first statement reports each call of the function to the runtime.
 	at := body.loc.start
-	refresh_insert(r, &body.body, directives, refresh_statement(r, refresh_call(r, signature.handle, nil, at), at))
+	report := refresh_statement(r, refresh_call(r, signature.handle, nil, at), at)
+	refresh_insert(r, &body.body, directives, report)
 	return signature
 }
 
 // An arrow with an expression body gets a block, so the report has a place.
-refresh_walk_arrow :: proc(r: ^Refresh, arrow: ^ArrowFunctionExpression) -> Maybe(RefreshSignature) {
+refresh_walk_arrow :: proc(
+	r: ^Refresh, arrow: ^ArrowFunctionExpression) -> Maybe(RefreshSignature,
+) {
 	body := FunctionBody{loc = arrow.loc}
 	switch inner in arrow.body {
 	case ^BlockStatement:
@@ -380,11 +392,14 @@ refresh_custom_hook :: proc(r: ^Refresh, callee: ^Expression, function: Loc) -> 
 	declared := transform_model(r.cg).symbols[symbol].decl_start
 	if declared >= function.start && declared < function.end { return nil }
 	if property == nil { return callee }
-	return target_member(r.state, transform_expression(r.state, root), property, false, {function.end, function.end})
+	object := transform_expression(r.state, root)
+	return target_member(r.state, object, property, false, {function.end, function.end})
 }
 
 // `handle(target, key[, force[, function () { return [hooks]; }]])`
-refresh_signature_call :: proc(r: ^Refresh, signature: RefreshSignature, target: ^Expression) -> ^Expression {
+refresh_signature_call :: proc(
+	r: ^Refresh, signature: RefreshSignature, target: ^Expression,
+) -> ^Expression {
 	at := signature.at
 	arguments := make([dynamic]^Expression, 0, 4, context.temp_allocator)
 	append(&arguments, target, refresh_string(r, signature.key, at))
@@ -396,7 +411,8 @@ refresh_signature_call :: proc(r: ^Refresh, signature: RefreshSignature, target:
 	if len(signature.hooks) != 0 {
 		list := new(ArrayExpression, r.state.allocator)
 		list.loc = {at, at}
-		list.elements = make([dynamic]Maybe(^Expression), 0, len(signature.hooks), r.state.allocator)
+		count := len(signature.hooks)
+		list.elements = make([dynamic]Maybe(^Expression), 0, count, r.state.allocator)
 		for hook in signature.hooks { append(&list.elements, hook) }
 		result := new(ReturnStatement, r.state.allocator)
 		result^ = {loc = {at, at}, argument = transform_expression(r.state, list)}
@@ -423,7 +439,8 @@ refresh_wrap :: proc(r: ^Refresh, box: ^Expression, signature: RefreshSignature)
 // of the source starts, so the printer resolves it like any other use.
 refresh_name_later :: proc(r: ^Refresh, signature: RefreshSignature, name: BindingIdentifier) {
 	target := transform_identifier_exact(r.state, name.name, name.loc.start)
-	append(&r.pending, refresh_statement(r, refresh_signature_call(r, signature, target), signature.at))
+	call := refresh_signature_call(r, signature, target)
+	append(&r.pending, refresh_statement(r, call, signature.at))
 }
 
 // ----------------------------------------------------------------------------
@@ -459,7 +476,9 @@ refresh_register_statement :: proc(r: ^Refresh, statement: ^Statement) {
 	case ^ExportDefaultDeclaration:
 		switch inner in node.declaration^ {
 		case ^Declaration:
-			if function, ok := inner^.(^FunctionDeclaration); ok { refresh_register_function(r, &function.expr) }
+			if function, ok := inner^.(^FunctionDeclaration); ok {
+				refresh_register_function(r, &function.expr)
+			}
 		case ^Expression:
 			// Only a possible higher-order component call is considered here.
 			if function, ok := inner^.(^FunctionExpression); ok && function.id != nil {
@@ -473,7 +492,9 @@ refresh_register_statement :: proc(r: ^Refresh, statement: ^Statement) {
 
 refresh_register_function :: proc(r: ^Refresh, function: ^FunctionExpression) {
 	id, named := function.id.?
-	if !named || function.no_body || function.declare || !refresh_is_component_name(id.name) { return }
+	if !named || function.no_body || function.declare || !refresh_is_component_name(id.name) {
+		return
+	}
 	refresh_register_later(r, id, function.loc.end)
 }
 
@@ -489,7 +510,10 @@ refresh_register_variable :: proc(r: ^Refresh, declaration: ^VariableDeclaration
 	case ^CallExpression:
 		// `require(...)` and `import(...)` produce modules, not components.
 		if callee, ok := node.callee^.(^Identifier); ok {
-			if strings.has_prefix(callee.name, "require") || strings.has_prefix(callee.name, "import") { return }
+			loads := strings.has_prefix(callee.name, "require")
+			if loads || strings.has_prefix(callee.name, "import") {
+				return
+			}
 		}
 	case:
 		return
@@ -503,7 +527,9 @@ refresh_register_variable :: proc(r: ^Refresh, declaration: ^VariableDeclaration
 // Marks the functions inside a possible chain of higher-order component
 // calls. `outermost` is the expression a declarator already names, which
 // is registered by a statement instead of in place.
-refresh_find_components :: proc(r: ^Refresh, id: string, box: ^Expression, outermost: bool) -> bool {
+refresh_find_components :: proc(
+	r: ^Refresh, id: string, box: ^Expression, outermost: bool,
+) -> bool {
 	value := target_unwrap(r.cg, box)
 	#partial switch node in value^ {
 	case ^Identifier:
@@ -511,7 +537,9 @@ refresh_find_components :: proc(r: ^Refresh, id: string, box: ^Expression, outer
 		return refresh_is_component_name(node.name)
 	case ^ArrowFunctionExpression:
 		if body, expression := node.body.(^Expression); expression {
-			if _, curried := target_unwrap(r.cg, body)^.(^ArrowFunctionExpression); curried { return false }
+			if _, curried := target_unwrap(r.cg, body)^.(^ArrowFunctionExpression); curried {
+				return false
+			}
 		}
 		if !outermost { r.handles[value] = refresh_handle(r, id) }
 		return true
@@ -526,7 +554,8 @@ refresh_find_components :: proc(r: ^Refresh, id: string, box: ^Expression, outer
 		case: return false
 		}
 		location := loc_from_expr(callee)
-		inner := fmt.aprintf("%s$%s", id, r.source[location.start:location.end], allocator = r.state.allocator)
+		written := r.source[location.start:location.end]
+		inner := fmt.aprintf("%s$%s", id, written, allocator = r.state.allocator)
 		if !refresh_find_components(r, inner, node.arguments[0], false) { return false }
 		if !outermost { r.handles[value] = refresh_handle(r, id) }
 		return true
@@ -541,7 +570,8 @@ refresh_emit_registrations :: proc(r: ^Refresh, program: ^Program) {
 	declaration := new(VariableDeclaration, r.state.allocator)
 	declaration.loc = {at, at}
 	declaration.kind = .Var
-	declaration.declarations = make([dynamic]VariableDeclarator, 0, len(r.registrations), r.state.allocator)
+	count := len(r.registrations)
+	declaration.declarations = make([dynamic]VariableDeclarator, 0, count, r.state.allocator)
 	for registration in r.registrations {
 		id := refresh_identifier(r, registration.handle, at)^.(^Identifier)
 		append(&declaration.declarations, VariableDeclarator{loc = {at, at}, id = id})
@@ -573,7 +603,8 @@ refresh_visit_statement :: proc(v: ^RefreshVisitor, statement: ^Statement, in_li
 	if statement == nil { return }
 	#partial switch node in statement^ {
 	case ^ExpressionStatement: refresh_visit_expression(v, node.expression)
-	case ^ReturnStatement:     if argument, ok := node.argument.?; ok { refresh_visit_expression(v, argument) }
+	case ^ReturnStatement:
+		if argument, ok := node.argument.?; ok { refresh_visit_expression(v, argument) }
 	case ^ThrowStatement:      refresh_visit_expression(v, node.argument)
 	case ^BlockStatement:      refresh_visit_block(v, node)
 	case ^LabeledStatement:    refresh_visit_statement(v, node.body)
@@ -616,9 +647,10 @@ refresh_visit_statement :: proc(v: ^RefreshVisitor, statement: ^Statement, in_li
 	case ^TSExportAssignment: refresh_visit_expression(v, node.expression)
 	case ^TSModuleDeclaration:
 		if body, ok := node.body.?; ok && body != nil && !node.declare {
-			if block, is_block := body^.(^TSModuleBlock); is_block { refresh_visit_block(v, &BlockStatement{
-				loc = block.loc, body = block.body,
-			}, &block.body) }
+			if block, is_block := body^.(^TSModuleBlock); is_block {
+				stand_in := BlockStatement{loc = block.loc, body = block.body}
+				refresh_visit_block(v, &stand_in, &block.body)
+			}
 		}
 	}
 }
@@ -629,7 +661,9 @@ refresh_visit_control :: proc(v: ^RefreshVisitor, statement: ^Statement) {
 	case ^ForStatement:
 		// A loop head, a switch body and a catch clause are scopes of their own.
 		if !v.collect { refresh_enter_block(v.r, 1) }
-		if declaration, ok := node.init_decl.?; ok { refresh_visit_variables(v, declaration, false) }
+		if declaration, ok := node.init_decl.?; ok {
+			refresh_visit_variables(v, declaration, false)
+		}
 		if init, ok := node.init_expr.?; ok { refresh_visit_expression(v, init) }
 		if test, ok := node.test.?; ok { refresh_visit_expression(v, test) }
 		if update, ok := node.update.?; ok { refresh_visit_expression(v, update) }
@@ -670,7 +704,9 @@ refresh_visit_list :: proc(v: ^RefreshVisitor, list: ^[dynamic]^Statement) {
 
 // `store` receives the statement list back when the block is a stand-in for
 // a body that is not a BlockStatement in the tree.
-refresh_visit_block :: proc(v: ^RefreshVisitor, block: ^BlockStatement, store: ^[dynamic]^Statement = nil) {
+refresh_visit_block :: proc(
+	v: ^RefreshVisitor, block: ^BlockStatement, store: ^[dynamic]^Statement = nil,
+) {
 	if v.collect {
 		for statement in block.body { refresh_visit_statement(v, statement) }
 	} else {
@@ -687,7 +723,9 @@ refresh_visit_params :: proc(v: ^RefreshVisitor, params: []FunctionParameter) {
 
 // Walks a function body. `sign` is false for methods and accessors, which
 // cannot be wrapped: their Hook calls are theirs but go unreported.
-refresh_visit_body :: proc(v: ^RefreshVisitor, function: ^FunctionExpression, sign: bool) -> Maybe(RefreshSignature) {
+refresh_visit_body :: proc(
+	v: ^RefreshVisitor, function: ^FunctionExpression, sign: bool) -> Maybe(RefreshSignature,
+) {
 	refresh_visit_params(v, function.params[:])
 	if function.no_body { return nil }
 	if v.collect {
@@ -704,14 +742,18 @@ refresh_visit_body :: proc(v: ^RefreshVisitor, function: ^FunctionExpression, si
 	return nil
 }
 
-refresh_visit_function_declaration :: proc(v: ^RefreshVisitor, function: ^FunctionExpression, in_list: bool) {
+refresh_visit_function_declaration :: proc(
+	v: ^RefreshVisitor, function: ^FunctionExpression, in_list: bool,
+) {
 	id, named := function.id.?
 	// Without a name or a following statement there is nothing to attach to.
 	signature, signed := refresh_visit_body(v, function, named && in_list).?
 	if signed { refresh_name_later(v.r, signature, id) }
 }
 
-refresh_visit_variables :: proc(v: ^RefreshVisitor, declaration: ^VariableDeclaration, in_list: bool) {
+refresh_visit_variables :: proc(
+	v: ^RefreshVisitor, declaration: ^VariableDeclaration, in_list: bool,
+) {
 	if declaration.declare { return }
 	for &declarator in declaration.declarations {
 		init, initialized := declarator.init.?
@@ -766,7 +808,9 @@ refresh_note_hook :: proc(r: ^Refresh, call: ^CallExpression, declarator: ^Varia
 	#partial switch callee in call.callee^ {
 	case ^Identifier: name = callee.name
 	case ^MemberExpression:
-		if property, ok := callee.property^.(^Identifier); ok && !callee.computed { name = property.name }
+		if property, ok := callee.property^.(^Identifier); ok && !callee.computed {
+			name = property.name
+		}
 	}
 	if !refresh_is_hook_name(name) { return }
 	if r.functions[len(r.functions) - 1].blocks != 0 { return }
@@ -775,8 +819,10 @@ refresh_note_hook :: proc(r: ^Refresh, call: ^CallExpression, declarator: ^Varia
 		// The binding as written, without its type annotation.
 		#partial switch id in declarator.id {
 		case ^Identifier:    strings.write_string(&key, id.name)
-		case ^ObjectPattern: strings.write_string(&key, refresh_pattern_text(r, id.loc, id.type_annotation))
-		case ^ArrayPattern:  strings.write_string(&key, refresh_pattern_text(r, id.loc, id.type_annotation))
+		case ^ObjectPattern:
+			strings.write_string(&key, refresh_pattern_text(r, id.loc, id.type_annotation))
+		case ^ArrayPattern:
+			strings.write_string(&key, refresh_pattern_text(r, id.loc, id.type_annotation))
 		}
 	}
 	// State Hooks reset when their initial state is edited.
@@ -790,12 +836,16 @@ refresh_note_hook :: proc(r: ^Refresh, call: ^CallExpression, declarator: ^Varia
 		strings.write_byte(&key, ')')
 	}
 	function := r.functions[len(r.functions) - 1]
-	append(&function.calls, RefreshHookCall{name = name, key = strings.to_string(key), callee = call.callee})
+	hook := RefreshHookCall{name = name, key = strings.to_string(key), callee = call.callee}
+	append(&function.calls, hook)
 }
 
-refresh_pattern_text :: proc(r: ^Refresh, loc: Loc, annotation: Maybe(^TSTypeAnnotation)) -> string {
+refresh_pattern_text :: proc(
+	r: ^Refresh, loc: Loc, annotation: Maybe(^TSTypeAnnotation),
+) -> string {
 	end := loc.end
-	if node, annotated := annotation.?; annotated && node.loc.start > loc.start && node.loc.start < end {
+	node, annotated := annotation.?
+	if annotated && node.loc.start > loc.start && node.loc.start < end {
 		end = node.loc.start
 	}
 	return strings.trim_right(r.source[loc.start:end], " \t\r\n:")
@@ -807,6 +857,7 @@ refresh_visit_expression :: proc(
 	v: ^RefreshVisitor, box: ^Expression, declarator: ^VariableDeclarator = nil, in_chain := false,
 ) -> []RefreshSignature {
 	if box == nil { return nil }
+	if expr_is_spine_node(box) { return refresh_visit_spine(v, box, declarator, in_chain) }
 	r := v.r
 	signatures: [dynamic]RefreshSignature
 	signatures.allocator = context.temp_allocator
@@ -820,17 +871,13 @@ refresh_visit_expression :: proc(
 			}
 			return nil
 		}
-		if signature, signed := refresh_walk_arrow(r, node).?; signed { append(&signatures, signature) }
-	case ^FunctionExpression:
-		if signature, signed := refresh_visit_body(v, node, true).?; signed { append(&signatures, signature) }
-	case ^CallExpression:
-		if v.collect { refresh_note_factory_call(r, node) } else { refresh_note_hook(r, node, declarator) }
-		refresh_visit_expression(v, node.callee, nil, in_chain)
-		for argument in node.arguments {
-			append(&signatures, ..refresh_visit_expression(v, argument))
+		if signature, signed := refresh_walk_arrow(r, node).?; signed {
+			append(&signatures, signature)
 		}
-		// A call inside an optional chain stays as written, so the chain keeps its shape.
-		if in_chain || node.optional { clear(&signatures) }
+	case ^FunctionExpression:
+		if signature, signed := refresh_visit_body(v, node, true).?; signed {
+			append(&signatures, signature)
+		}
 	case ^ClassExpression:          refresh_visit_class(v, node)
 	case ^ObjectExpression:         refresh_visit_object(v, node)
 	case ^ChainExpression:          refresh_visit_expression(v, node.expression, nil, true)
@@ -848,6 +895,12 @@ refresh_visit_expression :: proc(
 		refresh_visit_operands(v, box, in_chain)
 	}
 	if v.collect { return nil }
+	refresh_finish(r, box, signatures[:])
+	return signatures[:]
+}
+
+// Wraps the expression with each signature, then registers it if asked to.
+refresh_finish :: proc(r: ^Refresh, box: ^Expression, signatures: []RefreshSignature) {
 	for signature in signatures { refresh_wrap(r, box, signature) }
 	if handle, registered := r.handles[box]; registered {
 		// `handle = value`, outside any signature wrapper.
@@ -856,15 +909,60 @@ refresh_visit_expression :: proc(
 		inner^ = box^
 		box^ = transform_assignment(r.state, refresh_identifier(r, handle, at), inner, at)^
 	}
-	return signatures[:]
+}
+
+// Binary, logical, member and call chains nest to the left once per link and
+// are not bounded by the parser's depth limit, so they are walked in a loop.
+// The order matches a recursive visit: each call is noted on the way in, the
+// innermost operand is visited, and the other operands follow on the way out.
+refresh_visit_spine :: proc(
+	v: ^RefreshVisitor, top: ^Expression, declarator: ^VariableDeclarator, in_chain: bool,
+) -> []RefreshSignature {
+	r := v.r
+	spine: ExprSpine = ---
+	if !expr_spine_open(&spine, top) { return nil }
+	defer expr_spine_close(&spine)
+	for box, index in spine.nodes {
+		call, is_call := box^.(^CallExpression)
+		if !is_call { continue }
+		if v.collect {
+			refresh_note_factory_call(r, call)
+		} else {
+			refresh_note_hook(r, call, declarator if index == 0 else nil)
+		}
+	}
+	// The flag travels down a member or call chain only; a binary link ends it.
+	chained := in_chain
+	for box in spine.nodes {
+		#partial switch _ in box^ { case ^BinaryExpression, ^LogicalExpression: chained = false }
+	}
+	refresh_visit_expression(v, spine.leaf, nil, chained)
+	result: [dynamic]RefreshSignature
+	result.allocator = context.temp_allocator
+	#reverse for box, index in spine.nodes {
+		#partial switch node in box^ {
+		case ^BinaryExpression:  refresh_visit_expression(v, node.right)
+		case ^LogicalExpression: refresh_visit_expression(v, node.right)
+		case ^MemberExpression:  if node.computed { refresh_visit_expression(v, node.property) }
+		case ^CallExpression:
+			signatures: [dynamic]RefreshSignature
+			signatures.allocator = context.temp_allocator
+			for argument in node.arguments {
+				append(&signatures, ..refresh_visit_expression(v, argument))
+			}
+			// A call inside an optional chain stays as written, so the chain keeps its shape.
+			if in_chain || node.optional { clear(&signatures) }
+			if v.collect { continue }
+			refresh_finish(r, box, signatures[:])
+			if index == 0 { append(&result, ..signatures[:]) }
+		}
+	}
+	return result[:]
 }
 
 // Expressions that are neither functions nor calls: only their operands matter.
 refresh_visit_operands :: proc(v: ^RefreshVisitor, box: ^Expression, in_chain: bool) {
 	#partial switch node in box^ {
-	case ^MemberExpression:
-		refresh_visit_expression(v, node.object, nil, in_chain)
-		if node.computed { refresh_visit_expression(v, node.property) }
 	case ^NewExpression:
 		refresh_visit_expression(v, node.callee)
 		for argument in node.arguments { refresh_visit_expression(v, argument) }
@@ -872,8 +970,6 @@ refresh_visit_operands :: proc(v: ^RefreshVisitor, box: ^Expression, in_chain: b
 		refresh_visit_expression(v, node.test)
 		refresh_visit_expression(v, node.consequent)
 		refresh_visit_expression(v, node.alternate)
-	case ^BinaryExpression, ^LogicalExpression:
-		refresh_visit_infix(v, box)
 	case ^AssignmentExpression:
 		refresh_visit_expression(v, node.left)
 		refresh_visit_expression(v, node.right)
@@ -892,28 +988,10 @@ refresh_visit_operands :: proc(v: ^RefreshVisitor, box: ^Expression, in_chain: b
 	case ^UpdateExpression: refresh_visit_expression(v, node.argument)
 	case ^SpreadElement:    refresh_visit_expression(v, node.argument)
 	case ^AwaitExpression:  refresh_visit_expression(v, node.argument)
-	case ^YieldExpression:  if argument, ok := node.argument.?; ok { refresh_visit_expression(v, argument) }
+	case ^YieldExpression:
+		if argument, ok := node.argument.?; ok { refresh_visit_expression(v, argument) }
 	case ^ImportExpression: refresh_visit_expression(v, node.source)
 	}
-}
-
-// A long chain such as `a + b + c + ...` nests to the left once per operator.
-// Its operands are visited in source order without recursing down that spine.
-refresh_visit_infix :: proc(v: ^RefreshVisitor, box: ^Expression) {
-	rights := make([dynamic]^Expression, 0, 8, context.temp_allocator)
-	current := box
-	for {
-		left, right: ^Expression
-		#partial switch node in current^ {
-		case ^BinaryExpression:  left, right = node.left, node.right
-		case ^LogicalExpression: left, right = node.left, node.right
-		}
-		if left == nil { break }
-		append(&rights, right)
-		current = left
-	}
-	refresh_visit_expression(v, current)
-	for index := len(rights) - 1; index >= 0; index -= 1 { refresh_visit_expression(v, rights[index]) }
 }
 
 refresh_visit_object :: proc(v: ^RefreshVisitor, object: ^ObjectExpression) {
@@ -945,10 +1023,13 @@ refresh_is_method :: proc(r: ^Refresh, property: Property) -> bool {
 refresh_visit_jsx_element :: proc(v: ^RefreshVisitor, element: ^JSXElement) {
 	opening := element.opening_element
 	if opening != nil {
-		if name, plain := opening.name.(JSXIdentifier); plain && v.collect { v.r.used_as_type[name.name] = true }
+		if name, plain := opening.name.(JSXIdentifier); plain && v.collect {
+			v.r.used_as_type[name.name] = true
+		}
 		for attribute in opening.attributes {
 			switch item in attribute {
-			case JSXAttribute:        if value, ok := item.value.?; ok { refresh_visit_expression(v, value) }
+			case JSXAttribute:
+				if value, ok := item.value.?; ok { refresh_visit_expression(v, value) }
 			case ^JSXSpreadAttribute: refresh_visit_expression(v, item.argument)
 			}
 		}

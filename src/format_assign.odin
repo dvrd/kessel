@@ -266,7 +266,10 @@ format_should_break_after_operator :: proc(
 		case ^YieldExpression:
 			argument, present := wrapper.argument.?
 			if present {next = argument}
-		case ^TSNonNullExpression: return false
+		case ^TSNonNullExpression:
+			node = wrapper.expression
+			key = .Expression
+			continue
 		}
 		if next == nil {
 			if _, is_string := inner^.(^StringLiteral); is_string {return true}
@@ -291,12 +294,25 @@ format_is_poorly_breakable_chain :: proc(f: ^FormatContext, expr: ^Expression, d
 	case ^CallExpression:
 		if _, typed := node.type_parameters.?; typed {return false}
 		if len(node.arguments) > 1 {return false}
+		if len(node.arguments) == 1 && node.callee != nil {
+			// An argument that carries a comment is not short.
+			callee_end := get_expression_loc(node.callee).end
+			if callee_end < node.loc.end &&
+			   len(format_comments_in(f, callee_end, node.loc.end)) > 0 {
+				return false
+			}
+		}
 		if len(node.arguments) == 1 && !format_is_lone_short_argument(f, node.arguments[0]) {
 			return false
 		}
 		printed := format_call(f, expr)
 		if printed != nil && printed.label == .Member_Chain {return false}
 		inner, entered := format_expr_enter(f, node.callee, .Callee)
+		if !entered {return false}
+		defer format_path_pop(f)
+		return format_is_poorly_breakable_chain(f, inner, true)
+	case ^TSNonNullExpression:
+		inner, entered := format_expr_enter(f, node.expression, .Expression)
 		if !entered {return false}
 		defer format_path_pop(f)
 		return format_is_poorly_breakable_chain(f, inner, true)

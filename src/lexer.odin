@@ -596,6 +596,15 @@ init_single_char_table :: proc "contextless" () {
 	single_char_tokens['@'] = .At
 }
 
+// Forget the comments recorded at or after `offset` before the lexer rewinds
+// there. The text is either not a comment in its new reading, or is recorded
+// again when it is lexed a second time. Comments are appended in source order.
+lexer_drop_comments_from :: proc(l: ^Lexer, offset: u32) {
+	for len(l.comments) > 0 && l.comments[len(l.comments) - 1].start >= offset {
+		pop(&l.comments)
+	}
+}
+
 relex_as_regex :: proc(l: ^Lexer) {
 	if l.cur.kind != .Div && l.cur.kind != .AssignDiv { return }
 	// Trim any lexer errors that were emitted at or past the current token
@@ -608,6 +617,8 @@ relex_as_regex :: proc(l: ^Lexer) {
 	for len(l.lexer_errors) > 0 && l.lexer_errors[len(l.lexer_errors)-1].offset >= relex_start {
 		pop(&l.lexer_errors)
 	}
+	// Lexing ahead as division can record `/*` inside the pattern as a comment.
+	lexer_drop_comments_from(l, relex_start)
 	l.offset = int(relex_start)
 	start := l.cur.start
 	flags := l.cur.flags

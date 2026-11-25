@@ -181,6 +181,44 @@ format_chain_should_merge :: proc(
 	return named && (format_chain_is_factory(property.name) || has_computed)
 }
 
+// Whether the chain prints one group per line without first trying one
+// line: more than two calls with an argument that is not simple, a group
+// before the last that must break, or a last call that must break while an
+// earlier call takes a function.
+@(private = "file")
+format_chain_must_expand :: proc(
+	links: []FormatChainLink,
+	groups: [][]FormatChainLink,
+	printed_groups: []Doc,
+) -> bool {
+	call_count := 0
+	any_complex_arguments := false
+	function_argument_before_last := false
+	for link, index in links {
+		if !link.is_call {continue}
+		call_count += 1
+		node, is_call := link.node^.(^CallExpression)
+		if !is_call {continue}
+		for argument in node.arguments {
+			if !format_is_simple_call_argument(argument) {any_complex_arguments = true}
+			if index < len(links) - 1 && format_is_function(argument) {
+				function_argument_before_last = true
+			}
+		}
+	}
+	must_expand := call_count > 2 && any_complex_arguments
+	for doc in printed_groups[:len(printed_groups) - 1] {
+		must_expand = must_expand || doc_will_break(doc)
+	}
+	last_group := groups[len(groups) - 1]
+	if last_group[len(last_group) - 1].is_call &&
+	   doc_will_break(printed_groups[len(printed_groups) - 1]) &&
+	   function_argument_before_last {
+		must_expand = true
+	}
+	return must_expand
+}
+
 format_member_chain :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	call := expr^.(^CallExpression)
 	statement_level := format_parent(f).kind == .Expression_Statement
@@ -223,31 +261,7 @@ format_member_chain :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 		fi(f, doc_hardline(), rest) if rest != nil else nil,
 	)
 
-	call_count := 0
-	any_complex_arguments := false
-	function_argument_before_last := false
-	for link, index in links {
-		if !link.is_call {continue}
-		call_count += 1
-		node, is_call := link.node^.(^CallExpression)
-		if !is_call {continue}
-		for argument in node.arguments {
-			if !format_is_simple_call_argument(argument) {any_complex_arguments = true}
-			if index < len(links) - 1 && format_is_function(argument) {
-				function_argument_before_last = true
-			}
-		}
-	}
-	must_expand := call_count > 2 && any_complex_arguments
-	for doc in printed_groups[:len(printed_groups) - 1] {
-		must_expand = must_expand || doc_will_break(doc)
-	}
-	last_group := groups[len(groups) - 1]
-	if last_group[len(last_group) - 1].is_call &&
-	   doc_will_break(printed_groups[len(printed_groups) - 1]) &&
-	   function_argument_before_last {
-		must_expand = true
-	}
+	must_expand := format_chain_must_expand(links[:], groups[:], printed_groups)
 	result: Doc
 	if must_expand {
 		result = doc_group(f, expanded)

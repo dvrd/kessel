@@ -286,12 +286,13 @@ to type-check. Some computed class members and inferred types remain in developm
 `formatSync(filename, source, options?)` returns a string. The filename selects
 the JavaScript or TypeScript grammar. JavaScript statements, expressions and
 classes print in the layout of Prettier 3.8.3, as do comments that stand between
-statements, class members, object properties and switch cases. In TypeScript
-files, data declarations may carry simple annotations such as
-`as const satisfies Project.Config`. A statement retains its original spelling
-when it uses other TypeScript syntax, JSX, decorators, a comment inside an
-expression or a `prettier-ignore` directive, or when Prettier's layout for it
-would change on a second run. Formatting the result again returns it unchanged.
+statements, class members, object properties and switch cases, and block
+comments written inline between arguments or elements. In TypeScript files,
+annotations, return types, `as`, `satisfies` and `!` print when the type is a
+keyword, a plain or dotted name, or an array of those. A statement retains its
+original spelling when it uses other TypeScript syntax, JSX, decorators, a
+comment in another position or a `prettier-ignore` directive, or when
+Prettier's layout for it would change on a second run. Formatting the result again returns it unchanged.
 A parse error throws a `SyntaxError` with a UTF-8 byte `offset`.
 
 ```js
@@ -358,9 +359,12 @@ name lookups.
 
 `target` lowers syntax newer than an ECMAScript edition, from `'es2015'` to
 `'es2024'`. Kessel lowers exponentiation, optional catch binding, optional
-chaining, nullish coalescing, logical assignment and numeric separators.
-Newer syntax it cannot lower, such as class fields below `es2022` or async
-functions below `es2017`, is reported in `errors` and no code is returned.
+chaining, nullish coalescing, logical assignment, numeric separators, and the
+ES2022 class features: public fields, private names, `#x in o` and static
+blocks, and object rest and spread. Newer syntax it cannot lower, such as
+async functions below `es2017`, is reported in `errors` and no code is
+returned. Lowered public fields are defined, as the language specifies;
+`assumptions: { setPublicClassFields: true }` assigns them instead.
 
 ```js
 transformSync('read.ts', 'export const read = (a?: Box) => a?.value ?? 0;', { target: 'es2019' });
@@ -405,6 +409,47 @@ supported optimizer annotations, including webpack, Vite, and Turbopack hints
 on dynamic imports. Pretty output also preserves comments between statements
 and class members, around object literal properties, and inside call,
 constructor, and dynamic import argument lists.
+
+### Bundling
+
+`bundleSync(options)` bundles a module graph from disk and returns the result
+in memory; nothing is written.
+
+```js
+const { bundleSync } = require('@dvrdlibs/kessel');
+
+const result = bundleSync({
+  entry: 'src/main.ts',            // or an array of entries
+  format: 'esm',                   // 'esm' | 'cjs' | 'iife'
+  platform: 'browser',             // 'node' | 'browser'
+  define: { 'process.env.NODE_ENV': '"production"' },
+  external: ['react'],
+  minify: true,
+  sourceMap: true,
+  outdir: 'dist',                  // only makes source-map paths relative to it
+});
+if (result.errors.length) throw new Error(result.errors[0].message);
+for (const file of result.outputs) {
+  // file.fileName is null when there is a single output and you name it.
+}
+```
+
+The result is `{ code, map, outputs, errors, warnings }`. `outputs` lists every
+file as `{ fileName, code, map, entry }`; `code` and `map` are those of the
+first one. A build with errors has no outputs. Diagnostics are
+`{ severity, file, line, column, message }` with one-based positions in the
+file you wrote, also for TypeScript and JSX inputs.
+
+Other options: `splitting` (a chunk per `import()` target), `conditions`,
+`mainFields`, `tsconfig`, `globalName` (iife), `treeShaking`, `target`,
+`decorator: { legacy, emitDecoratorMetadata }` and `jsx` (`'classic'`,
+`'automatic'`, or `{ runtime, pragma, pragmaFrag, importSource, development }`).
+Several entries and `splitting` produce several files and require `'esm'`.
+
+ES modules are scope-hoisted with live bindings and TDZ intact; CommonJS and
+lazily loaded modules keep a wrapper and start where they are first imported.
+Constructs the bundler cannot express, such as top-level await outside an
+entry or direct `eval` in an ES module, are reported in `errors`.
 
 ### Rendering errors
 

@@ -10,6 +10,9 @@ dts_finish :: proc(state: ^DeclarationEmit) {
 	cg.declaration_emit = nil
 	cg.pos, cg.depth, cg.at_line_start = 0, 0, true
 	for item in state.items {
+		if item.selected && item.preamble != "" && !state.regions[item.region].ambient {
+			state.regions[item.region].private_items = true
+		}
 		if !item.selected || item.visibility != .Local || item.text == "" { continue }
 		if state.regions[item.region].ambient { continue }
 		#partial switch s in item.statement {
@@ -78,6 +81,17 @@ dts_declaration_attributes :: proc(
 	return attributes
 }
 
+// TypeScript's emitter wraps a function or constructor type that has its own
+// type parameters when it is the first type argument: `X<(<T>() => T)>`.
+dts_parenthesized_argument :: proc(argument: ^TSType) -> bool {
+	assert(argument != nil)
+	#partial switch ty in argument^ {
+	case ^TSFunctionType: return ty.type_parameters != nil
+	case ^TSConstructorType: return ty.type_parameters != nil
+	}
+	return false
+}
+
 @(private)
 dts_module_indicator :: proc(items: []DeclarationItem) -> bool {
 	assert(len(items) > 0)
@@ -129,6 +143,11 @@ dts_print_group :: proc(state: ^DeclarationEmit, items: []DeclarationItem, regio
 		cg_str(cg, item.text)
 		cg_str(cg, " {" if item.child != 0 else ";")
 	case ^FunctionDeclaration, ^ClassDeclaration, ^TSEnumDeclaration:
+		if item.preamble != "" {
+			dts_prefix(cg, .Local, ambient)
+			cg_str(cg, item.preamble)
+			cg_newline(cg)
+		}
 		dts_prefix(cg, visibility, ambient)
 		cg_str(cg, item.text)
 	case ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration:

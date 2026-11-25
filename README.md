@@ -135,6 +135,13 @@ bin/kessel strip-types app.ts
 bin/kessel transform app.tsx --jsx=classic
 bin/kessel transform app.tsx --jsx=automatic --jsx-import-source=preact
 
+# Bundle a module graph into one file (esm by default; also cjs and iife)
+bin/kessel bundle src/main.ts --outfile dist/main.mjs --sourcemap
+bin/kessel bundle src/main.tsx --platform browser --format iife --global-name App \
+  --define 'process.env.NODE_ENV="production"' --minify --outfile dist/app.js
+# Several entries share their common modules; --splitting also splits at import()
+bin/kessel bundle src/app.ts src/admin.ts --splitting --outdir dist
+
 # Benchmark
 bin/kessel microbench parse app.js --iterations 500
 bin/kessel microbench parse app.js --iterations 500 --ast-only
@@ -147,9 +154,10 @@ bin/kessel server --compact
 declarations, functions, arrow functions, classes, calls, member chains,
 operators, objects, arrays, template literals, destructuring, control flow and
 module syntax. Comments between statements, class members, object properties
-and switch cases move with the code around them. In TypeScript files it also
-formats data declarations with simple type names, qualified names and array
-types, including chained assertions such as `as const satisfies Project.Config`.
+and switch cases move with the code around them, as do block comments written
+inline between call arguments or array elements. In TypeScript files it also
+formats annotations, return types, `as`, `satisfies` and `!` when the type is
+a keyword, a plain or dotted name, or an array of those.
 
 Use `--print-width 60 --single-quote` to wrap at 60 columns and prefer single
 quotes. The defaults are 80 columns and two-space indentation. Use
@@ -157,8 +165,9 @@ quotes. The defaults are 80 columns and two-space indentation. Use
 Prettier. The editor detects the document's line endings automatically.
 
 A statement keeps its original source when the formatter cannot yet print it
-as Prettier would. That covers other TypeScript syntax, JSX, decorators,
-comments inside an expression or a parameter list, and `prettier-ignore`
+as Prettier would. That covers other TypeScript syntax (unions, generics,
+interfaces, type aliases, enums, namespaces, modifiers), JSX, decorators,
+comments in parameter lists, conditions and operands, and `prettier-ignore`
 targets. A statement also keeps its source when Prettier's layout for it would
 change on a second run, so formatting a file twice never changes it. The
 output is parsed again before it is returned.
@@ -197,13 +206,14 @@ Known differences from TypeScript 5.9.3:
   single-file emitter skips those checks and still emits declarations.
 - When a file is already rejected, TypeScript sometimes adds diagnostics that
   come from its type checker, such as TS9007 on an arrow function nested in a
-  call, TS4094 for mixins, or TS9039 for private names. Kessel reports the
-  primary error only.
-- Property assignments to a function (`fn.prop = value`) are diagnosed at the
-  top level of a file or namespace, not inside nested statements or expressions.
-- A generic function type used as a type argument and escapes in template
-  literal types are printed by the shared code generator without TypeScript's
-  parentheses and escape sequences.
+  call, errors on the members of a class expression, or TS4094 for mixins.
+  Kessel reports the primary error only. On the recorded fixtures it never
+  emits a declaration for a file TypeScript rejects, nor the reverse.
+- Private names are diagnosed with TypeScript's code for variables, functions,
+  class members, type aliases and extends clauses. Other owners, such as
+  interface members, report the general TS9039.
+- Escapes in template literal types are printed as their cooked text until
+  the printer's raw-text fix is merged.
 
 The experimental `module-lex` command emits JSON with imports, re-exports,
 `import.meta`, source and defer imports, and export names. Export records
@@ -395,6 +405,57 @@ and runs the snippet above, so it cannot drift from the API.
 | `--json` | Emit errors as JSON instead of the pretty renderer |
 | `--color=<bool>` | Force color on/off (overrides `KESSEL_COLOR` env) |
 
+### Bundling (`kessel bundle`)
+
+`kessel bundle <entry>...` follows every `import`, `export ... from`, literal
+`require()` and literal `import()` from the entries, and writes one file per
+entry plus shared chunks when there are several.
+
+ES modules that are only imported statically are scope-hoisted: their top-level
+statements share one scope, bindings are renamed where they collide, and
+imports refer to the exporting binding directly, so live bindings and TDZ
+behave as they do unbundled. CommonJS modules, and ES modules that must load
+lazily (required, imported dynamically, or imported from another chunk), keep
+a wrapper and start at the position where they are first imported. Unused
+statements and unused modules of `"sideEffects": false` packages are removed.
+TypeScript, JSX and JSON inputs are accepted; every bundle is reparsed and
+checked before it is written.
+
+| Flag | Description |
+|---|---|
+| `--outfile <file>` / `--outdir <dir>` | Destination. Without either a single-file bundle goes to stdout. Several entries and `--splitting` need `--outdir`. |
+| `--format esm\|cjs\|iife` | Output format (default `esm`). Several output files require `esm`. |
+| `--platform node\|browser` | Resolution conditions, `browser` fields and whether Node builtins are external (default `node`). |
+| `--external <name>` | Leave a module unbundled. Covers subpaths; a trailing `*` matches a prefix. Repeatable. |
+| `--splitting` | Put each `import()` target in a chunk of its own. |
+| `--minify` | Run the minifier over each output file. |
+| `--sourcemap` | Write `<file>.map` with the original sources, including through TypeScript, JSX and `--minify`. |
+| `--global-name <name>` | `iife`: the global that receives the entry's exports. |
+| `--define NAME=EXPR` | Replace a global or member name in every input, for example `process.env.NODE_ENV`. Repeatable. |
+| `--target es2015..es2024` | Lower newer syntax in the inputs. |
+| `--decorators legacy`, `--emit-decorator-metadata` | Lower TypeScript experimental decorators. |
+| `--jsx=classic\|automatic`, `--jsx-factory`, `--jsx-fragment`, `--jsx-import-source`, `--jsx-development` | JSX lowering. |
+| `--condition <name>`, `--main-field <name>`, `--tsconfig <file>` | Resolution. |
+| `--no-tree-shaking` | Keep unused statements and modules. |
+
+Differences from running the modules unbundled, all inherent to bundling:
+every module runs in strict mode; a binding renamed to resolve a collision and
+an anonymous default export report the new name through `Function.name`; in
+ESM output external imports evaluate before bundled code; `__filename` and
+`__dirname` name the output file. `--define` replaces names but does not prune
+the branches that become dead; `--minify` folds them afterwards.
+
+Reported as errors rather than bundled wrongly: top-level await outside an
+entry, `export *` from a CommonJS module, direct `eval` in an ES module,
+`import.meta` outside ESM output, TypeScript `import x = require()` and
+`export =`, non-JS loaders such as CSS, entries that import each other in a
+cycle, and an entry that other bundled code imports while exporting a binding
+that is reassigned later.
+
+`task test:bundle` bundles the projects under `tests/bundle/` and requires each
+bundle to log, export and throw exactly what Node does when it runs the
+original modules.
+
 ### Linting (`kessel lint`)
 
 Built-in rules walk the finished AST as pass 4 (opt-in). Most correctness
@@ -489,6 +550,16 @@ null comparisons, or `["error", "always", {"null": "ignore"}]` for a
 null-specific exception. The `null` setting accepts `always`, `ignore`,
 and `never`.
 
+A rule name may carry its oxlint plugin, as in `unicorn/no-new-array`,
+`oxc/erasing-op` or `@typescript-eslint/no-this-alias`. In an `.oxlintrc.json`,
+`categories` and `plugins` select rules the way oxlint does: `correctness` is on
+at `warn` unless the file changes it, the other categories are off, and the
+`typescript`, `unicorn` and `oxc` plugins are active unless `plugins` lists
+others. A category only switches on rules whose diagnostics match the pinned
+oxlint on every compared upstream fixture (`tests/lint/upstream_parity.json`).
+Every other rule still needs its own entry under `rules`. `kessel.lint.json`
+and runs without a config keep Kessel's own defaults.
+
 Enable `no-console` to report reads, calls, and assignments to statically named
 properties on the global console. For example, `["warn", {"allow": ["warn",
 "error"]}]` permits those two methods. Locally declared and imported consoles are exempt.
@@ -567,6 +638,7 @@ task test:release             # Zero-tolerance pre-release chain (~13 min)
 | `task test:codegen:full` | Pretty and minified round trips across spec, ESTree, Babel, test262, and TypeScript (~73K fixtures) |
 | `task test:watch` | CLI watch lifecycle, atomic saves, configuration changes, error recovery, and autofix |
 | `task test:format` | Statement, expression, comment, module and data-literal formatting against Prettier 3.8.3 fixtures, idempotence, source preservation, and CLI errors |
+| `task test:format:reference` | Measure agreement with Prettier 3.8.3 on the release corpus: identical files, top-level statements and statement snippets. Fails if a formatted snippet differs. Set `KESSEL_PRETTIER` when `bench/node_modules` has no `prettier` |
 | `task test:format:real` | Check that formatted files in the 467-file release corpus retain their syntax tree and comments and stay unchanged on a second pass |
 | `task test:transform:reference` | Execute classic and automatic JSX fixtures and compare runtime behavior with the pinned OXC transformer |
 | `task test:bench:regression` | 10 curated files vs baselines, fails on >5% regression |
@@ -659,10 +731,10 @@ results are in the [codegen section](#codegen).
 | 4 | **Linter (`kessel lint`)** | 🚧 Built-in lint rules with a pinned oxlint parity inventory |
 | 5 | Transformer (`kessel transform`, `transformSync`) | TypeScript lowering, classic and automatic JSX runtimes, and build-time global replacements. Target lowering, decorators, and React Refresh remain open. |
 | 6 | Semantic model · CFG · resolver · module lexer · regexp AST | In progress |
-| 7 | Formatter (`kessel fmt`, `formatSync`) | Prints JavaScript statements, expressions and classes in Prettier 3.8.3's layout, with comments that stand between list items. TypeScript syntax, JSX layout, decorators and comments inside expressions remain open and keep their source. |
+| 7 | Formatter (`kessel fmt`, `formatSync`) | Prints JavaScript statements, expressions and classes in Prettier 3.8.3's layout, with comments between list items and simple TypeScript annotations. Other TypeScript syntax, JSX layout, decorators and comments in the remaining positions are open and keep their source. |
 | 8 | Minifier + mangler (`kessel minify`, `minifySync`) | Experimental. Folds JS and JSX numeric and boolean expressions, joins adjacent declarations, and shortens local JS and JSX bindings. Preserves JSX tag semantics and factory pragmas. TypeScript retains its binding names and initializer expressions for type inference. |
 | 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. Compared with TypeScript 5.9.3 on its whole compiler and conformance fixture directories; every emitter difference is recorded in `tests/baselines/dts_typescript_differences.txt`. Files with early errors are rejected, and checker-dependent secondary diagnostics are not reproduced. |
-| 10 | Bundler + language server | The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. Bundling remains planned. |
+| 10 | Bundler (`kessel bundle`, `bundleSync`) + language server | The bundler scope-hoists ES modules, wraps CommonJS and lazily loaded modules, tree-shakes, and writes esm, cjs or iife with source maps; several entries and `--splitting` produce shared chunks in esm. CSS and asset loaders, watch mode and top-level await outside entries remain open. The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. |
 
 Run `task build:vscode` to create an installable VSIX for your platform.
 Run `task test:vscode` to exercise the installed extension in a disposable VS Code profile.

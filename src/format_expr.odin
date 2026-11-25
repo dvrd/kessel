@@ -123,37 +123,22 @@ format_expr :: proc(
 @(private = "file")
 format_expr_inner :: proc(f: ^FormatContext, expr: ^Expression, args: FormatArgs) -> Doc {
 	#partial switch node in expr^ {
-	case ^NullLiteral:
-		return ft(f, "null")
-	case ^BooleanLiteral:
-		return ft(f, "true" if node.value else "false")
-	case ^NumericLiteral:
-		return ft(f, format_number(f, node.raw))
-	case ^BigIntLiteral:
-		return ft(f, strings.to_lower(node.raw, f.alloc))
-	case ^StringLiteral:
-		return format_string_literal(f, node)
-	case ^RegExpLiteral:
-		return format_regexp(f, node)
+	case ^NullLiteral, ^BooleanLiteral, ^NumericLiteral, ^BigIntLiteral, ^StringLiteral,
+	     ^RegExpLiteral:
+		return format_literal(f, expr)
 	case ^TemplateLiteral:
 		return format_template(f, node)
 	case ^TaggedTemplateExpression:
 		return format_tagged_template(f, node)
 	case ^Identifier:
-		if node.has_escape || node.optional {return format_fail(f)}
-		if _, typed := node.type_annotation.?; typed {return format_fail(f)}
+		if node.has_escape {return format_fail(f)}
 		// Outside their functions these parse as plain names, where Prettier's
 		// parser reads a keyword. The statement keeps its text.
 		if node.name == "await" || node.name == "yield" {return format_fail(f)}
-		return ft(f, node.name)
-	case ^PrivateIdentifier:
-		return fc(f, ft(f, "#"), ft(f, node.name))
-	case ^ThisExpression:
-		return ft(f, "this")
-	case ^Super:
-		return ft(f, "super")
-	case ^MetaProperty:
-		return fc(f, ft(f, node.meta.name), ft(f, "."), ft(f, node.property.name))
+		optional := ft(f, "?") if node.optional else nil
+		return fc(f, ft(f, node.name), optional, format_type_annotation(f, node.type_annotation))
+	case ^PrivateIdentifier, ^ThisExpression, ^Super, ^MetaProperty:
+		return format_literal(f, expr)
 	case ^ArrayExpression:
 		return format_array(f, node)
 	case ^ObjectExpression:
@@ -198,8 +183,65 @@ format_expr_inner :: proc(f: ^FormatContext, expr: ^Expression, args: FormatArgs
 		return keyword
 	case ^AwaitExpression:
 		return format_await(f, node)
+	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSNonNullExpression:
+		return format_ts_expression(f, expr)
 	}
 	return format_fail(f)
+}
+
+// Literals and the other expressions that are a single token or name.
+@(private = "file")
+format_literal :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
+	#partial switch node in expr^ {
+	case ^NullLiteral:
+		return ft(f, "null")
+	case ^BooleanLiteral:
+		return ft(f, "true" if node.value else "false")
+	case ^NumericLiteral:
+		return ft(f, format_number(f, node.raw))
+	case ^BigIntLiteral:
+		return ft(f, strings.to_lower(node.raw, f.alloc))
+	case ^StringLiteral:
+		return format_string_literal(f, node)
+	case ^RegExpLiteral:
+		return format_regexp(f, node)
+	case ^PrivateIdentifier:
+		return fc(f, ft(f, "#"), ft(f, node.name))
+	case ^ThisExpression:
+		return ft(f, "this")
+	case ^Super:
+		return ft(f, "super")
+	case ^MetaProperty:
+		return fc(f, ft(f, node.meta.name), ft(f, "."), ft(f, node.property.name))
+	}
+	return format_fail(f)
+}
+
+@(private = "file")
+format_ts_expression :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
+	#partial switch node in expr^ {
+	case ^TSAsExpression:
+		return format_cast(f, node.expression, " as ", node.type_annotation)
+	case ^TSSatisfiesExpression:
+		return format_cast(f, node.expression, " satisfies ", node.type_annotation)
+	case ^TSNonNullExpression:
+		return fc(f, format_expr(f, node.expression, .Expression), ft(f, "!"))
+	}
+	return format_fail(f)
+}
+
+// `value as Type` and `value satisfies Type`. As a callee or the object of a
+// member access the cast is parenthesised, and the parentheses hold the
+// break.
+@(private = "file")
+format_cast :: proc(f: ^FormatContext, value: ^Expression, keyword: string, type: ^TSType) -> Doc {
+	current := format_path_at(f, 0)
+	parent := format_parent(f)
+	is_callee := current.key == .Callee && parent.kind == .Call
+	is_object := current.key == .Object && parent.kind == .Member
+	parts := fc(f, format_expr(f, value, .Expression), ft(f, keyword), format_simple_type(f, type))
+	if is_callee || is_object {return fg(f, fi(f, doc_softline(), parts), doc_softline())}
+	return parts
 }
 
 @(private = "file")

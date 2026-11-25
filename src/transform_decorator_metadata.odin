@@ -138,7 +138,9 @@ metadata_params :: proc(scope: ^MetadataScope, params: []FunctionParameter) -> [
 }
 
 metadata_param :: proc(scope: ^MetadataScope, param: FunctionParameter) -> MetadataType {
-	if rest, variadic := param.pattern.(^RestElement); variadic { return metadata_rest(scope, rest) }
+	if rest, variadic := param.pattern.(^RestElement); variadic {
+		return metadata_rest(scope, rest)
+	}
 	return metadata_annotation(scope, metadata_param_annotation(param.pattern))
 }
 
@@ -289,7 +291,8 @@ metadata_reference :: proc(scope: ^MetadataScope, name: ^Expression) -> Metadata
 			if param.name.name == id.name { return METADATA_OBJECT }
 		}
 	}
-	kinds, type_only, symbol, found := metadata_lookup(transform_model(scope.cg), scope.scope, id.name)
+	model := transform_model(scope.cg)
+	kinds, type_only, symbol, found := metadata_lookup(model, scope.scope, id.name)
 	if found {
 		if type_only || kinds - {.Interface, .TypeAlias} == {} { return METADATA_OBJECT }
 		if segments == 1 {
@@ -330,7 +333,9 @@ metadata_lookup :: proc(
 				found = true
 				kinds += info.kinds
 				if .TypeOnly not_in info.flags { type_only = false }
-				if info.kind == .Class || info.kind == .Enum || symbol == SYMBOL_UNRESOLVED { symbol = id }
+				if info.kind == .Class || info.kind == .Enum || symbol == SYMBOL_UNRESOLVED {
+					symbol = id
+				}
 			}
 		}
 		if found || scope == SCOPE_ROOT { return }

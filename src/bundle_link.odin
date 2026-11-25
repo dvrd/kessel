@@ -24,6 +24,9 @@ bundle_link_wrap :: proc(g: ^BundleGraph) {
 	pending := make([dynamic]i32, g.alloc)
 	for module in g.modules {
 		if module.kind == .CJS { module.wrap = .CJS } else if module.lazy { module.wrap = .ESM }
+		// A module imported from another output file must not run when that
+		// file is loaded, only when its importer reaches the import.
+		if module.kind == .ESM && bundle_imported_across_chunks(g, module) { module.wrap = .ESM }
 		if module.wrap != .None { append(&pending, module.index) }
 	}
 	// Each module enters the list at most once, when its wrap first changes.
@@ -46,7 +49,7 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 		// A module that awaits lets its siblings run in the meantime. A
 		// single-file bundle is sequential, so only the entry, which runs
 		// last, keeps its order.
-		if module.index != 0 {
+		if !module.is_entry {
 			bundle_error(g, module, nil, "top-level await is only supported in the entry module")
 		} else if module.wrap != .None {
 			bundle_error(g, module, nil,
@@ -82,7 +85,7 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 			if module.wrap != .None {
 				bundle_error(g, module, record.loc.start,
 					"'export *' from an external module is not supported in a lazily loaded module")
-			} else if module.index == 0 && g.options.format != .ESM {
+			} else if module.is_entry && g.options.format != .ESM {
 				bundle_error(g, module, record.loc.start,
 					"'export *' from an external module in the entry requires esm output")
 			}
@@ -91,10 +94,35 @@ bundle_link_check_module :: proc(g: ^BundleGraph, module: ^BundleModule) {
 				"'export *' from a CommonJS module is not supported")
 		}
 	}
-	exports := len(module.export_order) + len(module.stars)
-	if module.index == 0 && module.wrap == .ESM && exports != 0 {
-		bundle_error(g, module, nil,
-			"an entry module with exports cannot also be required or imported dynamically")
+	if module.is_entry && module.wrap == .ESM && g.options.format == .ESM {
+		bundle_link_check_lazy_entry(g, module)
+	}
+}
+
+// An entry that other bundled code imports is wrapped, and its file hands
+// its exports on as copies taken once it has run: an export clause cannot
+// name a property of the namespace object. A copy equals a live binding
+// only for a binding that is never assigned again, so anything else is
+// refused rather than exported stale.
+@(private="file")
+bundle_link_check_lazy_entry :: proc(g: ^BundleGraph, entry: ^BundleModule) {
+	for name in bundle_export_names(g, entry) {
+		target := bundle_resolve_hoisted(g, entry, name, 0)
+		constant := target.kind == .Namespace
+		if target.kind == .Symbol {
+			owner := g.modules[target.module]
+			constant = true
+			for ref in owner.model.refs {
+				if ref.kind == .Read || ref.name != target.name { continue }
+				if ref.resolved == SYMBOL_UNRESOLVED { continue }
+				if owner.model.symbols[ref.resolved].scope == SCOPE_ROOT { constant = false }
+			}
+		}
+		if !constant {
+			bundle_error(g, entry, nil,
+				"export '%s' can change after the entry has run, which an entry that other " +
+				"bundled code imports cannot express", name)
+		}
 	}
 }
 

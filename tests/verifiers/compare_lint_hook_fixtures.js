@@ -57,6 +57,14 @@ function stringsInVector(source, label, options) {
   }
 }
 
+// A linked worktree shares the main checkout's sibling Oxc clone.
+function oxcRepository() {
+  if (process.env.KESSEL_OXC_REPO) return path.resolve(process.env.KESSEL_OXC_REPO);
+  const common = execFileSync('git', ['-C', root, 'rev-parse', '--path-format=absolute', '--git-common-dir'],
+    { encoding: 'utf8' }).trim();
+  return path.join(path.dirname(common), '../oxc');
+}
+
 function lint(engine, args, files) {
   const run = spawnSync(engine, [...args, ...files], { cwd: workspace, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   assert.ok([0, 1].includes(run.status), String(run.error || run.stderr || run.stdout));
@@ -78,7 +86,7 @@ function compare(rule, fixtureCount) {
   const category = react ? 'react' : 'eslint';
   const qualified = react ? 'react/' + rule : rule;
   const filename = rule.replaceAll('-', '_') + '.rs';
-  const source = execFileSync('git', ['-C', path.join(root, '../oxc'), 'show',
+  const source = execFileSync('git', ['-C', oxcRepository(), 'show',
     pin.oxc_git_commit + ':crates/oxc_linter/src/rules/' + category + '/' + filename], { encoding: 'utf8' });
   const passOptions = hasOptions ? [] : undefined;
   const failOptions = hasOptions ? [] : undefined;

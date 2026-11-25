@@ -120,6 +120,22 @@ const positive = [
   'import * as E from "effects"; export const run = <E>(input: () => E.Result<E>): E.Result<E> => input();',
   'declare module "m" { import unused = require("fs"); import used = require("g"); export const x: used.T; }',
   'export * from "pkg" with { type: "json" }; export type { R } from "types" with { "resolution-mode": "import" };',
+  // Assignments inside a nested function or an object literal belong to that container.
+  'export function Foo(): void {} function g() { Foo.a = 1 } const z = { p: Foo.b = 2 }; Foo.c ||= 3;',
+  '{ let a = ""; function k() {} } export let b: typeof a; export let c: typeof k;',
+  'function g() { return import.meta.url } var hidden = compute(); export const size: number = 1;',
+  'export function pick<T>() { if (ready) { type U = number; } return null! as T | U }',
+  // A leading generic function type argument is parenthesized, as TypeScript prints it.
+  'export declare const a: X<<T>() => T>; export interface I { p: X<(<U>() => U), <V>(x: V) => V>; q: Array<new <T>() => T>; r: Array<new () => void> }',
+  // An extends clause that is not a name declares a `_base` constant of the inferred type.
+  'const C_base = 1; export class C extends (null) {} export class D extends (load() as Ctor)<string> { p: number = 1 }',
+  'export namespace N { export class C extends ({} as {new(): I}) {} } export default class extends (() => 1) {}',
+  'class C { static constructor() {} }',
+  'interface SymbolConstructor { foo: string } var Symbol: SymbolConstructor; var obj = { [Symbol.foo]: 0 };',
+  'enum E1 { X = Y, X1 = E1["Y"], Y = E1.Z, Y1 = E1["Z"], S = S } enum E1 { Z = 4 }',
+  'global { interface Array<T> { x } } namespace A { declare global { interface Array<T> { y } } }',
+  'var total = 1 + count as number, less = a < b as boolean;',
+  'export const first = (...[a, b]: Bar[]): void => {}; export function size(...{length}: string[]): void {}',
 ];
 const negative = [
   'export const api={get v():number{return 1},set v({x}: {x:number}){}};',
@@ -192,6 +208,28 @@ const negative = [
   'declare var p: number | number[]; declare var s: string; export class C { [p]() {} [s]() {} }',
   'export const o = { [true]: lookup() };',
   'const key = make(); export class C { [key]: number }',
+  // Names that exist in the source scope but not at the declaration's scope.
+  '{ var a = ""; } export let b: typeof a;',
+  'export function bar(): typeof b { var b = 1; return undefined; }',
+  'export function bar() { type T = number; return 1 as T }',
+  'export const o = { m() { type T = number; return (x: T) => 1 }, get g() { type U = 1; return 1 as U } };',
+  '{ var a = ""; } export class C { static m(q: typeof a): typeof a { return q } set s(v: typeof a) {} constructor(public d: typeof a) {} }',
+  '{ var a = class {}; } export class C extends a { p: typeof a; get g(): typeof a { return a } } export type T = typeof a;',
+  'export function Foo(): void {} if (ready) { Foo.a = 1 } call(Foo.b = 2); Foo.c = Foo.d = 3;',
+  'declare namespace app { function foo(): void; } app.foo.bar = 1; app.foo.bar = 2;',
+  'namespace M { export namespace N { export enum E1 { a = 1 } } } export enum E2 { b = M.N.E1.a, c = M.N.E1.a.a }',
+  'await ready; const arr = [load()];',
+  'export class C extends mixin(Base) {} export class D extends (x satisfies Ctor) {}',
+  'declare global { interface Array<T> { x } }',
+  // After a member that cannot be declared, only reusable function nodes are still checked.
+  'var b: any; export var x = { b, a: lookup(), n: { c: lookup() }, d(p) { return 1 }, e: (q) => lookup() };',
+  'var b: any; export var x = { ...b, a: lookup(), d(p) {} };',
+  'declare var s: string; export var x = { [s]: 1, a: lookup(), d() {} };',
+  'export function f(x = 1, y = unknown, w: number): void {}',
+  'enum G { A } export class C { [G.A]() {} }',
+  'export const C = @dec class {}; export class D extends (class { foo() {} }) {}',
+  'export function f({[foo]: bar}: any): void { var foo = 1 }',
+  'export const f = async i => await load(i);',
 ];
 // Differences from TypeScript that are intended. Each entry is a fixture that
 // must still differ: a fixed or newly broken fixture fails the comparison.
@@ -326,9 +364,9 @@ function looseTree(text) {
 }
 // Compare every TypeScript input under a fixture directory. Each difference is
 // classified so that parser rejections stay separate from emitter differences.
-function compareUpstream(directory) {
+function compareUpstream(directory, only) {
   const corpus = path.resolve('tests/vendor/typescript/tests/cases', directory);
-  const filenames = directory === 'compiler/isolatedDeclarations'
+  const filenames = only ? only.slice() : directory === 'compiler/isolatedDeclarations'
     ? fs.readdirSync(path.dirname(corpus)).filter(name => /^isolatedDeclaration.*\.tsx?$/.test(name))
     : fs.readdirSync(corpus, { recursive: true }).filter(name => /\.tsx?$/.test(name) && !/\.d\.ts$/.test(name));
   const root = directory === 'compiler/isolatedDeclarations' ? path.dirname(corpus) : corpus;
@@ -391,6 +429,29 @@ function checkUpstream(directory) {
   for (const gap of unexpected) console.log('Difference in ' + gap);
   for (const gap of stale) console.log('Documented difference no longer occurs in ' + gap);
   return unexpected.length === 0 && stale.length === 0;
+}
+// Upstream inputs that once produced unparseable or silently wrong output.
+// They must keep matching TypeScript exactly, whatever the broad list records.
+const pinned = {
+  compiler: [
+    'specializedLambdaTypeArguments.ts', 'importTypeWithUnparenthesizedGenericFunctionParsed.ts',
+    'contextualReturnTypeOfIIFE2.ts', 'declarationEmitNestedAnonymousMappedType.ts',
+    'declarationEmitVarInElidedBlock.ts', 'enumBasics3.ts', 'functionVariableInReturnTypeAnnotation.ts',
+  ],
+  conformance: ['externalModules/topLevelAwaitNonModule.ts'],
+};
+function checkPinned() {
+  let matched = 0;
+  let total = 0;
+  for (const directory of Object.keys(pinned)) {
+    const result = compareUpstream(directory, pinned[directory]);
+    total += result.count;
+    matched += result.count - result.gaps.length;
+    for (const gap of result.gaps) console.log('Pinned input differs: ' + directory + '/' + gap.key);
+  }
+  assert.ok(total >= 8, 'every pinned fixture must be present');
+  console.log(matched + '/' + total + ' pinned upstream inputs matched.');
+  return matched === total;
 }
 // The whole compiler and conformance directories are far larger than the
 // focused suites. A checked-in list names every input where the emitter (not
@@ -459,6 +520,7 @@ try {
   if (process.argv.includes('--corpus')) {
     checkAccessorTypes();
     if (!checkUpstream('compiler/isolatedDeclarations')) process.exitCode = 1;
+    if (!checkPinned()) process.exitCode = 1;
   }
   if (process.argv.includes('--broad') && !checkBroad(process.argv.includes('--update'))) process.exitCode = 1;
   if (process.argv.includes('--namespaces') && !checkUpstream('conformance/internalModules')) process.exitCode = 1;

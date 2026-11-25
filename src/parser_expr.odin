@@ -243,14 +243,25 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		return left
 	}
 
-	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
-	left = #force_inline parse_expr_ts_type_postfix(p, left, start)
+	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only). The
+	// operators have relational precedence and associate to the left, so
+	// `1 + x as T` is `(1 + x) as T`. An operand parsed for a tighter
+	// operator leaves the keyword for the enclosing call's loop below.
+	type_postfix_allowed := int(min_prec) <= int(Precedence.Relational)
+	if type_postfix_allowed {
+		left = #force_inline parse_expr_ts_type_postfix(p, left, start)
+	}
 
 	for {
 		if left == nil {
 			return nil
 		}
 		cur_type := p.cur_type
+
+		if type_postfix_allowed && (cur_type == .As || cur_type == .Satisfies) {
+			left = parse_expr_ts_type_postfix(p, left, start)
+			continue
+		}
 
 		// Skip 'in' as binary op when parsing for-loop init
 		if p.ctx.no_in && cur_type == .In {
@@ -2006,10 +2017,11 @@ parse_primary_async :: proc(p: ^Parser) -> ^Expression {
 			// `async functionX ()` loses `functionX` entirely.
 			snap_async := lexer_snapshot(p)
 			snap_errs := len(p.errors)
+			async_start := cur_offset(p)
 			eat(p) // consume async
 			param_ident := parse_identifier(p)
 			if is_token(p, .Arrow) {
-				return parse_async_arrow_function(p, param_ident)
+				return parse_async_arrow_function(p, param_ident, async_start)
 			}
 			// Not an arrow — roll back to just after `async`, let the
 			// LHS-tail / expression parser handle the next tokens.
@@ -4413,6 +4425,24 @@ expr_to_pattern_array :: proc(p: ^Parser, e: ^ArrayExpression) -> (Pattern, bool
 	return ap, true
 }
 
+// With parentheses preserved, a destructuring assignment keeps the wrapper
+// around a nested target. §13.15.1 allows it around an identifier or a member
+// expression (`[(a)] = b`, `({k: (o.p)} = b)`), never around a nested pattern.
+parenthesized_assignment_target_is_simple :: proc(p: ^Parser, wrapper: ^ParenthesizedExpression) -> bool {
+	if !p.ctx.in_assignment_target_convert { return false }
+	inner := wrapper.expression
+	for inner != nil {
+		nested, is_paren := inner^.(^ParenthesizedExpression)
+		if !is_paren || nested == nil { break }
+		inner = nested.expression
+	}
+	if inner == nil { return false }
+	#partial switch _ in inner^ {
+	case ^Identifier, ^MemberExpression: return true
+	}
+	return false
+}
+
 expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	if expr == nil { return nil, false }
 	#partial switch e in expr^ {
@@ -4452,7 +4482,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// conversion (in_nested_pattern_convert is set by the Array/Object
 		// cases above). Top-level paren-around-identifier is OK.
 		if e == nil { return nil, false }
-		if p.ctx.in_nested_pattern_convert {
+		if p.ctx.in_nested_pattern_convert && !parenthesized_assignment_target_is_simple(p, e) {
 			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Binding element cannot be parenthesized")
 		}
 		return expr_to_pattern(p, e.expression)
@@ -5504,7 +5534,10 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// TS-escape-hatch wrappers would trigger the "Invalid destructuring
 	// assignment target" error added to expr_to_pattern's default arm.
 	if op == .Assign && is_destructure_target_candidate(left) {
+		previous := p.ctx.in_assignment_target_convert
+		p.ctx.in_assignment_target_convert = true
 		_, _ = expr_to_pattern(p, left)
+		p.ctx.in_assignment_target_convert = previous
 	}
 
 	// LHS validity per §13.15. Only runs AFTER right is parsed so error

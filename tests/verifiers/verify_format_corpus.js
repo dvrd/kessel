@@ -60,14 +60,62 @@ function syntaxField(key, node) {
 }
 
 // Parentheses that only group are not part of the tree, so the parser is
-// asked not to record them. A change that regroups operands still shows up
-// as a different tree.
+// asked not to record them on either side. Everything else is compared
+// exactly, so a change that regroups operands is a different tree. The
+// self-test below proves that.
 function syntaxDigest(filename, source) {
   const { program, comments, errors } = parseSync(filename, source, { preserveParens: false });
   assert.deepEqual(errors, [], filename);
   return checksum(JSON.stringify([program, comments], syntaxField));
 }
 
+// The comparison is only worth something if it fails when meaning changes.
+// Each pair below differs in grouping, in a statement or in a comment and
+// must produce different digests. Each allowed respelling must not.
+function selfTest() {
+  const different = [
+    ['a - (b - c);', 'a - b - c;'],
+    ['(a + b) * c;', 'a + b * c;'],
+    ['a || (b && c);', '(a || b) && c;'],
+    ['a || (b || c);', 'a || b || c;'],
+    ['(a?.b).c;', 'a?.b.c;'],
+    ['(a, b);', 'a; b;'],
+    ['f((a, b));', 'f(a, b);'],
+    ['a(); b();', 'a();'],
+    ['if (a) ; else b();', 'if (a) b();'],
+    ['for (;;) ;', 'for (;;) {}'],
+    ['a(); // note', 'a();'],
+    ['a(); // note', 'a(); // other'],
+    ['/* one */ a();', '// one\na();'],
+    ['/*\n * kept\n */ a();', '/*\n * changed\n */ a();'],
+    ['/* a  b */ c();', '/* a b */ c();'],
+    ['({ [a]: 1 });', '({ a: 1 });'],
+    ['({ a() {} });', '({ a: function () {} });'],
+    ['/a/g;', '/a/i;'],
+    ['1;', '2;'],
+    ['"a";', '"b";'],
+    ['`a`;', '`a `;'],
+  ];
+  for (const [before, after] of different) {
+    assert.notEqual(syntaxDigest('self.js', before), syntaxDigest('self.js', after), before + ' vs ' + after);
+  }
+  const same = [
+    ['((a)) + (b);', 'a + b;'],
+    ['a - (b * c);', 'a - b * c;'],
+    ['a();;', 'a();'],
+    ['/a/gi;', '/a/ig;'],
+    ['({ "a": 1, "2": 3 });', '({ a: 1, 2: 3 });'],
+    ["'a';", '"a";'],
+    ['0XFF;', '0xff;'],
+    ['a(); // note  ', 'a(); // note'],
+    ['    /**\n       * Doc.\n       */\na();', '/**\n * Doc.\n */\na();'],
+  ];
+  for (const [before, after] of same) {
+    assert.equal(syntaxDigest('self.js', before), syntaxDigest('self.js', after), before + ' vs ' + after);
+  }
+}
+
+selfTest();
 assert.equal(bench('oxc-parser/package.json').version, oxc_parser_npm);
 const files = readChecksums();
 let changed = 0;

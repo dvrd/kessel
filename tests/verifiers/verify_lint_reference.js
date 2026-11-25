@@ -25,3 +25,9 @@ if (corpus) {
   const verifier = path.join(__dirname, 'compare_lint_flow_corpus.js');
   execFileSync(process.execPath, [verifier, binary, oracle], { stdio: 'inherit' });
 }
+// Every rule recorded in tests/lint/upstream_parity.json must reproduce its numbers.
+if (upstream || corpus) {
+  const verifier = path.join(__dirname, 'compare_lint_rule_fixtures.js');
+  const flags = [...(corpus ? ['--corpus'] : []), ...(upstream ? [] : ['--no-fixtures'])];
+  execFileSync(process.execPath, [verifier, binary, oracle, ...flags], { stdio: 'inherit' });
+}

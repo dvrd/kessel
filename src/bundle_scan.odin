@@ -369,6 +369,8 @@ bundle_walk_class :: proc(scan: ^BundleScan, class: ^ClassExpression) {
 	}
 }
 
+// The operands of a call other than its callee. Returns after recording a
+// literal require(), whose only argument is the specifier.
 @(private="file")
 bundle_walk_call :: proc(scan: ^BundleScan, slot: ^Expression, call: ^CallExpression) {
 	module := scan.module
@@ -388,7 +390,6 @@ bundle_walk_call :: proc(scan: ^BundleScan, slot: ^Expression, call: ^CallExpres
 				"this require() call is not a string literal and stays unbundled")
 		}
 	}
-	bundle_walk_expression(scan, call.callee)
 	for argument in call.arguments { bundle_walk_expression(scan, argument) }
 }
 
@@ -399,22 +400,26 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 	scan.depth += 1
 	defer scan.depth -= 1
 	module := scan.module
-	// Long `a + b + c` chains nest on the left. Iterate down that spine so
-	// thousands of operands do not consume thousands of stack frames.
-	slot := slot
-	for {
-		#partial switch node in slot^ {
-		case ^BinaryExpression:
-			bundle_walk_expression(scan, node.right)
-			slot = node.left
-			continue
-		case ^LogicalExpression:
-			bundle_walk_expression(scan, node.right)
-			slot = node.left
-			continue
-		}
-		break
+	// `a + b + c`, `a.b.c` and `a()()` nest on one side without limit: the
+	// parser builds them in a loop. Walk that spine in a loop too, so a
+	// million terms do not need a million stack frames. The other operands
+	// of each chain node are bounded by the parser's nesting limit.
+	spine: ExprSpine
+	if !expr_spine_open(&spine, slot, scan.g.alloc) {
+		scan.too_deep = true
+		return
 	}
+	defer expr_spine_close(&spine)
+	for chain_slot in spine.nodes {
+		#partial switch node in chain_slot^ {
+		case ^BinaryExpression:  bundle_walk_expression(scan, node.right)
+		case ^LogicalExpression: bundle_walk_expression(scan, node.right)
+		case ^MemberExpression:
+			if node.computed { bundle_walk_expression(scan, node.property) }
+		case ^CallExpression:    bundle_walk_call(scan, chain_slot, node)
+		}
+	}
+	slot := spine.leaf
 	if slot == nil { return }
 	#partial switch node in slot^ {
 	case ^ThisExpression:
@@ -434,7 +439,6 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 			bundle_walk_expression(scan, node.source)
 		}
 		bundle_walk_expression(scan, node.options)
-	case ^CallExpression: bundle_walk_call(scan, slot, node)
 	case ^FunctionExpression: bundle_walk_function(scan, node)
 	case ^ClassExpression:    bundle_walk_class(scan, node)
 	case ^ArrowFunctionExpression:
@@ -477,9 +481,6 @@ bundle_walk_children :: proc(scan: ^BundleScan, slot: ^Expression) {
 	case ^ParenthesizedExpression: bundle_walk_expression(scan, node.expression)
 	case ^YieldExpression:
 		if argument, ok := node.argument.?; ok { bundle_walk_expression(scan, argument) }
-	case ^MemberExpression:
-		bundle_walk_expression(scan, node.object)
-		if node.computed { bundle_walk_expression(scan, node.property) }
 	case ^ConditionalExpression:
 		bundle_walk_expression(scan, node.test)
 		bundle_walk_expression(scan, node.consequent)

@@ -1,0 +1,7 @@
+{
+  "expected": "expected.txt",
+  "args": [
+    "--jsx=automatic",
+    "--jsx-development"
+  ]
+}
