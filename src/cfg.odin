@@ -123,8 +123,8 @@ cfg_add_edge :: proc(g: ^CFG, from, to: BlockId, kind: EdgeKind) {
 // cfg_first_terminator lets statement-list consumers query reachability
 // without allocating a graph when they only need its first abrupt exit.
 cfg_first_terminator :: proc(body: []^Statement, alloc: mem.Allocator) -> (index: int, found: bool) {
-	for statement, index in body {
-		if cfg_is_terminator(statement, alloc) { return index, true }
+	for statement, statement_index in body {
+		if cfg_is_terminator(statement, alloc) { return statement_index, true }
 	}
 	return 0, false
 }

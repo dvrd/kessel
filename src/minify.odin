@@ -60,7 +60,7 @@ minify_constant :: proc(root: ^Expression) -> (MinifyConstant, bool) {
 	values: [limit]MinifyConstant
 	pending, count := 1, 0
 	frames[0] = {root, false}
-	for step in 0..<limit {
+	for _ in 0..<limit {
 		if pending == 0 { break }
 		pending -= 1
 		frame := frames[pending]

@@ -158,16 +158,16 @@ module_resolver_tsconfig_read :: proc(filename, project_dir: string, allocator: 
 module_resolver_tsconfig_parents :: proc(root: json.Object, allocator: mem.Allocator) -> ([]string, ModuleResolveError) {
 	value, exists := root["extends"]
 	if !exists { return nil, .None }
-	#partial switch value in value {
+	#partial switch variant in value {
 	case json.String:
 		single, err := make([]string, 1, allocator)
 		if err != nil { return nil, .Allocation_Error }
-		single[0] = string(value)
+		single[0] = string(variant)
 		return single, .None
 	case json.Array:
-		parents, err := make([]string, len(value), allocator)
+		parents, err := make([]string, len(variant), allocator)
 		if err != nil { return nil, .Allocation_Error }
-		for item, index in value {
+		for item, index in variant {
 			text, ok := item.(json.String)
 			if !ok { return nil, .Invalid_TSConfig }
 			parents[index] = string(text)
@@ -242,7 +242,7 @@ module_resolver_tsconfig_options :: proc(
 		options.base_url = string(value)
 		options.has_base_url = true
 	}
-	if roots, exists := raw["rootDirs"]; exists {
+	if roots, exists_inner := raw["rootDirs"]; exists_inner {
 		list, err := module_resolver_tsconfig_roots(roots, origin, project_dir, allocator)
 		if err != .None { return {}, err }
 		options.root_dirs = list
@@ -250,9 +250,9 @@ module_resolver_tsconfig_options :: proc(
 	if paths, has_paths := raw["paths"]; has_paths {
 		table, valid := paths.(json.Object)
 		if !valid { return {}, .Invalid_TSConfig }
-		for pattern, value in table {
+		for pattern, targets in table {
 			if strings.count(pattern, "*") > 1 { return {}, .Invalid_TSConfig }
-			targets, array_ok := value.(json.Array)
+			targets, array_ok := targets.(json.Array)
 			if !array_ok || len(targets) == 0 { return {}, .Invalid_TSConfig }
 			for target in targets {
 				text, string_ok := target.(json.String)

@@ -96,10 +96,19 @@ tasks:
   #   4. pin optionalDependencies and publish @dvrdlibs/kessel.
   # There is no local release task on purpose — single source of truth.
 
+  check:vet:
+    desc: Type-check the sources with -vet on every release target and the wasm playground.
+    cmds:
+      - odin check {{.SRC}} -vet
+      - for: [darwin_amd64, linux_amd64, linux_arm64, windows_amd64]
+        cmd: odin check {{.SRC}} -vet -no-entry-point -target:{{.ITEM}}
+      - odin check playground/native -no-entry-point -target:wasi_wasm32
+
   test:
     desc: "Primary gate — coverage snap gate (50K+ fixtures) + unit fixtures."
     silent: false
     cmds:
+      - task: check:vet
       - task: test:coverage
       - task: test:unit
       - task: test:lint

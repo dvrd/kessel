@@ -1613,7 +1613,6 @@ ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 		if inner == nil { return false }
 		for stmt in inner.body {
 			if stmt == nil { continue }
-			actual := stmt
 			if exp, ok := stmt^.(^ExportNamedDeclaration); ok && exp != nil {
 				if d, have_d := exp.declaration.(^Declaration); have_d && d != nil {
 					#partial switch _ in d^ {
@@ -4674,7 +4673,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			// TS2784 — get/set accessors cannot declare 'this' parameter.
 			if (elem.kind == .Get || elem.kind == .Set) && ck_is_ts(ctx) {
 				if len(fn.params) > 0 {
-					if id, ok := fn.params[0].pattern.(^Identifier); ok && id != nil && id.name == "this" {
+					if id, found := fn.params[0].pattern.(^Identifier); found && id != nil && id.name == "this" {
 						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "'get' and 'set' accessors cannot declare 'this' parameters")
 					}
 				}
@@ -4682,7 +4681,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			// TS1051 — set accessor cannot have optional parameter.
 			if elem.kind == .Set && ck_is_ts(ctx) {
 				for param in fn.params {
-					if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
+					if id, found := param.pattern.(^Identifier); found && id != nil && id.optional {
 						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have an optional parameter")
 					}
 				}

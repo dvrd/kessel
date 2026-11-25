@@ -1,8 +1,9 @@
 package kessel
 
 import "core:mem"
-import mvirtual "core:mem/virtual"
 import "core:strings"
+// Used only by the wasm32 build, where the check arena lives in a fixed buffer.
+@(require) import mvirtual "core:mem/virtual"
 
 FORMAT_SCRATCH_BLOCK_BYTES :: 1 << 20
 

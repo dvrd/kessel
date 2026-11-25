@@ -410,9 +410,9 @@ lint_dependency_check_call :: proc(l: ^Linter, index: ^LintDependencyModel, site
 			lint_dependency_check_array(l, index, site, render, binding.body, array, is_effect)
 			return
 		}
-		id, named := deps^.(^Identifier)
+		id, is_identifier := deps^.(^Identifier)
 		ref := index.references[get_expression_loc(deps).start]
-		if !named || id.name != "undefined" || (ref != nil && ref.resolved != SYMBOL_UNRESOLVED) {
+		if !is_identifier || id.name != "undefined" || (ref != nil && ref.resolved != SYMBOL_UNRESOLVED) {
 			lint_dependency_report(l, get_expression_loc(deps), fmt.tprintf("React Hook %s was passed a dependency list that is not an array literal.", hook))
 		}
 	}

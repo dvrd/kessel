@@ -1,7 +1,6 @@
 package kessel
 
 import "core:fmt"
-import "core:strings"
 
 // ============================================================================
 // Expressions
@@ -2229,7 +2228,6 @@ parse_primary_lparen :: proc(p: ^Parser) -> ^Expression {
 // JSX element disambiguation, TS type assertions, and the JS error
 // case. Split out of parse_primary_expr.
 parse_primary_langle :: proc(p: ^Parser) -> ^Expression {
-	current := snap_current(p)
 	// Dispatch depends on language mode:
 	//   TS  → TS type assertion `<Type>expr` or generic arrow
 	//          `<T>(x) => x`. No JSX ambiguity in pure TS mode.
@@ -2455,7 +2453,6 @@ parse_primary_identifier :: proc(p: ^Parser) -> ^Expression {
 // parse_primary_at handles a leading `@` decorator that prefixes a class
 // expression (`@dec class {}`), parsing the decorator list then the class.
 parse_primary_at :: proc(p: ^Parser) -> ^Expression {
-	current := snap_current(p)
 	// Decorator on a class expression: `@dec class {}`. Same
 	// `parse_decorators` walker as the statement-position decorated
 	// class. Decorator-on-expression is the stage-3 form (only
@@ -3466,7 +3463,6 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	                         (p.lexer.nxt.kind == .Identifier || is_keyword_usable_as_property_name(p.lexer.nxt.kind) || p.lexer.nxt.kind == .LBrace)
 	if can_be_binding_identifier(p.cur_type) && !is_implements_keyword {
 		current := snap_current(p)
-		name_tok_type := p.cur_type
 		id = BindingIdentifier{
 			loc  = loc_from_token(&current),
 			name = current.value,

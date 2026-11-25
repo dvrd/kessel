@@ -38,9 +38,9 @@ lint_equality_options :: proc(options: []json.Value) -> (LintEqualityOptions, bo
 
 lint_equality_operand :: proc(expr: ^Expression) -> LintEqualityOperand {
 	// Grouping does not change what kind of value an operand produces.
-	expr := lint_unparen(expr)
-	if expr == nil { return .Other }
-	#partial switch v in expr^ {
+	inner := lint_unparen(expr)
+	if inner == nil { return .Other }
+	#partial switch v in inner^ {
 	case ^UnaryExpression: if v != nil && v.operator == .Typeof { return .Typeof }
 	case ^NullLiteral: return .Null
 	case ^BooleanLiteral: return .Boolean

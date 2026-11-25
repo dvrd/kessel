@@ -1,8 +1,6 @@
 package kessel
 
-import "core:mem"
 import "core:fmt"
-import "core:strings"
 
 // ============================================================================
 // TypeScript Type Parsing (Phase 3)
@@ -1817,7 +1815,6 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	if p.cur_type == .Div || p.cur_type == .AssignDiv {
 		relex_as_regex(p.lexer)
 		p.cur_type = p.lexer.cur.kind
-		ft := p.lexer.cur
 	}
 	expr := parse_unary_expr(p)
 	if expr == nil {

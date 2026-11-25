@@ -148,9 +148,9 @@ rest_loop_head :: proc(
 		head := rest_bind(
 			cg, .Const, transform_identifier(state, name, at)^.(^Identifier), name, at,
 		)
-		declaration := head^.(^VariableDeclaration)
-		declaration.declarations[0].init = nil
-		left_decl^ = declaration
+		head_declaration := head^.(^VariableDeclaration)
+		head_declaration.declarations[0].init = nil
+		left_decl^ = head_declaration
 		left_expr^ = nil
 	} else {
 		return

@@ -17,7 +17,6 @@ package kessel
 // ============================================================================
 
 import "core:mem"
-import "core:math"
 
 // ============================================================================
 // Node type IDs — shared between Odin emitter and JS reader.
@@ -373,7 +372,7 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		if d, ok := s.init_decl.?; ok && d != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_var_decl(be, d)
-		} else if e, ok := s.init_expr.?; ok && e != nil {
+		} else if e, found := s.init_expr.?; found && e != nil {
 			bw_u8(be, u8(BinValType.Node))
 			bin_emit_expression(be, e)
 		} else {
@@ -396,7 +395,7 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bin_node_header(be, .ForInStatement, s.loc)
 		if d, ok := s.left_decl.?; ok && d != nil {
 			bin_emit_var_decl(be, d)
-		} else if e, ok := s.left_expr.?; ok && e != nil {
+		} else if e, found := s.left_expr.?; found && e != nil {
 			bin_emit_expression(be, e)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
@@ -408,7 +407,7 @@ bin_emit_statement :: proc(be: ^BinaryEmitter, stmt: ^Statement) {
 		bw_bool(be, s.await)
 		if d, ok := s.left_decl.?; ok && d != nil {
 			bin_emit_var_decl(be, d)
-		} else if e, ok := s.left_expr.?; ok && e != nil {
+		} else if e, found := s.left_expr.?; found && e != nil {
 			bin_emit_expression(be, e)
 		} else {
 			bw_u8(be, u8(BinValType.NullNode))
