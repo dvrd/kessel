@@ -274,6 +274,13 @@ format_cast :: proc(f: ^FormatContext, value: ^Expression, keyword: string, type
 	parent := format_parent(f)
 	is_callee := current.key == .Callee && parent.kind == .Call
 	is_object := current.key == .Object && parent.kind == .Member
+	// TypeScript does not read `as` on a new line as a cast, and the parser
+	// does. The statement keeps its lines so that its meaning cannot change.
+	type_loc := get_ts_type_loc(type)
+	value_end := get_expression_loc(value).end
+	if type_loc == nil || format_has_newline_in_range(f.source, value_end, type_loc.start) {
+		return format_fail(f)
+	}
 	target := format_type(f, type, .Type_Annotation)
 	parts := fc(f, format_expr(f, value, .Expression), ft(f, keyword), target)
 	if is_callee || is_object {return fg(f, fi(f, doc_softline(), parts), doc_softline())}
@@ -447,6 +454,21 @@ format_await :: proc(f: ^FormatContext, node: ^AwaitExpression) -> Doc {
 	return fg(f, wrapped)
 }
 
+// One branch of a conditional. A block comment after the `?` or `:` in
+// front of it leads it. `before` is what precedes the branch.
+@(private = "file")
+format_conditional_branch :: proc(
+	f: ^FormatContext,
+	expr, before: ^Expression,
+	key: FormatKey,
+) -> Doc {
+	printed := format_expr(f, expr, key)
+	start, end := get_expression_loc(before).end, get_expression_loc(expr).start
+	printed = fc(f, format_operand_leading_comments(f, start, end), printed)
+	if f.options.use_tabs {return doc_indent(f, printed)}
+	return doc_align(f, 2, printed)
+}
+
 // Nested conditionals in the alternate position form a flat chain of
 // `test ? value : test ? value : value` lines.
 @(private = "file")
@@ -476,21 +498,16 @@ format_conditional :: proc(f: ^FormatContext, node: ^ConditionalExpression) -> D
 		return format_conditional_jsx(f, node, parent == chain_parent, is_alternate, is_parent_test)
 	}
 	_, consequent_nested := consequent^.(^ConditionalExpression)
-	branch :: proc(f: ^FormatContext, expr: ^Expression, key: FormatKey) -> Doc {
-		printed := format_expr(f, expr, key)
-		if f.options.use_tabs {return doc_indent(f, printed)}
-		return doc_align(f, 2, printed)
-	}
 	part := fc(
 		f,
 		doc_line(),
 		ft(f, "? "),
 		doc_if_break(f, nil, ft(f, "(")) if consequent_nested else nil,
-		branch(f, node.consequent, .Consequent),
+		format_conditional_branch(f, node.consequent, node.test, .Consequent),
 		doc_if_break(f, nil, ft(f, ")")) if consequent_nested else nil,
 		doc_line(),
 		ft(f, ": "),
-		branch(f, node.alternate, .Alternate),
+		format_conditional_branch(f, node.alternate, node.consequent, .Alternate),
 	)
 	if parent_is_conditional && !is_alternate && !is_parent_test {
 		if f.options.use_tabs {

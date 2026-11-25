@@ -36,15 +36,24 @@ format_binary_parts :: proc(
 		f.failed = true
 		return
 	}
-	if format_is_binaryish(left_inner) && format_should_flatten(node, left_inner) {
+	flattened := format_is_binaryish(left_inner) && format_should_flatten(node, left_inner)
+	left_end, right_start := get_expression_loc(left).end, get_expression_loc(right).start
+	// Where the operator starts, unless the left side ends in parentheses.
+	operator_start := u32(format_next_code_index(f.source, left_end))
+	if operator_start >= right_start || f.source[operator_start] == ')' {operator_start = left_end}
+	if flattened {
 		if _, entered := format_expr_enter(f, left, .Left); !entered {return}
 		format_binary_parts(f, parts, inside_parens)
 		format_path_pop(f)
 	} else {
-		append(parts, doc_group(f, format_expr(f, left, .Left)))
+		// `a /* note */ && b`: the comment trails the left operand.
+		trailing := format_operand_trailing_comments(f, left_end, operator_start)
+		append(parts, doc_group(f, fc(f, format_expr(f, left, .Left), trailing)))
 	}
 	operator := ft(f, format_binary_operator_text(node))
 	right_doc := format_expr(f, right, .Right)
+	leading_start := left_end if flattened else operator_start
+	right_doc = fc(f, format_operand_leading_comments(f, leading_start, right_start), right_doc)
 	tail: Doc
 	if format_should_inline_logical(node) {
 		tail = fc(f, operator, ft(f, " "), right_doc)

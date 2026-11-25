@@ -186,7 +186,10 @@ format_object_method :: proc(f: ^FormatContext, property: ^Property) -> Doc {
 // constructor that declares properties in its parameters lists them one per
 // line once there is more than one parameter.
 format_method_value :: proc(f: ^FormatContext, function: ^FunctionExpression) -> Doc {
-	parameters := format_function_params(f, function.params[:], false)
+	body_start := function.body.loc.start
+	header := format_params_header(function.loc.start, body_start, function.return_type)
+	if function.no_body {header = {}}
+	parameters := format_function_params(f, function.params[:], false, nil, header)
 	returned := format_return_type(f, function.return_type)
 	returned_type := format_annotation_type(function.return_type)
 	count := len(function.params)

@@ -85,7 +85,7 @@ format_stmt :: proc(f: ^FormatContext, stmt: ^Statement, key: FormatKey) -> Doc 
 		return fg(
 			f,
 			ft(f, "while ("),
-			fg(f, fi(f, doc_softline(), format_expr(f, node.test, .Test)), doc_softline()),
+			fg(f, fi(f, doc_softline(), format_test(f, node.test, .Test)), doc_softline()),
 			ft(f, ")"),
 			format_clause(f, node.body, .Body),
 		)
@@ -156,7 +156,7 @@ format_if :: proc(f: ^FormatContext, node: ^IfStatement) -> Doc {
 	opening := fg(
 		f,
 		ft(f, "if ("),
-		fg(f, fi(f, doc_softline(), format_expr(f, node.test, .Test)), doc_softline()),
+		fg(f, fi(f, doc_softline(), format_test(f, node.test, .Test)), doc_softline()),
 		ft(f, ")"),
 		format_clause(f, node.consequent, .Consequent),
 	)
@@ -182,7 +182,7 @@ format_do_while :: proc(f: ^FormatContext, node: ^DoWhileStatement) -> Doc {
 		fg(f, ft(f, "do"), clause),
 		separator,
 		ft(f, "while ("),
-		fg(f, fi(f, doc_softline(), format_expr(f, node.test, .Test)), doc_softline()),
+		fg(f, fi(f, doc_softline(), format_test(f, node.test, .Test)), doc_softline()),
 		ft(f, ");"),
 	)
 }
@@ -274,7 +274,7 @@ format_switch :: proc(f: ^FormatContext, node: ^SwitchStatement) -> Doc {
 	head := fg(
 		f,
 		ft(f, "switch ("),
-		fi(f, doc_softline(), format_expr(f, node.discriminant, .Discriminant)),
+		fi(f, doc_softline(), format_test(f, node.discriminant, .Discriminant)),
 		doc_softline(),
 		ft(f, ")"),
 	)
@@ -366,6 +366,10 @@ format_try :: proc(f: ^FormatContext, node: ^TryStatement) -> Doc {
 		if !format_path_push(f, {kind = .Catch_Clause, key = .Handler}) {return nil}
 		append(&parts, ft(f, " catch "))
 		if param, has_param := handler.param.?; has_param {
+			// The parser reads a type annotation here and does not keep it,
+			// so anything but the closing parenthesis keeps the statement.
+			after := f.source[get_pattern_loc(param).end:handler.body.loc.start]
+			if strings.trim_space(after) != ")" {f.failed = true}
 			append(&parts, ft(f, "("), format_pattern(f, param, .Param), ft(f, ") "))
 		}
 		// Only a handler that ends the statement may print as `{}`.
@@ -459,7 +463,6 @@ FormatListBounds :: struct {
 // ends a variable declaration at its last initializer unless the semicolon
 // follows directly, so `var a = 1 /* note */;` has its comment after the
 // statement and prints it after the semicolon.
-@(private = "file")
 format_statement_comment_end :: proc(f: ^FormatContext, stmt: ^Statement, loc: Loc) -> u32 {
 	declaration, is_declaration := stmt^.(^VariableDeclaration)
 	if !is_declaration || len(declaration.declarations) == 0 {return loc.end}
@@ -528,6 +531,10 @@ format_return_argument :: proc(f: ^FormatContext, argument: ^Expression) -> Doc 
 	doc := format_expr(f, argument, .Argument)
 	inner := format_expr_unwrap(argument)
 	if inner == nil {return format_fail(f)}
+	// `return /* why */ value;`: the comment leads the value.
+	keyword_start := get_statement_loc(format_path_at(f, 0).stmt).start
+	argument_start := get_expression_loc(argument).start
+	doc = fc(f, format_operand_leading_comments(f, keyword_start, argument_start), doc)
 	#partial switch _ in inner^ {
 	case ^BinaryExpression, ^LogicalExpression:
 		doc = fg(
@@ -594,6 +601,14 @@ format_variable_declarator :: proc(f: ^FormatContext, node: ^VariableDeclarator)
 		return nil
 	}
 	defer format_path_pop(f)
+	// `var count /* none */;`: without a value the comment trails the name.
+	trailing: Doc
+	if _, has_value := node.init.?; !has_value {
+		stop := u32(format_next_code_index(f.source, node.loc.end))
+		if int(stop) < len(f.source) && (f.source[stop] == ',' || f.source[stop] == ';') {
+			trailing = format_operand_trailing_comments(f, node.loc.end, stop)
+		}
+	}
 	left: Doc
 	if node.definite {
 		// `let name!: Type`: the mark sits between the name and its annotation.
@@ -604,16 +619,14 @@ format_variable_declarator :: proc(f: ^FormatContext, node: ^VariableDeclarator)
 		left = format_pattern(f, node.id, .Id)
 	}
 	init, _ := node.init.?
-	return format_assignment_like(
-		f,
-		FormatAssignment {
-			kind = .Declarator,
-			declarator = node,
-			left = left,
-			left_end = get_pattern_loc(node.id).end,
-			right = init,
-		},
-	)
+	assignment := FormatAssignment {
+		kind       = .Declarator,
+		declarator = node,
+		left       = left,
+		left_end   = get_pattern_loc(node.id).end,
+		right      = init,
+	}
+	return fc(f, format_assignment_like(f, assignment), trailing)
 }
 
 @(private = "file")

@@ -66,6 +66,12 @@ format_member_is_new_callee :: proc(f: ^FormatContext) -> bool {
 format_member_lookup :: proc(f: ^FormatContext, node: ^MemberExpression) -> Doc {
 	property := format_expr(f, node.property, .Property)
 	if !node.computed {return fc(f, ft(f, "?." if node.optional else "."), property)}
+	// `heap[1 /* SMALLEST */]`: the comment trails the index.
+	if node.loc.end > 0 && f.source[node.loc.end - 1] == ']' {
+		index_end := get_expression_loc(node.property).end
+		trailing := format_operand_trailing_comments(f, index_end, node.loc.end - 1)
+		property = fc(f, property, trailing)
+	}
 	optional := ft(f, "?.") if node.optional else nil
 	inner := format_expr_unwrap(node.property)
 	if inner != nil {

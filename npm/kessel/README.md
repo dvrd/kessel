@@ -284,14 +284,13 @@ to type-check. Some computed class members and inferred types remain in developm
 ### Formatting
 
 `formatSync(filename, source, options?)` returns a string. The filename selects
-the JavaScript or TypeScript grammar. JavaScript statements, expressions and
-classes print in the layout of Prettier 3.8.3, as do comments that stand between
-statements, class members, object properties and switch cases, and block
-comments written inline between arguments or elements. In TypeScript files,
-annotations, return types, `as`, `satisfies` and `!` print when the type is a
-keyword, a plain or dotted name, or an array of those. A statement retains its
-original spelling when it uses other TypeScript syntax, JSX, decorators, a
-comment in another position or a `prettier-ignore` directive, or when
+the JavaScript or TypeScript grammar. JavaScript, TypeScript and JSX print in
+the layout of Prettier 3.8.3, as do comments that stand between statements,
+class members, object properties, switch cases and type members, and block
+comments written inline between arguments, elements, parameters and operands.
+A statement retains its original spelling when it has a comment in another
+position, a decorator in front of `export`, a template that Prettier formats
+as another language or a `prettier-ignore` directive, or when
 Prettier's layout for it would change on a second run. Formatting the result again returns it unchanged.
 A parse error throws a `SyntaxError` with a UTF-8 byte `offset`.
 

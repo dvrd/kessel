@@ -521,7 +521,10 @@ format_statement_doc :: proc(
 	}
 	// A comment that no printer placed would be lost. The statement then
 	// keeps its original text.
+	// A comment between the last initializer and the semicolon prints after
+	// the statement, with the comments around it.
 	loc := get_statement_loc(statement)
-	if f.comments_printed != len(format_comments_in(f, loc.start, loc.end)) {f.failed = true}
+	end := format_statement_comment_end(f, statement, loc)
+	if f.comments_printed != len(format_comments_in(f, loc.start, end)) {f.failed = true}
 	return doc, !f.failed && doc != nil
 }

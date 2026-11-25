@@ -235,8 +235,7 @@ format_type_inner :: proc(f: ^FormatContext, type: ^TSType) -> Doc {
 	case ^TSInferType:
 		return fc(f, ft(f, "infer "), format_type_parameter(f, &node.type_parameter))
 	case ^TSTypeQuery:
-		name := format_type_name(f, node.expr_name)
-		return fc(f, ft(f, "typeof "), name, format_type_arguments(f, node.type_parameters))
+		return format_type_query(f, node)
 	case ^TSIndexedAccessType:
 		object := format_type(f, node.object_type, .Object_Type)
 		index := format_type(f, node.index_type, .Index_Type)
@@ -264,6 +263,21 @@ format_type_inner :: proc(f: ^FormatContext, type: ^TSType) -> Doc {
 		return format_import_type(f, node)
 	}
 	return format_fail(f)
+}
+
+// `typeof name<Args>`. TypeScript does not read `<…>` on a new line as
+// the type arguments of `typeof x`, and the parser does, so such a type
+// keeps its lines.
+@(private = "file")
+format_type_query :: proc(f: ^FormatContext, node: ^TSTypeQuery) -> Doc {
+	if arguments, generic := node.type_parameters.?; generic && arguments != nil {
+		name_end := get_expression_loc(node.expr_name).end
+		if format_has_newline_in_range(f.source, name_end, arguments.loc.start) {
+			return format_fail(f)
+		}
+	}
+	name := format_type_name(f, node.expr_name)
+	return fc(f, ft(f, "typeof "), name, format_type_arguments(f, node.type_parameters))
 }
 
 // `label?: Type` in a tuple. The parser stores `...label: Type` as a label

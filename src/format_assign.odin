@@ -62,16 +62,16 @@ format_assignment_like :: proc(f: ^FormatContext, assignment: FormatAssignment) 
 		right_start := get_expression_loc(assignment.right).start
 		if assignment.left_end < right_start &&
 		   len(format_comments_in(f, assignment.left_end, right_start)) > 0 {
-			// Calls are the values that carry annotations such as
-			// `/*#__PURE__*/`, and their printers never ask about their
-			// own comments. Other values keep the statement as written.
+			// Functions and classes lay out differently when a comment
+			// leads them, by rules that are not ported.
 			value := format_expr_strip(assignment.right)
 			#partial switch _ in value^ {
-			case ^CallExpression, ^NewExpression:
-			case: return format_fail(f)
+			case ^ArrowFunctionExpression, ^FunctionExpression, ^ClassExpression, ^JSXElement,
+			     ^JSXFragment:
+				return format_fail(f)
 			}
 			operator_end := format_assignment_operator_end(f, assignment.left_end, right_start)
-			leading := format_inline_leading_comments(f, operator_end, right_start)
+			leading := format_operand_leading_comments(f, operator_end, right_start)
 			right = fc(f, leading, right)
 		}
 	}

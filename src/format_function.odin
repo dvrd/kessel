@@ -36,7 +36,11 @@ format_function_signature :: proc(
 	node: ^FunctionExpression,
 	expand_arg: bool,
 ) -> Doc {
-	parameters := format_function_params(f, node.params[:], expand_arg)
+	// The span that holds the parameter list. A declaration without a body
+	// has no known end for it, so comments there keep the statement as written.
+	header := format_params_header(node.loc.start, node.body.loc.start, node.return_type)
+	if node.no_body {header = {}}
+	parameters := format_function_params(f, node.params[:], expand_arg, nil, header)
 	returned := format_return_type(f, node.return_type)
 	returned_type := format_annotation_type(node.return_type)
 	if format_should_group_params(node.type_parameters, len(node.params), returned_type, returned) {
@@ -273,6 +277,7 @@ format_function_params :: proc(
 	params: []FunctionParameter,
 	expand_arg: bool,
 	type_parameters: Doc = nil,
+	header: Loc = {},
 ) -> Doc {
 	count := len(params)
 	list := FormatParams {
@@ -283,6 +288,10 @@ format_function_params :: proc(
 	}
 	saved_pattern, saved_type := f.hug_pattern, f.hug_type
 	defer f.hug_pattern, f.hug_type = saved_pattern, saved_type
+	// A parameter that carries a comment does not hug.
+	has_comments := header.start < header.end
+	has_comments = has_comments && len(format_comments_in(f, header.start, header.end)) > 0
+	list.hug_only = list.hug_only && !has_comments
 	if list.hug_only {
 		// A decorated parameter does not hug.
 		start := params[0].loc.start
@@ -306,7 +315,56 @@ format_function_params :: proc(
 		list.ends[index] = param.loc.end
 	}
 	if count > 0 {_, list.has_rest = params[count - 1].pattern.(^RestElement)}
+	if has_comments {
+		if count == 0 {return format_empty_params_comment(f, header, type_parameters)}
+		format_param_comments(f, params, header, list.docs)
+	}
 	return format_params_layout(f, list, expand_arg)
+}
+
+// `function (/* none */) {}`: one block comment alone between the
+// parentheses prints there.
+@(private = "file")
+format_empty_params_comment :: proc(f: ^FormatContext, header: Loc, generics: Doc) -> Doc {
+	in_header := format_comments_in(f, header.start, header.end)
+	if len(in_header) != 1 {return format_fail(f)}
+	comment := in_header[0]
+	before := strings.trim_right(f.source[header.start:comment.start], " \t")
+	after := strings.trim_left(f.source[comment.end:header.end], " \t")
+	supported := format_comment_is_block(f, comment) && format_comment_is_supported(f, comment)
+	supported = supported && strings.has_suffix(before, "(") && strings.has_prefix(after, ")")
+	supported = supported && !strings.contains_any(f.source[comment.start:comment.end], "\r\n")
+	if !supported {return format_fail(f)}
+	format_comment_mark(f, comment)
+	return fc(f, generics, ft(f, "("), format_comment_contents(f, comment), ft(f, ")"))
+}
+
+// Attaches the block comments written beside parameters on their lines:
+// one after a comma or the opening parenthesis leads the parameter that
+// follows it, and one after a parameter trails it.
+@(private = "file")
+format_param_comments :: proc(
+	f: ^FormatContext,
+	params: []FunctionParameter,
+	header: Loc,
+	docs: []Doc,
+) {
+	lower := header.start
+	for param, index in params {
+		start := param.loc.start
+		if param.modifier_start != 0 {start = min(start, param.modifier_start)}
+		leading := format_operand_leading_comments(f, lower, start)
+		// The comma or parenthesis that ends the parameter bounds its comments.
+		stop := u32(format_next_code_index(f.source, param.loc.end))
+		trailing: Doc
+		if int(stop) < len(f.source) && (f.source[stop] == ',' || f.source[stop] == ')') {
+			trailing = format_operand_trailing_comments(f, param.loc.end, stop)
+			lower = stop + 1
+		} else {
+			lower = param.loc.end
+		}
+		docs[index] = fc(f, leading, docs[index], trailing)
+	}
 }
 
 // Lays out a parameter list. The path holds the function, and its parent
@@ -377,8 +435,32 @@ format_arrow_signature :: proc(
 		returned = doc_group(f, doc_remove_lines(f, returned))
 	}
 	generics := format_type_parameters(f, node.type_parameters)
-	params := fg(f, format_function_params(f, node.params[:], expand_arg, generics), returned)
+	header := format_params_header(node.loc.start, format_arrow_body_start(node), node.return_type)
+	parameters := format_function_params(f, node.params[:], expand_arg, generics, header)
+	params := fg(f, parameters, returned)
 	return fc(f, ft(f, "async ") if node.async else nil, params)
+}
+
+// The span in which a function's parameter list lies: from where the
+// function starts to its return type or, without one, its body. Comments in
+// a return type belong to the type.
+format_params_header :: proc(
+	start, body_start: u32,
+	return_type: Maybe(^TSTypeAnnotation),
+) -> Loc {
+	if annotation, typed := return_type.?; typed && annotation != nil {
+		return {start, min(annotation.loc.start, body_start)}
+	}
+	return {start, body_start}
+}
+
+@(private = "file")
+format_arrow_body_start :: proc(node: ^ArrowFunctionExpression) -> u32 {
+	switch body in node.body {
+	case ^BlockStatement: return body.loc.start
+	case ^Expression: return get_expression_loc(body).start
+	}
+	return node.loc.start
 }
 
 // A conditional body is wrapped in parentheses when it stays on one line,

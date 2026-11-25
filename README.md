@@ -150,14 +150,17 @@ bin/kessel microbench parse app.js --iterations 500 --ast-only
 bin/kessel server --compact
 ```
 
-`kessel fmt <file>` prints JavaScript in the layout of Prettier 3.8.3. It formats
-declarations, functions, arrow functions, classes, calls, member chains,
-operators, objects, arrays, template literals, destructuring, control flow and
-module syntax. Comments between statements, class members, object properties
-and switch cases move with the code around them, as do block comments written
-inline between call arguments or array elements. In TypeScript files it also
-formats annotations, return types, `as`, `satisfies` and `!` when the type is
-a keyword, a plain or dotted name, or an array of those.
+`kessel fmt <file>` prints JavaScript, TypeScript and JSX in the layout of
+Prettier 3.8.3. It formats declarations, functions, arrow functions, classes,
+calls, member chains, operators, objects, arrays, template literals,
+destructuring, control flow and module syntax. In TypeScript files it formats
+types (unions, intersections, tuples, function, object, mapped and conditional
+types), generics, interfaces, type aliases, enums, namespaces, `declare` forms,
+class modifiers and decorators. In JSX it formats elements, attributes and
+children, wrapping text like a paragraph. Comments between statements, class
+members, object properties, switch cases and type members move with the code
+around them, as do block comments written inline between call arguments, array
+elements, parameters and operands.
 
 Use `--print-width 60 --single-quote` to wrap at 60 columns and prefer single
 quotes. The defaults are 80 columns and two-space indentation. Use
@@ -165,10 +168,10 @@ quotes. The defaults are 80 columns and two-space indentation. Use
 Prettier. The editor detects the document's line endings automatically.
 
 A statement keeps its original source when the formatter cannot yet print it
-as Prettier would. That covers other TypeScript syntax (unions, generics,
-interfaces, type aliases, enums, namespaces, modifiers), JSX, decorators,
-comments in parameter lists, conditions and operands, and `prettier-ignore`
-targets. A statement also keeps its source when Prettier's layout for it would
+as Prettier would. That covers comments inside types and JSX tags, line
+comments inside expressions, decorators in front of `export`, templates that
+Prettier formats as CSS, GraphQL or HTML, and `prettier-ignore` targets. A
+statement also keeps its source when Prettier's layout for it would
 change on a second run, so formatting a file twice never changes it. The
 output is parsed again before it is returned.
 
@@ -731,7 +734,7 @@ results are in the [codegen section](#codegen).
 | 4 | **Linter (`kessel lint`)** | 🚧 Built-in lint rules with a pinned oxlint parity inventory |
 | 5 | Transformer (`kessel transform`, `transformSync`) | TypeScript lowering, classic and automatic JSX runtimes, and build-time global replacements. Target lowering, decorators, and React Refresh remain open. |
 | 6 | Semantic model · CFG · resolver · module lexer · regexp AST | In progress |
-| 7 | Formatter (`kessel fmt`, `formatSync`) | Prints JavaScript statements, expressions and classes in Prettier 3.8.3's layout, with comments between list items and simple TypeScript annotations. Other TypeScript syntax, JSX layout, decorators and comments in the remaining positions are open and keep their source. |
+| 7 | Formatter (`kessel fmt`, `formatSync`) | Prints JavaScript, TypeScript and JSX in Prettier 3.8.3's layout, with comments between list items and inline block comments beside operands and parameters. Comments in the remaining positions are open and keep their source. |
 | 8 | Minifier + mangler (`kessel minify`, `minifySync`) | Experimental. Folds JS and JSX numeric and boolean expressions, joins adjacent declarations, and shortens local JS and JSX bindings. Preserves JSX tag semantics and factory pragmas. TypeScript retains its binding names and initializer expressions for type inference. |
 | 9 | Isolated declarations (`kessel dts`, `isolatedDeclarationSync`) | Experimental. Compared with TypeScript 5.9.3 on its whole compiler and conformance fixture directories; every emitter difference is recorded in `tests/baselines/dts_typescript_differences.txt`. Files with early errors are rejected, and checker-dependent secondary diagnostics are not reproduced. |
 | 10 | Bundler (`kessel bundle`, `bundleSync`) + language server | The bundler scope-hoists ES modules, wraps CommonJS and lazily loaded modules, tree-shakes, and writes esm, cjs or iife with source maps; several entries and `--splitting` produce shared chunks in esm. CSS and asset loaders, watch mode and top-level await outside entries remain open. The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. |

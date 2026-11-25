@@ -7,7 +7,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const fixtures = [...require('../format/modules.json'), ...require('../format/data.json'),
   ...require('../format/statements.json'), ...require('../format/typescript.json'),
-  ...require('../format/jsx.json')];
+  ...require('../format/jsx.json'), ...require('../format/comments.json')];
 const { prettier_npm } = require('../../OXC_ORACLE.json');
 
 const binary = process.env.KESSEL_BIN || path.resolve(__dirname, '../../bin/kessel');
@@ -71,15 +71,15 @@ async function main() {
   // whose Prettier layout would regroup operands or depend on parentheses
   // that the parser does not record.
   const preserved = [
-    'const flags={ enabled: /* configured */ true };',
+    'const flags={ enabled: /* configured\n */ true };',
     '// prettier-ignore\nconst data = [  [1,  2], [3,4] ];',
     '// prettier-ignore\nimport { x,  y }from\'p\';',
     '/* prettier-ignore */\n/* reason */\nexport {x,  y}from\'p\';',
     'import { x, /* grouped names */ y }from\'p\';',
     'import "line\\\ncontinuation";',
-    'function  f( a /* first */ ){ return  a }',
-    'const  total = first + /* why */ second;',
-    'var  count /* none */;',
+    'function  f( a // first\n){ return  a }',
+    'const  total = first + // why\n second;',
+    'var  count // none\n;',
     'type  Pair<T>=[T, /* second */ T];',
     'function  union( a:number| /* or */ string ) { return a }',
     'const  sure = value as /* really */ Shape<number>;',

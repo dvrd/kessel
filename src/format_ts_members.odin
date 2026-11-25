@@ -211,7 +211,7 @@ format_signature :: proc(f: ^FormatContext, signature: ^TSSignature, terminator:
 		head := fc(
 			f,
 			prefix,
-			format_property_key(f, node.key, node.computed),
+			format_method_signature_key(f, node.key, node.computed),
 			ft(f, "?") if node.optional else nil,
 		)
 		rest := format_signature_tail(f, node.type_parameters, node.params[:], node.return_type)
@@ -226,6 +226,17 @@ format_signature :: proc(f: ^FormatContext, signature: ^TSSignature, terminator:
 		return fc(f, format_index_signature(f, &node), terminator)
 	}
 	return format_fail(f)
+}
+
+// The name of a method signature. Unlike a property's, it keeps its quotes.
+@(private = "file")
+format_method_signature_key :: proc(f: ^FormatContext, key: ^Expression, computed: bool) -> Doc {
+	if key == nil {return format_fail(f)}
+	if !computed {
+		literal, quoted := key^.(^StringLiteral)
+		if quoted {return format_string_literal(f, literal)}
+	}
+	return format_property_key(f, key, computed)
 }
 
 // The parameters and return type of a method, call or construct signature.
