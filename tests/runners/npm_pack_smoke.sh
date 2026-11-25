@@ -167,7 +167,8 @@ createRequire(require.resolve('@dvrdlibs/kessel'))('koffi').load(null);
 const { parseAsync, scanModuleSync, minifySync } = await import('@dvrdlibs/kessel');
 const optimized = minifySync('unsaved.js', 'function sum(longInput){return longInput + 6 * 7;}', {sourceMap: true});
 assert.deepEqual(optimized.errors, []);
-assert.equal(optimized.code, 'function sum(a){return a+42;}');
+// The minifier picks the shortest name and may drop the final semicolon.
+assert.match(optimized.code, /^function sum\(([A-Za-z$_])\)\{return \1\+42;?\}$/);
 assert.deepEqual(optimized.map.sources, ['unsaved.js']);
 const element = minifySync('unsaved.jsx', 'function view(factory, LongItem){return <LongItem/>;}', {
   jsx: { pragma: 'factory.render' },
