@@ -170,7 +170,8 @@ async function verifyTools(page) {
   await show('Minified');
   await status('Minified.');
   const minified = await view.textContent();
-  assert.match(minified, /^export function total\(([a-z]),([a-z])\)\{return \(\1\+\2\)\*1024\}$/);
+  // Same bytes as `kessel minify`, which prints no space after `return`.
+  assert.match(minified, /^export function total\(([a-z]),([a-z])\)\{return\(\1\+\2\)\*1024\}$/);
   assert.equal(await downloadedText(page, 'Download minified', 'minified.js'), minified);
 
   // A declaration file needs TypeScript, and a tool that cannot run reports
