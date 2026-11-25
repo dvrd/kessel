@@ -1216,7 +1216,10 @@ try {
     const lowered = transformSync('chain.ts', 'export const read = (a: any) => a?.b ?? 1_000;', { target: 'es2019' });
     assert.deepEqual(lowered.errors, []);
     assert.doesNotMatch(lowered.code, /\?\.|\?\?|_000/);
-    assert.match(transformSync('wait.js', 'async function f() {}', { target: 'es2016' }).errors[0].message, /async functions/);
+    const waited = transformSync('wait.js', 'async function f() { await 1; }', { target: 'es2016' });
+    assert.deepEqual(waited.errors, []);
+    assert.match(waited.code, /function\* ?\(\) \{\s*yield 1;/);
+    assert.match(transformSync('big.js', 'const n = 1n;', { target: 'es2019' }).errors[0].message, /BigInt/);
     const fields = 'class B { set x(v) { globalThis.set = v; } } class C extends B { x = 1; #y = 2; static z = this.name; y() { return this.#y; } }\n' +
       'globalThis.out = [Object.keys(new C()).join(), new C().y(), C.z];';
     for (const [assumptions, expected] of [[undefined, { out: ['x', 2, 'C'] }], [{ setPublicClassFields: true }, { set: 1, out: ['', 2, 'C'] }]]) {
