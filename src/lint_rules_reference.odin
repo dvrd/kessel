@@ -73,37 +73,47 @@ lint_member_is_private :: proc(member: ^MemberExpression) -> bool {
 	return private
 }
 
+// Two references are compared link by link in a loop: member chains nest on
+// the object side without limit, so there is one iteration per link and no
+// recursion along the chain.
 lint_same_reference :: proc(l: ^Linter, a, b: ^Expression) -> bool {
-	if !lint_compare_enter(l) { return false }
-	defer l.compare_depth -= 1
 	left, right := lint_inner(a), lint_inner(b)
-	if left == nil || right == nil { return false }
-	#partial switch first in left^ {
-	case ^Super:
-		_, same := right^.(^Super)
-		return same
-	case ^ThisExpression:
-		_, same := right^.(^ThisExpression)
-		return same
-	case ^Identifier:
-		second := lint_identifier(right)
-		return second != nil && first.name == second.name
+	for left != nil && right != nil {
+		#partial switch first in left^ {
+		case ^Super:
+			_, same := right^.(^Super)
+			return same
+		case ^ThisExpression:
+			_, same := right^.(^ThisExpression)
+			return same
+		case ^Identifier:
+			second := lint_identifier(right)
+			return second != nil && first.name == second.name
+		}
+		first, second := lint_member_of(left), lint_member_of(right)
+		if first == nil || second == nil || !lint_same_member_link(l, first, second) { return false }
+		left, right = lint_inner(first.object), lint_inner(second.object)
 	}
-	first, second := lint_member_of(left), lint_member_of(right)
-	return first != nil && second != nil && lint_same_member(l, first, second)
+	return false
 }
 
-lint_same_member :: proc(l: ^Linter, first, second: ^MemberExpression) -> bool {
+// Whether two member accesses name the same property, leaving their objects
+// to the caller. A computed key is an operand, bounded by the nesting limit.
+lint_same_member_link :: proc(l: ^Linter, first, second: ^MemberExpression) -> bool {
 	if l.options.self_assign_skip_props { return false }
 	name, static := lint_static_property_name(first)
 	other, other_static := lint_static_property_name(second)
-	if static && other_static && name == other { return lint_same_reference(l, first.object, second.object) }
-	if first.computed != second.computed || !lint_same_reference(l, first.object, second.object) { return false }
+	if static && other_static && name == other { return true }
+	if first.computed != second.computed { return false }
 	if first.computed { return lint_same_reference(l, first.property, second.property) }
 	if lint_member_is_private(first) && lint_member_is_private(second) {
 		return first.property^.(^PrivateIdentifier).name == second.property^.(^PrivateIdentifier).name
 	}
 	return false
+}
+
+lint_same_member :: proc(l: ^Linter, first, second: ^MemberExpression) -> bool {
+	return lint_same_member_link(l, first, second) && lint_same_reference(l, first.object, second.object)
 }
 
 lint_check_self_assign :: proc(l: ^Linter, e: ^AssignmentExpression) {

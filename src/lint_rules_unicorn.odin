@@ -375,9 +375,16 @@ lint_check_set_size_references :: proc(l: ^Linter, model: ^SemanticModel, refere
 // no-useless-length-check
 // ---------------------------------------------------------------------------
 
-lint_flatten_logical :: proc(out: ^[dynamic]^Expression, node: ^LogicalExpression) {
-	// The left spine of `a && b && c` is unbounded, so it is followed in a
-	// loop. Right operands nest within the parser's limit and may recurse.
+// One operand of a flattened `&&`/`||` chain. `nodes` is the number of
+// logical expressions of the chain that contain both this operand and the
+// one before it. The reference visits each of those nodes and reports the
+// pair once per visit, so the pair is reported that many times.
+LintChainOperand :: struct { expr: ^Expression, nodes: u32 }
+
+// Flattens the whole chain once, from its topmost node. The left spine is
+// unbounded and is followed in a loop. A right operand that continues the
+// chain is grouped by parentheses, so that recursion is bounded.
+lint_flatten_logical :: proc(out: ^[dynamic]LintChainOperand, node: ^LogicalExpression, depth: u32) {
 	links := make([dynamic]^LogicalExpression, 0, 4, context.temp_allocator)
 	current := node
 	for {
@@ -387,14 +394,17 @@ lint_flatten_logical :: proc(out: ^[dynamic]^Expression, node: ^LogicalExpressio
 		if !is_logical || nested.operator != node.operator { break }
 		current = nested
 	}
-	append(out, links[len(links) - 1].left)
-	#reverse for link in links {
+	append(out, LintChainOperand{links[len(links) - 1].left, 0})
+	#reverse for link, index in links {
+		containing := depth + u32(index) + 1
+		first := len(out)
 		inner := lint_unparen(link.right)
 		if nested, is_logical := inner^.(^LogicalExpression); is_logical && nested.operator == node.operator {
-			lint_flatten_logical(out, nested)
+			lint_flatten_logical(out, nested, containing)
 		} else {
-			append(out, link.right)
+			append(out, LintChainOperand{link.right, 0})
 		}
+		out[first].nodes = containing
 	}
 }
 
@@ -434,14 +444,25 @@ lint_length_operand :: proc(expr: ^Expression, every: bool) -> (kind: LintLength
 // the method already gives that answer for an empty array.
 lint_check_useless_length :: proc(l: ^Linter, e: ^LogicalExpression) {
 	if e.operator == .NullishCoalescing || !lint_rule_enabled(l, .L6010_NoUselessLengthCheck) { return }
-	operands := make([dynamic]^Expression, 0, 4, context.temp_allocator)
-	lint_flatten_logical(&operands, e)
+	// Only the topmost node of a chain does the work, so a chain of n operands
+	// is flattened once instead of once per node.
+	for index := len(l.ancestors) - 2; index >= 0; index -= 1 {
+		parent, is_expr := l.ancestors[index].(^Expression)
+		if !is_expr { break }
+		if _, paren := parent^.(^ParenthesizedExpression); paren { continue }
+		if outer, is_logical := parent^.(^LogicalExpression); is_logical && outer.operator == e.operator { return }
+		break
+	}
+	operands := make([dynamic]LintChainOperand, 0, 4, context.temp_allocator)
+	lint_flatten_logical(&operands, e, 0)
 	every := e.operator == .Or
 	for index in 1..<len(operands) {
-		first, name, first_fits, first_loc := lint_length_operand(operands[index - 1], every)
-		second, other, second_fits, second_loc := lint_length_operand(operands[index], every)
+		first, name, first_fits, first_loc := lint_length_operand(operands[index - 1].expr, every)
+		second, other, second_fits, second_loc := lint_length_operand(operands[index].expr, every)
 		if first == .Abort || second == .Abort || first == second { continue }
 		if first == .Other || second == .Other || !first_fits || !second_fits || name != other { continue }
-		lint_emit(l, first_loc if first == .Length_Check else second_loc, .L6010_NoUselessLengthCheck)
+		for _ in 0..<operands[index].nodes {
+			lint_emit(l, first_loc if first == .Length_Check else second_loc, .L6010_NoUselessLengthCheck)
+		}
 	}
 }

@@ -36,6 +36,7 @@ LintRuleOptions :: struct {
 	labels_allow_switch:         bool, // no-labels allowSwitch
 	multi_assign_ignore_non_declaration: bool, // no-multi-assign ignoreNonDeclaration
 	plusplus_allow_for:          bool, // no-plusplus allowForLoopAfterthoughts
+	triple_slash: struct { lib, path, types: LintReferenceOption }, // triple-slash-reference
 }
 
 lint_rule_takes_options :: proc(rule: LintRule) -> bool {
@@ -44,7 +45,7 @@ lint_rule_takes_options :: proc(rule: LintRule) -> bool {
 	     .L2012_NoSelfAssign, .L2035_NoUnsafeOptionalChaining, .L4027_NoUselessRename,
 	     .L2042_NoExtraBooleanCast, .L4008_NoEval, .L4006_NoUnusedExpressions, .L3016_NoThisAlias,
 	     .L2056_NoShadowRestrictedNames, .L1001_NoEmpty, .L4045_NoVoid, .L4100_NoLabels,
-	     .L4101_NoMultiAssign, .L4048_NoPlusplus:
+	     .L4101_NoMultiAssign, .L4048_NoPlusplus, .L3020_TripleSlashReference:
 		return true
 	}
 	return false
@@ -73,6 +74,19 @@ lint_option_names :: proc(values: []json.Value, key, alias: string) -> map[strin
 	return names
 }
 
+lint_reference_option :: proc(values: []json.Value, key: string) -> LintReferenceOption {
+	object, is_object := values[0].(json.Object)
+	if !is_object { return .Default }
+	word, is_string := object[key].(json.String)
+	if !is_string { return .Default }
+	switch string(word) {
+	case "always":        return .Always
+	case "never":         return .Never
+	case "prefer-import": return .Prefer_Import
+	}
+	return .Default
+}
+
 lint_rule_options_apply :: proc(options: ^LintRuleOptions, rule: LintRule, values: []json.Value) {
 	assert(options != nil)
 	assert(len(values) > 0)
@@ -87,6 +101,10 @@ lint_rule_options_apply :: proc(options: ^LintRuleOptions, rule: LintRule, value
 	case .L2042_NoExtraBooleanCast:
 		options.boolean_cast_inner = lint_option_bool(values, "enforceForInnerExpressions", false) ||
 			lint_option_bool(values, "enforceForLogicalOperands", false)
+	case .L3020_TripleSlashReference:
+		options.triple_slash.lib = lint_reference_option(values, "lib")
+		options.triple_slash.path = lint_reference_option(values, "path")
+		options.triple_slash.types = lint_reference_option(values, "types")
 	case .L1001_NoEmpty:
 		options.empty_allow_catch = lint_option_bool(values, "allowEmptyCatch", false)
 	case .L4045_NoVoid:
@@ -147,8 +165,6 @@ lint_parity_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		lint_check_unsafe_finally(l, stmt)
 	case ^ThrowStatement, ^BreakStatement:
 		lint_check_unsafe_finally(l, stmt)
-	case ^VariableDeclaration:
-		lint_check_multi_assign_declaration(l, node)
 	case ^ImportDeclaration:
 		lint_check_rename_module(l, stmt)
 	case ^ExportNamedDeclaration:

@@ -215,7 +215,9 @@ lint_is_string_statement :: proc(stmt: ^Statement) -> bool {
 // A directive is a string statement preceded only by other string statements
 // at the start of a program, function or namespace body.
 lint_is_directive :: proc(l: ^Linter, v: ^ExpressionStatement) -> bool {
-	if v.directive != "" { return true }
+	// The parser's own directive mark is not used: it also covers a
+	// "use strict" in the middle of a concatenated bundle, which is an
+	// ordinary unused expression there.
 	if v.expression == nil { return false }
 	if _, is_string := v.expression^.(^StringLiteral); !is_string { return false }
 	for stmt in lint_prologue_body(l) {

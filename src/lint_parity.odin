@@ -172,19 +172,53 @@ lint_has_comment_between :: proc(l: ^Linter, start, end: u32) -> bool {
 
 LINT_COMPARE_DEPTH_MAX :: 256
 
-// Two member or call chains can each be arbitrarily long, and comparing them
-// descends both at once. Past this depth they count as different, which
-// reports nothing, instead of recursing once per link.
+// no-dupe-else-if compares `&&`/`||` operands in either order, which branches
+// at every level and cannot follow a single spine. That one comparison stops
+// at this depth and then treats the operands as different.
 lint_compare_enter :: proc(l: ^Linter) -> bool {
 	if l.compare_depth >= LINT_COMPARE_DEPTH_MAX { return false }
 	l.compare_depth += 1
 	return true
 }
 
+// Member, call, binary and logical chains nest on one side without limit.
+// Those links are compared in a loop, one pair per iteration. Every other
+// operand is bounded by the parser's nesting limit and is compared by recursion.
 lint_content_eq :: proc(l: ^Linter, a, b: ^Expression) -> bool {
-	if a == nil || b == nil { return a == b }
-	if !lint_compare_enter(l) { return false }
-	defer l.compare_depth -= 1
+	left, right := a, b
+	for {
+		if left == nil || right == nil { return left == right }
+		#partial switch first in left^ {
+		case ^MemberExpression:
+			second, ok := right^.(^MemberExpression)
+			if !ok || first.computed != second.computed || first.optional != second.optional { return false }
+			if !lint_content_eq(l, first.property, second.property) { return false }
+			left, right = first.object, second.object
+			continue
+		case ^CallExpression:
+			second, ok := right^.(^CallExpression)
+			if !ok || first.optional != second.optional { return false }
+			if !lint_content_eq_list(l, first.arguments[:], second.arguments[:]) { return false }
+			left, right = first.callee, second.callee
+			continue
+		case ^BinaryExpression:
+			second, ok := right^.(^BinaryExpression)
+			if !ok || first.operator != second.operator { return false }
+			if !lint_content_eq(l, first.right, second.right) { return false }
+			left, right = first.left, second.left
+			continue
+		case ^LogicalExpression:
+			second, ok := right^.(^LogicalExpression)
+			if !ok || first.operator != second.operator { return false }
+			if !lint_content_eq(l, first.right, second.right) { return false }
+			left, right = first.left, second.left
+			continue
+		}
+		return lint_content_eq_node(l, left, right)
+	}
+}
+
+lint_content_eq_node :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 	#partial switch left in a^ {
 	case ^Identifier:
 		right, ok := b^.(^Identifier)
@@ -222,15 +256,6 @@ lint_content_eq :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 	case ^ChainExpression:
 		right, ok := b^.(^ChainExpression)
 		return ok && lint_content_eq(l, left.expression, right.expression)
-	case ^MemberExpression:
-		right, ok := b^.(^MemberExpression)
-		if !ok || left.computed != right.computed || left.optional != right.optional { return false }
-		return lint_content_eq(l, left.object, right.object) && lint_content_eq(l, left.property, right.property)
-	case ^CallExpression:
-		right, ok := b^.(^CallExpression)
-		if !ok || left.optional != right.optional { return false }
-		return lint_content_eq(l, left.callee, right.callee) &&
-			lint_content_eq_list(l, left.arguments[:], right.arguments[:])
 	case ^NewExpression:
 		right, ok := b^.(^NewExpression)
 		return ok && lint_content_eq(l, left.callee, right.callee) &&
@@ -242,14 +267,6 @@ lint_content_eq :: proc(l: ^Linter, a, b: ^Expression) -> bool {
 		right, ok := b^.(^UpdateExpression)
 		if !ok || left.operator != right.operator || left.prefix != right.prefix { return false }
 		return lint_content_eq(l, left.argument, right.argument)
-	case ^BinaryExpression:
-		right, ok := b^.(^BinaryExpression)
-		if !ok || left.operator != right.operator { return false }
-		return lint_content_eq(l, left.left, right.left) && lint_content_eq(l, left.right, right.right)
-	case ^LogicalExpression:
-		right, ok := b^.(^LogicalExpression)
-		if !ok || left.operator != right.operator { return false }
-		return lint_content_eq(l, left.left, right.left) && lint_content_eq(l, left.right, right.right)
 	case ^AssignmentExpression:
 		right, ok := b^.(^AssignmentExpression)
 		if !ok || left.operator != right.operator { return false }

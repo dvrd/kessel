@@ -319,6 +319,25 @@ try {
     }
   }
 
+  // Categories, in the config and on the command line, select the same rules
+  // and severities as oxlint. Each line of the source trips one rule of one
+  // category: correctness, pedantic, restriction, suspicious.
+  write('categories/app.js', 'debugger;\nif (value === value) run();\nvar legacy = 1; run(legacy);\nnew Thing();\n');
+  const cat = { debug: 'no-debugger', self: 'no-self-compare', legacy: 'no-var', created: 'no-new' };
+  const at = (rule, severity) => rule + ':' + severity + ':' + (Object.values(cat).indexOf(rule) + 1);
+  const categoryCheck = (categories, flags, expected) => {
+    write('categories/.oxlintrc.json', { categories });
+    check(expected, 'app.js', flags, 'categories');
+  };
+  categoryCheck({ correctness: 'warn' }, [], [at(cat.debug, 'warning')]);
+  categoryCheck({ correctness: 'error', pedantic: 'warn' }, [], [at(cat.debug, 'error'), at(cat.self, 'warning')]);
+  categoryCheck({ correctness: 'off', restriction: 'warn', suspicious: 'error' }, [],
+    [at(cat.legacy, 'warning'), at(cat.created, 'error')]);
+  categoryCheck({ correctness: 'warn' }, ['-D', 'pedantic'], [at(cat.debug, 'warning'), at(cat.self, 'error')]);
+  categoryCheck({ correctness: 'warn' }, ['-A', 'all', '-D', 'no-debugger'], [at(cat.debug, 'error')]);
+  categoryCheck({ correctness: 'warn' }, ['-W', 'restriction', '-A', 'no-var'], [at(cat.debug, 'warning')]);
+  categoryCheck({ correctness: 'warn' }, ['--allow', 'correctness', '--deny', 'suspicious'], [at(cat.created, 'error')]);
+
   write('configs/invalid.json', {extends:'./missing.json'});
   invalid('configs/invalid.json', /missing\.json/);
   write('configs/invalid.json', {extends:'./other.json'});

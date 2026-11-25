@@ -10,7 +10,11 @@ const upstream = args.includes('--upstream');
 const corpus = args.includes('--corpus');
 const paths = args.filter(arg => arg !== '--upstream' && arg !== '--corpus');
 assert.ok(paths.length <= 1 && !paths[0]?.startsWith('--'), 'Expected [oxlint executable] [--upstream] [--corpus]');
-const oracle = paths[0] ? path.resolve(paths[0]) : 'oxlint';
+// The pinned oxlint is a bench dependency. An explicit path wins, and a bare
+// `oxlint` on PATH is the fallback for checkouts without bench/node_modules.
+const pinned = path.join(__dirname, '../../bench/node_modules/.bin',
+  process.platform === 'win32' ? 'oxlint.cmd' : 'oxlint');
+const oracle = paths[0] ? path.resolve(paths[0]) : require('node:fs').existsSync(pinned) ? pinned : 'oxlint';
 const binary = path.join(__dirname, '../../bin', process.platform === 'win32' ? 'kessel.exe' : 'kessel');
 assert.equal(execFileSync(oracle, ['--version'], { encoding: 'utf8' }).trim(), 'Version: ' + version);
 for (const suite of ['config', 'fixes', 'bindings', 'flow', 'prefer_const', 'react_hooks']) {

@@ -1,5 +1,7 @@
 package kessel
 
+import "core:strings"
+
 // Small statement and expression rules outside oxlint's default set.
 
 // no-empty: a block with neither statements nor comments, and a switch
@@ -260,5 +262,22 @@ lint_check_nonoctal_escape :: proc(l: ^Linter, e: ^StringLiteral) {
 			lint_emit(l, {start, start + 2}, .L2043_NoNonoctalDecimalEscape)
 		}
 		index += 1
+	}
+}
+
+// no-empty-character-class: `[]` matches nothing. Each empty, non-negated
+// class of the regexp tree is reported with its own range. A class nested in
+// an empty one cannot exist, so every class node is checked independently.
+lint_check_no_empty_character_class :: proc(l: ^Linter, e: ^RegExpLiteral) {
+	if e == nil || !lint_rule_enabled(l, .L2040_NoEmptyCharacterClass) { return }
+	if !strings.contains(e.pattern, "[") { return }
+	tree, err := regex_parse_ast(e.pattern, e.flags, l.allocator)
+	if err.kind != .None { return }
+	defer regex_ast_destroy(&tree)
+	// The pattern starts one byte after the literal's opening slash.
+	base := e.loc.start + 1
+	for node in tree.nodes[1:] {
+		if node.kind != .Character_Class || node.negative || node.first_child != 0 { continue }
+		lint_emit(l, {base + node.span.start, base + node.span.end}, .L2040_NoEmptyCharacterClass)
 	}
 }

@@ -253,6 +253,7 @@ LintRule :: enum u16 {
 	L2057_NoUnassignedVars = 2057,
 	L6009_PreferSetSize = 6009,
 	L6010_NoUselessLengthCheck = 6010,
+	L3020_TripleSlashReference = 3020,
 	L9001_UnusedDirective           = 9001,
 }
 
@@ -1315,6 +1316,11 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			name = "no-useless-length-check", default_message = "useless array length check",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L3020_TripleSlashReference:
+		return LintRuleInfo{
+			name = "triple-slash-reference", default_message = "use an import instead of a triple-slash reference",
+			default_severity = .Warning, default_enabled = false,
+		}
 	case .L9001_UnusedDirective:
 		return LintRuleInfo{name="unused-disable-directive", default_message="unused lint directive", default_severity=.Warning, default_enabled=false}
 	case .L4106_NoUselessBackreference:
@@ -1484,6 +1490,7 @@ lint_program :: proc(l: ^Linter, ctx: ^LintContext, program: ^Program) {
 	lint_check_declaration_merging(l, ctx, program.body[:])
 	lint_check_empty_export(l, program.body[:])
 	lint_check_empty_file(l, program)
+	lint_check_triple_slash(l, ctx, program)
 	lint_check_no_duplicate_imports(l, program.body[:])
 	lint_walk_stmt_list(l, ctx, program.body[:])
 	lint_check_semantic_rules(l, ctx, program)
@@ -1677,6 +1684,9 @@ lint_walk_var_decl :: proc(l: ^Linter, ctx: ^LintContext, d: ^VariableDeclaratio
 	lint_check_no_var(l, d)
 	lint_check_this_alias_declaration(l, ctx, d)
 	lint_queue_unassigned(l, d)
+	lint_check_as_const_declaration(l, ctx, d)
+	// Declarations in a loop head reach this walk without being statements.
+	lint_check_multi_assign_declaration(l, d)
 	for &decl in d.declarations {
 		lint_record_declarator(l, &decl, d.kind)
 		if ctx.dependencies != nil { lint_dependency_binding(ctx.dependencies, &decl, d.kind) }
@@ -1870,6 +1880,7 @@ lint_walk_class :: proc(l: ^Linter, ctx: ^LintContext, cls: ^ClassExpression) {
 		lint_check_empty_static_block(l, elem)
 		lint_mark_static_block(l, elem)
 		lint_check_multi_assign_field(l, elem)
+		lint_check_as_const_field(l, ctx, elem)
 		if elem.kind == .Get {
 			if val, ok := elem.value.(^Expression); ok { lint_getter_function(l, val) }
 		}
@@ -2112,26 +2123,6 @@ lint_regex_contains_control :: proc(e: ^RegExpLiteral, allocator: mem.Allocator)
 		if value, ok := node.code_point.?; ok && value < 0x20 { return true }
 	}
 	return false
-}
-
-// lint_check_no_empty_character_class (no-empty-character-class, L2040): flags
-// regex patterns containing `[]` — an empty character class that matches
-// nothing, making the regex always fail.
-lint_check_no_empty_character_class :: proc(l: ^Linter, e: ^RegExpLiteral) {
-	if e == nil || !lint_rule_enabled(l, .L2040_NoEmptyCharacterClass) { return }
-	in_class := false
-	prev_backslash := false
-	for ch in e.pattern {
-		if prev_backslash { prev_backslash = false; continue }
-		if ch == '\\' { prev_backslash = true; continue }
-		if ch == '[' { in_class = true; continue }
-		if ch == ']' && in_class {
-			info := lint_rule_info(.L2040_NoEmptyCharacterClass)
-			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L2040_NoEmptyCharacterClass, info.default_message)
-			return
-		}
-		in_class = false
-	}
 }
 
 // lint_check_no_regex_spaces (no-regex-spaces, L2041): flags regex patterns
