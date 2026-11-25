@@ -58,6 +58,7 @@ transform_class_declaration :: proc(
 	if cg.strip_diag != nil { return decorated }
 	if !decorated {
 		if !lowers { return false }
+		async_class_members(cg, class)
 		if class.id == nil { return class_default_anonymous(cg, class) }
 		info := class_lower(cg, class, "")
 		info.emitted = true
@@ -69,6 +70,7 @@ transform_class_declaration :: proc(
 	// class; lowering then removes the fields and the plan keeps their keys.
 	legacy_class_names(cg, &plan, export)
 	if lowers {
+		async_class_members(cg, class)
 		plan.lowered = class_lower(cg, class, "")
 		plan.lowered.emitted = true
 		rest_class_members(cg, class)

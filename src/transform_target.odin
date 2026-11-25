@@ -249,6 +249,9 @@ target_lower :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 	if target < .ES2018 {
 		if lowered := rest_lower_expression(cg, expr); lowered != nil { return lowered }
 	}
+	if target < .ES2018 {
+		if lowered := async_lower_expression(cg, expr); lowered != nil { return lowered }
+	}
 	#partial switch node in expr^ {
 	case ^LogicalExpression:
 		if node.operator == .NullishCoalescing && target < .ES2020 {
@@ -548,10 +551,10 @@ target_check_unsupported :: proc(cg: ^Codegen, expr: ^Expression) {
 		target_check_rest_param(cg, node.params[:])
 		for param in node.params { class_note_pattern_names(cg, param.pattern, param.default_val) }
 	case ^AwaitExpression:
-		target_require(cg, node.loc, .ES2017, "await cannot be lowered")
 		if !target_inside_function(cg, node.loc.start) {
 			target_require(cg, node.loc, .ES2022, "top-level await cannot be lowered")
 		}
+		target_require(cg, node.loc, .ES2017, "await cannot be lowered")
 	case ^ImportExpression:
 		target_require(cg, node.loc, .ES2020, "dynamic import cannot be lowered")
 	case ^MetaProperty:
@@ -592,8 +595,10 @@ transform_function_check :: proc(
 	cg: ^Codegen, async, generator: bool, params: []FunctionParameter, loc: Loc,
 ) {
 	if cg.transform == nil { return }
-	if async { target_require(cg, loc, .ES2017, "async functions cannot be lowered") }
 	if async && generator { target_require(cg, loc, .ES2018, "async generators cannot be lowered") }
+	// Every async function the lowering reaches is rewritten before it prints;
+	// one that still arrives here would otherwise be written out as it is.
+	if async { target_require(cg, loc, .ES2017, "async functions cannot be lowered") }
 	target_check_rest_param(cg, params)
 	for param in params {
 		target_check_pattern(cg, param.pattern)
@@ -692,6 +697,12 @@ target_check_module_statement :: proc(cg: ^Codegen, stmt: Statement) {
 transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	state := cg.transform
 	if state == nil || state.target == .ESNext { return }
+	// Fresh bindings exist only once printing has begun, and every `for await`
+	// lies inside a statement, so the first statement is early enough.
+	if !state.async_loops_done {
+		state.async_loops_done = true
+		async_lower_loops(cg, state.job.program)
+	}
 	// Explicit resource management is newer than every edition a target can name.
 	resource: ^VariableDeclaration
 	#partial switch node in stmt {
@@ -703,11 +714,17 @@ transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 		what := "using declarations cannot be lowered without --lower-using"
 		cg_strip_unsupported(cg, resource.loc, what)
 	}
+	// The lowered form of `await using` awaits in text the printer writes
+	// itself, which no rule turns into a `yield`.
+	if resource != nil && resource_kind(resource) == .Async && state.target < .ES2017 {
+		cg_strip_unsupported(cg, resource.loc, "await using cannot be lowered below ES2017")
+	}
 	if state.target >= .ES2022 { return }
 	target_check_module_statement(cg, stmt)
 	#partial switch node in stmt {
 	case ^FunctionDeclaration:
 		rest_function(cg, &node.expr)
+		async_declaration(cg, &node.expr)
 	case ^ForStatement:
 		if declaration, declared := node.init_decl.?; declared {
 			rest_declaration(cg, declaration)

@@ -15,7 +15,7 @@ const { SourceMap } = require('node:module');
 const fixtures = path.resolve(__dirname, '../transform/target');
 const plans = {
   'lowering.js': ['es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'es2022', 'esnext'],
-  'lowering-async.js': ['es2018', 'es2019', 'es2020', 'es2021', 'esnext'],
+  'lowering-async.js': ['es2015', 'es2016', 'es2017', 'es2018', 'es2019', 'es2020', 'es2021', 'esnext'],
 };
 
 // Records a reference transformer gets wrong against the unlowered program.
@@ -61,13 +61,7 @@ function checkDiagnostics(binary, temp) {
     ['es2017', '/(?<year>\\d+)/;', /named groups/],
     ['es2017', '/\\p{L}/u;', /Unicode property/],
     ['es2017', 'const f = ([{ ...rest }]) => rest;', /object rest/],
-    ['es2017', 'async function f() { for await (const x of a) {} }', /for await/],
-    ['es2017', 'async function* f() {}', /async generators/],
     ['es2017', '/a/s;', /flag s/],
-    ['es2016', 'async function f() {}', /async functions/],
-    ['es2016', 'const f = async () => {};', /async functions/],
-    ['es2016', 'class C { async method() {} }', /async functions/],
-    ['es2016', 'const o = { async method() {} };', /async functions/],
     ['es2015', 'const Math = {}; a ** 2;', /binding named Math/],
     ['es2015', 'function f(a, ...[b]) {}', /rest parameter with a pattern/],
     ['es2015', 'const f = (...{ length }) => length;', /rest parameter with a pattern/],
@@ -143,6 +137,7 @@ module.exports = function verifyTarget(binary, temp, run, oracle) {
   let outputs = 0;
   let parsed = 0;
   let references = 0;
+  let alone = 0;
   for (const [name, targets] of Object.entries(plans)) {
     const file = path.join(fixtures, name);
     const source = fs.readFileSync(file, 'utf8');
@@ -164,11 +159,14 @@ module.exports = function verifyTarget(binary, temp, run, oracle) {
       const compiled = ts.transpileModule(source, { fileName: name, compilerOptions: { target, module: 'ESNext', allowJs: true } });
       assert.equal(withoutLines(execute(directory, 'typescript.mjs', compiled.outputText), deviations.typescript),
         withoutLines(expected, deviations.typescript), name + ' TypeScript ' + target);
+      references += 1;
+      // Below ES2018 OXC lowers async generators through helpers of
+      // @oxc-project/runtime, which the pinned bench packages do not include.
+      if (name === 'lowering-async.js' && Number(target.slice(2)) < 2018) { alone += 1; continue; }
       const reference = oracle.transformSync(name, source, { target });
       assert.deepEqual(reference.errors, []);
       assert.equal(withoutLines(execute(directory, 'oxc.mjs', reference.code), deviations.oxc),
         withoutLines(expected, deviations.oxc), name + ' OXC ' + target);
-      references += 1;
     }
   }
   // OXC 0.127.0 prints this without the parentheses, which is a syntax error,
@@ -185,7 +183,8 @@ module.exports = function verifyTarget(binary, temp, run, oracle) {
   checkSourceMap(binary, temp, run);
   checkAmbient(binary, temp, run);
   const compared = oracle ? ` acorn accepted ${parsed} outputs at their target level; TypeScript and OXC ` +
-    `reproduced the logs at ${references} fixture targets apart from one documented record each.` : '';
+    `reproduced the logs at ${references} fixture targets apart from one documented record each ` +
+    `(TypeScript alone at ${alone}, where OXC needs runtime helpers that are not installed).` : '';
   console.log(`Target lowering matched unlowered execution in ${outputs} outputs, with ${diagnostics} target checks ` +
     `and source-map probes.${compared}`);
 };

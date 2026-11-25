@@ -484,6 +484,25 @@ async function section_chains(build) {
     if (VERBOSE) console.log(`  ${label} ${checked.ms} ms`);
   });
 
+  // Async functions below ES2017 are scanned for what they take from their
+  // surroundings and then printed from inside a generator: as a declaration,
+  // an arrow and a method, and along a chain that starts at `super`.
+  const lowered = [...CHAIN_REQUIRED.map(name => [name, CHAIN[name](CHAIN_TERMS)]),
+    ['super', 'super' + rep('.b', CHAIN_TERMS)], ['new_super', 'new super' + rep('.b', CHAIN_TERMS) + '()']];
+  await for_each(lowered, async ([name, chain]) => {
+    const label = `[${build.name}] async chain ${name} x${CHAIN_TERMS}`;
+    const member = name === 'super' || name === 'new_super';
+    const source = write_source('js', member ? `class A extends B{async m(){return await ${chain};}}` :
+      `async function f(p=1){return await (${chain});}x=async()=>${chain};class A{async m(){return ${chain};}}` +
+      `async function*g(){yield ${chain};for await(const v of ${chain}){return ${chain};}}`);
+    const result = await run(build.bin, TOOLS.transform_es2015(source.file, source.dir));
+    if (expect_survived(result, `${label} transform_es2015`)) {
+      expect(result.status === 0, `${label}: expected exit 0, got ${result.status}: ${result.stderr.slice(0, 200)}`);
+    }
+    release_source(source);
+    if (VERBOSE) console.log(`  ${label}`);
+  });
+
   // Pretty JSON nests one object per link. Indentation is clamped so the
   // document stays linear in the chain length; 60,000 terms would
   // otherwise need about 20 GB.
