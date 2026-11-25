@@ -1,6 +1,6 @@
 package kessel
 
-import "base:runtime"
+@(require) import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
