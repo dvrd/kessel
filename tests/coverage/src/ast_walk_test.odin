@@ -10,6 +10,7 @@ package coverage
 
 import "core:mem/virtual"
 import "core:path/filepath"
+import "base:intrinsics"
 import "core:reflect"
 import "core:slice"
 import "core:strings"
@@ -300,17 +301,20 @@ starts_with_loc :: proc(type: typeid) -> bool {
 // with `loc: Loc`; check it for all of them.
 @(test)
 test_ast_node_loc_layout :: proc(t: ^testing.T) {
-	node_info := reflect.type_info_base(type_info_of(kessel.AstNode))
-	union_info, is_union := node_info.variant.(^reflect.Type_Info_Union)
-	if !testing.expect(t, is_union) { return }
+	// Each variant is found by setting a union value's tag and asking for
+	// its typeid. Only core:reflect procedures are used: the shape of the
+	// runtime type info they hide differs between Odin releases.
+	VARIANTS :: intrinsics.type_union_variant_count(kessel.AstNode)
 	// One variant per node kind the walk reports; a truncated list must
 	// not make the loop below pass vacuously.
-	testing.expect_value(t, len(union_info.variants), AST_NODE_KIND_COUNT)
-	for variant in union_info.variants {
-		variant_info := reflect.type_info_base(variant)
-		pointer_info, is_pointer := variant_info.variant.(^reflect.Type_Info_Pointer)
+	testing.expect_value(t, VARIANTS, AST_NODE_KIND_COUNT)
+	probe: kessel.AstNode
+	for tag in 1..=VARIANTS {
+		reflect.set_union_variant_raw_tag(probe, i64(tag))
+		variant := reflect.union_variant_typeid(probe)
+		is_pointer := reflect.is_pointer(type_info_of(variant))
 		if !testing.expectf(t, is_pointer, "%v is not a pointer", variant) { continue }
-		has_loc := starts_with_loc(pointer_info.elem.id)
+		has_loc := starts_with_loc(reflect.typeid_elem(variant))
 		testing.expectf(t, has_loc, "%v does not start with a Loc", variant)
 	}
 
