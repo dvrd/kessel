@@ -36,9 +36,6 @@ LintRuleOptions :: struct {
 	labels_allow_switch:         bool, // no-labels allowSwitch
 	multi_assign_ignore_non_declaration: bool, // no-multi-assign ignoreNonDeclaration
 	plusplus_allow_for:          bool, // no-plusplus allowForLoopAfterthoughts
-	useless_escape_allow:        string, // no-useless-escape allowRegexCharacters
-	misleading_allow_escape:     bool, // no-misleading-character-class allowEscape
-	invalid_regexp_flags:        string, // no-invalid-regexp allowConstructorFlags
 	triple_slash: struct { lib, path, types: LintReferenceOption }, // triple-slash-reference
 }
 
@@ -48,8 +45,7 @@ lint_rule_takes_options :: proc(rule: LintRule) -> bool {
 	     .L2012_NoSelfAssign, .L2035_NoUnsafeOptionalChaining, .L4027_NoUselessRename,
 	     .L2042_NoExtraBooleanCast, .L4008_NoEval, .L4006_NoUnusedExpressions, .L3016_NoThisAlias,
 	     .L2056_NoShadowRestrictedNames, .L1001_NoEmpty, .L4045_NoVoid, .L4100_NoLabels,
-	     .L4101_NoMultiAssign, .L4048_NoPlusplus, .L3020_TripleSlashReference,
-	     .L2058_NoInvalidRegexp, .L2059_NoMisleadingCharacterClass, .L2037_NoUselessEscape:
+	     .L4101_NoMultiAssign, .L4048_NoPlusplus, .L3020_TripleSlashReference:
 		return true
 	}
 	return false
@@ -61,14 +57,6 @@ lint_option_bool :: proc(values: []json.Value, key: string, fallback: bool) -> b
 	if !is_object { return fallback }
 	value, is_bool := object[key].(json.Boolean)
 	return bool(value) if is_bool else fallback
-}
-
-// The strings listed under `key`, joined: a set of single characters.
-lint_option_characters :: proc(values: []json.Value, key: string) -> string {
-	names := lint_option_names(values, key, key)
-	joined := make([dynamic]u8)
-	for name in names { append(&joined, ..transmute([]u8)name) }
-	return string(joined[:])
 }
 
 // The strings listed under `key` (or its alias) of the first option object.
@@ -124,12 +112,6 @@ lint_rule_options_apply :: proc(options: ^LintRuleOptions, rule: LintRule, value
 	case .L4100_NoLabels:
 		options.labels_allow_loop = lint_option_bool(values, "allowLoop", false)
 		options.labels_allow_switch = lint_option_bool(values, "allowSwitch", false)
-	case .L2059_NoMisleadingCharacterClass:
-		options.misleading_allow_escape = lint_option_bool(values, "allowEscape", false)
-	case .L2058_NoInvalidRegexp:
-		options.invalid_regexp_flags = lint_option_characters(values, "allowConstructorFlags")
-	case .L2037_NoUselessEscape:
-		options.useless_escape_allow = lint_option_characters(values, "allowRegexCharacters")
 	case .L4101_NoMultiAssign:
 		options.multi_assign_ignore_non_declaration = lint_option_bool(values, "ignoreNonDeclaration", false)
 	case .L4048_NoPlusplus:
@@ -184,12 +166,8 @@ lint_parity_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 	case ^ThrowStatement, ^BreakStatement:
 		lint_check_unsafe_finally(l, stmt)
 	case ^ImportDeclaration:
-		lint_check_useless_escape_string(l, node.source.loc)
 		lint_check_rename_module(l, stmt)
-	case ^ExportAllDeclaration:
-		lint_check_useless_escape_string(l, node.source.loc)
 	case ^ExportNamedDeclaration:
-		if source, ok := node.source.?; ok { lint_check_useless_escape_string(l, source.loc) }
 		lint_check_rename_module(l, stmt)
 		lint_check_thenable_export(l, node)
 	case ^ClassDeclaration:
@@ -214,12 +192,10 @@ lint_parity_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		lint_check_thenable_assignment(l, node)
 		lint_check_no_multi_assign(l, node)
 	case ^CallExpression:
-		lint_regexp_constructor(l, node.callee, node.arguments[:])
 		lint_check_isnan_index_of(l, node)
 		lint_check_oxc_call(l, node)
 		lint_check_unicorn_call(l, node)
 	case ^NewExpression:
-		lint_regexp_constructor(l, node.callee, node.arguments[:])
 		lint_check_oxc_new(l, node)
 		lint_check_new_array(l, node)
 		lint_check_no_new(l, node)
@@ -229,7 +205,6 @@ lint_parity_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 		lint_check_thenable_object(l, node)
 		// The walk skips plain keys, and a quoted key is a string literal too.
 		for prop in node.properties {
-			if prop.key != nil && !prop.computed { lint_check_useless_escape_key(l, prop.key) }
 			if prop.key != nil && !prop.computed { lint_check_no_script_url(l, prop.key) }
 		}
 	case ^ClassExpression:
@@ -242,11 +217,9 @@ lint_parity_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression) {
 	case ^UpdateExpression:
 		lint_check_no_plusplus(l, node)
 	case ^StringLiteral:
-		lint_check_useless_escape_expr(l, node)
 		lint_check_no_script_url(l, expr)
 		lint_check_nonoctal_escape(l, node)
 	case ^TemplateLiteral:
-		lint_check_useless_escape_template(l, node)
 		lint_check_no_script_url(l, expr)
 	case ^LogicalExpression:
 		lint_check_double_comparisons(l, node)
