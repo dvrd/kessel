@@ -147,7 +147,10 @@ format_pass :: proc(job: ^ParseJob, options: FormatOptions, skip: []bool) -> For
 	scratch_alloc := mem.dynamic_arena_allocator(&state.scratch)
 	format_context_init(&state.printer, source, options, job.arena_alloc, scratch_alloc)
 	state.printer.typescript = job.lang == .TS || job.lang == .TSX
+	state.printer.dot_ts = strings.has_suffix(job.source_path, ".ts")
+	state.printer.jsx = job.lang == .JSX || job.lang == .TSX
 	state.printer.comments = comments
+	state.printer.param_decorators = job.parser.param_decorators
 	state.printer.comment_stamps = make([]u32, len(comments), job.arena_alloc)
 	spans := make([]Loc, len(job.program.body), job.arena_alloc)
 	formatted := 0
@@ -163,6 +166,10 @@ format_pass :: proc(job: ^ParseJob, options: FormatOptions, skip: []bool) -> For
 		}
 		loc := get_statement_loc(statement)
 		if loc.end <= loc.start { continue }
+		if class, is_class := statement^.(^ClassDeclaration); is_class && class.expr.abstract {
+			// The printed class brings its own `abstract`.
+			loc.start, _ = format_class_abstract_start(source, loc.start)
+		}
 		if format_is_ignored(comments, source, loc) { continue }
 		clear(&state.parts)
 		doc: Doc
@@ -225,12 +232,17 @@ format_pass_statement :: proc(state: ^FormatPassState, index: int, loc: ^Loc) ->
 	}
 	next_start := u32(len(source))
 	if index + 1 < len(body) { next_start = get_statement_loc(body[index+1]).start }
+	comment_end := format_statement_comment_end(&state.printer, statement, loc^)
+	has_next := index + 1 < len(body)
 	around, covered, attached := format_statement_comments(
-		&state.printer, gap_start, loc.start, loc.end, next_start, index > 0, index + 1 < len(body))
+		&state.printer, gap_start, loc.start, comment_end, next_start, index > 0, has_next)
 	if attached && gap_start <= loc.start && loc.end <= next_start {
+		covered.end = max(covered.end, loc.end)
 		loc^ = covered
 		return format_with_comments(&state.printer, around, printed), true
 	}
+	// A comment inside the statement's span prints only with those around it.
+	if len(format_comments_in(&state.printer, comment_end, loc.end)) > 0 { return nil, false }
 	state.printer.failed = false
 	return printed, true
 }

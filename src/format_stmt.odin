@@ -26,6 +26,10 @@ format_stmt_kind :: proc(stmt: ^Statement) -> FormatNodeKind {
 	case ^ClassDeclaration: return .Class_Declaration
 	case ^ExportDefaultDeclaration: return .Export_Default
 	case ^ExportNamedDeclaration: return .Export_Named
+	case ^TSInterfaceDeclaration: return .TS_Interface
+	case ^TSTypeAliasDeclaration: return .TS_Type_Alias
+	case ^TSEnumDeclaration: return .TS_Enum
+	case ^TSModuleDeclaration: return .TS_Module
 	}
 	return .Other
 }
@@ -81,7 +85,7 @@ format_stmt :: proc(f: ^FormatContext, stmt: ^Statement, key: FormatKey) -> Doc 
 		return fg(
 			f,
 			ft(f, "while ("),
-			fg(f, fi(f, doc_softline(), format_expr(f, node.test, .Test)), doc_softline()),
+			fg(f, fi(f, doc_softline(), format_test(f, node.test, .Test)), doc_softline()),
 			ft(f, ")"),
 			format_clause(f, node.body, .Body),
 		)
@@ -108,7 +112,8 @@ format_stmt :: proc(f: ^FormatContext, stmt: ^Statement, key: FormatKey) -> Doc 
 	case ^ExportDefaultDeclaration:
 		return format_export_default(f, node)
 	}
-	return format_fail(f)
+	// What remains is TypeScript's own statements, or nothing this printer has.
+	return format_ts_statement(f, stmt)
 }
 
 @(private = "file")
@@ -151,7 +156,7 @@ format_if :: proc(f: ^FormatContext, node: ^IfStatement) -> Doc {
 	opening := fg(
 		f,
 		ft(f, "if ("),
-		fg(f, fi(f, doc_softline(), format_expr(f, node.test, .Test)), doc_softline()),
+		fg(f, fi(f, doc_softline(), format_test(f, node.test, .Test)), doc_softline()),
 		ft(f, ")"),
 		format_clause(f, node.consequent, .Consequent),
 	)
@@ -177,7 +182,7 @@ format_do_while :: proc(f: ^FormatContext, node: ^DoWhileStatement) -> Doc {
 		fg(f, ft(f, "do"), clause),
 		separator,
 		ft(f, "while ("),
-		fg(f, fi(f, doc_softline(), format_expr(f, node.test, .Test)), doc_softline()),
+		fg(f, fi(f, doc_softline(), format_test(f, node.test, .Test)), doc_softline()),
 		ft(f, ");"),
 	)
 }
@@ -269,7 +274,7 @@ format_switch :: proc(f: ^FormatContext, node: ^SwitchStatement) -> Doc {
 	head := fg(
 		f,
 		ft(f, "switch ("),
-		fi(f, doc_softline(), format_expr(f, node.discriminant, .Discriminant)),
+		fi(f, doc_softline(), format_test(f, node.discriminant, .Discriminant)),
 		doc_softline(),
 		ft(f, ")"),
 	)
@@ -361,6 +366,10 @@ format_try :: proc(f: ^FormatContext, node: ^TryStatement) -> Doc {
 		if !format_path_push(f, {kind = .Catch_Clause, key = .Handler}) {return nil}
 		append(&parts, ft(f, " catch "))
 		if param, has_param := handler.param.?; has_param {
+			// The parser reads a type annotation here and does not keep it,
+			// so anything but the closing parenthesis keeps the statement.
+			after := f.source[get_pattern_loc(param).end:handler.body.loc.start]
+			if strings.trim_space(after) != ")" {f.failed = true}
 			append(&parts, ft(f, "("), format_pattern(f, param, .Param), ft(f, ") "))
 		}
 		// Only a handler that ends the statement may print as `{}`.
@@ -389,7 +398,7 @@ format_block :: proc(f: ^FormatContext, body: []^Statement, directives: bool, lo
 	}
 	#partial switch format_parent(f).kind {
 	case .Arrow_Function, .Function_Expression, .Function_Declaration, .Object_Method,
-	     .Class_Method, .For, .While, .Do_While:
+	     .Class_Method, .For, .While, .Do_While, .TS_Module:
 		return ft(f, "{}")
 	case .Catch_Clause:
 		// The handler of a try statement that has no finalizer.
@@ -454,7 +463,6 @@ FormatListBounds :: struct {
 // ends a variable declaration at its last initializer unless the semicolon
 // follows directly, so `var a = 1 /* note */;` has its comment after the
 // statement and prints it after the semicolon.
-@(private = "file")
 format_statement_comment_end :: proc(f: ^FormatContext, stmt: ^Statement, loc: Loc) -> u32 {
 	declaration, is_declaration := stmt^.(^VariableDeclaration)
 	if !is_declaration || len(declaration.declarations) == 0 {return loc.end}
@@ -523,6 +531,10 @@ format_return_argument :: proc(f: ^FormatContext, argument: ^Expression) -> Doc 
 	doc := format_expr(f, argument, .Argument)
 	inner := format_expr_unwrap(argument)
 	if inner == nil {return format_fail(f)}
+	// `return /* why */ value;`: the comment leads the value.
+	keyword_start := get_statement_loc(format_path_at(f, 0).stmt).start
+	argument_start := get_expression_loc(argument).start
+	doc = fc(f, format_operand_leading_comments(f, keyword_start, argument_start), doc)
 	#partial switch _ in inner^ {
 	case ^BinaryExpression, ^LogicalExpression:
 		doc = fg(
@@ -548,7 +560,7 @@ format_variable_kind :: proc(kind: VariableKind) -> string {
 }
 
 format_variable_declaration :: proc(f: ^FormatContext, node: ^VariableDeclaration) -> Doc {
-	if node.declare || len(node.declarations) == 0 {return format_fail(f)}
+	if len(node.declarations) == 0 {return format_fail(f)}
 	// A statement already has its entry. A loop head or an export pushes
 	// one here, so that declarators always see the declaration above them.
 	current := format_path_at(f, 0)
@@ -565,6 +577,7 @@ format_variable_declaration :: proc(f: ^FormatContext, node: ^VariableDeclaratio
 		if _, present := declarator.init.?; present {has_value = true}
 	}
 	parts := make([dynamic]Doc, f.alloc)
+	if node.declare {append(&parts, ft(f, "declare "))}
 	append(&parts, ft(f, format_variable_kind(node.kind)), ft(f, " "))
 	first := format_variable_declarator(f, &node.declarations[0])
 	if len(node.declarations) == 1 {
@@ -584,29 +597,42 @@ format_variable_declaration :: proc(f: ^FormatContext, node: ^VariableDeclaratio
 
 @(private = "file")
 format_variable_declarator :: proc(f: ^FormatContext, node: ^VariableDeclarator) -> Doc {
-	if node.definite {return format_fail(f)}
 	if !format_path_push(f, {kind = .Variable_Declarator, key = .Declarations, node = node}) {
 		return nil
 	}
 	defer format_path_pop(f)
-	left := format_pattern(f, node.id, .Id)
+	// `var count /* none */;`: without a value the comment trails the name.
+	trailing: Doc
+	if _, has_value := node.init.?; !has_value {
+		stop := u32(format_next_code_index(f.source, node.loc.end))
+		if int(stop) < len(f.source) && (f.source[stop] == ',' || f.source[stop] == ';') {
+			trailing = format_operand_trailing_comments(f, node.loc.end, stop)
+		}
+	}
+	left: Doc
+	if node.definite {
+		// `let name!: Type`: the mark sits between the name and its annotation.
+		id, plain := node.id.(^Identifier)
+		if !plain || id.has_escape || id.optional {return format_fail(f)}
+		left = fc(f, ft(f, id.name), ft(f, "!"), format_type_annotation(f, id.type_annotation))
+	} else {
+		left = format_pattern(f, node.id, .Id)
+	}
 	init, _ := node.init.?
-	return format_assignment_like(
-		f,
-		FormatAssignment {
-			kind = .Declarator,
-			declarator = node,
-			left = left,
-			left_end = get_pattern_loc(node.id).end,
-			right = init,
-		},
-	)
+	assignment := FormatAssignment {
+		kind       = .Declarator,
+		declarator = node,
+		left       = left,
+		left_end   = get_pattern_loc(node.id).end,
+		right      = init,
+	}
+	return fc(f, format_assignment_like(f, assignment), trailing)
 }
 
 @(private = "file")
 format_export_named :: proc(f: ^FormatContext, node: ^ExportNamedDeclaration) -> Doc {
 	declaration, present := node.declaration.?
-	if !present || declaration == nil || node.export_kind != .Value {return format_fail(f)}
+	if !present || declaration == nil {return format_fail(f)}
 	#partial switch inner in declaration^ {
 	case ^VariableDeclaration:
 		return fc(f, ft(f, "export "), format_variable_declaration(f, inner))
@@ -619,7 +645,7 @@ format_export_named :: proc(f: ^FormatContext, node: ^ExportNamedDeclaration) ->
 		defer format_path_pop(f)
 		return fc(f, ft(f, "export "), format_class(f, &inner.expr))
 	}
-	return format_fail(f)
+	return fc(f, ft(f, "export "), format_ts_declaration(f, declaration))
 }
 
 @(private = "file")
@@ -639,6 +665,8 @@ format_export_default :: proc(f: ^FormatContext, node: ^ExportDefaultDeclaration
 			if !format_path_push(f, {kind = .Class_Declaration, key = .Declaration}) {return nil}
 			defer format_path_pop(f)
 			return fc(f, ft(f, "export default "), format_class(f, &declaration.expr))
+		case ^TSInterfaceDeclaration:
+			return fc(f, ft(f, "export default "), format_ts_declaration(f, inner))
 		}
 		return format_fail(f)
 	case ^Expression:

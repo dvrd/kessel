@@ -17,6 +17,9 @@
 // bench/node_modules, and the whole-file levels are skipped: those files are
 // conformance cases, many of them invalid on purpose.
 //
+// With --jsx the snippets come from the vendored .tsx and .jsx fixtures, and
+// those that hold a JSX element are also counted on their own.
+//
 // Prettier is loaded from KESSEL_PRETTIER or from bench/node_modules. Its
 // output is cached per source under the system temp directory, because
 // formatting the large bundles takes minutes.
@@ -38,7 +41,9 @@ const babel = bench('@babel/parser');
 const corpus = path.resolve(root, process.env.KESSEL_REAL_WORLD_ROOT || 'bench/real_world');
 const cacheRoot = path.join(os.tmpdir(), 'kessel-prettier-' + prettier.version);
 const typescript = process.argv.includes('--typescript');
-const NESTED_SAMPLE_PER_FILE = typescript ? 12 : 60;
+const jsx = process.argv.includes('--jsx');
+const NESTED_SAMPLE_PER_FILE = typescript || jsx ? 12 : 60;
+const VENDOR = path.join(root, 'tests/vendor');
 const TYPESCRIPT_CASES = path.join(root, 'tests/vendor/typescript/tests/cases/compiler');
 const TYPESCRIPT_CASE_COUNT = 1500;
 const SNIPPET_BYTES_MAX = 6000;
@@ -76,24 +81,30 @@ function sampler() {
   return () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
 }
 
-function collectSnippets(source, random, snippets) {
+// `extension` is the kind of file the snippet came from. It selects the
+// parser plugins here and the file name that both formatters are given.
+function collectSnippets(source, random, snippets, extension = typescript ? '.ts' : '.js') {
+  const plugins = { '.js': [], '.ts': ['typescript'], '.jsx': ['jsx'], '.tsx': ['typescript', 'jsx'] };
   let ast;
   try {
     ast = babel.parse(source, { sourceType: 'unambiguous', allowReturnOutsideFunction: true,
-      plugins: typescript ? ['typescript'] : [] });
+      plugins: plugins[extension] });
   } catch { return; }
-  const top = [], nested = [];
+  const top = [], nested = [], withJsx = new Set();
   (function visit(node, parentIsProgram) {
-    if (!node || typeof node.type !== 'string') return;
+    if (!node || typeof node.type !== 'string') return false;
     const isStatement = /Statement$|Declaration$/.test(node.type) &&
       node.type !== 'EmptyStatement' && node.type !== 'BlockStatement';
     if (isStatement) (parentIsProgram ? top : nested).push(node);
+    let holdsJsx = node.type === 'JSXElement' || node.type === 'JSXFragment';
     for (const key in node) {
       if (key === 'loc' || key.endsWith('Comments')) continue;
       const value = node[key];
-      if (Array.isArray(value)) value.forEach(child => visit(child, node.type === 'Program'));
-      else if (value && typeof value === 'object') visit(value, node.type === 'Program');
+      const children = Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : [];
+      for (const child of children) holdsJsx = visit(child, node.type === 'Program') || holdsJsx;
     }
+    if (holdsJsx) withJsx.add(node);
+    return holdsJsx;
   })(ast.program, false);
   for (let i = nested.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -102,7 +113,9 @@ function collectSnippets(source, random, snippets) {
   const chosen = [...top.slice(0, NESTED_SAMPLE_PER_FILE * 2), ...nested.slice(0, NESTED_SAMPLE_PER_FILE)];
   for (const node of chosen) {
     const text = source.slice(node.start, node.end);
-    if (text.length <= SNIPPET_BYTES_MAX) snippets.add(text);
+    if (text.length > SNIPPET_BYTES_MAX) continue;
+    const key = extension + text;
+    if (!snippets.has(key)) snippets.set(key, { text, extension, holdsJsx: withJsx.has(node) });
   }
 }
 
@@ -110,9 +123,16 @@ async function main() {
   assert.equal(prettier.version, prettier_npm, 'the reference must be the pinned Prettier');
   fs.mkdirSync(cacheRoot, { recursive: true });
   const totals = { files: 0, filesIdentical: 0, statements: 0, statementsIdentical: 0 };
-  const snippets = new Set();
+  const snippets = new Map();
   const random = sampler();
-  let files = typescript ? [] : listFiles(corpus);
+  let files = typescript || jsx ? [] : listFiles(corpus);
+  if (jsx) {
+    const sources = listFiles(VENDOR, /\.(tsx|jsx)$/);
+    for (const file of sources) {
+      collectSnippets(fs.readFileSync(file, 'utf8'), random, snippets, path.extname(file));
+    }
+    console.log(`JSX sources: ${sources.length} .tsx and .jsx files under tests/vendor`);
+  }
   if (typescript) {
     const cases = listFiles(TYPESCRIPT_CASES, /\.ts$/).slice(0, TYPESCRIPT_CASE_COUNT);
     const installed = listFiles(path.join(root, 'bench/node_modules'), /(?<!\.d)\.ts$/);
@@ -136,26 +156,37 @@ async function main() {
     totals.statementsIdentical += ours.filter((text, index) => text === theirs[index]).length;
   }
   const snippet = { identical: 0, preserved: 0, different: 0, unparsed: 0 };
+  const withJsx = { identical: 0, compared: 0 };
   const failures = [];
-  for (const text of snippets) {
-    const expected = await reference(text, { parser: typescript ? 'typescript' : 'babel' });
+  for (const { text, extension, holdsJsx } of snippets.values()) {
+    // Prettier's layout of a generic arrow function depends on the file name,
+    // so the reference formats under the name that Kessel is given.
+    const name = 'snippet' + extension;
+    const expected = await reference(text, extension === '.js'
+      ? { parser: 'babel' }
+      : { parser: extension === '.jsx' ? 'babel' : 'typescript', filepath: name });
     let actual;
-    try { actual = formatSync(typescript ? 'snippet.ts' : 'snippet.js', text); } catch { actual = null; }
+    try { actual = formatSync(name, text); } catch { actual = null; }
     // Out of its function a statement may not parse on its own.
     if (expected === null || actual === null) { snippet.unparsed++; continue; }
-    if (actual === expected) snippet.identical++;
+    if (holdsJsx) withJsx.compared++;
+    if (actual === expected) { snippet.identical++; if (holdsJsx) withJsx.identical++; }
     else if (actual === text) snippet.preserved++;
     else { snippet.different++; failures.push(text); }
   }
   const percent = (part, whole) => (100 * part / whole).toFixed(2) + '%';
   const compared = snippet.identical + snippet.preserved + snippet.different;
   console.log(`Prettier ${prettier.version} reference on ${files.length} files:`);
-  if (!typescript) {
+  if (!typescript && !jsx) {
     console.log(`  identical files: ${totals.filesIdentical}/${totals.files} (${percent(totals.filesIdentical, totals.files)})`);
     console.log(`  identical top-level statements: ${totals.statementsIdentical}/${totals.statements} (${percent(totals.statementsIdentical, totals.statements)})`);
   }
   console.log(`  identical statement snippets: ${snippet.identical}/${compared} (${percent(snippet.identical, compared)}), ` +
     `${snippet.preserved} left as written, ${snippet.different} formatted differently, ${snippet.unparsed} not parsed alone`);
+  if (jsx) {
+    console.log(`  of those, snippets that hold a JSX element: ${withJsx.identical}/${withJsx.compared} ` +
+      `(${percent(withJsx.identical, withJsx.compared)}) identical`);
+  }
   for (const text of failures.slice(0, 5)) console.error('formatted differently from Prettier:\n' + text + '\n');
   assert.equal(snippet.different, 0, 'a formatted statement must match Prettier');
 }

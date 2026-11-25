@@ -62,16 +62,16 @@ format_assignment_like :: proc(f: ^FormatContext, assignment: FormatAssignment) 
 		right_start := get_expression_loc(assignment.right).start
 		if assignment.left_end < right_start &&
 		   len(format_comments_in(f, assignment.left_end, right_start)) > 0 {
-			// Calls are the values that carry annotations such as
-			// `/*#__PURE__*/`, and their printers never ask about their
-			// own comments. Other values keep the statement as written.
+			// Functions and classes lay out differently when a comment
+			// leads them, by rules that are not ported.
 			value := format_expr_strip(assignment.right)
 			#partial switch _ in value^ {
-			case ^CallExpression, ^NewExpression:
-			case: return format_fail(f)
+			case ^ArrowFunctionExpression, ^FunctionExpression, ^ClassExpression, ^JSXElement,
+			     ^JSXFragment:
+				return format_fail(f)
 			}
 			operator_end := format_assignment_operator_end(f, assignment.left_end, right_start)
-			leading := format_inline_leading_comments(f, operator_end, right_start)
+			leading := format_operand_leading_comments(f, operator_end, right_start)
 			right = fc(f, leading, right)
 		}
 	}
@@ -170,6 +170,7 @@ format_assignment_layout :: proc(
 	}
 	can_break_left := doc_can_break(assignment.left)
 	if format_is_complex_destructuring(assignment) {return .Break_Lhs}
+	if format_has_complex_type_annotation(assignment) {return .Break_Lhs}
 	_, right_is_arrow := right^.(^ArrowFunctionExpression)
 	if assignment.kind == .Declarator && right_is_arrow && can_break_left {return .Break_Lhs}
 	has_short_key := false
@@ -213,6 +214,38 @@ format_is_complex_destructuring :: proc(assignment: FormatAssignment) -> bool {
 		if _, has_key := property.key.?; !has_key {continue}
 		if !property.shorthand {return true}
 		if _, defaulted := property.value.(^AssignmentPattern); defaulted {return true}
+	}
+	return false
+}
+
+// A declarator annotated with a generic type that has several arguments,
+// one of them generic or conditional, as in `const m: Map<string, Set<T>>`.
+// The annotation breaks before the value moves to the next line.
+@(private = "file")
+format_has_complex_type_annotation :: proc(assignment: FormatAssignment) -> bool {
+	if assignment.kind != .Declarator {return false}
+	annotation: Maybe(^TSTypeAnnotation)
+	#partial switch id in assignment.declarator.id {
+	case ^Identifier: annotation = id.type_annotation
+	case ^ObjectPattern: annotation = id.type_annotation
+	case ^ArrayPattern: annotation = id.type_annotation
+	}
+	type := format_annotation_type(annotation)
+	if type == nil {return false}
+	reference, is_reference := type^.(^TSTypeReference)
+	if !is_reference {return false}
+	arguments, generic := reference.type_parameters.?
+	if !generic || arguments == nil || len(arguments.params) < 2 {return false}
+	for param in arguments.params {
+		inner := format_type_unwrap(param)
+		if inner == nil {continue}
+		#partial switch node in inner^ {
+		case ^TSConditionalType:
+			return true
+		case ^TSTypeReference:
+			nested, nested_generic := node.type_parameters.?
+			if nested_generic && nested != nil && len(nested.params) > 0 {return true}
+		}
 	}
 	return false
 }
@@ -292,7 +325,7 @@ format_is_poorly_breakable_chain :: proc(f: ^FormatContext, expr: ^Expression, d
 		defer format_path_pop(f)
 		return format_is_poorly_breakable_chain(f, inner, true)
 	case ^CallExpression:
-		if _, typed := node.type_parameters.?; typed {return false}
+		if format_call_has_complex_type_arguments(f, node) {return false}
 		if len(node.arguments) > 1 {return false}
 		if len(node.arguments) == 1 && node.callee != nil {
 			// An argument that carries a comment is not short.
@@ -320,6 +353,21 @@ format_is_poorly_breakable_chain :: proc(f: ^FormatContext, expr: ^Expression, d
 		return deep
 	}
 	return false
+}
+
+// Several type arguments, or one that is a union, an intersection or an
+// object type, give a call a place to break.
+@(private = "file")
+format_call_has_complex_type_arguments :: proc(f: ^FormatContext, node: ^CallExpression) -> bool {
+	generics, typed := node.type_parameters.?
+	if !typed || generics == nil || len(generics.params) == 0 {return false}
+	if len(generics.params) > 1 {return true}
+	lone := format_type_unwrap(generics.params[0])
+	if lone == nil {return false}
+	#partial switch _ in lone^ {
+	case ^TSUnionType, ^TSIntersectionType, ^TSTypeLiteral: return true
+	}
+	return doc_will_break(format_type_arguments(f, node.type_parameters))
 }
 
 format_is_lone_short_argument :: proc(f: ^FormatContext, expr: ^Expression) -> bool {

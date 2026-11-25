@@ -50,7 +50,6 @@ format_is_previous_line_empty :: proc(text: string, start: u32) -> bool {
 
 // A block comment whose every line starts with `*` is re-indented to the
 // position it prints at. Any other comment keeps its text.
-@(private = "file")
 format_comment_contents :: proc(f: ^FormatContext, comment: Comment) -> Doc {
 	raw := f.source[comment.start:comment.end]
 	if strings.has_prefix(raw, "//") {return ft(f, strings.trim_right_space(raw))}
@@ -89,7 +88,6 @@ format_comment_contents :: proc(f: ^FormatContext, comment: Comment) -> Doc {
 	return fc(f, ..parts[:])
 }
 
-@(private = "file")
 format_comment_is_block :: proc(f: ^FormatContext, comment: Comment) -> bool {
 	return strings.has_prefix(f.source[comment.start:comment.end], "/*")
 }
@@ -396,13 +394,15 @@ format_list_comments :: proc(
 // Ignore directives make Prettier copy the next node from the source, and a
 // JSDoc type cast in front of a parenthesis keeps that parenthesis. Neither
 // is ported, so such comments leave the statement as written.
-@(private = "file")
 format_comment_is_supported :: proc(f: ^FormatContext, comment: Comment) -> bool {
 	raw := f.source[comment.start:comment.end]
 	if len(raw) < 2 || raw[0] != '/' {return false}
 	body := raw[2:]
 	if strings.has_suffix(body, "*/") {body = body[:len(body) - 2]}
 	if strings.trim_space(body) == "prettier-ignore" {return false}
+	// `*//**`: Prettier leaves two comments that touch as they are.
+	rest := f.source[comment.end:]
+	if strings.has_prefix(rest, "/*") || strings.has_prefix(rest, "//") {return false}
 	if strings.has_prefix(raw, "/**") {
 		if strings.contains(raw, "@type") || strings.contains(raw, "@satisfies") {
 			next := format_next_code_index(f.source, comment.end)
@@ -452,6 +452,61 @@ format_inline_trailing_comments :: proc(f: ^FormatContext, start, end: u32) -> D
 	rest := strings.trim_left(f.source[previous:end], " \t")
 	if rest != ";" {return format_fail(f)}
 	return fc(f, ..parts[:])
+}
+
+// True when every comment in the range is a block comment on one line.
+// Prettier's rules for comments that span lines differ by context.
+@(private = "file")
+format_comments_are_one_line_blocks :: proc(f: ^FormatContext, in_range: []Comment) -> bool {
+	for comment in in_range {
+		if !format_comment_is_block(f, comment) {return false}
+		if strings.contains_any(f.source[comment.start:comment.end], "\r\n") {return false}
+	}
+	return true
+}
+
+// Block comments directly in front of an operand, as in
+// `ready && /*#__PURE__*/ start()`. They lead the operand. `start` is where
+// whatever precedes the operand ends. Returns nil when the range holds no
+// comment, and fails the statement when it holds one in another position.
+format_operand_leading_comments :: proc(f: ^FormatContext, start, end: u32) -> Doc {
+	if start >= end {return nil}
+	in_range := format_comments_in(f, start, end)
+	if len(in_range) == 0 {return nil}
+	if !format_comments_are_one_line_blocks(f, in_range) {return format_fail(f)}
+	return format_inline_leading_comments(f, start, end)
+}
+
+// Block comments that follow an operand on its line, as in
+// `if (true /* DEBUG */)`. They trail the operand. `end` is where the token
+// that closes the operand's context sits: only spaces may come before it.
+format_operand_trailing_comments :: proc(f: ^FormatContext, start, end: u32) -> Doc {
+	if start >= end {return nil}
+	in_range := format_comments_in(f, start, end)
+	if len(in_range) == 0 {return nil}
+	if !format_comments_are_one_line_blocks(f, in_range) {return format_fail(f)}
+	parts := make([dynamic]Doc, f.alloc)
+	previous := start
+	for comment in in_range {
+		supported := format_comment_is_supported(f, comment)
+		supported = supported && format_is_inline_space(f.source[previous:comment.start])
+		if !supported {return format_fail(f)}
+		format_comment_mark(f, comment)
+		append(&parts, ft(f, " "), format_comment_contents(f, comment))
+		previous = comment.end
+	}
+	if !format_is_inline_space(f.source[previous:end]) {return format_fail(f)}
+	return fc(f, ..parts[:])
+}
+
+// The test of an `if`, `while`, `do` or `switch` with the block comments
+// that sit between it and the closing parenthesis.
+format_test :: proc(f: ^FormatContext, test: ^Expression, key: FormatKey) -> Doc {
+	printed := format_expr(f, test, key)
+	end := get_expression_loc(test).end
+	close := u32(format_next_code_index(f.source, end))
+	if int(close) >= len(f.source) || f.source[close] != ')' {return printed}
+	return fc(f, printed, format_operand_trailing_comments(f, end, close))
 }
 
 // True when the span starts and ends with the given delimiters.

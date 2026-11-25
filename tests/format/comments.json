@@ -1,0 +1,82 @@
+[
+ {
+  "name": "comment leading a binary operand",
+  "source": "var te = typeof TextEncoder != 'undefined' && /*#__PURE__*/ new TextEncoder(); x = first + /* why */ second; y = /* c */ a + b;\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "var te = typeof TextEncoder != \"undefined\" && /*#__PURE__*/ new TextEncoder();\nx = first + /* why */ second;\ny = /* c */ a + b;\n"
+ },
+ {
+  "name": "comment trailing a binary operand",
+  "source": "if (input.charCodeAt(input.length - 1) !== 0x0A/* LF */ && input.charCodeAt(input.length - 1) !== 0x0D/* CR */) { input += '\\n'; }\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "if (\n  input.charCodeAt(input.length - 1) !== 0x0a /* LF */ &&\n  input.charCodeAt(input.length - 1) !== 0x0d /* CR */\n) {\n  input += \"\\n\";\n}\n"
+ },
+ {
+  "name": "comment leading a conditional branch",
+  "source": "const value = key in input ? input[key] : /* @__PURE__ */ getDefault(valueSchema); z = cond ? /* yes */ a : b;\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "const value =\n  key in input ? input[key] : /* @__PURE__ */ getDefault(valueSchema);\nz = cond ? /* yes */ a : b;\n"
+ },
+ {
+  "name": "comment before a closing parenthesis of a head",
+  "source": "if (true /* DEBUG */) { counters.flattenedListenersCalls++; } while (ch === 0x20/* Space */) { state.lineIndent++; } do { x(); } while (y /* c */); switch (z /* d */) { case 1: break; }\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "if (true /* DEBUG */) {\n  counters.flattenedListenersCalls++;\n}\nwhile (ch === 0x20 /* Space */) {\n  state.lineIndent++;\n}\ndo {\n  x();\n} while (y /* c */);\nswitch (z /* d */) {\n  case 1:\n    break;\n}\n"
+ },
+ {
+  "name": "comment in a member index",
+  "source": "m = s.heap[1/*SMALLEST*/]; n = table[index /* current */][0 /* first */];\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "m = s.heap[1 /*SMALLEST*/];\nn = table[index /* current */][0 /* first */];\n"
+ },
+ {
+  "name": "comment leading a returned value",
+  "source": "function f() { return /* binding */ clipboard; } function g() { throw /* always */ new Error(\"x\"); }\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "function f() {\n  return /* binding */ clipboard;\n}\nfunction g() {\n  throw /* always */ new Error(\"x\");\n}\n"
+ },
+ {
+  "name": "comment leading an assigned value",
+  "source": "var _range = /*range != null ? range :*/ {s:{c:0, r:0},e:{c:0, r:0}}; target.value = /* default */ 0; const o = { key: /* inline */ value };\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "var _range = /*range != null ? range :*/ {\n  s: { c: 0, r: 0 },\n  e: { c: 0, r: 0 },\n};\ntarget.value = /* default */ 0;\nconst o = { key: /* inline */ value };\n"
+ },
+ {
+  "name": "comments in parameter lists",
+  "source": "Stream.prototype.merge = function (/* ...streams */) { return mergeArray(cons(this, arguments)) };\nexports = module.exports = function (/*optional*/xs, /*optional*/secondArg, /*optional*/ mappingHint) { return new Stream(xs, secondArg, mappingHint); };\n_.curry = function (fn /* args... */) { var args = slice.call(arguments); };\nfunction foo(/*c1*/ x, y /* c2 */, /* c3 */ z /* c4 */) { }\nconst h = (/* c */) => 1; const i = (a /* first */, b) => a; class K { m(a /* x */) {} n(/* nothing */) {} }\nfoo(function (/* a */ { x }) {}); bar((/* b */ [y]) => y);\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "Stream.prototype.merge = function (/* ...streams */) {\n  return mergeArray(cons(this, arguments));\n};\nexports = module.exports = function (\n  /*optional*/ xs,\n  /*optional*/ secondArg,\n  /*optional*/ mappingHint,\n) {\n  return new Stream(xs, secondArg, mappingHint);\n};\n_.curry = function (fn /* args... */) {\n  var args = slice.call(arguments);\n};\nfunction foo(/*c1*/ x, y /* c2 */, /* c3 */ z /* c4 */) {}\nconst h = (/* c */) => 1;\nconst i = (a /* first */, b) => a;\nclass K {\n  m(a /* x */) {}\n  n(/* nothing */) {}\n}\nfoo(function (/* a */ { x }) {});\nbar((/* b */ [y]) => y);\n"
+ },
+ {
+  "name": "comment after a declarator",
+  "source": "var  count /* none */; var x /* a */, y /* b */; var z = 1, w /* q */;\nfunction k() { var  count /* none */; var b = 2 /* two */; let c, d /* dd */; }\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "var count /* none */;\nvar x /* a */, y /* b */;\nvar z = 1,\n  w /* q */;\nfunction k() {\n  var count /* none */;\n  var b = 2; /* two */\n  let c, d /* dd */;\n}\n"
+ },
+ {
+  "name": "comment between an initializer and the semicolon",
+  "source": "var a = 1 /* note */;\nvar b = 2 /* x */ ; // y\nfoo();\nlet q = 1 /* a */ /* b */;\n",
+  "options": {},
+  "parser": "babel",
+  "extension": ".js",
+  "expected": "var a = 1; /* note */\nvar b = 2; /* x */ // y\nfoo();\nlet q = 1; /* a */ /* b */\n"
+ }
+]
