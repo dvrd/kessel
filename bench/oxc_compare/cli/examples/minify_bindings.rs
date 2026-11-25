@@ -35,6 +35,8 @@ fn bindings(path: &Path, source_type: SourceType) -> Result<Vec<(u32, Binding)>,
     if !parsed.errors.is_empty() {
         return Err(format!("{}: {:?}", path.display(), parsed.errors));
     }
+    // Only a file with import or export syntax has a private top level.
+    let module = parsed.module_record.has_module_syntax;
     let analysis = SemanticBuilder::new().build(&parsed.program).semantic;
     let scopes = analysis.scoping();
     let mut symbols: Vec<_> = scopes.symbol_ids().collect();
@@ -43,8 +45,11 @@ fn bindings(path: &Path, source_type: SourceType) -> Result<Vec<(u32, Binding)>,
     let mut uses = Vec::new();
     for (declaration, id) in symbols.into_iter().enumerate() {
         let scope = scopes.symbol_scope_id(id);
-        let public_name =
-            (scope == scopes.root_scope_id()).then(|| scopes.symbol_name(id).to_owned());
+        // A script's top-level names are visible to other scripts. A module's are
+        // private, so renaming them is allowed; its export list is compared by
+        // the caller instead.
+        let public_name = (scope == scopes.root_scope_id() && !module)
+            .then(|| scopes.symbol_name(id).to_owned());
         uses.push((
             scopes.symbol_span(id).start,
             Binding::Declaration {
