@@ -61,6 +61,14 @@ ALLOC_GUARD_RESERVE_SIZE :: 16 * 1024
 // pool falls back to per-node allocation, a list drops the element.
 ALLOC_GUARD_PIECE_SIZE_MAX :: 1024
 
+// Largest single request the fallback serves. After the latch the parse is
+// lost and only has to wind down: nodes and short strings are small, while a
+// big request is a list doubling its capacity, whose caller drops the element
+// when refused. Serving those would spend the emergency memory on a tree
+// that is about to be thrown away and leave none for the open frames.
+ALLOC_GUARD_FALLBACK_PIECE_SIZE_MAX :: 4 * 1024
+#assert(ALLOC_GUARD_PIECE_SIZE_MAX <= ALLOC_GUARD_FALLBACK_PIECE_SIZE_MAX)
+
 // Most the fallback allocator is asked for in one parse. The fallback is
 // there to let a lost parse wind down, not to let it carry on past the
 // arena's budget on borrowed memory.
@@ -71,6 +79,9 @@ AllocGuard :: struct {
 	backing:      mem.Allocator,
 	// Consulted after `backing` refuses a request; procedure nil = none.
 	fallback:      mem.Allocator,
+	// Consulted after `fallback` refuses too; procedure nil = none. Both
+	// share the ALLOC_GUARD_FALLBACK_SIZE_MAX budget.
+	fallback_last: mem.Allocator,
 	fallback_used: int, // bytes, at most ALLOC_GUARD_FALLBACK_SIZE_MAX
 	reserve_used:  int, // bytes, at most ALLOC_GUARD_RESERVE_SIZE
 	// Latched on the first request the backing allocator refuses.
@@ -79,6 +90,13 @@ AllocGuard :: struct {
 	// the sampled byte offset: roughly where in the source memory ran out.
 	cursor:       ^int,
 	failed_at:    int,
+	// Capacity of the parser's node pool (nil = none). Zeroed by the latch,
+	// so the very next node misses the pool and reaches the parser's slow
+	// path, which is where the parser notices the failure and halts the
+	// lexer. Without it a parse inside one huge statement keeps taking
+	// nodes from the pool, and emergency memory for everything else, long
+	// after the arena is gone.
+	pool_capacity: ^int,
 	// Emergency memory; u128 elements for 16-byte alignment. Last, so the
 	// fields above share a cache line with whatever precedes the guard.
 	reserve:      [ALLOC_GUARD_RESERVE_SIZE / 16]u128,
@@ -88,9 +106,13 @@ AllocGuard :: struct {
 // returned allocator is in use. `fallback` may be left zero, `cursor` nil.
 alloc_guard_init :: proc(
 	guard: ^AllocGuard, backing: mem.Allocator, fallback: mem.Allocator, cursor: ^int,
+	fallback_last := mem.Allocator{}, pool_capacity: ^int = nil,
 ) {
+	guard.pool_capacity = pool_capacity
 	assert(backing.procedure != nil)
+	if fallback_last.procedure != nil { assert(fallback.procedure != nil) }
 	guard.fallback = fallback
+	guard.fallback_last = fallback_last
 	guard.fallback_used = 0
 	// Field by field: the reserve needs no clearing (each piece is zeroed
 	// when handed out), and parse_job_run may be called once per bench
@@ -121,6 +143,7 @@ alloc_guard_latch :: proc(guard: ^AllocGuard) {
 	if guard.failed { return }
 	guard.failed = true
 	if guard.cursor != nil { guard.failed_at = guard.cursor^ }
+	if guard.pool_capacity != nil { guard.pool_capacity^ = 0 }
 }
 
 alloc_guard_proc :: proc(
@@ -147,9 +170,10 @@ alloc_guard_proc :: proc(
 			if err == nil && raw_data(data) != nil { return data, nil }
 		}
 		alloc_guard_latch(guard)
-		if guard.fallback.procedure != nil {
+		for fallback in ([2]mem.Allocator{guard.fallback, guard.fallback_last}) {
+			if fallback.procedure == nil { continue }
 			data, err := alloc_guard_from_fallback(
-				guard, size, alignment, old_memory, old_size, loc)
+				guard, fallback, size, alignment, old_memory, old_size, loc)
 			if err == nil { return data, nil }
 		}
 		return alloc_guard_from_reserve(guard, size, alignment, old_memory, old_size)
@@ -163,13 +187,16 @@ alloc_guard_proc :: proc(
 // whichever allocator produced it, which the guard does not track.
 @(private="file")
 alloc_guard_from_fallback :: proc(
-	guard: ^AllocGuard, size, alignment: int, old_memory: rawptr, old_size: int,
+	guard: ^AllocGuard, fallback: mem.Allocator,
+	size, alignment: int, old_memory: rawptr, old_size: int,
 	loc := #caller_location,
 ) -> ([]byte, mem.Allocator_Error) {
 	assert(size > 0)
+	assert(fallback.procedure != nil)
 	assert(guard.fallback_used <= ALLOC_GUARD_FALLBACK_SIZE_MAX)
+	if size > ALLOC_GUARD_FALLBACK_PIECE_SIZE_MAX { return nil, .Out_Of_Memory }
 	if size > ALLOC_GUARD_FALLBACK_SIZE_MAX - guard.fallback_used { return nil, .Out_Of_Memory }
-	data, err := guard.fallback.procedure(guard.fallback.data, .Alloc, size, alignment, nil, 0, loc)
+	data, err := fallback.procedure(fallback.data, .Alloc, size, alignment, nil, 0, loc)
 	if err != nil { return nil, err }
 	if raw_data(data) == nil { return nil, .Out_Of_Memory }
 	guard.fallback_used += size

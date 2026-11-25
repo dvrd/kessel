@@ -48,8 +48,13 @@ package kessel
 // column.
 //
 // Bounds. Nesting deeper than `depth_max` ends the walk with .DepthExceeded
-// instead of overflowing the native stack; the default is
-// PARSE_RESOURCE_AST_DEPTH. Left-associative chains — `a + b + c + ...`,
+// instead of overflowing the native stack. `leave` is still called for every
+// node that was entered, so a visitor that pushes and pops stays balanced;
+// the same holds for .OutOfMemory. The default, AST_WALK_DEPTH_DEFAULT,
+// walks any tree the parser accepts at its default `max_depth`: the walk
+// counts nodes while the parser counts syntactic levels, and one level can
+// be several nodes deep. A caller that raises `ParseConfig.max_depth` should
+// pass AST_WALK_NODES_PER_LEVEL times that value. Left-associative chains — `a + b + c + ...`,
 // `a && b && ...`, `a.b.c...`, `f()()()...` and mixes of them — are walked
 // with a loop and count as one level however long they are, so a
 // machine-generated million-term expression is fine. That loop keeps one
@@ -57,6 +62,16 @@ package kessel
 // ends the walk with .OutOfMemory.
 
 import "core:mem"
+
+// How many nodes deep one syntactic nesting level of the parser can be.
+// The deepest measured shape is a class in a method in a class: class,
+// class body, method, function, block make 5 nodes per parser level
+// (tests/coverage/src/ast_walk_test.odin measures 40 shapes). 8 leaves
+// headroom for shapes the measurement does not list.
+AST_WALK_NODES_PER_LEVEL :: 8
+AST_WALK_DEPTH_DEFAULT   :: AST_WALK_NODES_PER_LEVEL * PARSE_RESOURCE_AST_DEPTH
+
+#assert(AST_WALK_NODES_PER_LEVEL >= 5)
 
 AstWalkAction :: enum u8 {
 	Continue,
@@ -151,7 +166,7 @@ ast_walk :: proc(
 	program: ^Program,
 	visitor: AstVisitor,
 	allocator: mem.Allocator,
-	depth_max: u32 = PARSE_RESOURCE_AST_DEPTH,
+	depth_max: u32 = AST_WALK_DEPTH_DEFAULT,
 ) -> AstWalkStatus {
 	walker: AstWalker
 	ast_walker_init(&walker, visitor, allocator, depth_max)
@@ -169,7 +184,7 @@ ast_walk_statement_tree :: proc(
 	statement: ^Statement,
 	visitor: AstVisitor,
 	allocator: mem.Allocator,
-	depth_max: u32 = PARSE_RESOURCE_AST_DEPTH,
+	depth_max: u32 = AST_WALK_DEPTH_DEFAULT,
 ) -> AstWalkStatus {
 	walker: AstWalker
 	ast_walker_init(&walker, visitor, allocator, depth_max)
@@ -184,7 +199,7 @@ ast_walk_expression_tree :: proc(
 	expression: ^Expression,
 	visitor: AstVisitor,
 	allocator: mem.Allocator,
-	depth_max: u32 = PARSE_RESOURCE_AST_DEPTH,
+	depth_max: u32 = AST_WALK_DEPTH_DEFAULT,
 ) -> AstWalkStatus {
 	walker: AstWalker
 	ast_walker_init(&walker, visitor, allocator, depth_max)
@@ -275,7 +290,9 @@ ast_walk_enter :: proc(walker: ^AstWalker, node: AstNode) -> bool {
 
 @(private = "file")
 ast_walk_leave :: proc(walker: ^AstWalker, node: AstNode) {
-	if walker.status != .Completed { return }
+	// A visitor that asked to stop gets no further callback. A walk cut
+	// short by depth or memory still closes what it opened.
+	if walker.status == .Stopped { return }
 	if walker.visitor.leave != nil { walker.visitor.leave(walker.visitor.user, node) }
 }
 
