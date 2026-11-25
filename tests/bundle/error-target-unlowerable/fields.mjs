@@ -1,1 +1,1 @@
-export class Counter { static count = 0; }
+export class Counter { static count = 0n; }

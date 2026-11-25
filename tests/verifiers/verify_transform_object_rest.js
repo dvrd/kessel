@@ -68,6 +68,8 @@ function checkDiagnostics(binary, temp) {
     ['const { [key()]: a, ...rest } = o;', /computed key/],
     ['({ [key()]: a, ...rest } = o);', /computed key/],
     ['function f({ a, ...rest }, later = a) {}', /before one with an initializer/],
+    ['function f({ a, ...rest }) { function rest() {} return rest; }', /function in the body redeclares/],
+    ['const f = ({ a: { b }, ...rest }) => { function b() {} };', /function in the body redeclares/],
     ['async function f() { ({ a = await 1, ...rest } = o); }', /await or yield/],
     ['const made = { ...o, get value() { return 1; } };', /accessor after an object spread/],
     ['const made = { ...o, __proto__: base };', /__proto__ after an object spread/],

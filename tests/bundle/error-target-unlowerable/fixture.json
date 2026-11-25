@@ -1,5 +1,5 @@
 {
-  "error": "fields.mjs: error: class fields cannot be lowered",
+  "error": "fields.mjs: error: BigInt literals cannot be lowered",
   "args": [
     "--target",
     "es2019"
