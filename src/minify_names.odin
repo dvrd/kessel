@@ -11,6 +11,10 @@ MangleUses :: struct {
 	named: map[u32]bool,
 	dynamic_scopes: map[ScopeId]bool,
 	shorthand: map[u32]bool,
+	// Declarations that compression may delete when nothing refers to them.
+	candidates: [dynamic]MangleCandidate,
+	// Offsets of expressions that follow a `/* @__PURE__ */` comment.
+	pure_calls: map[u32]bool,
 }
 
 mangle_protect_scope :: proc(model: ^SemanticModel, uses: ^MangleUses, scope: ScopeId) {
@@ -129,6 +133,7 @@ MangleState :: struct {
 	canon: []SymbolId, // First declaration of the runtime binding that a symbol belongs to.
 	keep: []bool,      // Indexed by canonical symbol: the original spelling stays.
 	slot: []u32,       // Indexed by canonical symbol: one-based name slot, or zero.
+	dead: []bool,      // Indexed by symbol: compression deleted the declaration.
 	module: bool,      // A module's top-level bindings are private and can be renamed.
 	live_scope: [dynamic]ScopeId,  // Pairs: a scope below the declaration that can see
 	live_symbol: [dynamic]SymbolId, // or contains a use of the symbol.
@@ -151,8 +156,7 @@ mangle_block_function :: proc(model: ^SemanticModel, symbol: ^Symbol) -> bool {
 
 // Names that must stay wherever they occur: a body var initialized from a
 // same-named parameter, and a catch parameter that a var declaration may assign.
-mangle_keep_shared_names :: proc(state: ^MangleState) {
-	model, uses := state.model, state.uses
+mangle_keep_shared_names :: proc(model: ^SemanticModel, uses: ^MangleUses) {
 	vars := make(map[string]bool, model.alloc)
 	for &symbol in model.symbols[1:] {
 		if symbol.kind == .Var { vars[symbol.name] = true }
@@ -319,7 +323,9 @@ mangle_name_slots :: proc(state: ^MangleState, alphabet: ^MangleAlphabet, slots:
 mangle_reserve_names :: proc(state: ^MangleState, alphabet: ^MangleAlphabet) {
 	model := state.model
 	for &symbol, index in model.symbols {
-		if index != 0 && state.keep[state.canon[index]] { alphabet.reserved[symbol.name] = true }
+		// A deleted declaration no longer occupies its spelling.
+		if index == 0 || state.dead[index] { continue }
+		if state.keep[state.canon[index]] { alphabet.reserved[symbol.name] = true }
 	}
 	for ref in model.refs {
 		if ref.resolved == SYMBOL_UNRESOLVED { alphabet.reserved[ref.name] = true }
@@ -381,32 +387,53 @@ minify_prepare :: proc(job: ^ParseJob, options: PrintOptions) -> map[u32]string 
 	uses := MangleUses{
 		keep = make(map[string]bool, alloc), named = make(map[u32]bool, alloc),
 		dynamic_scopes = make(map[ScopeId]bool, alloc), shorthand = make(map[u32]bool, alloc),
+		candidates = make([dynamic]MangleCandidate, alloc), pure_calls = make(map[u32]bool, alloc),
 	}
 	alphabet := MangleAlphabet{reserved = make(map[string]bool, alloc), first = MANGLE_FIRST}
 	if job.lang == .JSX { mangle_prepare_jsx(job, options, &uses, &alphabet) }
+	if options.compress { mangle_collect_pure_calls(job, &uses) }
 	model := semantic_build(job.program, string(job.source.data), job.lang, alloc, mangle = &uses)
 	for ref in model.refs {
 		if ref.name == "eval" { mangle_protect_scope(&model, &uses, ref.scope) }
 	}
+	mangle_keep_shared_names(&model, &uses)
+	module := job.program.type == .Module
+	unused := MinifyUnused{dead_symbols = make([]bool, len(model.symbols), alloc)}
 	if options.compress {
+		unused = minify_unused(&model, &uses, module)
 		compressor := MinifyCompressor{
 			alloc = alloc, undefined_reads = minify_undefined_reads(&model, &uses),
-			constants = minify_unassigned_constants(&model, &uses, job.program.type == .Module),
+			constants = minify_unassigned_constants(&model, &uses, module),
+			dead = unused.dead, templates = minify_has_es2015(&model, module),
 		}
 		minify_compress_program(&compressor, job.program)
+		// Every declaration judged unused was found and deleted. One left behind
+		// would refer to bindings that are gone.
+		assert(compressor.removed == unused.count)
 	}
 	if !options.mangle { return nil }
-	return minify_local_names(&model, &uses, &alphabet, options, job.program.type == .Module)
+	return minify_local_names(&model, &uses, &alphabet, options, module, unused.dead_symbols)
+}
+
+// Whether the source already needs an ES2015 engine. Only then may the output
+// use ES2015 spellings, such as a template literal for a string.
+minify_has_es2015 :: proc(model: ^SemanticModel, module: bool) -> bool {
+	if module { return true }
+	for &symbol in model.symbols[1:] {
+		if symbol.kind == .Let || symbol.kind == .Const || symbol.kind == .Class { return true }
+	}
+	return false
 }
 
 minify_local_names :: proc(
 	model: ^SemanticModel, uses: ^MangleUses, alphabet: ^MangleAlphabet, options: PrintOptions,
-	module: bool,
+	module: bool, dead: []bool,
 ) -> map[u32]string {
 	alloc := model.alloc
 	count := len(model.symbols)
+	assert(len(dead) == count)
 	state := MangleState{
-		model = model, uses = uses, module = module, canon = make([]SymbolId, count, alloc),
+		model = model, uses = uses, module = module, dead = dead, canon = make([]SymbolId, count, alloc),
 		keep = make([]bool, count, alloc), slot = make([]u32, count, alloc),
 		live_scope = make([dynamic]ScopeId, alloc), live_symbol = make([dynamic]SymbolId, alloc),
 	}
@@ -415,7 +442,6 @@ minify_local_names :: proc(
 	for ref in model.refs {
 		if uses.shorthand[ref.start] { shorthands[ref.resolved] += 1 }
 	}
-	mangle_keep_shared_names(&state)
 	mangle_mark_kept(&state, !options.mangle_names, shorthands)
 	mangle_collect_live(&state)
 	mangle_reserve_names(&state, alphabet)

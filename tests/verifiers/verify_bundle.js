@@ -17,6 +17,9 @@
 //              Node cannot run natively (JSX, bundler-style resolution)
 //   error      the build must fail with a message containing this text
 //   contains / excludes   strings the default esm bundle must / must not contain
+//   minified_excludes     strings the esm bundle built with --minify must not contain
+//   minified_max_bytes    upper bound on the size of that bundle, for fixtures
+//              whose point is that the minifier deletes a module nothing uses
 //   in_place   write the bundles next to the sources, for fixtures whose
 //              bundle must still find an external package at run time
 //   entries    several entry files, bundled together into a directory. Each
@@ -247,6 +250,13 @@ async function checkFixture(name) {
       const code = fs.readFileSync(outfile, 'utf8');
       for (const text of config.contains || []) assert.ok(code.includes(text), `${label}: missing ${JSON.stringify(text)}`);
       for (const text of config.excludes || []) assert.ok(!code.includes(text), `${label}: unexpected ${JSON.stringify(text)}`);
+    }
+    if (variant.format === 'esm' && variant.flags.includes('--minify')) {
+      const code = fs.readFileSync(outfile, 'utf8');
+      for (const text of config.minified_excludes || []) assert.ok(!code.includes(text), `${label}: unexpected ${JSON.stringify(text)}`);
+      if (config.minified_max_bytes) {
+        assert.ok(Buffer.byteLength(code) <= config.minified_max_bytes, `${label}: ${Buffer.byteLength(code)} bytes exceed ${config.minified_max_bytes}`);
+      }
     }
   }
   if (reference && !config.expected) {

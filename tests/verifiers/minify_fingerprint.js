@@ -194,4 +194,9 @@ function fingerprintIn(code, calls, dom) {
   return out.join('\n');
 }
 
-module.exports = { fingerprint, loosen, threw };
+// A module that did not finish loading, as described by minify_module_runner.mjs.
+function moduleThrew(text) {
+  return text.startsWith('throw ');
+}
+
+module.exports = { fingerprint, loosen, threw, moduleThrew, describe, exercise, NAME, MESSAGE };

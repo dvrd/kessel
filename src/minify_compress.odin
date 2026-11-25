@@ -17,6 +17,12 @@ MinifyCompressor :: struct {
 	// Zero at the top level, where the value of the last statement is visible
 	// to `eval` and to the embedder.
 	function_depth: u32,
+	// Declaration offsets of bindings that nothing live refers to.
+	dead: map[u32]bool,
+	// How many of them have been deleted so far.
+	removed: int,
+	// The source needs ES2015, so a string may be spelled as a template literal.
+	templates: bool,
 }
 
 COMPRESS_SEQUENCE_MAX :: 1024
@@ -120,22 +126,143 @@ compress_dead_if :: proc(c: ^MinifyCompressor, stmt: ^Statement, v: ^IfStatement
 	alternate, has_alternate := v.alternate.?
 	live: ^Statement = v.consequent if truth else (alternate if has_alternate else nil)
 	dead: ^Statement = (alternate if has_alternate else nil) if truth else v.consequent
-	if compress_declares_hoisted(dead) { return false }
+	if compress_declares_hoisted(dead) { return compress_dead_if_keeping_vars(c, stmt, v, live, dead) }
 	if live == nil {
-		// At the top level of a script the statement still yields `undefined`.
-		if c.function_depth == 0 { return false }
-		empty := new(EmptyStatement, c.alloc)
-		empty.loc = v.loc
-		stmt^ = empty
+		if c.function_depth == 0 {
+			// At the top level of a script the statement still yields `undefined`.
+			statement := new(ExpressionStatement, c.alloc)
+			statement.loc, statement.expression = v.loc, compress_void_zero(c, v.loc)
+			stmt^ = statement
+		} else {
+			compress_replace_with_empty(c, stmt, v.loc)
+		}
 		return true
 	}
 	// A declaration cannot stand where a statement is required: keep its block.
 	if compress_is_lexical_declaration(live) { return false }
-	if _, is_expression := live^.(^ExpressionStatement); !is_expression && c.function_depth == 0 {
-		return false
-	}
+	if c.function_depth == 0 && !compress_yields_value(live) { return false }
 	stmt^ = live^
 	return true
+}
+
+// The dead branch declares `var` bindings, which exist in the whole function
+// even though the branch never runs. `var a, b;` keeps them, uninitialized as
+// they always were, and the live branch follows. A function declaration in the
+// dead branch is left alone: in sloppy code it also creates an outer binding.
+compress_dead_if_keeping_vars :: proc(
+	c: ^MinifyCompressor, stmt: ^Statement, v: ^IfStatement, live, dead: ^Statement,
+) -> bool {
+	declaration := new(VariableDeclaration, c.alloc)
+	declaration.loc, declaration.kind = v.loc, .Var
+	declaration.declarations = make([dynamic]VariableDeclarator, 0, 4, c.alloc)
+	if !compress_collect_vars(dead, declaration) { return false }
+	assert(len(declaration.declarations) != 0)
+	block := new(BlockStatement, c.alloc)
+	block.loc = v.loc
+	block.body = make([dynamic]^Statement, 0, 2, c.alloc)
+	hoisted := new(Statement, c.alloc)
+	hoisted^ = declaration
+	append(&block.body, hoisted)
+	if live != nil {
+		if compress_is_lexical_declaration(live) { return false }
+		if c.function_depth == 0 && !compress_yields_value(live) { return false }
+		inner, nested := live^.(^BlockStatement)
+		scoped := false
+		if nested {
+			for statement in inner.body { scoped ||= compress_is_lexical_declaration(statement) }
+		}
+		if nested && !scoped {
+			// The live block scopes nothing, so its statements join this one.
+			append(&block.body, ..inner.body[:])
+		} else {
+			kept := new(Statement, c.alloc)
+			kept^ = live^
+			append(&block.body, kept)
+		}
+	} else if c.function_depth == 0 {
+		// The `if` yields `undefined` there and a declaration yields nothing.
+		return false
+	}
+	stmt^ = block
+	return true
+}
+
+compress_collect_pattern_vars :: proc(pattern: Pattern, into: ^VariableDeclaration) {
+	switch v in pattern {
+	case ^Identifier:
+		append(&into.declarations, VariableDeclarator{loc = v.loc, id = v})
+	case ^AssignmentPattern: compress_collect_pattern_vars(v.left, into)
+	case ^RestElement:       compress_collect_pattern_vars(v.argument, into)
+	case ^ObjectPattern:
+		for property in v.properties { compress_collect_pattern_vars(property.value, into) }
+	case ^ArrayPattern:
+		for element in v.elements {
+			if inner, ok := element.?; ok { compress_collect_pattern_vars(inner, into) }
+		}
+	case ^MemberExpression:
+	}
+}
+
+// Gather the `var` names a statement declares, in source order. Returns false
+// when it also declares a function or a class, which cannot be re-declared as
+// a plain `var`. Mirrors compress_declares_hoisted.
+compress_collect_vars :: proc(stmt: ^Statement, into: ^VariableDeclaration) -> bool {
+	if stmt == nil { return true }
+	head :: proc(declaration: Maybe(^VariableDeclaration), into: ^VariableDeclaration) {
+		value, ok := declaration.?
+		if !ok || value.kind != .Var { return }
+		for declarator in value.declarations { compress_collect_pattern_vars(declarator.id, into) }
+	}
+	all :: proc(list: []^Statement, into: ^VariableDeclaration) -> bool {
+		for statement in list { if !compress_collect_vars(statement, into) { return false } }
+		return true
+	}
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration: head(v, into)
+	case ^FunctionDeclaration, ^ClassDeclaration: return false
+	case ^BlockStatement:      return all(v.body[:], into)
+	case ^IfStatement:
+		if !compress_collect_vars(v.consequent, into) { return false }
+		return compress_collect_vars(v.alternate.? or_else nil, into)
+	case ^ForStatement:
+		head(v.init_decl, into)
+		return compress_collect_vars(v.body, into)
+	case ^ForInStatement:
+		head(v.left_decl, into)
+		return compress_collect_vars(v.body, into)
+	case ^ForOfStatement:
+		head(v.left_decl, into)
+		return compress_collect_vars(v.body, into)
+	case ^WhileStatement:   return compress_collect_vars(v.body, into)
+	case ^DoWhileStatement: return compress_collect_vars(v.body, into)
+	case ^WithStatement:    return compress_collect_vars(v.body, into)
+	case ^LabeledStatement: return compress_collect_vars(v.body, into)
+	case ^SwitchStatement:
+		for item in v.cases { if !all(item.consequent[:], into) { return false } }
+	case ^TryStatement:
+		if !all(v.block.body[:], into) { return false }
+		if v.handler != nil && !all(v.handler.(CatchClause).body.body[:], into) { return false }
+		if v.finalizer != nil { return all(v.finalizer.(BlockStatement).body[:], into) }
+	}
+	return true
+}
+
+// Whether a statement always completes with a value of its own, as the `if`
+// it replaces does. At the top level of a script that value is visible. A
+// block qualifies when it ends in an expression and nothing in it can jump.
+compress_yields_value :: proc(stmt: ^Statement) -> bool {
+	is_expression :: proc(stmt: ^Statement) -> bool {
+		statement, ok := stmt^.(^ExpressionStatement)
+		return ok && statement.directive == ""
+	}
+	block, is_block := stmt^.(^BlockStatement)
+	if !is_block { return is_expression(stmt) }
+	if len(block.body) == 0 { return false }
+	for statement in block.body {
+		_, declares := statement^.(^VariableDeclaration)
+		if !declares && !is_expression(statement) { return false }
+	}
+	return is_expression(block.body[len(block.body)-1])
 }
 
 // A conditional or logical operator whose left side is a literal selects one
@@ -296,6 +423,7 @@ compress_conditional :: proc(
 	if negated, ok := test^.(^UnaryExpression); ok && negated.operator == .LogicalNot {
 		node.test, node.consequent, node.alternate = negated.argument, no, yes
 	}
+	compress_flip_conditional(node)
 	return compress_new_expression(c, node)
 }
 
@@ -402,6 +530,16 @@ compress_pattern_constant :: proc(c: ^MinifyCompressor, pattern: Pattern) -> boo
 compress_variable_declaration :: proc(c: ^MinifyCompressor, declaration: ^VariableDeclaration) {
 	if declaration == nil || declaration.declare { return }
 	unassigned := declaration.kind == .Const
+	write := 0
+	for declarator in declaration.declarations {
+		if id, plain := declarator.id.(^Identifier); plain && c.dead[id.loc.start] {
+			c.removed += 1
+			continue
+		}
+		declaration.declarations[write] = declarator
+		write += 1
+	}
+	resize(&declaration.declarations, write)
 	for &declarator in declaration.declarations {
 		compress_pattern(c, declarator.id)
 		if init, ok := declarator.init.?; ok { compress_value(c, init) }
@@ -439,7 +577,13 @@ compress_statement :: proc(c: ^MinifyCompressor, stmt: ^Statement) {
 	if stmt == nil { return }
 	#partial switch v in stmt^ {
 	case ^ExpressionStatement:
-		if v.directive == "" { compress_value(c, v.expression) }
+		if v.directive != "" { return }
+		compress_value(c, v.expression)
+		// A string that is not a directive does nothing. Left in place it could
+		// become one when the declarations before it are deleted.
+		if _, is_string := v.expression^.(^StringLiteral); is_string && c.function_depth > 0 {
+			compress_replace_with_empty(c, stmt, v.loc)
+		}
 	case ^BlockStatement: compress_statement_list(c, &v.body, 0, false)
 	case ^ReturnStatement:
 		if argument, ok := v.argument.?; ok {
@@ -462,6 +606,12 @@ compress_statement :: proc(c: ^MinifyCompressor, stmt: ^Statement) {
 	case ^WhileStatement:
 		compress_value(c, v.test)
 		compress_loop(c, v.body)
+		// `for(;a;)` is as long as `while(a)` and its head can take a declaration.
+		// `for(;;)` is shorter than `while(!0)`.
+		loop := new(ForStatement, c.alloc)
+		loop.loc, loop.body = v.loc, v.body
+		if truth, known := compress_constant_truth(v.test); !known || !truth { loop.test = v.test }
+		stmt^ = loop
 	case ^DoWhileStatement:
 		compress_loop(c, v.body)
 		compress_value(c, v.test)
@@ -488,8 +638,16 @@ compress_statement :: proc(c: ^MinifyCompressor, stmt: ^Statement) {
 			finalizer := &v.finalizer.(BlockStatement)
 			compress_statement_list(c, &finalizer.body, 0, false)
 		}
-	case ^FunctionDeclaration: compress_function(c, &v.expr)
-	case ^VariableDeclaration: compress_variable_declaration(c, v)
+	case ^FunctionDeclaration:
+		if id, named := v.id.?; named && c.dead[id.loc.start] {
+			c.removed += 1
+			compress_replace_with_empty(c, stmt, v.loc)
+			return
+		}
+		compress_function(c, &v.expr)
+	case ^VariableDeclaration:
+		compress_variable_declaration(c, v)
+		if len(v.declarations) == 0 { compress_replace_with_empty(c, stmt, v.loc) }
 	case ^ClassDeclaration:    compress_class(c, &v.expr)
 	case ^ExportNamedDeclaration:
 		if declaration, ok := v.declaration.?; ok { compress_declaration(c, declaration) }
@@ -500,6 +658,12 @@ compress_statement :: proc(c: ^MinifyCompressor, stmt: ^Statement) {
 		case ^Expression:  compress_value(c, inner)
 		}
 	}
+}
+
+compress_replace_with_empty :: proc(c: ^MinifyCompressor, stmt: ^Statement, loc: Loc) {
+	empty := new(EmptyStatement, c.alloc)
+	empty.loc = loc
+	stmt^ = empty
 }
 
 compress_terminates :: proc(stmt: ^Statement) -> bool {
@@ -653,6 +817,28 @@ compress_statement_list :: proc(
 	}
 	compress_merge_returns(c, list, first)
 	compress_join_expressions(c, list, first)
+	// Joining may have moved an expression into the `return` after a guard.
+	compress_merge_returns(c, list, first)
+	compress_hoist_into_for(list, first)
+}
+
+// `var a = 1; for (var b = 2; ...)` shares one `var`, and `var a = 1; for (;;)`
+// saves the separator. A `var` belongs to the function wherever it is written,
+// and the initializers still run once, in order, before the loop test.
+compress_hoist_into_for :: proc(list: ^[dynamic]^Statement, first: int) {
+	for index := len(list) - 1; index > first; index -= 1 {
+		loop, is_for := list[index]^.(^ForStatement)
+		if !is_for || loop.init_expr != nil { continue }
+		declaration, is_var := list[index-1]^.(^VariableDeclaration)
+		if !is_var || declaration.kind != .Var || declaration.declare { continue }
+		if head, has_head := loop.init_decl.?; has_head {
+			if head.kind != .Var || head.declare { continue }
+			append(&declaration.declarations, ..head.declarations[:])
+			declaration.loc.end = head.loc.end
+		}
+		loop.init_decl = declaration
+		ordered_remove(list, index - 1)
+	}
 }
 
 compress_function :: proc(c: ^MinifyCompressor, function: ^FunctionExpression) {
@@ -692,7 +878,9 @@ compress_class :: proc(c: ^MinifyCompressor, class: ^ClassExpression) {
 	if class == nil { return }
 	// `extends` takes a left-hand-side expression, which `void 0` is not.
 	if super_class, ok := class.super_class.?; ok { compress_expression(c, super_class) }
+	for decorator in class.decorators { compress_expression(c, decorator.expression) }
 	for &element in class.body.body {
+		for decorator in element.decorators { compress_expression(c, decorator.expression) }
 		if element.computed && element.key != nil { compress_value(c, element.key) }
 		value, has_value := element.value.?
 		if !has_value || value == nil { continue }
@@ -737,15 +925,23 @@ compress_is_void_zero :: proc(expr: ^Expression) -> bool {
 compress_value :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 	if expr == nil { return }
 	compress_expression(c, expr)
+	if literal, is_string := expr^.(^StringLiteral); is_string {
+		if raw := compress_requote(c, literal.raw); raw != "" { literal.raw = raw }
+		return
+	}
 	id, is_identifier := expr^.(^Identifier)
 	if !is_identifier || !c.undefined_reads[id.loc.start] { return }
 	assert(id.name == "undefined")
+	expr^ = compress_void_zero(c, id.loc)^
+}
+
+compress_void_zero :: proc(c: ^MinifyCompressor, loc: Loc) -> ^Expression {
 	zero := new(NumericLiteral, c.alloc)
-	zero.loc, zero.value, zero.raw = id.loc, 0, "0"
+	zero.loc, zero.value, zero.raw = loc, 0, "0"
 	unary := new(UnaryExpression, c.alloc)
-	unary.loc, unary.operator, unary.prefix = id.loc, .Void, true
+	unary.loc, unary.operator, unary.prefix = loc, .Void, true
 	unary.argument = compress_new_expression(c, zero)
-	expr^ = unary
+	return compress_new_expression(c, unary)
 }
 
 compress_identifier_name :: proc(name: string) -> bool {
@@ -795,6 +991,8 @@ compress_typeof_comparison :: proc(binary: ^BinaryExpression) {
 // without re-escaping anything.
 compress_join_strings :: proc(c: ^MinifyCompressor, left, right: ^StringLiteral) -> ^StringLiteral {
 	if len(left.raw) < 2 || len(right.raw) < 2 || left.raw[0] != right.raw[0] { return nil }
+	// Two templates could meet as `$` and `{` and start a substitution.
+	if left.raw[0] == '`' { return nil }
 	// Each join copies both operands. Appending many short literals to a long
 	// one would copy the long one every time, so a join must be small or must
 	// add at least a sixteenth of what it copies. Total work stays linear.
@@ -833,6 +1031,39 @@ compress_string_concatenation :: proc(
 	inner.right = compress_new_expression(c, joined)
 	inner.loc.end = binary.loc.end
 	expr^ = inner
+}
+
+// `a !== b ? c : d` is `a === b ? d : c`, one byte shorter. The test is
+// evaluated first either way and only one branch runs.
+compress_flip_conditional :: proc(node: ^ConditionalExpression) {
+	binary, is_binary := node.test^.(^BinaryExpression)
+	if !is_binary { return }
+	#partial switch binary.operator {
+	case .NotEq:       binary.operator = .Eq
+	case .StrictNotEq: binary.operator = .StrictEq
+	case: return
+	}
+	node.consequent, node.alternate = node.alternate, node.consequent
+}
+
+// `!(a == b)` is `a != b`: equality always yields a boolean, and its negation
+// is the opposite operator for every pair of values, NaN included. The
+// relational operators have no such opposite (`!(a < b)` is not `a >= b`).
+compress_negated_equality :: proc(expr: ^Expression, unary: ^UnaryExpression) {
+	if unary.operator != .LogicalNot { return }
+	inner := unary.argument
+	if group, grouped := inner^.(^ParenthesizedExpression); grouped { inner = group.expression }
+	binary, is_binary := inner^.(^BinaryExpression)
+	if !is_binary { return }
+	#partial switch binary.operator {
+	case .Eq:          binary.operator = .NotEq
+	case .NotEq:       binary.operator = .Eq
+	case .StrictEq:    binary.operator = .StrictNotEq
+	case .StrictNotEq: binary.operator = .StrictEq
+	case: return
+	}
+	// The printer groups the comparison again where its position requires it.
+	expr^ = inner^
 }
 
 // An assignment target is written, not read.
@@ -955,6 +1186,7 @@ compress_expression :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 		compress_value(c, v.test)
 		compress_value(c, v.consequent)
 		compress_value(c, v.alternate)
+		compress_flip_conditional(v)
 		compress_constant_choice(expr)
 	case ^UpdateExpression: compress_target(c, v.argument)
 	case ^UnaryExpression:
@@ -962,6 +1194,7 @@ compress_expression :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 			compress_expression(c, v.argument)
 		} else {
 			compress_value(c, v.argument)
+			compress_negated_equality(expr, v)
 		}
 	case ^AssignmentExpression:
 		compress_target(c, v.left)

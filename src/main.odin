@@ -484,6 +484,7 @@ main :: proc() {
 		cli := cli_config_default()
 		cg_file := ""
 		options := PrintOptions{minified = optimize, compress = optimize, mangle = optimize}
+		minify_defines: map[string]string
 		// Source-map output mode. Three states:
 		//   - ""        : no sourcemap (default).
 		//   - "inline"  : embed the map as a base64 data URI in a
@@ -508,6 +509,11 @@ main :: proc() {
 			case command == "minify" && arg == "--no-compress":
 				options.compress = false
 				i += 1
+			case optimize && (arg == "--define" || strings.has_prefix(arg, "--define=")):
+				if !cli_parse_define(os.args, &i, &minify_defines) {
+					fmt.eprintln("Error: --define requires NAME=EXPRESSION")
+					os.exit(2)
+				}
 			case arg == "--minified":
 				options.minified = true
 				i += 1
@@ -532,7 +538,11 @@ main :: proc() {
 			flush_stdout_writer()
 			os.exit(1)
 		}
-		codegen_file(cg_file, cli, options, cg_sourcemap)
+		if len(minify_defines) != 0 && cg_sourcemap != "" {
+			fmt.eprintln("Error: --define and --sourcemap cannot be combined for `kessel minify`")
+			os.exit(2)
+		}
+		codegen_file(cg_file, cli, options, cg_sourcemap, minify_defines)
 
 	case "transform", "strip-types":
 		if len(os.args) < 3 {
@@ -679,7 +689,7 @@ print_usage :: proc() {
 	out_println("  lint <files...>                 Run the linter. Prints diagnostics on stderr.")
 	out_println("  lint/fmt/transform --watch      Repeat the command when input files change.")
 	out_println("  lint --list-rules               Print the lint rule catalogue as JSON.")
-	out_println("  minify <file> [--no-compress] [--no-mangle] [--mangle-names] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
+	out_println("  minify <file> [--define NAME=EXPRESSION] [--no-compress] [--no-mangle] [--mangle-names] [--sourcemap] [--jsx-pragma=NAME] [--jsx-pragma-frag=NAME]")
 	out_println("                                  Options: --no-compress, --no-mangle.")
 	out_println("  codegen <file> [--minified]     Parse and re-emit JS source from the AST.")
 	out_println("  transform <file> [--define NAME=EXPRESSION] [--jsx=classic|automatic|preserve] [--jsx-development] [--jsx-import-source=X] [--jsx-pragma=X] [--jsx-pragma-frag=X] [--minified] [--sourcemap]")
@@ -980,7 +990,10 @@ cli_parse_jsx_pragma :: proc(arg: string, pragma, fragment: ^string) -> bool {
 	return false
 }
 
-codegen_file :: proc(file_path: string, cli: CliConfig, options: PrintOptions, sourcemap_mode: string) {
+codegen_file :: proc(
+	file_path: string, cli: CliConfig, options: PrintOptions, sourcemap_mode: string,
+	defines: map[string]string = nil,
+) {
 	job: ParseJob
 	if !parse_job_open(&job, file_path, parse_config_from_cli(cli)) {
 		fmt.eprintf("error: could not read file: %s\n", file_path)
@@ -1008,10 +1021,21 @@ codegen_file :: proc(file_path: string, cli: CliConfig, options: PrintOptions, s
 		os.exit(1)
 	}
 
+	printed := &job
+	defined: ParseJob
+	if len(defines) != 0 {
+		if message := minify_define_job(&job, &defined, defines); message != "" {
+			fmt.eprintf("error: %s\n", message)
+			os.exit(1)
+		}
+		printed = &defined
+	}
+	defer if len(defines) != 0 { parse_job_close(&defined) }
+
 	cg: Codegen
 	sm: SourceMap
 	want_sm := sourcemap_mode != ""
-	codegen_print_job(&job, &cg, options, &sm if want_sm else nil)
+	codegen_print_job(printed, &cg, options, &sm if want_sm else nil)
 	defer codegen_destroy(&cg, context.allocator)
 	defer if want_sm { sourcemap_destroy(&sm) }
 

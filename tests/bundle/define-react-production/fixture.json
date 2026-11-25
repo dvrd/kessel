@@ -1,0 +1,17 @@
+{
+  "expected": "expected.txt",
+  "formats": ["esm", "cjs"],
+  "args": [
+    "--define",
+    "process.env.NODE_ENV=\"production\""
+  ],
+  "excludes": [
+    "process.env.NODE_ENV"
+  ],
+  "minified_excludes": [
+    "ReactDebugCurrentFrame",
+    "Warning: ",
+    "process.env"
+  ],
+  "minified_max_bytes": 12000
+}
