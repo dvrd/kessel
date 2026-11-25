@@ -683,8 +683,14 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 	case ^JSXExpressionContainer:     gen_jsx_expression_container(cg, e)
 	case ^JSXEmptyExpression:         // empty
 	case ^JSXSpreadChild:             cg_byte(cg, '{'); cg_str(cg, "..."); gen_expression(cg, e.expression, PREC_ASSIGN); cg_byte(cg, '}')
-	case ^TSAsExpression:             if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_as_expression(cg, e) }
-	case ^TSSatisfiesExpression:      if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_satisfies_expression(cg, e) }
+	case ^TSAsExpression:
+		if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else {
+			gen_ts_type_postfix(cg, e.expression, " as ", e.type_annotation, ctx)
+		}
+	case ^TSSatisfiesExpression:
+		if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else {
+			gen_ts_type_postfix(cg, e.expression, " satisfies ", e.type_annotation, ctx)
+		}
 	case ^TSNonNullExpression:        gen_expression(cg, e.expression, PREC_CALL); if !cg.cfg.strip_types { cg_byte(cg, '!') }
 	case ^TSTypeAssertion:            if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_type_assertion(cg, e) }
 	case ^TSInstantiationExpression:  if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_instantiation(cg, e) }
@@ -737,14 +743,13 @@ expression_precedence :: proc(expr: ^Expression) -> int {
 		return PREC_COMMA
 	case ^SpreadElement:
 		return PREC_ASSIGN
-	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
-		// kessel's parser binds `as` / `satisfies` / `<Type>x` tighter
-		// than relational and binary operators (verified empirically:
-		// `x < y as boolean` parses as `x < (y as boolean)`). Treat them
-		// at unary level so the right operand of `<`, `+`, etc. does not
-		// pick up spurious parens, while `(x as T).y` and `(x as T)(args)`
-		// still get them because MemberExpression / CallExpression are
-		// at PREC_CALL (higher than PREC_UNARY).
+	case ^TSAsExpression, ^TSSatisfiesExpression:
+		// `as` and `satisfies` are relational operators that associate to
+		// the left: `1 + x as T` is `(1 + x) as T`, `a < b as T` is
+		// `(a < b) as T`, and `a < (b as T)` needs its grouping.
+		return PREC_REL
+	case ^TSTypeAssertion:
+		// `<Type>x` is a prefix operator: it binds like a unary operator.
 		return PREC_UNARY
 	case ^TSInstantiationExpression:
 		return PREC_CALL
@@ -2839,7 +2844,7 @@ gen_infix_schedule :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 	right_prec := precedence if power else precedence + 1
 	append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = right, precedence = right_prec, ctx = operand_ctx})
 	append(&cg.infix_work, CodegenInfixTask{kind = .Operator, operator = operator})
-	if power && left_needs_paren_for_exp(left) {
+	if (power && left_needs_paren_for_exp(left)) || infix_left_type_needs_group(cg, left, operator) {
 		append(&cg.infix_work, CodegenInfixTask{kind = .Close})
 		append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = left, precedence = PREC_LOWEST})
 		append(&cg.infix_work, CodegenInfixTask{kind = .Open})
@@ -2857,6 +2862,44 @@ cg_infix_operator :: proc(cg: ^Codegen, op: string) {
 	if word || after_bang { cg_hard_space(cg) } else { cg_space(cg) }
 	cg_str(cg, op)
 	if word { cg_hard_space(cg) } else { cg_space(cg) }
+}
+
+// The type of `x as T` keeps reading where it can: `T | b` and `T & b` are
+// one type, and after a type name `<`, `<<` or `<=` opens its type arguments. The
+// assertion is grouped so that the operator is an operator. Where the bare
+// form reads the same (`x as any < b`), nothing is added.
+infix_left_type_needs_group :: proc(cg: ^Codegen, left: ^Expression, operator: string) -> bool {
+	if cg.cfg.strip_types || left == nil { return false }
+	type: ^TSType
+	#partial switch e in left^ {
+	case ^TSAsExpression:        type = e.type_annotation
+	case ^TSSatisfiesExpression: type = e.type_annotation
+	case: return false
+	}
+	switch operator {
+	case "|", "&":  return true
+	case "<", "<<", "<=": return ts_type_takes_arguments(type)
+	}
+	return false
+}
+
+// True when the type ends in a name that type arguments could follow.
+ts_type_takes_arguments :: proc(type: ^TSType) -> bool {
+	current := type
+	for current != nil {
+		#partial switch t in current^ {
+		case ^TSTypeReference: return t.type_parameters == nil
+		case ^TSTypeQuery, ^TSImportType: return true
+		case ^TSUnionType:
+			if len(t.types) == 0 { return false }
+			current = t.types[len(t.types) - 1]
+		case ^TSIntersectionType:
+			if len(t.types) == 0 { return false }
+			current = t.types[len(t.types) - 1]
+		case: return false
+		}
+	}
+	return false
 }
 
 // left_needs_paren_for_exp — true when `expr` cannot legally appear as
@@ -3116,8 +3159,18 @@ gen_jsx_child :: proc(cg: ^Codegen, c: JSXChild) {
 // TS expressions
 // ----------------------------------------------------------------------------
 
-gen_ts_as_expression        :: proc(cg: ^Codegen, e: ^TSAsExpression)        { gen_expression(cg, e.expression, PREC_UNARY); cg_str(cg, " as "); gen_ts_type(cg, e.type_annotation) }
-gen_ts_satisfies_expression :: proc(cg: ^Codegen, e: ^TSSatisfiesExpression) { gen_expression(cg, e.expression, PREC_UNARY); cg_str(cg, " satisfies "); gen_ts_type(cg, e.type_annotation) }
+// `operand as T` and `operand satisfies T`. The operand is the left side of
+// a relational operator, so anything that binds at least as tightly prints
+// bare, including another `as`. The context is passed on: in a `for`
+// initializer an `in` inside the operand still needs its grouping.
+gen_ts_type_postfix :: proc(
+	cg: ^Codegen, operand: ^Expression, keyword: string, type: ^TSType,
+	ctx: CodegenExpressionContext,
+) {
+	gen_expression(cg, operand, PREC_REL, ctx)
+	cg_str(cg, keyword)
+	gen_ts_type(cg, type)
+}
 gen_ts_type_assertion       :: proc(cg: ^Codegen, e: ^TSTypeAssertion)       { cg_byte(cg, '<'); gen_ts_type(cg, e.type_annotation); cg_byte(cg, '>'); gen_expression(cg, e.expression, PREC_UNARY) }
 gen_ts_instantiation        :: proc(cg: ^Codegen, e: ^TSInstantiationExpression) { gen_ts_instantiation_full(cg, e) }
 

@@ -322,6 +322,9 @@ function checkRequiredGrouping() {
   const typedLines = [
     'new (a()!)();', 'let x = true ? (async (a): b => a) : null;', 'type A = X< <T>() => T>;',
     'const c = f< <T>() => T>(1);', 'type T1 = `a\\tb\\r\\n${string}\\u0041`;',
+    // `as` and `satisfies` are relational: grouping stays where it changes the tree.
+    'const r = (a as T) < b;', 'const s = (a satisfies T) | b;', 'const t = a + (b as T);',
+    'const u = a + b as T;', 'const v = -(a as T);', 'const w = a as any < b;', 'const y = a < b as T;',
   ];
   writeFileSync(typed, typedLines.join('\n') + '\n');
   assert.equal(execFileSync(binary, ['codegen', typed], { encoding: 'utf8' }), typedLines.join('\n') + '\n');
