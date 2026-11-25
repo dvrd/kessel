@@ -389,7 +389,10 @@ async function projects(client) {
 
 async function formatting(client) {
   const file = uriFor('format.tsx');
-  const untouched = 'const el=<div title="🚀"/>;';
+  // A statement the formatter still leaves as written (a css-tagged template),
+  // with a non-ASCII character so UTF-16 edit ranges are exercised. JSX was
+  // used here until the formatter learned to print it.
+  const untouched = 'const el=css`🚀`;';
   const source = untouched + '\r\n' + "import{type A,B}from'./model'" + '\r\n' + untouched.replace('el=', 'other=') + '\r\n';
   const options = { tabSize: 4, insertSpaces: true };
   const requestFormat = (uri, settings = options) => request(70, 'textDocument/formatting', {
