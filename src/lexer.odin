@@ -194,6 +194,12 @@ Lexer :: struct {
 	// Comment collection — populated during lexing
 	comments: [dynamic]Comment,
 	collect_comments: bool,
+	// Offsets of whitespace other than space and tab between tokens (VT, FF,
+	// NBSP, LS, PS, the Zs spaces, a BOM after the start), for the linter's
+	// no-irregular-whitespace. Lookahead that the parser later re-reads as a
+	// regular expression, a template or JSX text can add offsets inside that
+	// token, and can add an offset twice; the linter filters both.
+	irregular_whitespace: [dynamic]u32,
 
 	// Hashbang comment — if the source starts with `#!...`, capture the
 	// content and span. ES2023 elevated this to Program.hashbang in ESTree.
@@ -939,6 +945,7 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 			} else if c == 0x0B || c == 0x0C {
 				// <VT> (U+000B) and <FF> (U+000C) are ES `WhiteSpace` per §5.1.1.
 				// They're not line terminators so no ASI is triggered.
+				if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 				off += 1
 			} else if c == 0xE2 && off + 2 < src_len && src[off+1] == 0x80 {
 				b2 := src[off + 2]
@@ -947,34 +954,42 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 					// Both are LineTerminators (§12.3); fire ASI like `\n`.
 					l.had_line_terminator = true
 					at_logical_line_start = true
+					if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 					off += 3
 				} else if b2 >= 0x80 && b2 <= 0x8A {
 					// U+2000…U+200A — Zs Space_Separator (EN/EM quads,
 					// figure / punctuation / hair / thin space, …). Test262
 					// language/white-space/after-regular-expression-literal-*.
+					if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 					off += 3
 				} else if b2 == 0xAF {
 					// U+202F NARROW NO-BREAK SPACE — Zs.
+					if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 					off += 3
 				} else {
 					break  // not whitespace; let lexer dispatch handle it.
 				}
 			} else if c == 0xE2 && off + 2 < src_len && src[off+1] == 0x81 && src[off+2] == 0x9F {
 				// U+205F MEDIUM MATHEMATICAL SPACE — Zs.
+				if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 				off += 3
 			} else if c == 0xE1 && off + 2 < src_len && src[off+1] == 0x9A && src[off+2] == 0x80 {
 				// U+1680 OGHAM SPACE MARK — Zs.
+				if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 				off += 3
 			} else if c == 0xE3 && off + 2 < src_len && src[off+1] == 0x80 && src[off+2] == 0x80 {
 				// U+3000 IDEOGRAPHIC SPACE — Zs.
+				if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 				off += 3
 			} else if c == 0xC2 && off + 1 < src_len && (src[off+1] == 0x85 || src[off+1] == 0xA0) {
 				// U+0085 NEXT LINE (`NEL`) appears in TypeScript corpus files
 				// as whitespace, and U+00A0 NO-BREAK SPACE (`NBSP`) is ES
 				// WhiteSpace per §5.1.1. Neither one triggers ASI here.
+				if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 				off += 2
 			} else if c == 0xEF && off + 2 < src_len && src[off+1] == 0xBB && src[off+2] == 0xBF {
 				// U+FEFF ZWNBSP. WhiteSpace per §5.1.1.
+				if l.collect_comments { append(&l.irregular_whitespace, u32(off)) }
 				off += 3
 			} else if c == '<' && !l.is_module_mode &&
 			          off + 3 < src_len &&
