@@ -5,6 +5,7 @@ package kessel
 // them back through the transformer's map to the text the user wrote and
 // through the minifier's map forward to the final output.
 
+import "core:mem"
 import "core:path/filepath"
 import "core:slice"
 import "core:strings"
@@ -100,14 +101,21 @@ bundle_map_json :: proc(g: ^BundleGraph, mappings: []BundleMapping, code: string
 // A map's `sources` are resolved against the map file's own location. Both
 // paths are absolute, so the relative form is: one `..` per directory of the
 // map's location below the common prefix, then the rest of the module path.
+// Source map paths are URLs, so they always use `/`; on Windows both inputs
+// are split on either separator and compared without regard to case, the
+// way the file system compares them.
 @(private="file")
 bundle_map_source_path :: proc(g: ^BundleGraph, module: ^BundleModule) -> string {
 	base := g.options.map_directory
 	if base == "" || !filepath.is_abs(module.path) { return module.display }
-	from := strings.split(strings.trim_suffix(base, "/"), "/", g.alloc)
-	to := strings.split(module.path, "/", g.alloc)
+	from := bundle_map_path_parts(base, g.alloc)
+	to := bundle_map_path_parts(module.path, g.alloc)
 	common := 0
-	for common < len(from) && common < len(to) - 1 && from[common] == to[common] { common += 1 }
+	for common < len(from) && common < len(to) - 1 && bundle_map_part_eq(from[common], to[common]) {
+		common += 1
+	}
+	// Different volumes have no relative path between them.
+	if common == 0 && ODIN_OS == .Windows { return strings.join(to, "/", g.alloc) }
 	builder := strings.builder_make(g.alloc)
 	for _ in common..<len(from) { strings.write_string(&builder, "../") }
 	for part, index in to[common:] {
@@ -115,6 +123,20 @@ bundle_map_source_path :: proc(g: ^BundleGraph, module: ^BundleModule) -> string
 		strings.write_string(&builder, part)
 	}
 	return strings.to_string(builder)
+}
+
+// The non-empty segments of an absolute path. A leading `/` becomes an empty
+// first segment so a POSIX root still compares equal on both sides.
+@(private="file")
+bundle_map_path_parts :: proc(path: string, allocator: mem.Allocator) -> []string {
+	assert(len(path) > 0)
+	normalized, _ := strings.replace_all(path, "\\", "/", allocator)
+	return strings.split(strings.trim_suffix(normalized, "/"), "/", allocator)
+}
+
+@(private="file")
+bundle_map_part_eq :: proc(a, b: string) -> bool {
+	when ODIN_OS == .Windows { return strings.equal_fold(a, b) } else { return a == b }
 }
 
 @(private="file")
