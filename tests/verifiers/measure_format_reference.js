@@ -138,7 +138,10 @@ async function main() {
   const snippet = { identical: 0, preserved: 0, different: 0, unparsed: 0 };
   const failures = [];
   for (const text of snippets) {
-    const expected = await reference(text, { parser: typescript ? 'typescript' : 'babel' });
+    // Prettier's layout of a generic arrow function depends on the file name,
+    // so the reference formats under the name that Kessel is given.
+    const expected = await reference(text, typescript
+      ? { parser: 'typescript', filepath: 'snippet.ts' } : { parser: 'babel' });
     let actual;
     try { actual = formatSync(typescript ? 'snippet.ts' : 'snippet.js', text); } catch { actual = null; }
     // Out of its function a statement may not parse on its own.

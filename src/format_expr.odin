@@ -183,7 +183,8 @@ format_expr_inner :: proc(f: ^FormatContext, expr: ^Expression, args: FormatArgs
 		return keyword
 	case ^AwaitExpression:
 		return format_await(f, node)
-	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSNonNullExpression:
+	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSNonNullExpression, ^TSTypeAssertion,
+	     ^TSInstantiationExpression:
 		return format_ts_expression(f, expr)
 	}
 	return format_fail(f)
@@ -226,12 +227,43 @@ format_ts_expression :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 		return format_cast(f, node.expression, " satisfies ", node.type_annotation)
 	case ^TSNonNullExpression:
 		return fc(f, format_expr(f, node.expression, .Expression), ft(f, "!"))
+	case ^TSTypeAssertion:
+		return format_type_assertion(f, node)
+	case ^TSInstantiationExpression:
+		value := format_expr(f, node.expression, .Expression)
+		return fc(f, value, format_type_arguments(f, node.type_arguments))
 	}
 	return format_fail(f)
 }
 
+// `<Type>value`. When the two do not fit on a line, the value moves into
+// parentheses on lines of its own, unless it is an array or an object, which
+// break by themselves.
+@(private = "file")
+format_type_assertion :: proc(f: ^FormatContext, node: ^TSTypeAssertion) -> Doc {
+	type := format_type(f, node.type_annotation, .Type_Annotation)
+	angle := fg(f, ft(f, "<"), fi(f, doc_softline(), type), doc_softline(), ft(f, ">"))
+	value := format_expr(f, node.expression, .Expression)
+	inner := format_expr_unwrap(node.expression)
+	if inner == nil {return format_fail(f)}
+	#partial switch _ in inner^ {
+	case ^ArrayExpression, ^ObjectExpression:
+		return fg(f, angle, value)
+	}
+	wrapped := fc(
+		f,
+		doc_if_break(f, ft(f, "(")),
+		fi(f, doc_softline(), value),
+		doc_softline(),
+		doc_if_break(f, ft(f, ")")),
+	)
+	plain := fc(f, angle, value)
+	states := []Doc{plain, fc(f, angle, doc_group(f, wrapped, true)), plain}
+	return doc_conditional_group(f, states)
+}
+
 // `value as Type` and `value satisfies Type`. As a callee or the object of a
-// member access the cast is parenthesised, and the parentheses hold the
+// member access the angle is parenthesised, and the parentheses hold the
 // break.
 @(private = "file")
 format_cast :: proc(f: ^FormatContext, value: ^Expression, keyword: string, type: ^TSType) -> Doc {
@@ -239,7 +271,8 @@ format_cast :: proc(f: ^FormatContext, value: ^Expression, keyword: string, type
 	parent := format_parent(f)
 	is_callee := current.key == .Callee && parent.kind == .Call
 	is_object := current.key == .Object && parent.kind == .Member
-	parts := fc(f, format_expr(f, value, .Expression), ft(f, keyword), format_simple_type(f, type))
+	target := format_type(f, type, .Type_Annotation)
+	parts := fc(f, format_expr(f, value, .Expression), ft(f, keyword), target)
 	if is_callee || is_object {return fg(f, fi(f, doc_softline(), parts), doc_softline())}
 	return parts
 }

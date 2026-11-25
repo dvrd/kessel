@@ -43,7 +43,6 @@ format_chain_collect :: proc(
 	#partial switch node in inner^ {
 	case ^CallExpression:
 		if format_is_member(node.callee) || format_is_call(node.callee) {
-			if _, typed := node.type_parameters.?; typed {f.failed = true}
 			// The chain's own parentheses rules cover only its head.
 			if format_needs_parens(f) {f.failed = true}
 			format_chain_collect(f, links, node.callee, .Callee)
@@ -51,6 +50,7 @@ format_chain_collect :: proc(
 			printed := fc(
 				f,
 				ft(f, "?.") if node.optional else nil,
+				format_type_arguments(f, node.type_parameters),
 				format_call_arguments(f, format_call_parts(f, inner)),
 				doc_hardline() if empty_line else nil,
 			)
@@ -227,6 +227,7 @@ format_member_chain :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	top := fc(
 		f,
 		ft(f, "?.") if call.optional else nil,
+		format_type_arguments(f, call.type_parameters),
 		format_call_arguments(f, format_call_parts(f, expr)),
 	)
 	append(&links, FormatChainLink{node = expr, printed = top, is_call = true})

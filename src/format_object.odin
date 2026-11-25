@@ -5,23 +5,23 @@ import "core:strings"
 // Objects, arrays, binding patterns and template literals. Ports of
 // Prettier's object, property, array and template-literal rules.
 
-@(private = "file")
 FormatObjectItem :: struct {
 	doc: Doc,
 	end: u32,
 }
 
 // Properties separated by commas, with one blank line kept wherever the
-// source has one. `hug` leaves the braces to the enclosing group.
-@(private = "file")
+// source has one. `hug` leaves the braces to the enclosing group. `suffix`
+// follows the closing brace inside the group, as a pattern's annotation does.
 format_object_body :: proc(
 	f: ^FormatContext,
 	items: []FormatObjectItem,
 	should_break: bool,
 	trailing_comma: bool,
 	hug: bool,
+	suffix: Doc = nil,
 ) -> Doc {
-	if len(items) == 0 {return ft(f, "{}")}
+	if len(items) == 0 {return fc(f, ft(f, "{}"), suffix)}
 	parts := make([dynamic]Doc, f.alloc)
 	for item, index in items {
 		if index > 0 {
@@ -35,7 +35,8 @@ format_object_body :: proc(
 	space := doc_line() if f.options.bracket_spacing else doc_softline()
 	comma: Doc
 	if trailing_comma && f.options.trailing_comma {comma = doc_if_break(f, ft(f, ","))}
-	contents := fc(f, ft(f, "{"), fi(f, space, fc(f, ..parts[:])), comma, space, ft(f, "}"))
+	list := fi(f, space, fc(f, ..parts[:]))
+	contents := fc(f, ft(f, "{"), list, comma, space, ft(f, "}"), suffix)
 	if hug {return contents}
 	return doc_group(f, contents, should_break)
 }
@@ -181,20 +182,27 @@ format_object_method :: proc(f: ^FormatContext, property: ^Property) -> Doc {
 	)
 }
 
-// The parameters and body of a method, after its name.
+// The type parameters, parameters and body of a method, after its name. A
+// constructor that declares properties in its parameters lists them one per
+// line once there is more than one parameter.
 format_method_value :: proc(f: ^FormatContext, function: ^FunctionExpression) -> Doc {
-	if _, typed := function.type_parameters.?; typed {return format_fail(f)}
-	if function.no_body {return format_fail(f)}
-	return fc(
-		f,
-		fg(
-			f,
-			format_function_params(f, function.params[:], false),
-			format_type_annotation(f, function.return_type),
-		),
-		ft(f, " "),
-		format_function_body(f, &function.body),
-	)
+	parameters := format_function_params(f, function.params[:], false)
+	returned := format_return_type(f, function.return_type)
+	returned_type := format_annotation_type(function.return_type)
+	count := len(function.params)
+	declares_property := false
+	for param in function.params {
+		declares_property = declares_property || format_param_is_property(param)
+	}
+	if count > 1 && declares_property {
+		parameters = doc_group(f, parameters, true)
+	} else if format_should_group_params(function.type_parameters, count, returned_type, returned) {
+		parameters = doc_group(f, parameters)
+	}
+	generics := format_type_parameters(f, function.type_parameters)
+	signature := fc(f, generics, fg(f, parameters, returned))
+	if function.no_body {return fc(f, signature, ft(f, ";"))}
+	return fc(f, signature, ft(f, " "), format_function_body(f, &function.body))
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +266,6 @@ format_pattern_key :: proc(f: ^FormatContext, property: ^ObjectPatternProperty) 
 
 @(private = "file")
 format_object_pattern :: proc(f: ^FormatContext, node: ^ObjectPattern, key: FormatKey) -> Doc {
-	if _, typed := node.type_annotation.?; typed {return format_fail(f)}
 	parent_kind := format_path_at(f, 0).kind
 	if !format_path_push(f, {kind = .Object_Pattern, key = key, node = node}) {return nil}
 	defer format_path_pop(f)
@@ -298,7 +305,8 @@ format_object_pattern :: proc(f: ^FormatContext, node: ^ObjectPattern, key: Form
 	}
 	hug := f.hug_pattern == rawptr(node)
 	if !should_break && parent_kind == .Variable_Declarator {hug = true}
-	return format_object_body(f, items, should_break, !has_rest, hug)
+	annotation := format_type_annotation(f, node.type_annotation)
+	return format_object_body(f, items, should_break, !has_rest, hug, annotation)
 }
 
 // ---------------------------------------------------------------------------
@@ -457,7 +465,6 @@ format_array :: proc(f: ^FormatContext, node: ^ArrayExpression) -> Doc {
 
 @(private = "file")
 format_array_pattern :: proc(f: ^FormatContext, node: ^ArrayPattern, key: FormatKey) -> Doc {
-	if _, typed := node.type_annotation.?; typed {return format_fail(f)}
 	if !format_path_push(f, {kind = .Array_Pattern, key = key, node = node}) {return nil}
 	defer format_path_pop(f)
 	items := make([]FormatArrayItem, len(node.elements), f.alloc)
@@ -471,7 +478,8 @@ format_array_pattern :: proc(f: ^FormatContext, node: ^ArrayPattern, key: Format
 			can_trail = false
 		}
 	}
-	return format_array_body(f, items, false, false, can_trail)
+	body := format_array_body(f, items, false, false, can_trail)
+	return fc(f, body, format_type_annotation(f, node.type_annotation))
 }
 
 // ---------------------------------------------------------------------------

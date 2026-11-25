@@ -77,6 +77,40 @@ FormatNodeKind :: enum u8 {
 	TS_Non_Null,
 	TS_Type_Assertion,
 	TS_Instantiation,
+	TS_Annotation,
+	TS_Keyword,
+	TS_Reference,
+	TS_Union,
+	TS_Intersection,
+	TS_Array,
+	TS_Tuple,
+	TS_Function_Type,
+	TS_Constructor_Type,
+	TS_Type_Literal,
+	TS_Conditional,
+	TS_Infer,
+	TS_Type_Query,
+	TS_Indexed_Access,
+	TS_Mapped,
+	TS_Type_Operator,
+	TS_Literal_Type,
+	TS_Template_Type,
+	TS_Rest_Type,
+	TS_Optional_Type,
+	TS_Named_Member,
+	TS_Predicate,
+	TS_Import_Type,
+	TS_Type_Arguments,
+	TS_Type_Parameters,
+	TS_Type_Parameter,
+	TS_Type_Alias,
+	TS_Interface,
+	TS_Interface_Body,
+	TS_Signature,
+	TS_Enum,
+	TS_Module,
+	TS_Declare_Function,
+	Decorator,
 	JSX,
 	Other,
 }
@@ -117,6 +151,22 @@ FormatKey :: enum u8 {
 	Handler,
 	Finalizer,
 	Label,
+	Type_Annotation,
+	Return_Type,
+	Types,
+	Element_Type,
+	Check_Type,
+	Extends_Type,
+	True_Type,
+	False_Type,
+	Object_Type,
+	Index_Type,
+	Constraint,
+	Default,
+	Type_Arguments,
+	Type_Parameters,
+	Members,
+	Name_Type,
 }
 
 FormatPathEntry :: struct {
@@ -127,6 +177,7 @@ FormatPathEntry :: struct {
 	chain_root: bool,
 	expr:       ^Expression,
 	stmt:       ^Statement,
+	type:       ^TSType,
 	node:       rawptr,
 }
 
@@ -157,6 +208,9 @@ FormatContext :: struct {
 	options:     FormatOptions,
 	// Prettier's TypeScript parsers keep the quotes of numeric keys.
 	typescript:  bool,
+	// The file name ends in `.ts`, and the file may hold JSX.
+	dot_ts:      bool,
+	jsx:         bool,
 	// Every comment of the file in source order, and the number of them
 	// that the current statement's document prints.
 	comments:    []Comment,
@@ -177,6 +231,12 @@ FormatContext :: struct {
 	// The object pattern that is a function's only parameter. It leaves its
 	// braces to the parameter list's group.
 	hug_pattern: rawptr,
+	// The object type that annotates a function's only parameter. It leaves
+	// its braces to the parameter list's group as well.
+	hug_type:    rawptr,
+	// Decorators of parameters, keyed by where the parameter starts. The
+	// parser keeps them beside the tree.
+	param_decorators: map[u32][dynamic]Decorator,
 }
 
 // `persistent` holds the path and the cache for the whole file. `scratch`

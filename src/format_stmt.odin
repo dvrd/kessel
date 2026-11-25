@@ -26,6 +26,10 @@ format_stmt_kind :: proc(stmt: ^Statement) -> FormatNodeKind {
 	case ^ClassDeclaration: return .Class_Declaration
 	case ^ExportDefaultDeclaration: return .Export_Default
 	case ^ExportNamedDeclaration: return .Export_Named
+	case ^TSInterfaceDeclaration: return .TS_Interface
+	case ^TSTypeAliasDeclaration: return .TS_Type_Alias
+	case ^TSEnumDeclaration: return .TS_Enum
+	case ^TSModuleDeclaration: return .TS_Module
 	}
 	return .Other
 }
@@ -108,7 +112,8 @@ format_stmt :: proc(f: ^FormatContext, stmt: ^Statement, key: FormatKey) -> Doc 
 	case ^ExportDefaultDeclaration:
 		return format_export_default(f, node)
 	}
-	return format_fail(f)
+	// What remains is TypeScript's own statements, or nothing this printer has.
+	return format_ts_statement(f, stmt)
 }
 
 @(private = "file")
@@ -389,7 +394,7 @@ format_block :: proc(f: ^FormatContext, body: []^Statement, directives: bool, lo
 	}
 	#partial switch format_parent(f).kind {
 	case .Arrow_Function, .Function_Expression, .Function_Declaration, .Object_Method,
-	     .Class_Method, .For, .While, .Do_While:
+	     .Class_Method, .For, .While, .Do_While, .TS_Module:
 		return ft(f, "{}")
 	case .Catch_Clause:
 		// The handler of a try statement that has no finalizer.
@@ -548,7 +553,7 @@ format_variable_kind :: proc(kind: VariableKind) -> string {
 }
 
 format_variable_declaration :: proc(f: ^FormatContext, node: ^VariableDeclaration) -> Doc {
-	if node.declare || len(node.declarations) == 0 {return format_fail(f)}
+	if len(node.declarations) == 0 {return format_fail(f)}
 	// A statement already has its entry. A loop head or an export pushes
 	// one here, so that declarators always see the declaration above them.
 	current := format_path_at(f, 0)
@@ -565,6 +570,7 @@ format_variable_declaration :: proc(f: ^FormatContext, node: ^VariableDeclaratio
 		if _, present := declarator.init.?; present {has_value = true}
 	}
 	parts := make([dynamic]Doc, f.alloc)
+	if node.declare {append(&parts, ft(f, "declare "))}
 	append(&parts, ft(f, format_variable_kind(node.kind)), ft(f, " "))
 	first := format_variable_declarator(f, &node.declarations[0])
 	if len(node.declarations) == 1 {
@@ -584,12 +590,19 @@ format_variable_declaration :: proc(f: ^FormatContext, node: ^VariableDeclaratio
 
 @(private = "file")
 format_variable_declarator :: proc(f: ^FormatContext, node: ^VariableDeclarator) -> Doc {
-	if node.definite {return format_fail(f)}
 	if !format_path_push(f, {kind = .Variable_Declarator, key = .Declarations, node = node}) {
 		return nil
 	}
 	defer format_path_pop(f)
-	left := format_pattern(f, node.id, .Id)
+	left: Doc
+	if node.definite {
+		// `let name!: Type`: the mark sits between the name and its annotation.
+		id, plain := node.id.(^Identifier)
+		if !plain || id.has_escape || id.optional {return format_fail(f)}
+		left = fc(f, ft(f, id.name), ft(f, "!"), format_type_annotation(f, id.type_annotation))
+	} else {
+		left = format_pattern(f, node.id, .Id)
+	}
 	init, _ := node.init.?
 	return format_assignment_like(
 		f,
@@ -606,7 +619,7 @@ format_variable_declarator :: proc(f: ^FormatContext, node: ^VariableDeclarator)
 @(private = "file")
 format_export_named :: proc(f: ^FormatContext, node: ^ExportNamedDeclaration) -> Doc {
 	declaration, present := node.declaration.?
-	if !present || declaration == nil || node.export_kind != .Value {return format_fail(f)}
+	if !present || declaration == nil {return format_fail(f)}
 	#partial switch inner in declaration^ {
 	case ^VariableDeclaration:
 		return fc(f, ft(f, "export "), format_variable_declaration(f, inner))
@@ -619,7 +632,7 @@ format_export_named :: proc(f: ^FormatContext, node: ^ExportNamedDeclaration) ->
 		defer format_path_pop(f)
 		return fc(f, ft(f, "export "), format_class(f, &inner.expr))
 	}
-	return format_fail(f)
+	return fc(f, ft(f, "export "), format_ts_declaration(f, declaration))
 }
 
 @(private = "file")
@@ -639,6 +652,8 @@ format_export_default :: proc(f: ^FormatContext, node: ^ExportDefaultDeclaration
 			if !format_path_push(f, {kind = .Class_Declaration, key = .Declaration}) {return nil}
 			defer format_path_pop(f)
 			return fc(f, ft(f, "export default "), format_class(f, &declaration.expr))
+		case ^TSInterfaceDeclaration:
+			return fc(f, ft(f, "export default "), format_ts_declaration(f, inner))
 		}
 		return format_fail(f)
 	case ^Expression:

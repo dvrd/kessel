@@ -89,7 +89,7 @@ FormatCallParts :: struct {
 	is_new:    bool,
 	is_import: bool,
 	phase:     string,
-	typed:     bool,
+	type_arguments: Maybe(^TSTypeParameterInstantiation),
 	// The whole expression's span, and the comments that sit between its
 	// arguments, one entry per argument. Nil when there are none.
 	loc:       Loc,
@@ -103,13 +103,13 @@ format_call_parts :: proc(f: ^FormatContext, expr: ^Expression) -> (parts: Forma
 		parts.arguments = node.arguments[:]
 		parts.loc = node.loc
 		parts.optional = node.optional
-		_, parts.typed = node.type_parameters.?
+		parts.type_arguments = node.type_parameters
 	case ^NewExpression:
 		parts.callee = node.callee
 		parts.arguments = node.arguments[:]
 		parts.loc = node.loc
 		parts.is_new = true
-		_, parts.typed = node.type_parameters.?
+		parts.type_arguments = node.type_parameters
 	case ^ImportExpression:
 		arguments := make([dynamic]^Expression, 0, 2, f.alloc)
 		append(&arguments, node.source)
@@ -117,6 +117,11 @@ format_call_parts :: proc(f: ^FormatContext, expr: ^Expression) -> (parts: Forma
 		parts.arguments = arguments[:]
 		parts.is_import = true
 		parts.phase = node.phase
+	}
+	// The argument comments below are found by position, and a comment
+	// among the type arguments is not one of them.
+	if generics, typed := parts.type_arguments.?; typed && generics != nil {
+		if len(format_comments_in(f, generics.loc.start, generics.loc.end)) > 0 {f.failed = true}
 	}
 	format_call_argument_comments(f, &parts)
 	return parts
@@ -174,8 +179,8 @@ format_call_argument_has_comment :: proc(parts: FormatCallParts, index: int) -> 
 
 format_call :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	parts := format_call_parts(f, expr)
-	if parts.typed {return format_fail(f)}
 	arguments := parts.arguments
+	generics := format_type_arguments(f, parts.type_arguments)
 	head: Doc
 	if parts.is_import {
 		head = ft(f, "import")
@@ -196,6 +201,7 @@ format_call :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 			ft(f, "new ") if parts.is_new else nil,
 			head,
 			optional,
+			generics,
 			ft(f, "("),
 			doc_join(f, ft(f, ", "), printed),
 			ft(f, ")"),
@@ -214,6 +220,7 @@ format_call :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 		ft(f, "new ") if parts.is_new else nil,
 		head,
 		optional,
+		generics,
 		format_call_arguments(f, parts),
 	)
 	if parts.is_import || format_is_call(parts.callee) {return doc_group(f, contents)}
@@ -737,7 +744,9 @@ format_call_arguments :: proc(f: ^FormatContext, parts: FormatCallParts) -> Doc 
 	if !parts.is_import && f.options.trailing_comma && !f.options.trailing_comma_es5 {
 		trailing_comma = ft(f, ",")
 	}
-	if any_empty_line || format_is_function_composition(arguments) {
+	// A decorator's call is exempt from the composition rule.
+	composition := format_parent(f).kind != .Decorator && format_is_function_composition(arguments)
+	if any_empty_line || composition {
 		return format_all_broken_out(f, printed, trailing_comma)
 	}
 	if !format_call_argument_has_comment(parts, 0) && format_should_group_first(arguments) {

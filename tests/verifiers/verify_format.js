@@ -6,13 +6,16 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const fixtures = [...require('../format/modules.json'), ...require('../format/data.json'),
-  ...require('../format/statements.json')];
+  ...require('../format/statements.json'), ...require('../format/typescript.json')];
 const { prettier_npm } = require('../../OXC_ORACLE.json');
 
 const binary = process.env.KESSEL_BIN || path.resolve(__dirname, '../../bin/kessel');
 const oracle = process.env.KESSEL_PRETTIER && require(process.env.KESSEL_PRETTIER);
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-fmt-'));
 const file = path.join(stage, 'module.ts');
+// Prettier's layout of a generic arrow function depends on the file name, so
+// the reference formats under the name that Kessel is given.
+const filepath = 'module.ts';
 
 function run(source, options = {}) {
   const args = ['fmt', file];
@@ -41,7 +44,7 @@ function verify(name, source, options, expected) {
 async function main() {
   if (oracle) assert.equal(oracle.version, prettier_npm);
   for (const {name, source, options, parser, expected} of fixtures) {
-    if (oracle) assert.equal(await oracle.format(source, {parser, ...options}), expected, name);
+    if (oracle) assert.equal(await oracle.format(source, {parser, filepath, ...options}), expected, name);
     verify(name, source, options, expected);
   }
   if (oracle) {
@@ -50,7 +53,7 @@ async function main() {
       for (const printWidth of [12, 20, 32, 48, 80]) {
         for (const style of [{}, {bracketSpacing:false, singleQuote:true}, {useTabs:true, trailingComma:'none'}]) {
           const options = {printWidth, ...style};
-          const expected = await oracle.format(source, {parser, ...options});
+          const expected = await oracle.format(source, {parser, filepath, ...options});
           verify(name, source, options, expected);
           comparisons++;
         }
@@ -59,9 +62,10 @@ async function main() {
     console.log(`Matched the installed Prettier ${oracle.version} on ${comparisons} width and style combinations.`);
   }
   // Statements that the printers do not cover keep their original text:
-  // comments inside an expression, ignore directives, TypeScript and JSX syntax,
-  // and the few shapes whose Prettier layout would regroup operands or depend
-  // on parentheses that the parser does not record.
+  // comments inside an expression or a type, ignore directives, decorators in
+  // front of `export` or on a class expression, JSX syntax, and the few shapes
+  // whose Prettier layout would regroup operands or depend on parentheses
+  // that the parser does not record.
   const preserved = [
     'const flags={ enabled: /* configured */ true };',
     '// prettier-ignore\nconst data = [  [1,  2], [3,4] ];',
@@ -72,15 +76,13 @@ async function main() {
     'function  f( a /* first */ ){ return  a }',
     'const  total = first + /* why */ second;',
     'var  count /* none */;',
-    'interface  Shape { area():number }',
-    'type  Pair<T>=[T,T];',
-    'enum  Color { Red, Green }',
-    'function  typed<T>( a:T ):T { return a }',
-    'function  union( a:number|string ) { return a }',
-    'const  cast = <Shape>value;',
-    'const  sure = value as  Shape<number>;',
-    'abstract  class  Base { abstract run():void }',
-    '@decorated  class  Marked {}',
+    'type  Pair<T>=[T, /* second */ T];',
+    'function  union( a:number| /* or */ string ) { return a }',
+    'const  sure = value as /* really */ Shape<number>;',
+    '@decorated  export  class  Marked {}',
+    'const  Marked = @decorated  class {};',
+    '@Component({ template:`<p></p>` })  class  View {}',
+    'type  Only = | Shape;',
     'const  nested = a||(b||c);',
     'export  default  (function(){ return 1 });',
     'const  styles = css`color:red;`;',
@@ -128,11 +130,11 @@ async function main() {
   verify('template lines and generated module lines', tagged + "import'pkg';", {endOfLine:'auto'}, taggedExpected);
   // Comments around top-level statements take Prettier's spacing. A comment
   // beside a statement that keeps its text keeps its own text too.
-  const around = "/**\n    * Header.\n  */\n\n\n   // leading\nconst    a=1;    /* one */    // two\nimport{b}from'm';   // public\ninterface  I {}   // kept\n// last";
-  const aroundExpected = '/**\n * Header.\n */\n\n// leading\nconst a = 1; /* one */ // two\nimport { b } from "m";   // public\ninterface  I {}   // kept\n// last';
+  const around = "/**\n    * Header.\n  */\n\n\n   // leading\nconst    a=1;    /* one */    // two\nimport{b}from'm';   // public\nconst  kept = a||(b||c);   // kept\n// last";
+  const aroundExpected = '/**\n * Header.\n */\n\n// leading\nconst a = 1; /* one */ // two\nimport { b } from "m";   // public\nconst  kept = a||(b||c);   // kept\n// last';
   verify('comments around top-level statements', around, {}, aroundExpected);
   if (oracle) {
-    const plain = around.replace("interface  I {}   // kept\n", '').replace("import{b}from'm';   // public\n", '');
+    const plain = around.replace("const  kept = a||(b||c);   // kept\n", '').replace("import{b}from'm';   // public\n", '');
     verify('comments around top-level statements', plain, {}, await oracle.format(plain, {parser: 'typescript'}));
   }
   const malformed = run("import 'a';\nimport {");

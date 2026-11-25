@@ -1,11 +1,11 @@
 package kessel
 
+import "core:strings"
+
 // Function declarations and expressions, parameters and arrow functions.
 // Ports of Prettier's function, function-parameters and arrow-function rules.
 
 format_function :: proc(f: ^FormatContext, node: ^FunctionExpression, args: FormatArgs) -> Doc {
-	if node.declare || node.no_body {return format_fail(f)}
-	if _, typed := node.type_parameters.?; typed {return format_fail(f)}
 	// A callback that is the last argument keeps its parameters on one line
 	// when the call has other arguments or the parameters are plain names.
 	expand_arg := false
@@ -19,17 +19,39 @@ format_function :: proc(f: ^FormatContext, node: ^FunctionExpression, args: Form
 	if id, named := node.id.?; named {name = ft(f, id.name)}
 	return fc(
 		f,
+		ft(f, "declare ") if node.declare else nil,
 		ft(f, "async ") if node.async else nil,
 		ft(f, head),
 		name,
-		fg(
-			f,
-			format_function_params(f, node.params[:], expand_arg),
-			format_type_annotation(f, node.return_type),
-		),
-		ft(f, " "),
-		format_function_body(f, &node.body),
+		format_type_parameters(f, node.type_parameters),
+		format_function_signature(f, node, expand_arg),
+		format_function_end(f, node),
 	)
+}
+
+// The parameters and return type of a function, grouped so that the
+// parameters break before the return type does.
+format_function_signature :: proc(
+	f: ^FormatContext,
+	node: ^FunctionExpression,
+	expand_arg: bool,
+) -> Doc {
+	parameters := format_function_params(f, node.params[:], expand_arg)
+	returned := format_return_type(f, node.return_type)
+	returned_type := format_annotation_type(node.return_type)
+	if format_should_group_params(node.type_parameters, len(node.params), returned_type, returned) {
+		parameters = doc_group(f, parameters)
+	}
+	return fg(f, parameters, returned)
+}
+
+// The body of a function, or the semicolon of a declaration without one.
+@(private = "file")
+format_function_end :: proc(f: ^FormatContext, node: ^FunctionExpression) -> Doc {
+	if node.no_body {return ft(f, ";")}
+	body := format_function_body(f, &node.body)
+	// An ambient function with a body is an error that Prettier still prints.
+	return fc(f, ft(f, " "), body, ft(f, ";") if node.declare else nil)
 }
 
 @(private = "file")
@@ -77,23 +99,93 @@ format_param_parts :: proc(param: ^FunctionParameter) -> (pattern: Pattern, valu
 
 @(private = "file")
 format_param :: proc(f: ^FormatContext, param: ^FunctionParameter) -> Doc {
-	if param.accessibility != .None || param.readonly || param.override_ {return format_fail(f)}
 	if param.optional_destructuring {return format_fail(f)}
+	decorators := format_param_decorators(f, param)
+	modifiers := format_param_modifiers(f, param)
 	pattern, value := format_param_parts(param)
-	if value == nil {return format_pattern(f, pattern, .Params)}
+	if value == nil {
+		printed := fc(f, modifiers, format_pattern(f, pattern, .Params))
+		if decorators == nil {return printed}
+		return fg(f, decorators, printed)
+	}
 	if !format_path_push(f, {kind = .Assignment_Pattern, key = .Params}) {return nil}
 	defer format_path_pop(f)
-	return fc(f, format_pattern(f, pattern, .Left), ft(f, " = "), format_expr(f, value, .Right))
+	left := format_pattern(f, pattern, .Left)
+	printed := fc(f, modifiers, left, ft(f, " = "), format_expr(f, value, .Right))
+	if decorators == nil {return printed}
+	return fg(f, decorators, printed)
+}
+
+// The decorators of a parameter with the line that follows them, or nil.
+// The parser keeps them beside the tree, keyed by where the parameter
+// starts, so a parameter whose text starts with `@` must find them there.
+@(private = "file")
+format_param_decorators :: proc(f: ^FormatContext, param: ^FunctionParameter) -> Doc {
+	start := param.loc.start
+	if param.modifier_start != 0 {start = min(start, param.modifier_start)}
+	decorators, decorated := f.param_decorators[start]
+	if !decorated || len(decorators) == 0 {
+		// A decorator that ends right in front of the parameter is one that
+		// the lookup missed, and printing without it would drop it.
+		before := strings.trim_right(f.source[:start], " \t\r\n")
+		if strings.has_suffix(before, ")") || format_ends_with_decorator_name(before) {
+			return format_fail(f)
+		}
+		return nil
+	}
+	list, own_line := format_decorators(f, decorators[:])
+	return fc(f, doc_break_parent() if own_line else nil, list, doc_line())
+}
+
+// True when the text ends with `@name` or `@a.b`.
+@(private = "file")
+format_ends_with_decorator_name :: proc(text: string) -> bool {
+	for index := len(text); index > 0; index -= 1 {
+		char := text[index - 1]
+		if char == '@' {return index < len(text)}
+		is_name := char == '.' || char == '$' || char >= 0x80 || is_id_cont_codepoint(u32(char))
+		if !is_name {return false}
+	}
+	return false
+}
+
+// `private readonly` and the like in front of a constructor parameter that
+// declares a property.
+@(private = "file")
+format_param_modifiers :: proc(f: ^FormatContext, param: ^FunctionParameter) -> Doc {
+	accessibility: Doc
+	switch param.accessibility {
+	case .None:
+	case .Public: accessibility = ft(f, "public ")
+	case .Private: accessibility = ft(f, "private ")
+	case .Protected: accessibility = ft(f, "protected ")
+	}
+	return fc(
+		f,
+		accessibility,
+		ft(f, "override ") if param.override_ else nil,
+		ft(f, "readonly ") if param.readonly else nil,
+	)
+}
+
+format_param_is_property :: proc(param: FunctionParameter) -> bool {
+	return param.accessibility != .None || param.readonly || param.override_
 }
 
 // A lone destructuring parameter hugs the parentheses: `({ a, b }) => …`.
+// So does a lone name annotated with an object type.
 format_should_hug_only_param :: proc(params: []FunctionParameter) -> bool {
 	if len(params) != 1 {return false}
 	param := params[0]
+	if format_param_is_property(param) {return false}
 	pattern, value := format_param_parts(&param)
-	#partial switch _ in pattern {
+	#partial switch node in pattern {
 	case ^ObjectPattern, ^ArrayPattern:
-	case: return false
+	case ^Identifier:
+		if value != nil {return false}
+		return format_type_is_object(format_annotation_type(node.type_annotation))
+	case:
+		return false
 	}
 	if value == nil {return true}
 	inner := format_expr_unwrap(value)
@@ -164,54 +256,100 @@ format_member_text :: proc(expr: ^Expression) -> string {
 	return ""
 }
 
+// Parameters that are printed and ready to lay out.
+FormatParams :: struct {
+	docs:            []Doc,
+	// Where each parameter ends in the source.
+	ends:            []u32,
+	hug_only:        bool,
+	has_rest:        bool,
+	// Type parameters that print in front of the parentheses as part of the
+	// same group, as those of arrow functions and signatures do.
+	type_parameters: Doc,
+}
+
 format_function_params :: proc(
 	f: ^FormatContext,
 	params: []FunctionParameter,
 	expand_arg: bool,
+	type_parameters: Doc = nil,
 ) -> Doc {
-	if len(params) == 0 {return ft(f, "()")}
-	// The path holds the function. Its parent decides the test-call layout.
-	parent := format_parent(f)
-	hug_test := parent.expr != nil && format_is_test_call(f, parent.expr, nil)
-	hug_only := format_should_hug_only_param(params)
-	saved_hug := f.hug_pattern
-	if hug_only {
-		if pattern, is_object := params[0].pattern.(^ObjectPattern); is_object {
+	count := len(params)
+	list := FormatParams {
+		docs            = make([]Doc, count, f.alloc),
+		ends            = make([]u32, count, f.alloc),
+		hug_only        = format_should_hug_only_param(params),
+		type_parameters = type_parameters,
+	}
+	saved_pattern, saved_type := f.hug_pattern, f.hug_type
+	defer f.hug_pattern, f.hug_type = saved_pattern, saved_type
+	if list.hug_only {
+		// A decorated parameter does not hug.
+		start := params[0].loc.start
+		if params[0].modifier_start != 0 {start = min(start, params[0].modifier_start)}
+		_, decorated := f.param_decorators[start]
+		list.hug_only = !decorated
+	}
+	if list.hug_only {
+		#partial switch pattern in params[0].pattern {
+		case ^ObjectPattern:
 			f.hug_pattern = pattern
+			f.hug_type = format_annotation_literal(pattern.type_annotation)
+		case ^ArrayPattern:
+			f.hug_type = format_annotation_literal(pattern.type_annotation)
+		case ^Identifier:
+			f.hug_type = format_annotation_literal(pattern.type_annotation)
 		}
 	}
-	defer f.hug_pattern = saved_hug
-	printed := make([dynamic]Doc, f.alloc)
 	for &param, index in params {
-		append(&printed, format_param(f, &param))
-		if index == len(params) - 1 {break}
+		list.docs[index] = format_param(f, &param)
+		list.ends[index] = param.loc.end
+	}
+	if count > 0 {_, list.has_rest = params[count - 1].pattern.(^RestElement)}
+	return format_params_layout(f, list, expand_arg)
+}
+
+// Lays out a parameter list. The path holds the function, and its parent
+// decides the test-call layout.
+format_params_layout :: proc(f: ^FormatContext, list: FormatParams, expand_arg: bool) -> Doc {
+	assert(len(list.docs) == len(list.ends))
+	count := len(list.docs)
+	generics := list.type_parameters
+	if count == 0 {return fc(f, generics, ft(f, "()"))}
+	parent := format_parent(f)
+	hug_test := parent.expr != nil && format_is_test_call(f, parent.expr, nil)
+	printed := make([dynamic]Doc, f.alloc)
+	for doc, index in list.docs {
+		append(&printed, doc)
+		if index == count - 1 {break}
 		append(&printed, ft(f, ","))
-		if hug_test || hug_only {
+		if hug_test || list.hug_only {
 			append(&printed, ft(f, " "))
-		} else if format_is_next_line_empty(f.source, param.loc.end) {
+		} else if format_is_next_line_empty(f.source, list.ends[index]) {
 			append(&printed, doc_hardline(), doc_hardline())
 		} else {
 			append(&printed, doc_line())
 		}
 	}
-	list := fc(f, ..printed[:])
+	joined := fc(f, ..printed[:])
 	if expand_arg && !format_params_may_break_when_hugged(f) {
-		if doc_will_break(list) {
+		if doc_will_break(joined) || doc_will_break(generics) {
 			f.bailout = true
 			return nil
 		}
-		return fg(f, ft(f, "("), doc_remove_lines(f, list), ft(f, ")"))
+		flat := doc_remove_lines(f, joined)
+		return fg(f, doc_remove_lines(f, generics), ft(f, "("), flat, ft(f, ")"))
 	}
-	if hug_only || hug_test {return fc(f, ft(f, "("), list, ft(f, ")"))}
-	_, has_rest := params[len(params) - 1].pattern.(^RestElement)
+	if list.hug_only || hug_test {return fc(f, generics, ft(f, "("), joined, ft(f, ")"))}
 	trailing_comma: Doc
-	if !has_rest && f.options.trailing_comma && !f.options.trailing_comma_es5 {
+	if !list.has_rest && f.options.trailing_comma && !f.options.trailing_comma_es5 {
 		trailing_comma = doc_if_break(f, ft(f, ","))
 	}
 	return fc(
 		f,
+		generics,
 		ft(f, "("),
-		fi(f, doc_softline(), list),
+		fi(f, doc_softline(), joined),
 		trailing_comma,
 		doc_softline(),
 		ft(f, ")"),
@@ -228,13 +366,18 @@ format_arrow_signature :: proc(
 	node: ^ArrowFunctionExpression,
 	args: FormatArgs,
 ) -> Doc {
-	if _, typed := node.type_parameters.?; typed {return format_fail(f)}
 	expand_arg := args.expand_last_arg || args.expand_first_arg
-	params := fg(
-		f,
-		format_function_params(f, node.params[:], expand_arg),
-		format_type_annotation(f, node.return_type),
-	)
+	returned := format_return_type(f, node.return_type)
+	if expand_arg && returned != nil {
+		// A hugged callback keeps its whole signature on one line.
+		if doc_will_break(returned) {
+			f.bailout = true
+			return nil
+		}
+		returned = doc_group(f, doc_remove_lines(f, returned))
+	}
+	generics := format_type_parameters(f, node.type_parameters)
+	params := fg(f, format_function_params(f, node.params[:], expand_arg, generics), returned)
 	return fc(f, ft(f, "async ") if node.async else nil, params)
 }
 
