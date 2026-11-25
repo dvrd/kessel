@@ -152,6 +152,15 @@ tasks:
     cmds:
       - node tests/verifiers/verify_format_corpus.js
 
+  test:format:reference:
+    desc: Measure formatter output against Prettier on the release corpus (files, top-level statements, statement snippets). Then statement snippets from TypeScript sources. Uses prettier@3.8.3 from bench/node_modules, or KESSEL_PRETTIER.
+    deps: [build:lib, test:real:verify-inputs]
+    env:
+      KESSEL_REAL_WORLD_ROOT: '{{.BENCH_FILES}}'
+    cmds:
+      - node tests/verifiers/measure_format_reference.js
+      - node tests/verifiers/measure_format_reference.js --typescript
+
   test:transform:
     desc: Execute JSX transform fixtures and verify diagnostics and source maps.
     deps: [build]

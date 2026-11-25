@@ -17,7 +17,13 @@ FormatOptions :: struct {
 }
 
 format_options_default :: proc() -> FormatOptions {
-	return {print_width = 80, tab_width = 2, bracket_spacing = true, trailing_comma = true, end_of_line = "lf"}
+	return {
+		print_width = 80,
+		tab_width = 2,
+		bracket_spacing = true,
+		trailing_comma = true,
+		end_of_line = "lf",
+	}
 }
 
 format_options_valid :: proc(options: FormatOptions) -> bool {
@@ -96,7 +102,13 @@ format_fill_fits :: proc(parts: []FormatPart, remaining: int) -> bool {
 	return width >= 0
 }
 
-format_layout_write :: proc(out: ^strings.Builder, parts: []FormatPart, options: FormatOptions, start_column: int, newline: string) -> int {
+format_layout_write :: proc(
+	out: ^strings.Builder,
+	parts: []FormatPart,
+	options: FormatOptions,
+	start_column: int,
+	newline: string,
+) -> int {
 	assert(format_options_valid(options))
 	groups: [FORMAT_GROUP_DEPTH_MAX]struct { broken: bool, base_indent: int }
 	depth, indent := 0, 0
@@ -107,7 +119,8 @@ format_layout_write :: proc(out: ^strings.Builder, parts: []FormatPart, options:
 		case .Group, .Forced_Group:
 			assert(depth < len(groups))
 			can_break := depth == 0 || broken
-			fits := !can_break || format_group_fits(parts[index+1:], int(options.print_width)-column, broken)
+			remaining := int(options.print_width) - column
+			fits := !can_break || format_group_fits(parts[index+1:], remaining, broken)
 			groups[depth] = {part.kind == .Forced_Group || !fits, indent}
 			depth += 1
 		case .End:
@@ -118,7 +131,8 @@ format_layout_write :: proc(out: ^strings.Builder, parts: []FormatPart, options:
 		case .Line, .Blank_Line, .Fill_Line:
 			assert(depth > 0)
 			if part.kind == .Fill_Line && broken {
-				broken = !format_fill_fits(parts[index+1:], int(options.print_width)-column-len(part.text))
+				remaining := int(options.print_width) - column - len(part.text)
+				broken = !format_fill_fits(parts[index+1:], remaining)
 			}
 			if broken {
 				strings.write_string(out, newline)

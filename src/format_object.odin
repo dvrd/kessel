@@ -148,7 +148,12 @@ format_property :: proc(f: ^FormatContext, property: ^Property) -> Doc {
 	key := format_property_key(f, property.key, property.computed)
 	return format_assignment_like(
 		f,
-		FormatAssignment{kind = .Property, left = key, right = property.value},
+		FormatAssignment {
+			kind = .Property,
+			left = key,
+			left_end = get_expression_loc(property.key).end,
+			right = property.value,
+		},
 	)
 }
 
@@ -179,11 +184,14 @@ format_object_method :: proc(f: ^FormatContext, property: ^Property) -> Doc {
 // The parameters and body of a method, after its name.
 format_method_value :: proc(f: ^FormatContext, function: ^FunctionExpression) -> Doc {
 	if _, typed := function.type_parameters.?; typed {return format_fail(f)}
-	if _, typed := function.return_type.?; typed {return format_fail(f)}
 	if function.no_body {return format_fail(f)}
 	return fc(
 		f,
-		fg(f, format_function_params(f, function.params[:], false)),
+		fg(
+			f,
+			format_function_params(f, function.params[:], false),
+			format_type_annotation(f, function.return_type),
+		),
 		ft(f, " "),
 		format_function_body(f, &function.body),
 	)
@@ -196,10 +204,10 @@ format_method_value :: proc(f: ^FormatContext, function: ^FunctionExpression) ->
 format_pattern :: proc(f: ^FormatContext, pattern: Pattern, key: FormatKey) -> Doc {
 	switch node in pattern {
 	case ^Identifier:
-		if node == nil || node.has_escape || node.optional {return format_fail(f)}
-		if _, typed := node.type_annotation.?; typed {return format_fail(f)}
+		if node == nil || node.has_escape {return format_fail(f)}
 		if node.name == "let" {return format_fail(f)}
-		return ft(f, node.name)
+		optional := ft(f, "?") if node.optional else nil
+		return fc(f, ft(f, node.name), optional, format_type_annotation(f, node.type_annotation))
 	case ^ObjectPattern:
 		return format_object_pattern(f, node, key)
 	case ^ArrayPattern:
@@ -398,6 +406,42 @@ format_array_is_matrix :: proc(node: ^ArrayExpression) -> bool {
 	return true
 }
 
+// Block comments written inline between elements, as in `[0, /* pad */ 0]`,
+// lead or trail the element beside them. A hole has no node to carry a
+// comment, and comments on their own lines follow rules that are not
+// ported, so either keeps the statement as written.
+@(private = "file")
+format_array_comments :: proc(f: ^FormatContext, node: ^ArrayExpression, items: []FormatArrayItem) {
+	if !format_is_delimited(f, node.loc, '[', ']') {return}
+	bounds := FormatListBounds{open = node.loc.start + 1, close = node.loc.end - 1}
+	if len(format_comments_in(f, bounds.open, bounds.close)) == 0 {return}
+	count := len(items)
+	starts := make([]u32, count, f.alloc)
+	ends := make([]u32, count, f.alloc)
+	for item, index in items {
+		if !item.present {
+			f.failed = true
+			return
+		}
+		starts[index], ends[index] = item.start, item.end
+	}
+	if !format_gaps_have_comments(f, bounds, starts, ends) {return}
+	for gap in 0 ..= count {
+		low := bounds.open if gap == 0 else ends[gap - 1]
+		high := bounds.close if gap == count else starts[gap]
+		if low < high && !format_comments_are_inline_blocks(f, low, high) {
+			f.failed = true
+			return
+		}
+	}
+	if count == 0 {
+		f.failed = true
+		return
+	}
+	comments, _ := format_list_comments(f, bounds, starts, ends)
+	for &item, index in items {item.doc = format_with_comments(f, comments[index], item.doc)}
+}
+
 format_array :: proc(f: ^FormatContext, node: ^ArrayExpression) -> Doc {
 	items := make([]FormatArrayItem, len(node.elements), f.alloc)
 	for element, index in node.elements {
@@ -406,6 +450,7 @@ format_array :: proc(f: ^FormatContext, node: ^ArrayExpression) -> Doc {
 		loc := get_expression_loc(value)
 		items[index] = {format_expr(f, value, .Elements), true, loc.end, loc.start}
 	}
+	format_array_comments(f, node, items)
 	concise := format_is_concisely_printed_array(format_path_at(f, 0).expr)
 	return format_array_body(f, items, format_array_is_matrix(node), concise, true)
 }

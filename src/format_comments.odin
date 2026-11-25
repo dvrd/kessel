@@ -154,8 +154,40 @@ format_is_inline_space :: proc(text: string) -> bool {
 	return true
 }
 
+// A `//` comment that follows `after` on the same line.
+format_comment_is_inline_line :: proc(f: ^FormatContext, comment: Comment, after: u32) -> bool {
+	if !strings.has_prefix(f.source[comment.start:comment.end], "//") {return false}
+	if !format_comment_is_supported(f, comment) {return false}
+	return format_is_inline_space(f.source[after:comment.start])
+}
+
+// True when a comment lies in one of the gaps around the items of a list,
+// as opposed to inside an item.
+format_gaps_have_comments :: proc(
+	f: ^FormatContext,
+	bounds: FormatListBounds,
+	starts, ends: []u32,
+) -> bool {
+	for gap in 0 ..= len(starts) {
+		low := bounds.open if gap == 0 else ends[gap - 1]
+		high := bounds.close if gap == len(starts) else starts[gap]
+		if low < high && len(format_comments_in(f, low, high)) > 0 {return true}
+	}
+	return false
+}
+
+// True when every comment in the range is a block comment with code before
+// and after it on its line.
+format_comments_are_inline_blocks :: proc(f: ^FormatContext, start, end: u32) -> bool {
+	for comment in format_comments_in(f, start, end) {
+		if !format_comment_is_block(f, comment) {return false}
+		if format_has_newline_before(f.source, comment.start) {return false}
+		if format_has_newline_after(f.source, int(comment.end)) {return false}
+	}
+	return true
+}
+
 // Counts a comment as printed, once per statement however often it prints.
-@(private = "file")
 format_comment_mark :: proc(f: ^FormatContext, comment: Comment) {
 	index := codegen_comment_lower_bound(f.comments, comment.start)
 	assert(index < len(f.comments) && f.comments[index].start == comment.start)
@@ -210,9 +242,15 @@ format_comment_leads_next :: proc(
 		// Code on both sides of the comment's line. The comment leads the
 		// next item when only spaces and other comments separate the two,
 		// and trails the previous item otherwise.
+		// An opening parenthesis belongs to the next item: the parser drops
+		// grouping parentheses, so the item's span starts inside them.
 		gap_end := high
 		for index := len(in_gap) - 1; index >= position; index -= 1 {
-			if !format_is_inline_space(f.source[in_gap[index].end:gap_end]) {return false, true}
+			between := f.source[in_gap[index].end:gap_end]
+			if index == len(in_gap) - 1 {
+				between, _ = strings.remove_all(between, "(", f.alloc)
+			}
+			if !format_is_inline_space(between) {return false, true}
 			gap_end = in_gap[index].start
 		}
 		return true, true
