@@ -608,6 +608,59 @@ function verifyCompressionFuzz(count) {
   return checked;
 }
 
+// What a module offers to its importers: every exported name and, for a
+// re-export, where it comes from. Local binding names are not part of it.
+function exportList(file, code) {
+  const { parseSync } = require('../../bench/node_modules/oxc-parser');
+  const names = [];
+  for (const statement of parseSync(file, code).module.staticExports) {
+    for (const entry of statement.entries) {
+      names.push([entry.exportName.kind, entry.exportName.name, entry.moduleRequest && entry.moduleRequest.value,
+        entry.importName.kind, entry.importName.name].join(' '));
+    }
+  }
+  return names.sort();
+}
+
+// A module's top-level bindings are private, so they are renamed. Imports,
+// exported declarations and the names in `export { }` lists keep the
+// spelling other modules use. A script's top level is never renamed.
+function verifyModuleNames() {
+  const source = [
+    "import { readFileSync as readFile } from 'node:fs';", "import * as pathTools from 'node:path';", "import defaultUrl from 'node:url';",
+    'const topValue = 1; let counter = 0; var legacy = 2;',
+    'function helper(amount) { counter += amount; return counter + topValue + legacy; }',
+    'class Shape { area() { return helper(1); } static make() { return new Shape(); } }',
+    'const arrowNamed = () => 3; const unusedTop = 4; { let topValue = 9; counter += topValue; }',
+    'export const exportedConst = helper(2);',
+    'export function exportedFunction() { return [helper.name, Shape.name, arrowNamed.name, typeof readFile, typeof pathTools.join, typeof defaultUrl]; }',
+    'export { helper, Shape as Figure, counter as default, legacy, legacy as "quoted name" };', "export { join } from 'node:path';",
+    'export class Kept { own() { return Kept.name + typeof Shape.make(); } }',
+  ].join('\n');
+  const runner = write('runner.mjs', "const m = await import(process.argv[2]); console.log(JSON.stringify([Object.keys(m).sort(), m.default, " +
+    "m.exportedConst, m.exportedFunction(), m.helper(1), m.default, new m.Figure().area(), m.legacy, m['quoted name'], new m.Kept().own(), typeof m.join]));");
+  const run = code => execFileSync(process.execPath, [runner, write('subject.mjs', code)], { encoding: 'utf8' });
+  const file = write('module.mjs', source);
+  const expected = run(source);
+  for (const flags of [[], ['--no-compress'], ['--no-mangle'], ['--mangle-names']]) {
+    const output = emit('minify', file, flags);
+    assert.deepEqual(exportList(file, output), exportList(file, source), flags.join(' '));
+    const actual = run(output);
+    if (flags.includes('--mangle-names')) {
+      const names = value => { const list = JSON.parse(value); list[3] = list[3].slice(3); list[9] = typeof list[9]; return JSON.stringify(list); };
+      assert.equal(names(actual), names(expected));
+      assert.doesNotMatch(output, /helper\(|class Shape|arrowNamed/);
+    } else {
+      assert.equal(actual, expected, 'module ' + flags.join(' '));
+    }
+    if (!flags.includes('--no-mangle')) assert.doesNotMatch(output, /topValue|counter|unusedTop|\blegacy=/);
+    assert.match(output, /readFile\b.*pathTools.*defaultUrl/s);
+  }
+  assert.match(emit('minify', file), /export \{helper, ?Shape as Figure, ?\w+ as default, ?\w+ as legacy, ?\w+ as "quoted name"\}/);
+  const script = 'const topValue = 1; let counter = 0; function helper(amount) { return amount + topValue + counter; } globalThis.result = helper(2);';
+  assert.match(emit('minify', write('script.js', script)), /const topValue=1;let counter=0;function helper\(/);
+}
+
 function verifyJSXNames() {
   const factory = '({render:(kind,props,...children)=>[kind,props,...children]})';
   const body = [
@@ -995,6 +1048,7 @@ function verifyCorpus() {
       assert.ok(result.code === outputs.full, relative + ' SDK output differs from CLI');
     }
     assert.ok(Buffer.byteLength(outputs.full) <= Buffer.byteLength(compact), relative);
+    for (const mode of Object.keys(modes)) assert.deepEqual(exportList(file, outputs[mode]), exportList(file, source), relative + ' exports ' + mode);
     if (checkBindings) {
       bindings += compareBindings(verifier, file, files.renamed);
       compressedBindings += compareBindings(verifier, files.compressed, files.full);
@@ -1065,6 +1119,7 @@ try {
   verifyEffects();
   verifyNames();
   verifyNameSlots();
+  verifyModuleNames();
   verifyCompression();
   const fuzzed = verifyCompressionFuzz(600);
   verifyJSXNames();
