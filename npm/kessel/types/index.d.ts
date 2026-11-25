@@ -276,10 +276,16 @@ export interface TransformOptions {
   };
   /**
    * Lower syntax newer than this ECMAScript edition: exponentiation, optional catch binding,
-   * optional chaining, nullish coalescing, logical assignment and numeric separators.
-   * Newer syntax with no lowering is reported in `errors`. Defaults to 'esnext'.
+   * object rest and spread, optional chaining, nullish coalescing, logical assignment, numeric
+   * separators, class fields, private names and static blocks. Newer syntax with no lowering is reported in `errors`.
+   * Defaults to 'esnext'.
    */
   target?: 'es2015' | 'es2016' | 'es2017' | 'es2018' | 'es2019' | 'es2020' | 'es2021' | 'es2022' | 'es2023' | 'es2024' | 'esnext';
+  /**
+   * `setPublicClassFields` assigns lowered public fields (`this.x = v`) instead of defining them,
+   * as TypeScript does without `useDefineForClassFields`. A field without a value then leaves no trace.
+   */
+  assumptions?: { setPublicClassFields?: boolean };
   /** Lower TypeScript experimental decorators. Without `legacy`, decorators are printed as written. */
   decorator?: { legacy?: boolean; emitDecoratorMetadata?: boolean };
   minified?: boolean;

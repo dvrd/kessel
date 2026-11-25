@@ -358,9 +358,12 @@ name lookups.
 
 `target` lowers syntax newer than an ECMAScript edition, from `'es2015'` to
 `'es2024'`. Kessel lowers exponentiation, optional catch binding, optional
-chaining, nullish coalescing, logical assignment and numeric separators.
-Newer syntax it cannot lower, such as class fields below `es2022` or async
-functions below `es2017`, is reported in `errors` and no code is returned.
+chaining, nullish coalescing, logical assignment, numeric separators, and the
+ES2022 class features: public fields, private names, `#x in o` and static
+blocks, and object rest and spread. Newer syntax it cannot lower, such as
+async functions below `es2017`, is reported in `errors` and no code is
+returned. Lowered public fields are defined, as the language specifies;
+`assumptions: { setPublicClassFields: true }` assigns them instead.
 
 ```js
 transformSync('read.ts', 'export const read = (a?: Box) => a?.value ?? 0;', { target: 'es2019' });

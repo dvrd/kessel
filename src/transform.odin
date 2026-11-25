@@ -10,6 +10,7 @@ TransformOptions :: struct {
 	decorators: string, // "", "preserve", "legacy" or "standard"
 	emit_decorator_metadata: bool,
 	target: string, // "es2015" to "es2024", or "esnext"; empty means esnext
+	class_fields: string, // "define" (default) or "assign", for fields lowered below ES2022
 	refresh, refresh_full_signatures: bool,
 	refresh_reg, refresh_sig: string, // Runtime bindings; $RefreshReg$ and $RefreshSig$ when empty
 }

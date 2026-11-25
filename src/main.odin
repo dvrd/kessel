@@ -591,6 +591,9 @@ main :: proc() {
 			case command == "transform" && strings.has_prefix(arg, "--target="):
 				transform_options.target = strings.trim_prefix(arg, "--target=")
 				i += 1
+			case command == "transform" && strings.has_prefix(arg, "--class-fields="):
+				transform_options.class_fields = strings.trim_prefix(arg, "--class-fields=")
+				i += 1
 			case command == "transform" && arg == "--react-refresh":
 				transform_options.refresh = true
 				i += 1
@@ -684,6 +687,7 @@ print_usage :: proc() {
 	out_println("  transform --lower-using          Lower explicit resource management declarations.")
 	out_println("  transform --optimize-const-enums Inline constant TypeScript enum members.")
 	out_println("  transform --target=es2015..es2024 Lower newer syntax; reject what cannot be lowered.")
+	out_println("  transform --class-fields=define|assign  How lowered public class fields are created.")
 	out_println("  transform --decorators=legacy [--emit-decorator-metadata]  Lower TypeScript experimental decorators.")
 	out_println("  transform --react-refresh [--refresh-reg=X] [--refresh-sig=X] [--refresh-full-signatures]")
 	out_println("  lex <file>                      Tokenize and output tokens as JSON.")

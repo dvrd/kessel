@@ -87,9 +87,6 @@ gen_jsx_automatic :: proc(cg: ^Codegen, opening: ^JSXOpeningElement, children: [
 
 gen_jsx_children_prop :: proc(cg: ^Codegen, children: []JSXChild, first, second: int, text: string) {
 	_, spread := children[first].(^JSXSpreadChild)
-	if container, ok := children[first].(^JSXExpressionContainer); ok {
-		_, spread = container.expression^.(^SpreadElement)
-	}
 	array := second >= 0 || spread
 	if array { cg_byte(cg, '[') }
 	gen_jsx_child_value(cg, children[first], text)

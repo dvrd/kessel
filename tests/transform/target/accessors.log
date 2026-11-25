@@ -1,0 +1,15 @@
+decorate watched configurable,enumerable,get,set
+get watched
+constructor 1w
+set watched
+get watched
+update = [2,"x"]
+values = ["fn",2,3,true]
+own keys = []
+prototype = ["constructor","plain","watched","fn","quoted","constant","empty"]
+descriptor = ["function","function",false,true]
+foreign receiver = throws TypeError
+derived = throws TypeError
+expression = [3,"Expression"]
+static = ["s!",1,[]]
+static foreign = throws TypeError

@@ -245,7 +245,13 @@ const TOOLS = {
   // The bundler adds its own walkers (scan, side-effect analysis) and then
   // reparses and checks what it printed.
   bundle:      (f, tmp) => ['bundle', f, '--outfile', path.join(tmp, 'bundle.out.js')],
+  // The lowerings have walkers and rewrite rules of their own. A chain of
+  // `??` or `?.` too long to lower is refused, which is exit status 1.
+  transform_es2015:     (f) => ['transform', f, '--target=es2015'],
+  transform_decorators: (f) => ['transform', f, '--decorators=legacy'],
+  transform_refresh:    (f) => ['transform', f, '--react-refresh'],
 };
+const LOWERING_TOOLS = ['transform_es2015', 'transform_decorators', 'transform_refresh'];
 const TOOL_NAMES = Object.keys(TOOLS);
 
 // ---------------------------------------------------------------------------
@@ -446,7 +452,9 @@ async function section_chains(build) {
   for (const name of CHAIN_REQUIRED) jobs.push({ name, terms: CHAIN_TERMS, tools: TOOL_NAMES });
   // The variants exercise the same loops through other node fields; the
   // checker and one printer are enough at this size.
-  for (const name of CHAIN_VARIANTS) jobs.push({ name, terms: CHAIN_TERMS, tools: ['check', 'codegen'] });
+  for (const name of CHAIN_VARIANTS) {
+    jobs.push({ name, terms: CHAIN_TERMS, tools: ['check', 'codegen', ...LOWERING_TOOLS] });
+  }
   await for_each(jobs, async job => {
     const label = `[${build.name}] chain ${job.name} x${job.terms}`;
     const source = write_source('js', `x=${CHAIN[job.name](job.terms)};`);
