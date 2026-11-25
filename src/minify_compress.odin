@@ -27,8 +27,160 @@ COMPRESS_CONDITIONAL_DEPTH_MAX :: 32
 
 minify_compress_program :: proc(c: ^MinifyCompressor, program: ^Program) {
 	assert(c.function_depth == 0)
+	// Nothing can read the value of a module's last statement, so its top
+	// level is compressed like a function body.
+	base: u32 = 1 if program.type == .Module else 0
+	c.function_depth = base
 	compress_statement_list(c, &program.body, codegen_directive_count(program.body[:]), false)
-	assert(c.function_depth == 0)
+	assert(c.function_depth == base)
+	c.function_depth = 0
+}
+
+// The truth value of an operand built only from literals. Such an operand has
+// no side effects, so the branch it selects can replace the whole test.
+compress_constant_truth :: proc(expr: ^Expression) -> (truth: bool, known: bool) {
+	current := expr
+	for _ in 0..<64 {
+		#partial switch v in current^ {
+		case ^ParenthesizedExpression:
+			current = v.expression
+			continue
+		case ^StringLiteral: return len(v.value) != 0, true
+		case ^NullLiteral:   return false, true
+		case ^UnaryExpression:
+			if v.operator == .Void {
+				#partial switch _ in v.argument^ {
+				case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral: return false, true
+				}
+				return false, false
+			}
+			if v.operator == .LogicalNot {
+				inner, inner_known := compress_constant_truth(v.argument)
+				return !inner, inner_known
+			}
+		case ^BinaryExpression:
+			left, left_string := v.left^.(^StringLiteral)
+			right, right_string := v.right^.(^StringLiteral)
+			if left_string && right_string {
+				#partial switch v.operator {
+				case .Eq, .StrictEq:       return left.value == right.value, true
+				case .NotEq, .StrictNotEq: return left.value != right.value, true
+				}
+				return false, false
+			}
+		}
+		break
+	}
+	value, constant := minify_constant(current)
+	return minify_truthy(value), constant
+}
+
+// Whether removing the statement would remove a `var` or function binding
+// that the enclosing function still declares.
+compress_declares_hoisted :: proc(stmt: ^Statement) -> bool {
+	if stmt == nil { return false }
+	is_var :: proc(declaration: Maybe(^VariableDeclaration)) -> bool {
+		value, ok := declaration.?
+		return ok && value.kind == .Var
+	}
+	any :: proc(list: []^Statement) -> bool {
+		for statement in list { if compress_declares_hoisted(statement) { return true } }
+		return false
+	}
+	#partial switch v in stmt^ {
+	case ^VariableDeclaration: return v.kind == .Var
+	case ^FunctionDeclaration: return true
+	case ^BlockStatement:      return any(v.body[:])
+	case ^IfStatement:
+		if compress_declares_hoisted(v.consequent) { return true }
+		return compress_declares_hoisted(v.alternate.? or_else nil)
+	case ^ForStatement:     return is_var(v.init_decl) || compress_declares_hoisted(v.body)
+	case ^ForInStatement:   return is_var(v.left_decl) || compress_declares_hoisted(v.body)
+	case ^ForOfStatement:   return is_var(v.left_decl) || compress_declares_hoisted(v.body)
+	case ^WhileStatement:   return compress_declares_hoisted(v.body)
+	case ^DoWhileStatement: return compress_declares_hoisted(v.body)
+	case ^WithStatement:    return compress_declares_hoisted(v.body)
+	case ^LabeledStatement: return compress_declares_hoisted(v.body)
+	case ^SwitchStatement:
+		for item in v.cases { if any(item.consequent[:]) { return true } }
+	case ^TryStatement:
+		if any(v.block.body[:]) { return true }
+		if v.handler != nil && any(v.handler.(CatchClause).body.body[:]) { return true }
+		if v.finalizer != nil { return any(v.finalizer.(BlockStatement).body[:]) }
+	}
+	return false
+}
+
+// `if ("a" !== "a") { ... }` never runs its body. The dead branch goes when it
+// declares nothing that is hoisted out of it; the live branch takes the
+// statement's place. Returns true when the statement was replaced.
+compress_dead_if :: proc(c: ^MinifyCompressor, stmt: ^Statement, v: ^IfStatement) -> bool {
+	truth, known := compress_constant_truth(v.test)
+	if !known { return false }
+	alternate, has_alternate := v.alternate.?
+	live: ^Statement = v.consequent if truth else (alternate if has_alternate else nil)
+	dead: ^Statement = (alternate if has_alternate else nil) if truth else v.consequent
+	if compress_declares_hoisted(dead) { return false }
+	if live == nil {
+		// At the top level of a script the statement still yields `undefined`.
+		if c.function_depth == 0 { return false }
+		empty := new(EmptyStatement, c.alloc)
+		empty.loc = v.loc
+		stmt^ = empty
+		return true
+	}
+	// A declaration cannot stand where a statement is required: keep its block.
+	if compress_is_lexical_declaration(live) { return false }
+	if _, is_expression := live^.(^ExpressionStatement); !is_expression && c.function_depth == 0 {
+		return false
+	}
+	stmt^ = live^
+	return true
+}
+
+// A conditional or logical operator whose left side is a literal selects one
+// operand. A member access keeps the operator: unwrapped, a call through it
+// would receive a different `this`, and `eval` would become a direct eval.
+compress_constant_choice :: proc(expr: ^Expression) {
+	chosen: ^Expression
+	#partial switch v in expr^ {
+	case ^ConditionalExpression:
+		truth, known := compress_constant_truth(v.test)
+		if !known { return }
+		chosen = v.consequent if truth else v.alternate
+	case ^LogicalExpression:
+		if v.operator == .NullishCoalescing { return }
+		truth, known := compress_constant_truth(v.left)
+		if !known { return }
+		chosen = v.right if truth == (v.operator == .And) else v.left
+	case: return
+	}
+	inner := semantic_runtime_expression(chosen)
+	if inner == nil { return }
+	#partial switch v in inner^ {
+	case ^MemberExpression, ^ChainExpression: return
+	case ^Identifier: if v.name == "eval" { return }
+	}
+	expr^ = chosen^
+}
+
+// Statements after a jump never run. One that declares a binding stays, since
+// the declaration itself still takes effect (hoisting, or the dead zone of a
+// `let`). Empty statements go everywhere.
+compress_remove_unreachable :: proc(list: ^[dynamic]^Statement, first: int) {
+	write := first
+	jumped := false
+	for read in first..<len(list) {
+		stmt := list[read]
+		if _, empty := stmt^.(^EmptyStatement); empty { continue }
+		if jumped && !compress_is_lexical_declaration(stmt) && !compress_declares_hoisted(stmt) { continue }
+		#partial switch _ in stmt^ {
+		case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement: jumped = true
+		}
+		list[write] = stmt
+		write += 1
+	}
+	resize(list, write)
 }
 
 compress_new_expression :: proc(c: ^MinifyCompressor, node: $T) -> ^Expression {
@@ -299,6 +451,7 @@ compress_statement :: proc(c: ^MinifyCompressor, stmt: ^Statement) {
 		compress_value(c, v.test)
 		compress_statement(c, v.consequent)
 		if alternate, ok := v.alternate.?; ok { compress_statement(c, alternate) }
+		if compress_dead_if(c, stmt, v) { return }
 		compress_if(c, stmt, v)
 	case ^SwitchStatement:
 		compress_value(c, v.discriminant)
@@ -491,6 +644,7 @@ compress_statement_list :: proc(
 	assert(first <= len(list))
 	for index in first..<len(list) { compress_statement(c, list[index]) }
 	compress_flatten_blocks(list, first)
+	compress_remove_unreachable(list, first)
 	compress_flatten_else(c, list, first)
 	if function_body && len(list) > first {
 		// Falling off the end of a function also returns undefined.
@@ -759,7 +913,9 @@ compress_chain :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 			compress_value(c, v.right)
 			compress_typeof_comparison(v)
 			compress_string_concatenation(c, node, v)
-		case ^LogicalExpression: compress_value(c, v.right)
+		case ^LogicalExpression:
+			compress_value(c, v.right)
+			compress_constant_choice(node)
 		case ^MemberExpression:  compress_member_property(c, v)
 		case ^CallExpression:
 			for argument in v.arguments { compress_value(c, argument) }
@@ -799,6 +955,7 @@ compress_expression :: proc(c: ^MinifyCompressor, expr: ^Expression) {
 		compress_value(c, v.test)
 		compress_value(c, v.consequent)
 		compress_value(c, v.alternate)
+		compress_constant_choice(expr)
 	case ^UpdateExpression: compress_target(c, v.argument)
 	case ^UnaryExpression:
 		if v.operator == .Delete {
