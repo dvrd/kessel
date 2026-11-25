@@ -96,7 +96,17 @@ const VAR_KINDS = ['var', 'let', 'const', 'using', 'await using'];
 const PROP_KINDS = ['init', 'get', 'set'];
 const CLASS_ELEM_KINDS = ['method', 'get', 'set', 'constructor', 'method']; // StaticBlock mapped to method
 const RESOURCE_BUDGET = Object.freeze({
-  astDepth: 512,
+  // The parser's default nesting limit (ParseConfig.max_depth).
+  sourceDepth: 512,
+  // Node levels allowed per level of source nesting. One source level can
+  // open several nodes: a method in a class body is ClassDeclaration,
+  // ClassBody, MethodDefinition, FunctionExpression and BlockStatement, the
+  // deepest ratio in the grammar. A budget of 512 node levels therefore
+  // refused programs the parser had accepted.
+  astLevelsPerSourceLevel: 6,
+  // Levels that do not scale with nesting: Program, an export wrapper, and
+  // the declaration, statement and expression nodes around the innermost leaf.
+  astLevelsSpare: 32,
   binaryNodeArrayCount: 100000,
 });
 
@@ -110,9 +120,16 @@ const VT_NODE = 0xFD, VT_NULL_NODE = 0xFE;
  * Decode a binary AST buffer into an ESTree-compatible Program object.
  * @param {Buffer|Uint8Array} buffer - The binary buffer from kessel --binary
  * @param {string} source - Original source text (for string resolution)
+ * @param {Uint8Array} [sourceBytes] - The UTF-8 bytes of `source`
+ * @param {{ maxDepth?: number }} [limits] - The nesting limit the source was
+ *   parsed with, when it was not the default; it sizes the decoder's budget.
  * @returns {{ program: object, errors: Array }}
  */
-function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) {
+function decode(buffer, source, sourceBytes = new TextEncoder().encode(source), limits = {}) {
+  const sourceDepth = limits.maxDepth || RESOURCE_BUDGET.sourceDepth;
+  if (!Number.isInteger(sourceDepth) || sourceDepth < 1) throw new RangeError('Invalid maxDepth');
+  const astDepth = sourceDepth * RESOURCE_BUDGET.astLevelsPerSourceLevel +
+    RESOURCE_BUDGET.astLevelsSpare;
   const dv = new DataView(buffer.buffer || buffer, buffer.byteOffset || 0, buffer.byteLength || buffer.length);
   let off = 0;
 
@@ -138,9 +155,23 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
   // Build string table
   const strings = buildStringTable(dv, strTableOff, source, sourceBytes);
 
-  // Read node stream
+  // Read node stream. Nodes outside chains are read recursively, so a tree
+  // within the depth budget can still be deeper than the JavaScript stack
+  // that is left when the caller is itself deeply nested or the nesting
+  // limit was raised. The engine reports that as a RangeError, which is
+  // caught here and restated: the process is never at risk.
   let depth = 0;
-  const program = readNode();
+  let program;
+  try {
+    program = readNode();
+  } catch (error) {
+    if (!(error instanceof RangeError) || depth === 0) throw error;
+    const failure = new RangeError('The AST is nested too deeply to decode on the remaining ' +
+      'JavaScript stack (' + depth + ' node levels were open). Lower maxDepth or run Node ' +
+      'with a larger --stack-size.');
+    failure.code = 'AST_Too_Deep';
+    throw failure;
+  }
 
   // Decode errors section, if present. Layout depends on `version`:
   //   v3: u32 start, u32 end, u32 msg_len, msg_len bytes (UTF-8). 12B fixed.
@@ -310,7 +341,9 @@ function decode(buffer, source, sourceBytes = new TextEncoder().encode(source)) 
 
   function readNode() {
     if (off >= strTableOff) return null;
-    if (++depth > RESOURCE_BUDGET.astDepth) throw new Error('readNode depth exceeded ' + RESOURCE_BUDGET.astDepth + ' at offset ' + off);
+    if (++depth > astDepth) {
+      throw new Error('readNode depth exceeded ' + astDepth + ' at offset ' + off);
+    }
     // Peek at the first byte. If it's a NullNode tag (0xFE), consume
     // just that one byte and return null — the emitter writes NullNode
     // in bare-node positions for nil/unknown AST nodes.

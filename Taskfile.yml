@@ -59,7 +59,7 @@ tasks:
     generates: [bin/playground/kessel.wasm]
 
   test:wasm:
-    desc: Verify the browser parser and formatter against the CLI and formatter fixtures, including memory boundaries.
+    desc: Verify the browser parser, formatter, linter, transformer, minifier and declaration emitter against the CLI and formatter fixtures, including memory boundaries.
     deps: [build, build:wasm]
     cmds:
       - node tests/verifiers/verify_wasm.mjs
@@ -271,6 +271,12 @@ tasks:
     deps: [build:lib, deps:vscode]
     cmds:
       - node editors/vscode/package_vsix.js
+
+  test:vscode:package:
+    desc: Check the packaged VSIX and run its language server over stdio, without starting an editor
+    deps: [build:vscode]
+    cmds:
+      - node tests/verifiers/verify_vsix.js
 
   test:vscode:
     desc: Install the VSIX in an isolated VS Code profile and exercise diagnostics and fixes

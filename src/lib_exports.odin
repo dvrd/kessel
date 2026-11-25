@@ -10,6 +10,8 @@ package kessel
 // Exports:
 //   kessel_parse_binary(src, src_len, lang) -> KesselParseResult{handle, buf_ptr, buf_len}
 //   kessel_parse_binary_v2(src, src_len, filename, filename_len, options...) -> KesselParseResult
+//   kessel_parse_binary_v3(src, src_len, filename, filename_len, &KesselParseOptions)
+//       -> KesselParseResult
 //   kessel_free_result(handle)
 //
 // The returned buffer is the compact binary AST (same format as --binary).
@@ -202,6 +204,86 @@ kessel_parse_binary_v2 :: proc "c" (
 	}
 
 	return kessel_parse_binary_with_config(source, label, config, kessel_bool_from_i32(show_semantic_errors))
+}
+
+// Options block for kessel_parse_binary_v3. Every field is an i32 so the
+// layout is the same on every target and binding. `size` is the number of
+// bytes the caller filled in: a newer library reads only that prefix and
+// leaves the rest zero, and an older library ignores bytes it does not know,
+// so fields are only ever appended. A zero field selects the default, except
+// the tri-state fields, whose defaults are documented beside them.
+KesselParseOptions :: struct {
+	size:                        i32,
+	lang:                        i32, // -1=path detect, 0=JS, 1=JSX, 2=TS, 3=TSX
+	source_type:                 i32, // -1=unambiguous, 0=script, 1=module
+	strict_source_type:          i32,
+	force_strict:                i32,
+	preserve_parens:             i32,
+	ast_only:                    i32,
+	show_semantic_errors:        i32,
+	source_is_dts:               i32, // -1=path detect, 0=false, 1=true
+	is_commonjs:                 i32, // -1=path detect, 0=false, 1=true
+	disallow_ambiguous_jsx_like: i32,
+	max_depth:                   i32, // 0=default (512); see ParseConfig.max_depth
+	reject_invalid_utf8:         i32, // see ParseConfig.reject_invalid_utf8
+}
+
+#assert(size_of(KesselParseOptions) == 13 * size_of(i32))
+#assert(offset_of(KesselParseOptions, max_depth) == 11 * size_of(i32))
+
+// The size of the options block as it was first published. A caller must
+// provide at least this much; kessel_parse_binary_v2 covers older callers.
+KESSEL_PARSE_OPTIONS_SIZE_MIN :: 13 * size_of(i32)
+
+// Parse with every ParseConfig option the bindings expose. Unlike
+// kessel_parse_binary_v2 the options travel in a sized block, so adding an
+// option does not need another entry point. Returns an empty result when the
+// arguments are unusable: a nil source, a negative length, an options block
+// smaller than KESSEL_PARSE_OPTIONS_SIZE_MIN, or a max_depth outside
+// 0..PARSE_DEPTH_MAX_CEILING. The caller owns the stack: a max_depth above
+// the default needs proportionally more of it.
+@(export, link_name="kessel_parse_binary_v3")
+kessel_parse_binary_v3 :: proc "c" (
+	source_ptr: [^]u8,
+	source_len: i32,
+	filename_ptr: [^]u8,
+	filename_len: i32,
+	options_ptr: ^KesselParseOptions,
+) -> KesselParseResult {
+	context = runtime.default_context()
+
+	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
+	if options_ptr == nil { return KesselParseResult{} }
+	if options_ptr.size < KESSEL_PARSE_OPTIONS_SIZE_MIN { return KesselParseResult{} }
+	// Copy the prefix this library knows. A larger block comes from a newer
+	// binding; its extra fields are ignored.
+	options: KesselParseOptions
+	known := min(int(options_ptr.size), size_of(KesselParseOptions))
+	mem.copy(&options, options_ptr, known)
+	if options.max_depth < 0 { return KesselParseResult{} }
+	if options.max_depth > PARSE_DEPTH_MAX_CEILING { return KesselParseResult{} }
+
+	source := string(source_ptr[:source_len])
+	label := "lib"
+	if filename_ptr != nil && filename_len > 0 {
+		label = string(filename_ptr[:filename_len])
+	}
+
+	config := ParseConfig{
+		lang_override               = kessel_lang_from_i32(options.lang),
+		source_type_override        = kessel_source_type_from_i32(options.source_type),
+		strict_source_type          = kessel_bool_from_i32(options.strict_source_type),
+		force_strict                = kessel_bool_from_i32(options.force_strict),
+		preserve_parens             = kessel_bool_from_i32(options.preserve_parens),
+		ast_only                    = kessel_bool_from_i32(options.ast_only),
+		source_is_dts_override      = kessel_maybe_bool_from_i32(options.source_is_dts),
+		is_commonjs_override        = kessel_maybe_bool_from_i32(options.is_commonjs),
+		disallow_ambiguous_jsx_like = kessel_bool_from_i32(options.disallow_ambiguous_jsx_like),
+		max_depth                   = int(options.max_depth),
+		reject_invalid_utf8         = kessel_bool_from_i32(options.reject_invalid_utf8),
+	}
+	semantic := kessel_bool_from_i32(options.show_semantic_errors)
+	return kessel_parse_binary_with_config(source, label, config, semantic)
 }
 
 @(export, link_name="kessel_free_result")

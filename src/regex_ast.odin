@@ -1,5 +1,6 @@
 package kessel
 
+import "base:runtime"
 import "core:encoding/json"
 import "core:fmt"
 import "core:mem"
@@ -136,13 +137,80 @@ regex_parse_ast :: proc(
 	parsed_flags, flag_err := regex_ast_flags(flags)
 	if flag_err.kind != .None { return {}, flag_err }
 
-	scratch: mvirtual.Arena
-	if err := mvirtual.arena_init_growing(&scratch); err != nil {
+	scratch: RegexScratch
+	if !regex_scratch_init(&scratch) {
 		return {}, {kind = .Allocation_Error}
 	}
-	defer mvirtual.arena_destroy(&scratch)
+	defer regex_scratch_destroy(&scratch)
 
-	return regex_ast_parse(pattern, parsed_flags, allocator, mvirtual.arena_allocator(&scratch))
+	return regex_ast_parse(pattern, parsed_flags, allocator, regex_scratch_allocator(&scratch))
+}
+
+// Scratch memory for one run of the grammar. WebAssembly has no virtual
+// memory: core:mem/virtual reserves nothing there and still reports success,
+// so a growing arena would be placed at address zero. The WASI build stopped
+// on a runtime assertion inside that arena at the first `u` or `v` literal.
+// Those targets take blocks from the heap instead.
+REGEX_SCRATCH_ON_HEAP :: ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32
+
+when REGEX_SCRATCH_ON_HEAP {
+	RegexScratch     :: mem.Dynamic_Arena
+	RegexScratchMark :: struct {}
+} else {
+	RegexScratch     :: mvirtual.Arena
+	RegexScratchMark :: mvirtual.Arena_Temp
+}
+
+@(private="file")
+regex_scratch_init :: proc(scratch: ^RegexScratch) -> bool {
+	when REGEX_SCRATCH_ON_HEAP {
+		// Named explicitly: the caller's context allocator may be a parse
+		// arena, which would keep every block until the job ends.
+		heap := runtime.default_allocator()
+		mem.dynamic_arena_init(scratch, heap, heap)
+		return true
+	} else {
+		return mvirtual.arena_init_growing(scratch) == nil
+	}
+}
+
+@(private="file")
+regex_scratch_allocator :: proc(scratch: ^RegexScratch) -> mem.Allocator {
+	when REGEX_SCRATCH_ON_HEAP {
+		return mem.dynamic_arena_allocator(scratch)
+	} else {
+		return mvirtual.arena_allocator(scratch)
+	}
+}
+
+@(private="file")
+regex_scratch_destroy :: proc(scratch: ^RegexScratch) {
+	when REGEX_SCRATCH_ON_HEAP {
+		mem.dynamic_arena_destroy(scratch)
+	} else {
+		mvirtual.arena_destroy(scratch)
+	}
+}
+
+// Remember how much of a long-lived scratch is in use, to rewind to later.
+@(private="file")
+regex_scratch_mark :: proc(scratch: ^RegexScratch) -> RegexScratchMark {
+	when REGEX_SCRATCH_ON_HEAP {
+		return {}
+	} else {
+		return mvirtual.arena_temp_begin(scratch)
+	}
+}
+
+// Release what was allocated since `mark` and keep the memory for the next
+// use. The heap variant is only ever marked while empty, so it resets.
+@(private="file")
+regex_scratch_rewind :: proc(scratch: ^RegexScratch, mark: RegexScratchMark) {
+	when REGEX_SCRATCH_ON_HEAP {
+		mem.dynamic_arena_reset(scratch)
+	} else {
+		mvirtual.arena_temp_end(mark)
+	}
 }
 
 // Run the grammar over `pattern`. Nodes go to `allocator`; `scratch` holds the
@@ -196,7 +264,7 @@ RegexVerdict :: enum { Accepted, Rejected, Unknown }
 // not pile up in the parse arena, which is only released with the whole job.
 // The arena is created on a thread's first verdict, rewound after each one, and
 // lives as long as the thread.
-@(thread_local, private="file") regex_verdict_arena: mvirtual.Arena
+@(thread_local, private="file") regex_verdict_arena: RegexScratch
 @(thread_local, private="file") regex_verdict_arena_ready: bool
 
 // Decide whether `new RegExp(pattern, flags)` would compile, using exactly the
@@ -208,22 +276,24 @@ regex_pattern_verdict :: proc(
 ) -> (RegexVerdict, RegexAstError) {
 	if u64(len(pattern)) >= u64(max(u32)) { return .Unknown, {kind = .Source_Too_Large} }
 	if !regex_verdict_arena_ready {
-		if err := mvirtual.arena_init_growing(&regex_verdict_arena); err != nil {
+		if !regex_scratch_init(&regex_verdict_arena) {
 			return .Unknown, {kind = .Allocation_Error}
 		}
-		// Keep one byte in use so that rewinding never returns the first block
-		// to the operating system.
-		if _, err := mvirtual.arena_alloc(&regex_verdict_arena, 1, 1); err != nil {
-			mvirtual.arena_destroy(&regex_verdict_arena)
-			return .Unknown, {kind = .Allocation_Error}
+		when !REGEX_SCRATCH_ON_HEAP {
+			// Keep one byte in use so that rewinding never returns the first
+			// block to the operating system.
+			if _, err := mvirtual.arena_alloc(&regex_verdict_arena, 1, 1); err != nil {
+				mvirtual.arena_destroy(&regex_verdict_arena)
+				return .Unknown, {kind = .Allocation_Error}
+			}
 		}
 		regex_verdict_arena_ready = true
 	}
 
-	temp := mvirtual.arena_temp_begin(&regex_verdict_arena)
-	defer mvirtual.arena_temp_end(temp)
+	mark := regex_scratch_mark(&regex_verdict_arena)
+	defer regex_scratch_rewind(&regex_verdict_arena, mark)
 
-	allocator := mvirtual.arena_allocator(&regex_verdict_arena)
+	allocator := regex_scratch_allocator(&regex_verdict_arena)
 	_, err := regex_ast_parse(pattern, flags, allocator, allocator)
 	verdict := RegexVerdict.Unknown
 	switch err.kind {

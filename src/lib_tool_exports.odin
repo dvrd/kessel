@@ -280,6 +280,59 @@ KesselLintOptions :: struct {
 	lang: i32,
 	fix, suggestions, dangerous, include_fixes, include_suggestions, include_suppressions: bool,
 	rules, workspace: string,
+	// The caller's own `categories` and `plugins`, with the meaning those keys
+	// have in an .oxlintrc.json. `plugins_listed` tells an empty list (no
+	// plugin rules) from an absent one (the project's or the default plugins).
+	categories: map[string]string,
+	plugins: []string,
+	plugins_listed: bool,
+}
+
+// The caller's category and plugin selection in the config loader's terms.
+KesselLintSelection :: struct {
+	config: LintCategoryConfig,
+	react:  bool,
+	// False when the request names no category and lists no plugins.
+	given:  bool,
+}
+
+kessel_lint_selection :: proc(
+	options: ^KesselLintOptions,
+) -> (selection: KesselLintSelection, ok: bool) {
+	for name, level in options.categories {
+		if level != "off" && level != "warn" && level != "error" { return {}, false }
+		found := false
+		for category in LintCategory {
+			if category == .None || lint_category_key(category) != name { continue }
+			selection.config.levels[category] = level
+			found = true
+		}
+		if !found { return {}, false }
+		selection.given = true
+	}
+	if !options.plugins_listed { return selection, true }
+	selection.given = true
+	selection.config.plugins_listed = true
+	// Plugins without rules here are accepted and select nothing, as in a config file.
+	for plugin in options.plugins {
+		switch plugin {
+		case "typescript", "@typescript-eslint": selection.config.typescript = true
+		case "unicorn":                          selection.config.unicorn = true
+		case "oxc":                              selection.config.oxc = true
+		case "react", "react-hooks":             selection.react = true
+		}
+	}
+	return selection, true
+}
+
+// The rule defaults a selection implies when no config file supplies any.
+kessel_lint_selection_defaults :: proc(
+	rules: ^[dynamic]LintOverride,
+	selection: KesselLintSelection,
+) {
+	assert(selection.given)
+	lint_config_category_defaults(rules, selection.config)
+	if selection.react { lint_config_hook_defaults(rules, {react = true}) }
 }
 
 kessel_lint_fix_kinds :: proc(options: ^KesselLintOptions) -> LintFixKinds {
@@ -309,7 +362,11 @@ KesselProjectLint :: struct { diagnostics: []KesselProjectDiagnostic, output: Ma
 
 kessel_lint_project_rules :: proc(options: ^KesselLintOptions, file: string, rules: ^[dynamic]LintOverride, scratch: ^mvirtual.Arena) -> (settings: LintSettings, ignored, ok: bool) {
 	context.allocator = mvirtual.arena_allocator(scratch)
+	selection, selection_ok := kessel_lint_selection(options)
+	if !selection_ok { return {}, false, false }
 	if options.workspace == "" {
+		// Category defaults precede explicit rule settings, as in a config file.
+		if selection.given { kessel_lint_selection_defaults(rules, selection) }
 		if !lint_parse_rules_text(options.rules, rules) { return {}, false, false }
 		return {overrides=rules[:]}, false, true
 	}
@@ -318,6 +375,21 @@ kessel_lint_project_rules :: proc(options: ^KesselLintOptions, file: string, rul
 	store: LintConfigStore
 	if !lint_config_store_open(&store, root, "", true) { return {}, false, false }
 	overrides := make([dynamic]LintOverride)
+	if selection.given {
+		// The store lives for this call only, so the selected project can be
+		// adjusted in place. An .oxlintrc.json project takes the selection as
+		// if a later config file had stated it. A kessel.lint.json project has
+		// no categories and keeps its rules. A file outside every project
+		// takes the selection as its whole configuration.
+		config, found := lint_config_for_file(&store, file)
+		if !found { return {}, false, false }
+		if config == nil {
+			kessel_lint_selection_defaults(&overrides, selection)
+		} else if config.dialect == .Oxlint {
+			lint_category_config_merge(&config.categories, selection.config)
+			if selection.react { config.hooks.react = true }
+		}
+	}
 	if !lint_parse_rules_text(options.rules, &overrides) { return {}, false, false }
 	return lint_config_select(&store, file, overrides[:], rules)
 }
@@ -387,7 +459,8 @@ kessel_project_diagnostics :: proc(job: ^ParseJob, settings: LintSettings, optio
 		}
 		if suppression_edits && d.lint_code != .None && d.lint_code != .L9001_UnusedDirective {
 			line := lint_offset_to_line(job.lexer.line_offsets, d.start)
-			result[i].suppression = kessel_project_suppression(anchors, line, d.lint_code)
+			rule := lint_rule_qualified_name(d.lint_code, job.arena_alloc)
+			result[i].suppression = kessel_project_suppression(anchors, line, rule)
 		}
 		key := LintFixKey{d.lint_code, {d.start, d.end}}
 		if choice, ok := linter.suggestions[{key, d.message}]; ok {
@@ -403,7 +476,10 @@ kessel_project_diagnostics :: proc(job: ^ParseJob, settings: LintSettings, optio
 	return result
 }
 
-kessel_project_suppression :: proc(anchors: []u32, line: int, rule: LintRule) -> KesselSuppression {
+// `rule` is the plugin-qualified name, the spelling configuration files use.
+// Directives accept it and the bare rule name alike.
+kessel_project_suppression :: proc(anchors: []u32, line: int, rule: string) -> KesselSuppression {
+	assert(rule != "")
 	assert(line >= 0)
 	assert(line < len(anchors))
 	anchor := anchors[line]
@@ -412,7 +488,7 @@ kessel_project_suppression :: proc(anchors: []u32, line: int, rule: LintRule) ->
 		anchor = anchors[line-1]
 		directive = "disable-next-line"
 	}
-	result := KesselSuppression{rule=lint_rule_info(rule).name}
+	result := KesselSuppression{rule=rule}
 	if anchor != 0 {
 		result.line = {anchor-1, anchor-1, fmt.tprintf(" /* oxlint-%s %s */", directive, result.rule)}
 	}

@@ -8,6 +8,7 @@ let nextId = 0;
 const PARSE_OPTION_KEYS = [
   'lang', 'sourceType', 'strictSourceType', 'forceStrict', 'preserveParens',
   'mode', 'showSemanticErrors', 'sourceIsDts', 'commonjs', 'disallowAmbiguousJSXLike',
+  'maxDepth', 'rejectInvalidUtf8',
 ];
 
 function startWorker() {

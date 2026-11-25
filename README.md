@@ -740,7 +740,9 @@ results are in the [codegen section](#codegen).
 | 10 | Bundler (`kessel bundle`, `bundleSync`) + language server | The bundler scope-hoists ES modules, wraps CommonJS and lazily loaded modules, tree-shakes, and writes esm, cjs or iife with source maps; several entries and `--splitting` produce shared chunks in esm. CSS and asset loaders, watch mode and top-level await outside entries remain open. The local VS Code extension shows diagnostics, offers fixes and rule-specific suppressions, applies safe fixes on save, and formats module declarations and data literals. |
 
 Run `task build:vscode` to create an installable VSIX for your platform.
-Run `task test:vscode` to exercise the installed extension in a disposable VS Code profile.
+Run `task test:vscode:package` to check the VSIX and run its packaged language server over
+stdio without an editor, and `task test:vscode` to exercise the installed extension in a
+disposable VS Code profile.
 
 ### Browser playground
 
@@ -750,11 +752,15 @@ and open `http://localhost:8080`. The files in `bin/playground/` can also be ser
 from any static host. The browser worker parses JS, JSX, TS and TSX locally and
 displays the same ESTree JSON and optional semantic diagnostics as the CLI.
 The Formatted tab previews the native formatter and downloads the result
-as a source file. Each document can contain up to 256 KiB of UTF-8. Downloads
-include the complete result when the preview is truncated.
+as a source file. The Lint tab lists diagnostics from the default rule set,
+the JavaScript tab lowers TypeScript and JSX for the selected target and JSX
+runtime, the Minified tab compresses and mangles, and the Declarations tab
+emits the isolated `.d.ts` of a TypeScript source. Each document can contain
+up to 256 KiB of UTF-8. Downloads include the complete result when the preview
+is truncated.
 
-To embed the parser, copy `parser.mjs` and `kessel.wasm` together and use the module
-in a browser or worker with Web Crypto. Each instance can parse multiple documents.
+To embed the tools, copy `parser.mjs` and `kessel.wasm` together and use the module
+in a browser or worker with Web Crypto. Each instance can process multiple documents.
 
 ```js
 import { createParser } from './parser.mjs';
@@ -763,11 +769,29 @@ const bytes = await (await fetch('./kessel.wasm')).arrayBuffer();
 const parser = createParser(await WebAssembly.compile(bytes));
 const tree = parser.parse('const id: number = 1;', { language: 'ts', semanticErrors: true });
 const formatted = parser.format("export{type Id}from'./model';", { language: 'ts', singleQuote: true });
+const { diagnostics } = parser.lint(source, { language: 'tsx', rules: { 'unicorn/no-thenable': 'error' } });
+const lowered = parser.transform(source, { language: 'tsx', jsx: 'automatic', target: 'es2017' });
+const small = parser.minify(lowered.code, { mangleNames: false });
+const types = parser.declaration(source, { language: 'tsx' });
 ```
+
+`lint` returns diagnostics with a stable `code`, the plugin-qualified `rule`
+name, a severity and a message; parser diagnostics come first and have no
+`rule`. `transform`, `minify` and `declaration` return `{ code, errors }`, and
+`code` is empty when `errors` is not. Offsets, lines and columns count UTF-8
+bytes, as they do in the CLI and the Node SDK. `transform` takes `jsx`,
+`target`, `minified`, `development`, `importSource`, `pragma`, `pragmaFrag`,
+`legacyDecorators` and `refresh`; `define` and source maps are not available
+in the browser build. Each tool prints what the native CLI prints for the same
+input. The one arithmetic the module leaves to its host is `**` during
+constant folding, which uses `Math.pow`.
 
 The formatter accepts the same layout options as the Node SDK. Syntax errors
 carry code `Invalid_Syntax` and an `offset` in UTF-8 bytes.
-`task test:wasm` checks parser and formatter output, UTF-8 limits and repeated calls.
+`task test:wasm` checks parser and formatter output, UTF-8 limits and repeated
+calls, and compares lint, transform and minify with the CLI on every pinned
+real-world file within the size limit, and all four tools on the typed and
+JSX fixtures.
 For the UI test, run `npm ci --prefix playground`, install the pinned browser with
 `(cd playground && npx playwright install --only-shell chromium)`, then run
 `task test:wasm:browser`.

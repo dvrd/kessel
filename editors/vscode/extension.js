@@ -18,10 +18,17 @@ async function activate(context) {
       const config = vscode.workspace.getConfiguration('kessel');
       return {
         rules: config.get('rules'),
+        categories: config.get('categories'),
+        plugins: config.get('plugins') ?? undefined,
         reportUnusedDisableDirectives: config.get('reportUnusedDisableDirectives') ?? undefined,
       };
     },
-    synchronize: { configurationSection: ['kessel.rules', 'kessel.reportUnusedDisableDirectives'] },
+    synchronize: {
+      configurationSection: [
+        'kessel.rules', 'kessel.categories', 'kessel.plugins',
+        'kessel.reportUnusedDisableDirectives',
+      ],
+    },
   });
   await client.start();
 }

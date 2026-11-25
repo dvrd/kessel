@@ -10,6 +10,11 @@ const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 
 const installed = process.argv.includes('--installed');
+// `--server=<directory>` runs another copy of the server, such as the one
+// unpacked from a VSIX, in place of the one in this checkout.
+const serverOption = process.argv.find(argument => argument.startsWith('--server='));
+const serverDirectory = path.resolve(serverOption ? serverOption.slice('--server='.length)
+  : path.join(__dirname, '../../npm/kessel/lsp'));
 const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-lsp-'));
 const uriFor = file => pathToFileURL(path.join(folder, file)).href;
 const pos = (line, character) => ({ line, character });
@@ -46,7 +51,7 @@ async function* responses(stream) {
 
 function launch() {
   const unixBin = path.resolve('node_modules/.bin/kessel-language-server');
-  const entry = path.resolve(__dirname, '../../npm/kessel/lsp/server.js');
+  const entry = path.join(serverDirectory, 'server.js');
   const windowsShim = installed && process.platform === 'win32';
   const command = windowsShim ? 'cmd.exe' : installed ? unixBin : process.execPath;
   const args = windowsShim ? ['/d', '/c', 'node_modules\\.bin\\kessel-language-server.cmd', '--stdio'] :
@@ -105,6 +110,7 @@ async function initialize(client, versioned) {
   const { capabilities } = (await client.next(2)).result;
   assert.equal(capabilities.positionEncoding, 'utf-16');
   assert.equal(capabilities.documentFormattingProvider, true);
+  assert.equal(capabilities.documentRangeFormattingProvider, true);
   assert.equal(capabilities.textDocumentSync.change, 2);
   assert.deepEqual(capabilities.codeActionProvider.codeActionKinds, ['quickfix', 'source.fixAll.kessel']);
   client.send(notification('initialized', {}));
@@ -433,6 +439,220 @@ async function formatting(client) {
   assert.deepEqual((await client.next(70)).result, []);
 }
 
+// The formatter rewrites statements anywhere in a file. Each run of changed
+// lines must arrive as its own edit bounded by whole lines, so untouched
+// lines keep their text and selections, and a range request must return only
+// the runs that touch the selected lines.
+async function generalFormatting(client) {
+  const file = uriFor('general.js');
+  const text = ['/*🚀*/ const kept = 1;', 'function  add( a,b ){return a+b}', 'const alsoKept = "é";',
+    'class A{m(){ if(a){b()}else{c()} }}', 'export const done = true;', ''].join('\r\n');
+  const options = { tabSize: 4, insertSpaces: true };
+  const target = { textDocument: { uri: file }, options };
+  const whole = id => request(id, 'textDocument/formatting', target);
+  const partial = (id, selection) => request(id, 'textDocument/rangeFormatting', { ...target, range: selection });
+  const lines = (first, limit) => ({ start: pos(first, 0), end: pos(limit, 0) });
+  const functionEdit = { range: lines(1, 2), newText: 'function add(a, b) {\r\n    return a + b;\r\n}\r\n' };
+  const classEdit = { range: lines(3, 4), newText: ['class A {', '    m() {', '        if (a) {',
+    '            b();', '        } else {', '            c();', '        }', '    }', '}', ''].join('\r\n') };
+
+  client.send(open(file, text, 'javascript'), whole(80), partial(81, range(3, 5, 9)), partial(82, lines(0, 1)),
+    partial(83, lines(1, 2)), partial(84, lines(0, 9)), partial(85, range(2, 4, 4)),
+    partial(86, { start: pos(3, 0), end: pos(1, 0) }));
+  await diagnostics(client, file, 1);
+  assert.deepEqual((await client.next(80)).result, [functionEdit, classEdit]);
+  assert.deepEqual((await client.next(81)).result, [classEdit]);
+  assert.deepEqual((await client.next(82)).result, []);
+  assert.deepEqual((await client.next(83)).result, [functionEdit]);
+  assert.deepEqual((await client.next(84)).result, [functionEdit, classEdit]);
+  assert.deepEqual((await client.next(85)).result, []);
+  assert.equal((await client.next(86)).error.code, -32602);
+
+  // Applying one edit leaves the other one valid and still reported.
+  client.send(change(file, 2, { range: classEdit.range, text: classEdit.newText }), whole(87));
+  await diagnostics(client, file, 2);
+  assert.deepEqual((await client.next(87)).result, [functionEdit]);
+  client.send(change(file, 3, { range: functionEdit.range, text: functionEdit.newText }), whole(88),
+    partial(89, lines(0, 20)));
+  await diagnostics(client, file, 3);
+  assert.deepEqual((await client.next(88)).result, []);
+  assert.deepEqual((await client.next(89)).result, []);
+
+  // A last line without a terminator ends at its final UTF-16 unit.
+  const single = '/*🚀*/ const  spaced=1';
+  client.send(change(file, 4, { text: single }), whole(90), partial(91, range(0, 0, 0)));
+  await diagnostics(client, file, 4);
+  const last = { range: range(0, 0, single.length), newText: '/*🚀*/ const spaced = 1;\n' };
+  assert.deepEqual((await client.next(90)).result, [last]);
+  assert.deepEqual((await client.next(91)).result, [last]);
+
+  // Text that does not parse is never edited, whole or in part.
+  client.send(change(file, 5, { text: 'function  add( a,b ){return a+b}\nlet = ;\n' }), whole(92),
+    partial(93, range(0, 0, 3)), partial(94, range(0, 0, 3)));
+  assert.ok((await diagnostics(client, file, 5)).length > 0);
+  assert.deepEqual((await client.next(92)).result, []);
+  assert.deepEqual((await client.next(93)).result, []);
+  client.send(notification('textDocument/didClose', { textDocument: { uri: file } }));
+  assert.deepEqual((await client.next(94)).result, []);
+  assert.deepEqual(await diagnostics(client, file, undefined), []);
+  client.send(partial(95, range(0, 0, 3)));
+  assert.deepEqual((await client.next(95)).result, []);
+}
+
+// A range edit is only safe when the lines it leaves alone still mean the
+// same. The server checks that by formatting the mixture; a formatter whose
+// result depends on the neighbouring lines must make it return nothing.
+function rangeFormattingGuard() {
+  const { DocumentText } = require(path.join(serverDirectory, 'document.js'));
+  const { formatRange } = require(path.join(serverDirectory, 'format.js'));
+  const doc = { lang: 'js', content: new DocumentText('a\nkeep\nb\n') };
+  const options = { tabSize: 2, insertSpaces: true };
+  const upper = (label, text) => text.replace(/^[ab]$/gm, letter => letter.toUpperCase());
+  const selection = range(0, 0, 1);
+  assert.deepEqual(formatRange(doc, 'file.js', selection, options, upper),
+    [{ range: { start: pos(0, 0), end: pos(1, 0) }, newText: 'A\n' }]);
+  // This one only rewrites `b` while the first line is still `a`.
+  const dependent = (label, text) => text.startsWith('a\n') ? upper(label, text) : text.replace(/^a$/m, 'A');
+  assert.deepEqual(formatRange(doc, 'file.js', selection, options, dependent), []);
+  assert.deepEqual(formatRange(doc, 'file.js', { start: pos(0, 0), end: pos(3, 0) }, options, dependent).length, 2);
+}
+
+// Limits the parser enforces instead of overflowing: each is one diagnostic
+// with a UTF-16 range, and such a buffer is neither formatted nor fixed.
+async function parserLimits(client) {
+  const buffer = uriFor('limits.js');
+  const prefix = '/*🚀*/ x = ';
+  const depth = 600;
+  client.send(open(buffer, prefix + '['.repeat(depth) + ']'.repeat(depth), 'javascript'),
+    request(96, 'textDocument/formatting', { textDocument: { uri: buffer }, options: { tabSize: 2, insertSpaces: true } }),
+    actions(97, buffer, 'source.fixAll.kessel'));
+  // The default limit is 512 levels. The assignment and the expression each
+  // take one, so the 511th bracket is the first one refused.
+  const refused = prefix.length + 510;
+  const nesting = await diagnostics(client, buffer, 1);
+  assert.deepEqual(nesting.map(d => [d.code, d.severity, d.range]), [['K2081', 1, range(0, refused, refused + 1)]]);
+  assert.match(nesting[0].message, /nesting depth/i);
+  assert.deepEqual((await client.next(96)).result, []);
+  assert.deepEqual((await client.next(97)).result, []);
+
+  const levels = 300;
+  client.send(change(buffer, 2, { text: prefix + '`${'.repeat(levels) + '0' + '}`'.repeat(levels) }));
+  const templates = await diagnostics(client, buffer, 2);
+  const opening = prefix.length + 3 * 256 + 1;
+  assert.deepEqual(templates.map(d => [d.code, d.severity, d.range]), [['K1016', 1, range(0, opening, opening + 2)]]);
+
+  // LSP text is a JSON string, so it cannot carry ill-formed UTF-8 (K1017).
+  // A lone surrogate is the closest case: it is checked as U+FFFD and the
+  // columns after it still count UTF-16 units.
+  client.send(change(buffer, 3, { text: '/*\ud83d*/ x += ;' }));
+  assert.deepEqual((await diagnostics(client, buffer, 3)).map(d => [d.code, d.range]), [['K2020', range(0, 11, 12)]]);
+  client.send(change(buffer, 4, { text: prefix + '[[1]];' }));
+  assert.deepEqual(await diagnostics(client, buffer, 4), []);
+  client.send(notification('textDocument/didClose', { textDocument: { uri: buffer } }));
+  assert.deepEqual(await diagnostics(client, buffer, undefined), []);
+}
+
+// Rules from plugins: an .oxlintrc.json selects them by category and plugin
+// for a buffer that was never saved, diagnostics name them with their plugin,
+// the disable actions write that name, and the editor's own `categories` and
+// `plugins` settings replace the project's selection.
+async function pluginRules(client, versioned) {
+  const buffer = uriFor('plugins/unsaved.ts');
+  const lines = ['const é = { then() { return 1; } };', 'namespace N { export const y = 1; }',
+    'const self = this;', 'x = x;', 'let count = 0; use(count);'];
+  const text = lines.join('\n');
+  const summary = found => found.map(d => [d.code, d.data.rule, d.severity, d.range]);
+  // `shift` is 1 once the file directive occupies the first line.
+  const thenable = ['L6006', 'unicorn/no-thenable', 1, range(0, 12, 16)];
+  const namespace = ['L3004', 'typescript/no-namespace', 2, range(1, 0, lines[1].length)];
+  const thisAlias = (severity, shift) => ['L3016', 'typescript/no-this-alias', severity, range(2 + shift, 6, 10)];
+  const selfAssign = (severity, shift) => ['L2012', 'no-self-assign', severity, range(3 + shift, 4, 5)];
+  const preferConst = shift => ['L4012', 'prefer-const', 2, range(4 + shift, 4, 9)];
+  client.send(open(buffer, text));
+  const original = await diagnostics(client, buffer, 1);
+  // `typescript/no-this-alias` is a correctness rule too, but the project
+  // lists only the unicorn plugin.
+  assert.deepEqual(summary(original), [thenable, namespace, selfAssign(1, 0), preferConst(0)]);
+  assert.equal(fs.existsSync(path.join(folder, 'plugins/unsaved.ts')), false);
+
+  const edits = action => versioned ? action.edit.documentChanges[0].edits : action.edit.changes[buffer];
+  client.send(actions(98, buffer, 'quickfix', original[0].range));
+  const offered = (await client.next(98)).result;
+  assert.deepEqual(offered.map(action => action.title),
+    ['Disable unicorn/no-thenable for this line', 'Disable unicorn/no-thenable for this file']);
+  const [lineEdit] = edits(offered[0]);
+  const lineDirective = ' /* oxlint-disable-line unicorn/no-thenable */';
+  assert.deepEqual(lineEdit, { range: range(0, lines[0].length, lines[0].length), newText: lineDirective });
+  client.send(change(buffer, 2, { range: lineEdit.range, text: lineEdit.newText }));
+  const afterLine = await diagnostics(client, buffer, 2);
+  assert.deepEqual(summary(afterLine), [namespace, selfAssign(1, 0), preferConst(0)]);
+  client.send(actions(99, buffer, 'quickfix', afterLine[0].range));
+  const fileAction = (await client.next(99)).result.find(action => action.title.endsWith('this file'));
+  assert.equal(fileAction.title, 'Disable typescript/no-namespace for this file');
+  const [fileEdit] = edits(fileAction);
+  const fileDirective = '/* oxlint-disable typescript/no-namespace */\n';
+  assert.deepEqual(fileEdit, { range: range(0, 0, 0), newText: fileDirective });
+  client.send(change(buffer, 3, { range: fileEdit.range, text: fileEdit.newText }));
+  assert.deepEqual(summary(await diagnostics(client, buffer, 3)), [selfAssign(1, 1), preferConst(1)]);
+
+  // Fix-all applies the one safe fix and keeps the directives and every
+  // diagnostic that has no fix.
+  client.send(actions(100, buffer, 'source.fixAll.kessel'));
+  const [fixAll] = (await client.next(100)).result;
+  assert.equal(fixAll.kind, 'source.fixAll.kessel');
+  const [rewrite] = edits(fixAll);
+  assert.equal(rewrite.newText, fileDirective + [lines[0] + lineDirective, ...lines.slice(1, 4),
+    lines[4].replace('let', 'const')].join('\n'));
+  client.send(change(buffer, 4, { text: rewrite.newText }), actions(101, buffer, 'source.fixAll.kessel'));
+  assert.deepEqual(summary(await diagnostics(client, buffer, 4)), [selfAssign(1, 1)]);
+  assert.deepEqual((await client.next(101)).result, []);
+
+  // A file outside every project takes the editor's selection as its config.
+  const scratch = 'untitled:plugins';
+  client.send(open(scratch, 'x = { then() { return 1; } }; x = x;', 'javascript'));
+  assert.deepEqual((await diagnostics(client, scratch, 1)).map(d => d.code), ['L2012']);
+
+  // A configuration change republishes every open document, oldest first;
+  // the two opened here are the newest.
+  async function republished(uri, version) {
+    for (;;) {
+      const { params } = await client.next(undefined, 'textDocument/publishDiagnostics');
+      if (params.uri !== uri) continue;
+      assert.equal(params.version, version);
+      return params.diagnostics;
+    }
+  }
+  const configure = kessel => client.send(notification('workspace/didChangeConfiguration', { settings: { kessel } }));
+  configure({ plugins: ['typescript'], categories: { correctness: 'warn' }, rules: null });
+  assert.deepEqual(summary(await republished(buffer, 4)), [thisAlias(2, 1), selfAssign(2, 1)]);
+  assert.deepEqual((await republished(scratch, 1)).map(d => [d.code, d.severity]), [['L2012', 2]]);
+  configure({ plugins: ['unicorn'], categories: { correctness: 'error' } });
+  assert.deepEqual(summary(await republished(buffer, 4)), [selfAssign(1, 1)]);
+  assert.deepEqual(summary(await republished(scratch, 1)),
+    [['L6006', 'unicorn/no-thenable', 1, range(0, 6, 10)], ['L2012', 'no-self-assign', 1, range(0, 34, 35)]]);
+  // Unset settings arrive as null and an empty object, and select nothing.
+  configure({ plugins: null, categories: {} });
+  assert.deepEqual(summary(await republished(buffer, 4)), [selfAssign(1, 1)]);
+  assert.deepEqual((await republished(scratch, 1)).map(d => d.code), ['L2012']);
+  // An unknown category is reported for each document, whose diagnostics are
+  // withdrawn until the setting is corrected.
+  configure({ categories: { imaginary: 'warn' } });
+  for (let uri; uri !== scratch;) {
+    const logged = (await client.next(undefined, 'window/logMessage')).params;
+    assert.deepEqual([logged.type, logged.message], [1, 'Unknown lint category imaginary']);
+    const { params } = await client.next(undefined, 'textDocument/publishDiagnostics');
+    assert.deepEqual(params.diagnostics, []);
+    uri = params.uri;
+  }
+  configure({});
+  await republished(buffer, 4);
+  await republished(scratch, 1);
+  for (const uri of [buffer, scratch]) {
+    client.send(notification('textDocument/didClose', { textDocument: { uri } }));
+    assert.deepEqual(await diagnostics(client, uri, undefined), []);
+  }
+}
+
 async function missingAssignment(client) {
   const buffer = uriFor('unsaved-assignment.js');
   const text = '/*🌱*/ let value=0; value += ;';
@@ -464,6 +684,11 @@ async function main() {
   fs.writeFileSync(path.join(folder, 'react/.oxlintrc.json'), JSON.stringify({
     plugins: ['react'], rules: { 'react/rules-of-hooks': 'warn' },
   }));
+  fs.mkdirSync(path.join(folder, 'plugins'));
+  fs.writeFileSync(path.join(folder, 'plugins/.oxlintrc.json'), JSON.stringify({
+    plugins: ['unicorn'], categories: { correctness: 'error' },
+    rules: { 'typescript/no-namespace': 'warn', 'prefer-const': 'warn' },
+  }));
   fs.mkdirSync(path.join(folder, 'suppress'));
   fs.writeFileSync(path.join(folder, 'suppress/.oxlintrc.json'), JSON.stringify({
     rules: { eqeqeq: 'error', 'no-debugger': 'warn', 'no-console': ['error', { allow: ['warn'] }] },
@@ -488,16 +713,21 @@ async function main() {
       await workspaceFolders(client);
       await projects(client);
       await formatting(client);
+      await generalFormatting(client);
+      await parserLimits(client);
+      await pluginRules(client, versioned);
       await missingAssignment(client);
       await close(client);
     } finally { client.stop(); }
   }
+  if (!installed) rangeFormattingGuard();
   const premature = launch();
   try {
     premature.send(notification('exit'));
     assert.deepEqual(await premature.exit, [1, null]);
   } finally { premature.stop(); }
-  console.log('Language server passed stdio, UTF-16 edits, workspace lint, safe fixes, formatting and lifecycle checks.');
+  console.log('Language server passed stdio, UTF-16 edits, workspace lint, plugin rules, safe fixes, ' +
+    'whole and range formatting, parser limits and lifecycle checks.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; })
   .finally(() => fs.rmSync(folder, { recursive: true, force: true }));

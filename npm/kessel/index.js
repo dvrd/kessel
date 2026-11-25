@@ -52,6 +52,11 @@ function findLib() {
 // ---------------------------------------------------------------------------
 
 const ASYNC_STACK_MIN_BYTES = 2 * 1024 * 1024;
+// The parser's default nesting limit is sized for the 2 MiB stack Koffi gives
+// a native call by default. A larger `maxDepth` is accepted only in
+// proportion to a larger stack. See maxDepthLimit.
+const DEFAULT_MAX_DEPTH = 512;
+const DEFAULT_MAX_DEPTH_STACK_BYTES = 2 * 1024 * 1024;
 const nativeAsyncStackReady = prepareNativeAsyncStack();
 const lib = koffi.load(findLib());
 // Electron's V8 memory cage requires buffers allocated by the runtime. Copy
@@ -109,6 +114,18 @@ try {
 } catch (_) {
   // Older development libraries expose only kessel_parse_binary. Keep a
   // compatibility path so source checkouts fail soft until rebuilt.
+}
+
+// kessel_parse_binary_v3 takes its options as one block of int32 fields that
+// begins with its own size, so options can be added without a new entry.
+let _parse_binary_v3 = null;
+try {
+  _parse_binary_v3 = lib.func('kessel_parse_binary_v3', ParseResult, [
+    'void *', 'int32', 'void *', 'int32', 'void *',
+  ]);
+} catch (_) {
+  // Older libraries stop at kessel_parse_binary_v2, which has neither
+  // maxDepth nor rejectInvalidUtf8. Asking for either then throws.
 }
 
 function optionalTool(symbol, parameters) {
@@ -182,7 +199,7 @@ function maybeBoolOption(opts, name) {
   return opts[name] ? 1 : 0;
 }
 
-function resolveNativeOptions(opts) {
+function resolveNativeOptions(opts, asynchronous = false) {
   const mode = resolveMode(opts);
   const showSemanticErrors = mode === MODE.full || boolOption(opts, 'showSemanticErrors') === 1;
   return {
@@ -197,7 +214,88 @@ function resolveNativeOptions(opts) {
     sourceIsDts: maybeBoolOption(opts, 'sourceIsDts'),
     commonjs: maybeBoolOption(opts, 'commonjs'),
     disallowAmbiguousJSXLike: boolOption(opts, 'disallowAmbiguousJSXLike'),
+    maxDepth: resolveMaxDepth(opts, asynchronous),
+    rejectInvalidUtf8: resolveRejectInvalidUtf8(opts),
   };
+}
+
+// The largest `maxDepth` the current Koffi configuration can hold. The parser
+// recurses on the stack Koffi allocates for a native call, and running off
+// its end ends the process, so the limit may only grow as that stack does.
+// On macOS arm64 the deepest construct (nested class bodies) was measured to
+// overflow 2 MiB at 767 levels; 512 leaves the other platforms room.
+// An application that needs more sets `koffi.config({ sync_stack_size })`,
+// and `async_stack_size` for parseAsync, before any library is loaded.
+function maxDepthLimit(asynchronous) {
+  const config = koffi.config();
+  // parseAsync runs on Koffi's asynchronous stack, or in a worker's
+  // synchronous call when that stack could not be enlarged.
+  const onAsyncStack = asynchronous && nativeAsyncStackReady;
+  const stackBytes = onAsyncStack ? config.async_stack_size : config.sync_stack_size;
+  const scaled = Math.floor(DEFAULT_MAX_DEPTH * stackBytes / DEFAULT_MAX_DEPTH_STACK_BYTES);
+  return Math.max(DEFAULT_MAX_DEPTH, scaled);
+}
+
+// The nesting limit, or 0 for the parser's default.
+function resolveMaxDepth(opts, asynchronous = false) {
+  const value = opts ? opts.maxDepth : undefined;
+  if (value === undefined) return 0;
+  const limit = maxDepthLimit(asynchronous);
+  if (!Number.isInteger(value) || value < 1 || value > limit) {
+    throw new RangeError(`kessel: maxDepth must be an integer from 1 to ${limit}; ` +
+      'a larger limit needs a larger Koffi call stack');
+  }
+  return value;
+}
+
+function resolveRejectInvalidUtf8(opts) {
+  const value = opts ? opts.rejectInvalidUtf8 : undefined;
+  if (value === undefined) return 0;
+  if (typeof value !== 'boolean') {
+    throw new TypeError('kessel: rejectInvalidUtf8 must be a boolean');
+  }
+  return value ? 1 : 0;
+}
+
+// The bytes the parser reads. A string is encoded here and is therefore
+// always well-formed UTF-8. Bytes are copied unchanged, which is the only way
+// ill-formed input can reach the parser (see rejectInvalidUtf8), and the copy
+// keeps an asynchronous parse independent of what the caller does next.
+function sourceBytesOf(source) {
+  if (typeof source === 'string') return Buffer.from(source, 'utf8');
+  if (source instanceof Uint8Array) return Buffer.from(source);
+  throw new TypeError('kessel: source must be a string or a Uint8Array');
+}
+
+// The text the decoder may slice string values from. Wire offsets count
+// bytes, so only pure ASCII bytes are usable as text; anything else is
+// decoded from the bytes, which the decoder does when the lengths differ.
+function sourceTextOf(source, sourceBuf) {
+  if (typeof source === 'string') return source;
+  for (let index = 0; index < sourceBuf.length; index++) {
+    if (sourceBuf[index] > 0x7f) return '';
+  }
+  return sourceBuf.toString('latin1');
+}
+
+// Layout of KesselParseOptions in src/lib_exports.odin.
+const PARSE_OPTIONS_FIELD_COUNT = 13;
+
+function parseOptionsBlock(native) {
+  const fields = new Int32Array(PARSE_OPTIONS_FIELD_COUNT);
+  fields.set([
+    fields.byteLength, native.lang, native.sourceType, native.strictSourceType,
+    native.forceStrict, native.preserveParens, native.astOnly, native.showSemanticErrors,
+    native.sourceIsDts, native.commonjs, native.disallowAmbiguousJSXLike,
+    native.maxDepth, native.rejectInvalidUtf8,
+  ]);
+  return Buffer.from(fields.buffer);
+}
+
+function requireNewParseEntry(native) {
+  if (native.maxDepth !== 0 || native.rejectInvalidUtf8 !== 0) {
+    throw new Error('kessel: rebuild the native library to use maxDepth or rejectInvalidUtf8');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -220,9 +318,9 @@ function resolveNativeOptions(opts) {
  * @returns {{ program: object, errors: Array }}
  */
 function parseSync(filename, source, opts) {
-  const sourceBuf = Buffer.from(source, 'utf8');
+  const sourceBuf = sourceBytesOf(source);
   const result = callParseBinary(sourceBuf, filename, opts);
-  return finishParse(result, source, sourceBuf, filename);
+  return finishParse(result, sourceTextOf(source, sourceBuf), sourceBuf, filename, opts);
 }
 
 /**
@@ -236,7 +334,7 @@ function parseSync(filename, source, opts) {
  * @returns {Promise<{ program: object, errors: Array }>}
  */
 function parseAsync(filename, source, opts) {
-  const sourceBuf = Buffer.from(source, 'utf8');
+  const sourceBuf = sourceBytesOf(source);
   if (!nativeAsyncStackReady) {
     const { parseOnWorker } = require('./async-fallback');
     return parseOnWorker(filename, source, opts, koffi.config().max_async_calls);
@@ -251,7 +349,8 @@ function parseAsync(filename, source, opts) {
   return new Promise(function (resolve, reject) {
     callParseBinaryAsync(sourceBuf, filename, opts, function (err, result) {
       if (err) { reject(err); return; }
-      try { resolve(finishParse(result, source, sourceBuf, filename)); }
+      const text = sourceTextOf(source, sourceBuf);
+      try { resolve(finishParse(result, text, sourceBuf, filename, opts)); }
       catch (e) { reject(e); }
     });
   });
@@ -265,6 +364,11 @@ function callParseBinary(sourceBuf, filename, opts) {
 
   const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
   const native = resolveNativeOptions(opts);
+  if (_parse_binary_v3) {
+    return _parse_binary_v3(sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length,
+      parseOptionsBlock(native));
+  }
+  requireNewParseEntry(native);
   return _parse_binary_v2(
     sourceBuf, sourceBuf.length,
     filenameBuf, filenameBuf.length,
@@ -290,7 +394,13 @@ function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
   }
 
   const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
-  const native = resolveNativeOptions(opts);
+  const native = resolveNativeOptions(opts, true);
+  if (_parse_binary_v3) {
+    _parse_binary_v3.async(sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length,
+      parseOptionsBlock(native), callback);
+    return;
+  }
+  requireNewParseEntry(native);
   _parse_binary_v2.async(
     sourceBuf, sourceBuf.length,
     filenameBuf, filenameBuf.length,
@@ -313,7 +423,7 @@ function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
 // enrich. Centralised so parseSync and parseAsync surface identical
 // errors and identical AST shapes — the only difference between the two
 // is which thread runs `_parse_binary`.
-function finishParse(result, source, sourceBytes, filename) {
+function finishParse(result, source, sourceBytes, filename, opts) {
   if (!result.buf_ptr || result.buf_len <= 0) {
     // Handle may still be non-null even when the parse couldn't produce a
     // buffer (e.g. parse_job_open_inline failed); free defensively before
@@ -332,8 +442,9 @@ function finishParse(result, source, sourceBytes, filename) {
     _free_result(result.handle);
   }
 
-  const decoded = decode(buf, source, sourceBytes);
-  enrichErrors(decoded.errors, source, filename);
+  // The option was validated before the parse, against the stack it ran on.
+  const decoded = decode(buf, source, sourceBytes, { maxDepth: opts ? opts.maxDepth : undefined });
+  enrichErrors(decoded.errors, sourceBytes, filename);
   return decoded;
 }
 
@@ -363,7 +474,7 @@ function enrichErrors(errors, source, filename) {
   // that follows a non-ASCII character will land at the wrong index.
   // Buffer.from is the canonical Node UTF-8 encoder; it shares no
   // allocation with the koffi FFI buffer.
-  const sourceBytes = Buffer.from(source, 'utf8');
+  const sourceBytes = typeof source === 'string' ? Buffer.from(source, 'utf8') : source;
   const lineStarts = computeLineStarts(sourceBytes);
   for (const err of errors) {
     err.filename = filename;
@@ -650,7 +761,9 @@ function lintSync(filename, source, opts) {
     }
   }
   const useProject = opts?.workspaceRoot !== undefined;
-  const projectDiagnostics = useProject || opts?.includeFixes || opts?.includeSuggestions || opts?.includeSuppressions;
+  const selection = lintSelection(opts);
+  const projectDiagnostics = useProject || opts?.includeFixes || opts?.includeSuggestions ||
+    opts?.includeSuppressions || selection.given;
   if (projectDiagnostics || opts?.fix || opts?.fixSuggestions || opts?.fixDangerously) {
     if (useProject && (typeof opts.workspaceRoot !== 'string' || !path.isAbsolute(opts.workspaceRoot))) {
       throw new TypeError('workspaceRoot must be an absolute directory');
@@ -660,6 +773,8 @@ function lintSync(filename, source, opts) {
       include_fixes: !!opts.includeFixes, include_suggestions: !!opts.includeSuggestions,
       include_suppressions: !!opts.includeSuppressions,
       rules: rulesBuf?.toString('utf8') || '', workspace: opts.workspaceRoot,
+      categories: selection.categories, plugins: selection.plugins,
+      plugins_listed: selection.plugins !== undefined,
     }), 'options');
     if (projectDiagnostics) {
       const file = useProject ? toolInput(path.resolve(opts.workspaceRoot, filename), 'filename') : filenameBuf;
@@ -693,6 +808,44 @@ function lintSync(filename, source, opts) {
   const diagnostics = decodeLintBuffer(buf);
   enrichErrors(diagnostics, source, filename);
   return output === undefined ? { diagnostics } : { diagnostics, output };
+}
+
+const LINT_CATEGORIES = [
+  'correctness', 'suspicious', 'pedantic', 'perf', 'style', 'restriction', 'nursery',
+];
+const LINT_CATEGORY_LEVELS = new Map([
+  ['off', 'off'], ['allow', 'off'], [0, 'off'], ['warn', 'warn'], [1, 'warn'],
+  ['error', 'error'], ['deny', 'error'], [2, 'error'],
+]);
+
+// The `categories` and `plugins` lint options, which mean what those keys
+// mean in an .oxlintrc.json. `given` is false when neither selects anything,
+// so that an editor's empty default setting leaves the project alone.
+function lintSelection(opts) {
+  const selection = { categories: undefined, plugins: undefined, given: false };
+  if (opts?.categories !== undefined) {
+    const { categories } = opts;
+    if (!categories || typeof categories !== 'object' || Array.isArray(categories)) {
+      throw new TypeError('categories must map category names to off, warn or error');
+    }
+    selection.categories = {};
+    for (const [name, level] of Object.entries(categories)) {
+      if (!LINT_CATEGORIES.includes(name)) throw new TypeError('Unknown lint category ' + name);
+      if (!LINT_CATEGORY_LEVELS.has(level)) {
+        throw new TypeError('Invalid lint severity for category ' + name);
+      }
+      selection.categories[name] = LINT_CATEGORY_LEVELS.get(level);
+      selection.given = true;
+    }
+  }
+  if (opts?.plugins !== undefined) {
+    if (!Array.isArray(opts.plugins) || !opts.plugins.every(plugin => typeof plugin === 'string')) {
+      throw new TypeError('plugins must be an array of plugin names');
+    }
+    selection.plugins = opts.plugins;
+    selection.given = true;
+  }
+  return selection;
 }
 
 function toolInput(value, name) {

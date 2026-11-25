@@ -1520,6 +1520,173 @@ try {
   } catch (e) { console.error('FAIL: bundleSync:', e.message); failed++; }
   fs.rmSync(bundleDir, { recursive: true, force: true });
 
+  // --- Parse options that travel in the kessel_parse_binary_v3 options block ---
+  const nestedArrays = levels => 'x = ' + '['.repeat(levels) + ']'.repeat(levels) + ';';
+  const errorCodes = result => result.errors.map(error => error.code);
+  try {
+    assert.deepEqual(errorCodes(parseSync('depth.js', nestedArrays(40), { maxDepth: 32 })), ['K2081']);
+    assert.deepEqual(errorCodes(parseSync('depth.js', nestedArrays(40), { maxDepth: 64 })), []);
+    assert.deepEqual(errorCodes(parseSync('depth.js', nestedArrays(600))), ['K2081']);
+    assert.deepEqual(errorCodes(parseSync('depth.js', nestedArrays(500), { maxDepth: 512 })), []);
+    // The assignment and the expression take one level each, so with a limit
+    // of 32 the 31st bracket is refused. Offsets count UTF-8 bytes.
+    const refused = parseSync('depth.js', '/*é*/' + nestedArrays(40), { maxDepth: 32 }).errors[0];
+    assert.deepEqual([refused.start, refused.end, refused.line, refused.column], [40, 41, 1, 41]);
+    assert.match(refused.message, /limit 32/);
+    assert.deepEqual(errorCodes(await parseAsync('depth.js', nestedArrays(40), { maxDepth: 32 })), ['K2081']);
+    assert.deepEqual(errorCodes(await parseAsync('depth.js', nestedArrays(40), { maxDepth: 64 })), []);
+    // The ceiling follows the stack Koffi gives a native call: 512 per 2 MiB.
+    const koffiConfig = require('koffi').config();
+    const ceiling = Math.max(512, Math.floor(512 * koffiConfig.sync_stack_size / (2 * 1024 * 1024)));
+    assert.deepEqual(errorCodes(parseSync('depth.js', 'x;', { maxDepth: ceiling })), []);
+    for (const maxDepth of [0, -1, 1.5, '64', NaN, null, ceiling + 1, 2 ** 31]) {
+      assert.throws(() => parseSync('depth.js', 'x;', { maxDepth }), RangeError, String(maxDepth));
+    }
+    for (const maxDepth of [0, 1.5, 2 ** 31]) {
+      await assert.rejects(parseAsync('depth.js', 'x;', { maxDepth }), RangeError);
+    }
+    passed++;
+  } catch (e) { console.error('FAIL: maxDepth parse option:', e); failed++; }
+
+  // The decoder's node budget follows the nesting limit: everything the
+  // parser accepts decodes. One source level opens up to five node levels,
+  // so these trees are far deeper than the 512 nodes the decoder once allowed.
+  try {
+    const shapes = [
+      ['class A{m(){', '', '}}', 'js'], ['class A{static{', '', '}}', 'js'],
+      ['x={m(){return ', '0', '}}', 'js'], ['function f(){', '', '}', 'js'],
+      ['x={a:', '0', '}', 'js'], ['try{', '', '}finally{}', 'js'],
+      ['namespace A{', '', '}', 'ts'], ['x=<a b={', '0', '}/>', 'jsx'],
+    ];
+    const nodeDepth = root => {
+      // Depth-first with an explicit stack, so that measuring cannot overflow.
+      let deepest = 0;
+      const open = [[root, 1]];
+      while (open.length > 0) {
+        const [value, depth] = open.pop();
+        if (value === null || typeof value !== 'object') continue;
+        const next = typeof value.type === 'string' ? depth + 1 : depth;
+        deepest = Math.max(deepest, next - 1);
+        for (const key of Object.keys(value)) open.push([value[key], next]);
+      }
+      return deepest;
+    };
+    let deepestTree = 0;
+    for (const [open, middle, close, lang] of shapes) {
+      let accepted = 0;
+      for (let levels = 160; levels <= 520; levels += 8) {
+        const result = parseSync('nested.' + lang, open.repeat(levels) + middle + close.repeat(levels));
+        if (result.errors.length === 0) accepted = levels;
+        else assert.deepEqual(errorCodes(result), ['K2081'], open);
+      }
+      assert.ok(accepted >= 160, open + ' accepted ' + accepted + ' levels');
+      const tree = parseSync('nested.' + lang, open.repeat(accepted) + middle + close.repeat(accepted)).program;
+      assert.ok(nodeDepth(tree) > accepted, open);
+      deepestTree = Math.max(deepestTree, nodeDepth(tree));
+    }
+    assert.ok(deepestTree > 2500, 'deepest decoded tree has ' + deepestTree + ' node levels');
+    const { decode } = require('./binary-reader');
+    assert.throws(() => decode(Buffer.alloc(24), '', undefined, { maxDepth: 0.5 }), RangeError);
+    passed++;
+  } catch (e) { console.error('FAIL: deep but legal nesting decodes:', e); failed++; }
+
+  // A raised limit needs a larger native stack, and a tree too deep for the
+  // JavaScript stack is an error the caller can catch. Koffi's configuration
+  // is fixed once a library is loaded, hence the separate process, and the
+  // JavaScript stack is pinned so that the outcome does not depend on the host.
+  try {
+    const script = `
+      require('koffi').config({ sync_stack_size: 8 * 1024 * 1024 });
+      const { parseSync } = require('./index');
+      const nest = (open, close, levels) => open.repeat(levels) + close.repeat(levels);
+      const deep = parseSync('deep.js', 'x = ' + nest('[', ']', 1500), { maxDepth: 2048 });
+      let levels = 0;
+      for (let node = deep.program.body[0].expression.right; node; node = node.elements[0]) levels++;
+      const outcome = [deep.errors.length, levels];
+      try { parseSync('deep.js', nest('class A{m(){', '}}', 1500), { maxDepth: 2048 }); outcome.push('decoded'); }
+      catch (error) { outcome.push(error.constructor.name, error.code); }
+      try { parseSync('deep.js', 'x', { maxDepth: 2049 }); outcome.push('accepted'); }
+      catch (error) { outcome.push(error.constructor.name); }
+      outcome.push(parseSync('deep.js', 'x = 1;').errors.length);
+      console.log(JSON.stringify(outcome));`;
+    const raised = spawnSync(process.execPath, ['--stack-size=900', '-e', script], { cwd: __dirname, encoding: 'utf8' });
+    assert.equal(raised.stdout, '[0,1500,"RangeError","AST_Too_Deep","RangeError",0]\n', raised.stderr);
+    passed++;
+  } catch (e) { console.error('FAIL: raised maxDepth and decoder stack:', e); failed++; }
+
+  try {
+    const text = 'const café = "é🚀"; // ✓\n';
+    const fromText = parseSync('bytes.js', text);
+    assert.deepEqual(parseSync('bytes.js', Buffer.from(text)), fromText);
+    assert.deepEqual(parseSync('bytes.js', new TextEncoder().encode(text), { rejectInvalidUtf8: true }), fromText);
+    assert.deepEqual(await parseAsync('bytes.js', new Uint8Array(Buffer.from(text))), fromText);
+    assert.deepEqual(parseSync('ascii.js', Buffer.from('const a = "b";')), parseSync('ascii.js', 'const a = "b";'));
+    assert.deepEqual(parseSync('empty.js', new Uint8Array(0)), parseSync('empty.js', ''));
+    // A view into a larger buffer is parsed by its own bytes only.
+    const padded = Buffer.from('@@const a = 1;@@');
+    assert.deepEqual(parseSync('view.js', padded.subarray(2, 14)), parseSync('view.js', 'const a = 1;'));
+
+    const illFormed = Buffer.from([0x2f, 0x2a, 0xc3, 0xa9, 0x2a, 0x2f, 0x61, 0x3d, 0x22, 0xff, 0x22, 0x3b]);
+    const rejected = parseSync('bad.js', illFormed, { rejectInvalidUtf8: true });
+    assert.deepEqual(rejected.errors.map(e => [e.code, e.start, e.end, e.line, e.column]), [['K1017', 9, 10, 1, 10]]);
+    assert.deepEqual(rejected.program.body, []);
+    assert.deepEqual(errorCodes(await parseAsync('bad.js', illFormed, { rejectInvalidUtf8: true })), ['K1017']);
+    for (const bytes of [[0xc0, 0xaf], [0xed, 0xa0, 0x80], [0xf4, 0x90, 0x80, 0x80], [0xe2, 0x82], [0x80]]) {
+      const result = parseSync('bad.js', Buffer.from([0x2f, 0x2f, ...bytes]), { rejectInvalidUtf8: true });
+      assert.deepEqual(result.errors.map(e => [e.code, e.start]), [['K1017', 2]], String(bytes));
+    }
+    // Without the option the bytes are parsed as they are.
+    const lenient = parseSync('bad.js', illFormed);
+    assert.deepEqual(lenient.errors, []);
+    assert.equal(lenient.program.body[0].expression.right.value, '�');
+    assert.deepEqual(parseSync('bad.js', illFormed, { rejectInvalidUtf8: false }), lenient);
+    // A string is encoded by the binding: an unpaired surrogate becomes U+FFFD.
+    assert.deepEqual(errorCodes(parseSync('text.js', 'x = "\ud800";', { rejectInvalidUtf8: true })), []);
+    assert.throws(() => parseSync('text.js', 'x', { rejectInvalidUtf8: 1 }), TypeError);
+    assert.throws(() => parseSync('text.js', 42), TypeError);
+    assert.throws(() => parseSync('text.js', [0x78]), TypeError);
+    passed++;
+  } catch (e) { console.error('FAIL: byte sources and rejectInvalidUtf8:', e); failed++; }
+
+  // --- lintSync category and plugin selection ---
+  try {
+    const source = 'const é = { then() { return 1; } };\nnamespace N { export const y = 1; }\n' +
+      'const self = this;\nx = x;\n';
+    const found = options => lintSync('select.ts', source, { includeSuppressions: true, ...options })
+      .diagnostics.map(d => [d.code, d.suppression.rule, d.severity]);
+    const namespace = ['L3004', 'typescript/no-namespace', 'warning'];
+    assert.deepEqual(found({}), [namespace, ['L2012', 'no-self-assign', 'error']]);
+    assert.deepEqual(found({ categories: {} }), found({}));
+    assert.deepEqual(found({ categories: { correctness: 'warn' } }), [
+      ['L6006', 'unicorn/no-thenable', 'warning'], namespace,
+      ['L3016', 'typescript/no-this-alias', 'warning'], ['L2012', 'no-self-assign', 'warning'],
+    ]);
+    assert.deepEqual(found({ categories: { correctness: 2 }, plugins: ['unicorn'] }), [
+      ['L6006', 'unicorn/no-thenable', 'error'], namespace, ['L2012', 'no-self-assign', 'error'],
+    ]);
+    assert.deepEqual(found({ categories: { correctness: 'deny' }, plugins: ['@typescript-eslint', 'import'] }), [
+      namespace, ['L3016', 'typescript/no-this-alias', 'error'], ['L2012', 'no-self-assign', 'error'],
+    ]);
+    assert.deepEqual(found({ plugins: [] }), [namespace, ['L2012', 'no-self-assign', 'error']]);
+    assert.deepEqual(found({ categories: { correctness: 'off' } }), [namespace]);
+    // Explicit rules outrank the categories, under either spelling of the name.
+    assert.deepEqual(found({ categories: { correctness: 'off' },
+      rules: { 'unicorn/no-thenable': 'warn', '@typescript-eslint/no-namespace': 'off' } }),
+      [['L6006', 'unicorn/no-thenable', 'warning']]);
+    const directive = lintSync('select.ts', source, { includeSuppressions: true, rules: { 'unicorn/no-thenable': 'warn' } })
+      .diagnostics[0].suppression;
+    assert.equal(directive.line.text, ' /* oxlint-disable-line unicorn/no-thenable */');
+    const silenced = source.replace(';\n', ';' + directive.line.text + '\n');
+    assert.deepEqual(lintSync('select.ts', silenced, { rules: { 'unicorn/no-thenable': 'warn' } })
+      .diagnostics.map(d => d.code), ['L3004', 'L2012']);
+    assert.throws(() => lintSync('select.ts', source, { categories: { imaginary: 'warn' } }), /Unknown lint category/);
+    assert.throws(() => lintSync('select.ts', source, { categories: { style: 'loud' } }), /Invalid lint severity/);
+    assert.throws(() => lintSync('select.ts', source, { categories: [] }), TypeError);
+    assert.throws(() => lintSync('select.ts', source, { plugins: 'unicorn' }), TypeError);
+    assert.throws(() => lintSync('select.ts', source, { plugins: [1] }), TypeError);
+    passed++;
+  } catch (e) { console.error('FAIL: lint categories and plugins:', e); failed++; }
+
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 })();

@@ -104,10 +104,98 @@ async function verify(page) {
   assert.equal(JSON.parse(await view.textContent()).body[0].declarations[0].id.name, 'recovered');
   assert.equal(requests.filter(name => name === 'kessel.wasm').length, 2);
 
+  await verifyTools(page);
+
   await page.setViewportSize({width: 375, height: 740});
   assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
   const panes = await page.locator('.workspace section').evaluateAll(nodes => nodes.map(node => node.getBoundingClientRect().top));
   assert.ok(panes[1] > panes[0]);
+}
+
+async function downloadedText(page, link, filename) {
+  const waiting = page.waitForEvent('download');
+  await page.getByRole('link', {name: link}).click();
+  const download = await waiting;
+  assert.equal(download.suggestedFilename(), filename);
+  return fs.readFile(await download.path(), 'utf8');
+}
+
+// The Lint, JavaScript, Minified and Declarations views each run their tool
+// in the worker on the text in the editor and offer the result for download.
+async function verifyTools(page) {
+  const source = page.getByRole('textbox', {name: 'Source'});
+  const view = page.locator('#output');
+  const status = text => page.waitForFunction(
+    expected => document.getElementById('status').textContent.startsWith(expected), text);
+  const show = name => page.getByRole('button', {name, exact: true}).click();
+  await page.getByRole('combobox', {name: 'Language'}).selectOption('tsx');
+  const component = 'type Props = { name?: string };\nexport const Greeting = ({ name }: Props): unknown => ' +
+    '<b title="🚀">{name ?? "you"}</b>;\nexport function twice(value: number): number { return value * 2; }\n' +
+    'debugger;\n';
+  await source.fill(component);
+
+  await show('Lint');
+  await status('Linted.');
+  assert.equal(await view.textContent(), "4:1  error  no-debugger  unexpected 'debugger' statement");
+  assert.equal(await downloadedText(page, 'Download report', 'kessel-lint.txt'), await view.textContent());
+
+  await show('JavaScript');
+  await status('Transformed.');
+  const modern = await view.textContent();
+  assert.match(modern, /from "react\/jsx-runtime"/);
+  assert.match(modern, /"title": "🚀", children: name \?\? "you"/);
+  assert.doesNotMatch(modern, /Props|: number|: string|unknown/);
+  assert.equal(await downloadedText(page, 'Download JavaScript', 'transformed.js'), modern);
+  await page.getByRole('combobox', {name: 'Target'}).selectOption('es2015');
+  await status('Transformed.');
+  assert.match(await view.textContent(), /name !== null && name !== void 0 \? name : "you"/);
+  await page.getByRole('combobox', {name: 'JSX'}).selectOption('classic');
+  await status('Transformed.');
+  assert.match(await view.textContent(), /React\.createElement\("b"/);
+  await page.getByRole('combobox', {name: 'JSX'}).selectOption('preserve');
+  await status('Transformed.');
+  assert.match(await view.textContent(), /<b title="🚀">/);
+  assert.equal(await downloadedText(page, 'Download JavaScript', 'transformed.jsx'), await view.textContent());
+
+  await show('Declarations');
+  await status('Declarations emitted.');
+  const declarations = await view.textContent();
+  assert.match(declarations, /export declare const Greeting: \(\{ name \}: Props\) => unknown;/);
+  assert.match(declarations, /export declare function twice\(value: number\): number;/);
+  assert.equal(await downloadedText(page, 'Download declarations', 'declarations.d.ts'), declarations);
+
+  await page.getByRole('combobox', {name: 'Language'}).selectOption('js');
+  await source.fill('export function total(firstValue, secondValue) {\n  if (false) { unreachable(); }\n' +
+    '  return (firstValue + secondValue) * 2 ** 10; // 🚀\n}\n');
+  await show('Minified');
+  await status('Minified.');
+  const minified = await view.textContent();
+  assert.match(minified, /^export function total\(([a-z]),([a-z])\)\{return \(\1\+\2\)\*1024\}$/);
+  assert.equal(await downloadedText(page, 'Download minified', 'minified.js'), minified);
+
+  // A declaration file needs TypeScript, and a tool that cannot run reports
+  // why in the status line and offers nothing to download.
+  await show('Declarations');
+  await page.waitForFunction(() => document.getElementById('status').textContent.includes('requires a TypeScript source'));
+  assert.equal(await page.getByRole('link', {name: 'Download declarations'}).count(), 0);
+  await show('JavaScript');
+  await source.fill('/*é*/ const = ;');
+  await page.waitForFunction(() => document.getElementById('status').textContent.startsWith('1:14  '));
+  assert.equal(await view.textContent(), '');
+  assert.equal(await page.getByRole('link', {name: 'Download JavaScript'}).count(), 0);
+  await show('Lint');
+  await status('Linted.');
+  assert.match(await view.textContent(), /^1:14  error  K\d{4}  /);
+
+  // Regexp literals with the `u` flag once stopped the module.
+  await source.fill('const tag = /(?<name>\\p{L}+)\\k<name>/u; debugger;');
+  await status('Linted.');
+  assert.match(await view.textContent(), /^1:\d+  error  no-debugger  /);
+  await show('AST');
+  await status('Parsed.');
+  assert.equal(JSON.parse(await view.textContent()).body[0].declarations[0].init.regex.flags, 'u');
+  await source.fill('const recovered = true;');
+  await status('Parsed.');
 }
 
 let browser;
@@ -120,7 +208,8 @@ try {
   page.on('pageerror', error => failures.push(error.message));
   await verify(page);
   assert.deepEqual(failures, []);
-  console.log('Headless Chromium passed TSX parsing, diagnostics, formatting, complete AST and source downloads, limit recovery and mobile layout.');
+  console.log('Headless Chromium passed TSX parsing, diagnostics, formatting, lint, transform targets and JSX modes, ' +
+    'minify, declarations, tool errors, complete downloads, limit recovery and mobile layout.');
 } finally {
   await browser?.close();
   if (server.listening) await new Promise(resolve => server.close(resolve));
