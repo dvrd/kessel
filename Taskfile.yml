@@ -60,7 +60,8 @@ tasks:
 
   test:wasm:
     desc: Verify the browser parser, formatter, linter, transformer, minifier and declaration emitter against the CLI and formatter fixtures, including memory boundaries.
-    deps: [build, build:wasm]
+    # The tool comparison runs over the pinned real-world corpus.
+    deps: [build, build:wasm, test:real:fetch]
     cmds:
       - node tests/verifiers/verify_wasm.mjs
 
