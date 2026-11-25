@@ -384,10 +384,10 @@ lint_report_unused_directives :: proc(l: ^Linter, entries: []LintDirective, line
 				if .Suggestion in l.fix_kinds && entry.kind != .Enable {
 					// A run of unused names shares one edit. Keep separators between retained names.
 					if i > 0 && !group[i-1].used { continue }
-					limit := i + 1
-					for limit < len(group) && !group[limit].used { limit += 1 }
-					span := Loc{entry.label.start, group[limit-1].label.end}
-					if i == 0 { span.end = group[limit].label.start } else { span.start = group[i-1].label.end }
+					line_limit := i + 1
+					for line_limit < len(group) && !group[line_limit].used { line_limit += 1 }
+					span := Loc{entry.label.start, group[line_limit-1].label.end}
+					if i == 0 { span.end = group[line_limit].label.start } else { span.start = group[i-1].label.end }
 					l.fixes[{.L9001_UnusedDirective, entry.label}] = {span, lint_fix_line_breaks(l, span)}
 				}
 			}

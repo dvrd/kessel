@@ -18,9 +18,7 @@ package kessel
 // Maybe(^T):        ptr (nil=0) → u32 offset (0=nil)
 // ============================================================================
 
-import "core:mem"
 import "core:os"
-import mvirtual "core:mem/virtual"
 
 // Metadata written at the end of the buffer so the consumer knows where to start
 RawTransferHeader :: struct {

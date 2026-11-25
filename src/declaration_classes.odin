@@ -227,7 +227,7 @@ dts_class_member :: proc(state: ^DeclarationEmit, el: ClassElement, members: ^ma
 		literal := el.readonly && kind != "" && kind != "null" && kind != "undefined"
 		cg_str(cg, " = " if literal && !el.optional else ": ")
 		dynamic_template := false
-		if init != nil { if e, ok := init^.(^TemplateLiteral); ok { dynamic_template = len(e.expressions) != 0 } }
+		if init != nil { if e, found := init^.(^TemplateLiteral); found { dynamic_template = len(e.expressions) != 0 } }
 		if (el.readonly && dynamic_template) || !dts_infer(state, init, literal, 0) {
 			dts_diagnose(state, .TS9012, loc)
 		} else if el.optional && init != nil && dts_optional_inferred_field(init) { cg_str(cg, " | undefined") }

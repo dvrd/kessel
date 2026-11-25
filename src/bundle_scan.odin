@@ -419,11 +419,11 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 		case ^CallExpression:    bundle_walk_call(scan, chain_slot, node)
 		}
 	}
-	slot := spine.leaf
-	if slot == nil { return }
-	#partial switch node in slot^ {
+	leaf_slot := spine.leaf
+	if leaf_slot == nil { return }
+	#partial switch node in leaf_slot^ {
 	case ^ThisExpression:
-		if scan.this_depth == 0 { append(&module.this_nodes, slot) }
+		if scan.this_depth == 0 { append(&module.this_nodes, leaf_slot) }
 	case ^MetaProperty:
 		if node.meta.name == "import" { module.has_import_meta = true }
 	case ^AwaitExpression:
@@ -432,7 +432,7 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 	case ^ImportExpression:
 		literal, is_literal := node.source^.(^StringLiteral)
 		if is_literal && node.phase == "" {
-			bundle_scan_record(scan, .Dynamic, literal.value, node.loc, slot)
+			bundle_scan_record(scan, .Dynamic, literal.value, node.loc, leaf_slot)
 		} else {
 			bundle_warning(scan.g, module, node.loc.start,
 				"this import() call is not a string literal and stays unbundled")
@@ -453,7 +453,7 @@ bundle_walk_expression :: proc(scan: ^BundleScan, slot: ^Expression) {
 		scan.function_depth -= 1
 		scan.try_depth = try_depth
 	case:
-		bundle_walk_children(scan, slot)
+		bundle_walk_children(scan, leaf_slot)
 	}
 }
 

@@ -263,10 +263,10 @@ kessel_codegen :: proc "c" (
 ) -> KesselCodegenResult {
 	context = runtime.default_context()
 	if src_ptr == nil || src_len < 0 { return KesselCodegenResult{} }
-	source := string((cast([^]u8) src_ptr)[:src_len])
+	source := string(src_ptr[:src_len])
 	filename := "input"
 	if filename_ptr != nil && filename_len > 0 {
-		filename = string((cast([^]u8) filename_ptr)[:filename_len])
+		filename = string(filename_ptr[:filename_len])
 	}
 
 	// Parse setup: mirrors parse_job_run on a freshly built ParseConfig.

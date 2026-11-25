@@ -370,7 +370,6 @@ sem_walk_stmt :: proc(ctx: ^SemCtx, stmt: ^Statement) {
 		if v != nil { sem_walk_stmt(ctx, v.body); sem_walk_expr(ctx, v.test) }
 	case ^ForStatement:
 		if v != nil {
-			saved := ctx.cur_scope
 			sem_open_scope(ctx, .For, u32(v.loc.start), u32(v.loc.end), false)
 			if e, ok := v.init_expr.(^Expression); ok { sem_walk_expr(ctx, e, value_used=false) }
 			if d, ok := v.init_decl.(^VariableDeclaration); ok { sem_walk_var_decl(ctx, d, loop_head=true) }
@@ -382,7 +381,6 @@ sem_walk_stmt :: proc(ctx: ^SemCtx, stmt: ^Statement) {
 		}
 	case ^ForInStatement:
 		if v != nil {
-			saved := ctx.cur_scope
 			sem_open_scope(ctx, .ForEach, u32(v.loc.start), u32(v.loc.end), false)
 			if ctx.let_uses != nil { ctx.let_barrier = ctx.cur_scope }
 			if e, ok := v.left_expr.(^Expression); ok { sem_walk_assignment_target(ctx, e, .Write) }
@@ -393,7 +391,6 @@ sem_walk_stmt :: proc(ctx: ^SemCtx, stmt: ^Statement) {
 		}
 	case ^ForOfStatement:
 		if v != nil {
-			saved := ctx.cur_scope
 			sem_open_scope(ctx, .ForEach, u32(v.loc.start), u32(v.loc.end), false)
 			if ctx.let_uses != nil { ctx.let_barrier = ctx.cur_scope }
 			if e, ok := v.left_expr.(^Expression); ok { sem_walk_assignment_target(ctx, e, .Write) }
@@ -405,7 +402,6 @@ sem_walk_stmt :: proc(ctx: ^SemCtx, stmt: ^Statement) {
 	case ^SwitchStatement:
 		if v != nil {
 			sem_walk_expr(ctx, v.discriminant)
-			saved := ctx.cur_scope
 			sem_open_scope(ctx, .Switch, u32(v.loc.start), u32(v.loc.end), false)
 			for sc in v.cases {
 				if t, ok := sc.test.(^Expression); ok { sem_walk_expr(ctx, t) }
@@ -421,7 +417,6 @@ sem_walk_stmt :: proc(ctx: ^SemCtx, stmt: ^Statement) {
 		if v != nil {
 			sem_walk_block(ctx, &v.block)
 			if h, ok := v.handler.(CatchClause); ok {
-				saved := ctx.cur_scope
 				sem_open_scope(ctx, .Catch, u32(h.loc.start), u32(h.loc.end), false)
 				if pat, has := h.param.(Pattern); has {
 					sem_declare_pattern(ctx, pat, .CatchParam, {})
@@ -716,7 +711,7 @@ sem_declare_pattern :: proc(ctx: ^SemCtx, pat: Pattern, kind: SymbolKind, flags:
 				}
 				if prop.computed {
 					if key, ok := prop.key.(ObjectPatternPropertyKey); ok {
-						if expr, ok := key.(^Expression); ok { sem_walk_expr(ctx, expr) }
+						if expr, found := key.(^Expression); found { sem_walk_expr(ctx, expr) }
 					}
 				}
 				sem_declare_pattern(ctx, prop.value, kind, flags)

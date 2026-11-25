@@ -6948,7 +6948,7 @@ parse_object_pattern_key :: proc(p: ^Parser) -> (key: Maybe(ObjectPatternPropert
 		num_lit := new_node(p, NumericLiteral)
 		num_lit.loc = loc_from_token(&current)
 		num_lit.raw = current.value
-		if v, ok := current.literal.(f64); ok {
+		if v, found := current.literal.(f64); found {
 			num_lit.value = v
 		}
 		num_lit.loc.end = cur_offset(p) + u32(len(current.value))

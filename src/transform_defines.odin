@@ -74,8 +74,8 @@ transform_define_value :: proc(rule: ^TransformDefineRule, text: string, minifie
 	defer codegen_destroy(&cg, context.allocator)
 	value := group.expression
 	for {
-		inner, ok := value^.(^ParenthesizedExpression)
-		if !ok { break }
+		inner, is_paren := value^.(^ParenthesizedExpression)
+		if !is_paren { break }
 		value = inner.expression
 	}
 	gen_expression(&cg, value)

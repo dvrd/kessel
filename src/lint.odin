@@ -1668,7 +1668,7 @@ lint_walk_try :: proc(l: ^Linter, ctx: ^LintContext, v: ^TryStatement) {
 	lint_walk_stmt_list(l, ctx, v.block.body[:], .Conditional if v.handler != nil else .Always)
 	if h, ok := v.handler.(CatchClause); ok {
 		lint_check_useless_catch(l, h)
-		if param, ok := h.param.(Pattern); ok { lint_walk_pattern(l, ctx, param) }
+		if param, found := h.param.(Pattern); found { lint_walk_pattern(l, ctx, param) }
 		lint_walk_stmt_list(l, ctx, h.body.body[:], .Conditional)
 	}
 	if f, ok := &v.finalizer.(BlockStatement); ok {
@@ -2529,7 +2529,7 @@ lint_check_no_else_return :: proc(l: ^Linter, v: ^IfStatement) {
 	for branch := v; branch != nil; {
 		alt, ok := branch.alternate.(^Statement)
 		if !ok || alt == nil || !lint_else_consequent_returns(branch.consequent) { return }
-		if nested, ok := alt^.(^IfStatement); ok { branch = nested; continue }
+		if nested, found := alt^.(^IfStatement); found { branch = nested; continue }
 		start := get_statement_loc(branch.consequent).end
 		end := get_statement_loc(alt).start
 		if start > end { return }
@@ -2551,7 +2551,7 @@ lint_else_child_returns :: proc(s: ^Statement) -> bool {
 	if s == nil { return false }
 	if _, ok := s^.(^ReturnStatement); ok { return true }
 	if branch, ok := s^.(^IfStatement); ok && branch != nil {
-		if alt, ok := branch.alternate.(^Statement); ok {
+		if alt, found := branch.alternate.(^Statement); found {
 			return lint_else_ends_with_return(branch.consequent) && lint_else_ends_with_return(alt)
 		}
 	}
@@ -3566,8 +3566,8 @@ lint_parse_rules_object :: proc(rules: json.Object, out: ^[dynamic]LintOverride,
 			if !valid_options { return false }
 			ov.fallthrough_options = settings
 		case .L2046_GetterReturn:
-			allow, valid := lint_getter_options(options)
-			if !valid { return false }
+			allow, options_valid := lint_getter_options(options)
+			if !options_valid { return false }
 			ov.getter_allow_implicit = allow
 		case .L4012_PreferConst:
 			settings, valid_options := lint_prefer_const_options(options)

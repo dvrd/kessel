@@ -47,6 +47,14 @@ jobs:
       - name: Fetch conformance corpora
         run: bash tests/runners/oxc_corpus_fetch.sh
 
+      # The primary gate compares against reference tools installed here
+      # (oxc-parser, Babel, Prettier, oxlint, source-map-js) and loads the SDK.
+      - name: Install reference tools
+        run: |
+          npm ci --prefix bench
+          npm ci --prefix npm/kessel
+
+      # `task test` starts with `odin check -vet` on every release target.
       - name: Check conformance and fixtures
         run: task test
 
@@ -59,8 +67,6 @@ jobs:
           git -C ../oxc checkout --quiet --detach FETCH_HEAD
           # Cargo runs inside the comparison workspace. Use the compiler pinned by its oracle.
           cp ../oxc/rust-toolchain.toml bench/oxc_compare/rust-toolchain.toml
-          npm ci --prefix bench
-          npm ci --prefix npm/kessel
 
       - name: Run release gate
         if: inputs.release_checks

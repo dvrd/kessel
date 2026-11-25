@@ -23,7 +23,6 @@ package kessel
 //
 import "core:strings"
 import "core:slice"
-import "core:mem"
 
 // ----------------------------------------------------------------------------
 // Records (gathered during codegen)

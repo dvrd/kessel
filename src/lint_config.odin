@@ -125,7 +125,7 @@ lint_config_discover :: proc(store: ^LintConfigStore, start, boundary: string) -
 		if len(parent) >= len(dir) { break }
 		dir = parent
 	}
-	for dir in visited { store.directories[dir] = result }
+	for visited_dir in visited { store.directories[visited_dir] = result }
 	return result
 }
 

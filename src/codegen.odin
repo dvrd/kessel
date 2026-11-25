@@ -27,7 +27,6 @@ package kessel
 
 import "core:fmt"
 import "core:mem"
-import "core:strings"
 
 // ----------------------------------------------------------------------------
 // Codegen state
@@ -1050,7 +1049,7 @@ gen_for_statement :: proc(cg: ^Codegen, s: ^ForStatement) {
 	cg_byte(cg, '(')
 	if v, ok := s.init_decl.?; ok {
 		gen_variable_declaration(cg, v, false, {.Forbid_In})
-	} else if v, ok := s.init_expr.?; ok {
+	} else if v, found := s.init_expr.?; found {
 		gen_expression(cg, v, PREC_LOWEST, {.Forbid_In})
 	}
 	cg_byte(cg, ';')
@@ -1069,7 +1068,7 @@ gen_for_in_statement :: proc(cg: ^Codegen, s: ^ForInStatement) {
 	cg_byte(cg, '(')
 	if v, ok := s.left_decl.?; ok {
 		gen_variable_declaration(cg, v, false, {.Forbid_In})
-	} else if v, ok := s.left_expr.?; ok {
+	} else if v, found := s.left_expr.?; found {
 		gen_expression(cg, v, PREC_LOWEST)
 	}
 	cg_str(cg, " in ")
@@ -1093,7 +1092,7 @@ gen_for_of_statement :: proc(cg: ^Codegen, s: ^ForOfStatement) {
 	cg_byte(cg, '(')
 	if v, ok := s.left_decl.?; ok {
 		gen_variable_declaration(cg, v, false)
-	} else if v, ok := s.left_expr.?; ok {
+	} else if v, found := s.left_expr.?; found {
 		id, identifier := v^.(^Identifier)
 		if !s.await && identifier && id != nil && id.name == "async" {
 			// Plain for-of excludes the unescaped identifier in this position.
@@ -1213,7 +1212,7 @@ gen_variable_declarators :: proc(cg: ^Codegen, s: ^VariableDeclaration, ctx: Cod
 			if lower_resource {
 				codegen_resource_register(cg, resource_kind(s))
 				name := ""
-				if id, ok := d.id.(^Identifier); ok { name = id.name }
+				if id, found := d.id.(^Identifier); found { name = id.name }
 				gen_resource_named_value(cg, init, name)
 				cg_byte(cg, ')')
 			} else {

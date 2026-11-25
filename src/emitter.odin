@@ -53,7 +53,6 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:strconv"
-import "core:strings"
 
 // ============================================================================
 // EmitConfig — snapshot of CLI flags that affect emission

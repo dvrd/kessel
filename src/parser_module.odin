@@ -800,7 +800,7 @@ check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: [
 	// Catch body is block-scope: function declarations are always lexical.
 	collect_body_lex_names(body, &body_lex, true)
 	for n in param_names {
-		if off, have := scope_map_get(&body_lex, n); have {
+		if off, have_inner := scope_map_get(&body_lex, n); have_inner {
 			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(off), u32(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
 		}
 	}
