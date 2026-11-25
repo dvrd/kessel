@@ -4,6 +4,150 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
+## [0.22.0] - 2026-11-25
+
+### Added
+- feat: parser hardening, library API and toolchain expansion (#4)
+- feat(lsp): bring the language server, SDK and playground up to date (in progress)
+- feat(lint): start the escape, number and whitespace correctness rules (in progress)
+- feat(minify): add --define, unused-code removal and module execution checks (in progress)
+- feat(fmt): print inline block comments beside operands, parameters and declarators
+- feat(transform): lower async generators and for await below ES2018
+- feat(transform): lower async functions below ES2017
+- feat(fmt): format JSX elements, attributes and children
+- feat(fmt): format TypeScript types, declarations, class members and decorators
+- feat(minify): rename the top-level bindings of ES modules
+- feat(minify): remove dead branches and unreachable statements
+- feat(transform): lower object rest and spread
+- feat(fmt): print simple TypeScript annotations and more inline comments
+- feat(transform): lower class fields, private names and static blocks
+- feat(lint): prefer-as-const, triple-slash-reference, no-empty-character-class
+- feat(lint): accept category names in -D, -W and -A
+- feat(bundle): let a lazily loaded entry export constant bindings; document the bundler
+- feat(bundle): add multiple entries and code splitting
+- feat(bundle): add the kessel_bundle export and bundleSync to the npm package
+- feat(bundle): pass define, target, decorators and JSX development to the transformer
+- feat(lint): match oxlint ranges for 89 rules, add oxc/unicorn/typescript rules
+- feat(fmt): print statements, expressions and classes as Prettier does
+- feat(fmt): add a Prettier-style document printer
+- feat(regexp): expose modifier flags and class relation in the npm types
+- feat(regexp): make the tree builder a strict ES2025 pattern parser
+- feat(module-lexer): report every es-module-lexer observable
+- feat(sourcemap): map binding, member, function and class names
+- feat(codegen): preserve comments in every syntactic position
+- feat(transform): add React Fast Refresh and expose the lowerings in the SDK
+- feat(minify): compress statements and syntax without changing evaluation order
+- feat(bundle): handle optional requires, Node's CommonJS namespace and input early errors
+- feat(lib): add scope queries by source position
+- feat(lib): add a typed, depth-bounded AST walk with enter/leave
+- feat(bundle): add source maps, external star re-exports and stricter diagnostics
+- feat(transform): lower syntax for an ECMAScript target
+- feat(lib): add one view of a parameter's target and default value
+- feat(ast): put the hashbang on Program and in the binary AST
+- feat(lib): expose a Source Map v3 builder for library consumers
+- feat(parser): let parse_job_open_inline take a caller-supplied allocator
+- feat(lib): add UTF-16 aware source positions for library consumers
+- feat(parser)!: decode entities into JSXText.value and JSX string attributes
+- feat(resolve): follow TypeScript for rooted paths, empty and dot configs
+- feat(bundle): match Node's require(esm) shape and cover interop, formats and TypeScript
+- feat(dts): record every difference from TypeScript and gate on the list
+- feat(parser): add ParseConfig.reject_invalid_utf8
+- feat(bundle): add module graph, ESM scope hoisting and CommonJS interop
+- feat(transform): lower TypeScript legacy decorators with design-time metadata
+- feat(resolve): add enhanced-resolve options and a Node reference gate
+- feat(minify): share aliases between scopes and order them by use count
+- feat(lint): add no-labels/no-multi-assign/no-ternary/no-new/no-return-await (162 rules)
+- feat(lint): support kessel.lint.json extends (config inheritance) (Phase 8d)
+- feat(lint): support kessel.lint.json per-glob overrides (Phase 8d)
+- feat(lint): support kessel.lint.json ignorePatterns (Phase 8d)
+- feat(lint): finish Phase 8e - gitlab/junit formatters + --deny/--warn/--allow aliases
+- feat(lint): add --quiet and --max-warnings flags (Phase 8e)
+
+### Fixed
+- fix(sdk): keep parseAsync's buffers alive until the native call completes
+- fix(minify): format integers at 64 bits on 32-bit targets
+- fix(parser): take caller-supplied memory through an arena that survives refusal
+- fix(release): raise the minor version for breaking changes before 1.0.0
+- fix(bundle): relative source-map paths on Windows; pin the playground runner
+- fix(parser): end an out-of-memory parse with K2085 inside one huge statement
+- fix(lib): let a default AST walk cover what the parser accepts by default
+- fix(transform): refuse two shapes that lowering would get wrong
+- fix(codegen): print `as` and `satisfies` with relational precedence
+- fix(wasm): keep chain and bundle bounds within a 32-bit int
+- fix(lint): chained assignment in loop heads, mid-file "use strict"
+- fix(transform): refuse a rest parameter with a pattern below ES2016
+- fix(fmt): let a comment lead an argument that starts with a parenthesis
+- fix(fmt): stop the argument layout rules at an argument too deep to print
+- fix(regex): let the regexp grammar reject what the validator lets through
+- fix(regex): check validator complaints against the regexp grammar
+- fix(transform): walk expression chains in a loop and bound nested lowering
+- fix(dts): follow TypeScript after an undeclarable object member; tidy diagnostics
+- fix(lexer): join escaped surrogate pairs in cooked template values
+- fix(parser): keep rest-pattern annotations and start async arrows at `async`
+- fix(parser): correct the spans around TypeScript template literal types
+- fix(parser): give BigInt property keys their source range
+- fix(dts): accept what TypeScript accepts and parenthesize generic type arguments
+- fix(parser): reject a comma operator with no right operand
+- fix(parser): give `as` and `satisfies` relational precedence
+- fix(parser): stop the for-head `in` restriction at function and class bodies
+- fix(lexer): read legacy octal literals in base eight
+- fix(minify): walk expression chains without recursion
+- fix(dts): reject private names, nested expando assignments and script-mode output
+- fix(bundle): give early readers of a CommonJS re-export undefined, as Node does
+- fix(lint): two corpus differences, record corpus agreement for 75 rules
+- fix(lint): report assignments at the write, keep default severities
+- fix(parser): accept parenthesized simple targets in destructuring assignment
+- fix(module-lexer): lex a regex after yield and await
+- fix(module-lexer): name classes exported behind decorators or implements
+- fix(module-lexer): scan import.meta operands and regex after a block
+- fix(codegen): keep required grouping and template type escapes
+- fix(parser): record each comment once and only real comments
+- fix(lib): compile source positions on 32-bit targets
+- fix(parser): allocate the module record from the parse arena
+- fix(codegen): print member and call chains from a worklist
+- fix(lint): walk long chains iteratively in the semantic model and linter
+- fix(binary): encode and decode long chains without recursion
+- fix(emitter): emit long chains with a loop and shrink unoptimised frames
+- fix(checker): walk operator, member and call chains without recursion
+- fix(parser): enforce a nesting depth limit instead of overflowing the stack
+- fix(parser): report an exhausted arena as K2085 instead of crashing
+- fix(lexer): keep the template level size assert true on wasm32
+- fix(parser): reject `{...}` without an operand in JSX
+- fix(parser)!: parse `{...xs}` JSX children as JSXSpreadChild
+- fix(bundle): keep generated helpers clear of module-level globals
+- fix(parser): parse a regular expression after 'export default'
+- fix(parser): report a mismatched JSX closing tag on the closing tag's name
+- fix(lexer): track template interpolations at any depth, cap at 256
+- fix(dts): satisfies, redeclared vars, merged enums and parameter spans
+- fix(dts): ambient enums, module markers, merged default exports and aliases
+- fix(dts): match TypeScript on returns, modules, private members and object keys
+- fix(parser): preserve diagnostics in recovered AST output
+- fix(parser): diagnose a missing assignment operand
+- fix(release): stop version calculation when npm is unavailable
+- fix(parser): preserve TypeScript members and module export kinds
+- fix(parser): retain readonly on computed type members
+- fix(codegen): preserve inline type modifiers on module specifiers
+- fix(parser): preserve import types and destructured signature parameters
+- fix(cli): preserve TypeScript signatures and Unicode comment ranges
+- fix(parser): retain class index signatures and grouped type assertion spans
+- fix(sdk): preserve TypeScript declarations across the binary AST
+- fix(cli): propagate read and write failures during batch parsing
+- fix(cli): release Unicode offsets between batch inputs
+- fix(parser): accept a statement after a default function declaration
+- fix(sdk): preserve default declarations and original AST child spans
+- fix(lint): handle unbraced alternatives in no-else-return
+- fix(sdk): decode Unicode AST strings at UTF-8 byte offsets
+- fix(parser): distinguish runtime class fields and TypeScript declarations
+- fix(parser): preserve source spans for TypeScript and JSX operands
+- fix(cli): build and smoke test the executable on release targets
+- fix(bench): include the OXC codegen workspace member
+- fix(sdk): harden native async parsing and gate candidate installs
+
+### Performance
+- perf(lint): compare chains in a loop, flatten a logical chain once
+- perf(lexer): restore byte comparisons for keyword tails
+
+
 ## [Unreleased]
 
 ### Breaking
