@@ -83,9 +83,14 @@ class_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 // is the value of. The class may stop being a plain class expression when it
 // is lowered, and would then no longer be named by its context.
 class_note_name :: proc(cg: ^Codegen, key, value: ^Expression, computed := false) {
-	if key == nil || value == nil || computed { return }
+	if key == nil || value == nil { return }
 	class, is_class := target_unwrap(cg, value)^.(^ClassExpression)
 	if !is_class || class.id != nil { return }
+	if computed {
+		// The name is the value of the key, which is only known when it runs.
+		cg.transform.class_computed[class.loc.start] = true
+		return
+	}
 	#partial switch node in key^ {
 	case ^Identifier:    cg.transform.class_names[class.loc.start] = node.name
 	case ^StringLiteral: cg.transform.class_names[class.loc.start] = node.value
@@ -415,6 +420,15 @@ class_expression :: proc(cg: ^Codegen, expr: ^Expression, class: ^ClassExpressio
 			state, expr, transform_identifier(state, info.static_key, at), false, {at, at},
 		)
 		result = target_call(state, method, nil, {at, at})
+	}
+	if result != expr || len(info.temps) != 0 {
+		// Once wrapped, the class is no longer named by the property it is the
+		// value of, and a computed key leaves no name to give it instead.
+		_, named := state.class_names[class.loc.start]
+		if state.class_computed[class.loc.start] && !named && class.id == nil {
+			what := "an unnamed class as the value of a computed property cannot be lowered"
+			cg_strip_unsupported(cg, class.loc, what)
+		}
 	}
 	if len(info.temps) == 0 { return result if result != expr else nil }
 	class_reject_suspension(cg, class)
