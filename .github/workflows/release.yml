@@ -276,10 +276,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # No registry-url: it writes an .npmrc that authenticates with a token.
+      # Publishing uses trusted publishing instead (see "Publish to npm").
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - uses: actions/download-artifact@v4
         with:
@@ -298,12 +299,15 @@ jobs:
           ls -la
           cat package.json
 
+      # Trusted publishing: npm authenticates this workflow through GitHub's
+      # OIDC token (id-token: write above), so there is no stored npm token to
+      # expire. Each package lists dvrd/kessel and release.yml as its trusted
+      # publisher on npmjs.com. Needs npm 11.5.1 or newer; Node 22 ships npm 10.
       - name: Publish to npm
         run: |
+          npm install --global npm@11.21.3
           cd npm/platforms/${{ matrix.target }}
           npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # ---------------------------------------------------------------------------
   # publish-main — only runs when EVERY platform sub-package succeeded.
@@ -330,10 +334,11 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      # No registry-url: it writes an .npmrc that authenticates with a token.
+      # Publishing uses trusted publishing instead (see "Publish to npm").
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Update main package.json
         run: |
@@ -405,12 +410,12 @@ jobs:
       - name: Install dependencies
         run: cd npm/kessel && npm install --ignore-scripts
 
+      # Trusted publishing, as in publish-platforms.
       - name: Publish to npm
         run: |
+          npm install --global npm@11.21.3
           cd npm/kessel
           npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   verify-published:
     needs: [version, publish-main]
