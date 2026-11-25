@@ -13,7 +13,11 @@ module.exports = function verifyResources(binary, temp, run, oracle) {
   fs.writeFileSync(strictFile, 'const run = () => { "use strict"; using r = null; try { missingBinding = 1; } catch (err) { return err.name; } }; if (run() !== "ReferenceError") throw Error("lost directive");');
   const shadowFile = path.join(temp, 'shadow.mjs');
   fs.writeFileSync(shadowFile, [
-    'const symbol = (await import("node:vm")).runInNewContext("Symbol");',
+    // The module shadows `globalThis` and `Symbol` below; Node's `global`
+    // still reaches this realm's Symbol. (A vm realm's Symbol has no
+    // `dispose` before Node 24, so its fallback key would differ from the
+    // one this realm's helper looks up.)
+    'const symbol = global.Symbol;',
     'const log = [];',
     '{ using r = { [symbol.dispose || symbol.for("Symbol.dispose")]() { log.push(1); } }; }',
     'const globalThis = 0, Symbol = 0;',
