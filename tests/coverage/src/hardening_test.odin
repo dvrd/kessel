@@ -2,6 +2,7 @@
 // in-process (src/parse_job.odin, src/parser.odin, src/lexer.odin).
 package coverage
 
+import "core:fmt"
 import "core:log"
 import "core:mem"
 import "core:strings"
@@ -785,4 +786,71 @@ test_supplied_allocator_too_small :: proc(t: ^testing.T) {
 		testing.expectf(t, succeeded, "%s: never fit in %d bytes", sample.label, LIMIT_MAX)
 		testing.expectf(t, refused_runs > 50, "%s: only %d limits were too small", sample.label, refused_runs)
 	}
+}
+
+// A large generated program wrapped in one function: many functions with
+// nested blocks, long argument lists, object and array literals, so lists
+// are still growing and frames are still deep whenever memory runs out.
+@(private="file")
+large_program_source :: proc(size_min: int) -> string {
+	b := strings.builder_make(context.temp_allocator)
+	// One top-level statement, like a bundled library: the parser's
+	// per-top-level-statement check never runs while memory runs out.
+	strings.write_string(&b, "(function (root) {\n")
+	for index := 0; strings.builder_len(b) < size_min; index += 1 {
+		fmt.sbprintf(&b, "function f%d(a, b = {{x: [1, 2, 3], y: `t${{a}}`}}, ...rest) {{\n", index)
+		for row in 0 ..< 12 {
+			fmt.sbprintf(&b, "  if (a.p%d && b[%d] !== rest.length) {{ for (const k of rest) {{", row, row)
+			fmt.sbprintf(&b, " g(k, [a, b, k, %d, 'v%d'], {{k, n: k + %d, m() {{ return a ? b : k; }}}}); }} }}\n", row, row, row)
+		}
+		strings.write_string(&b, "  return [a, b, ...rest].map((v, i) => ({v, i, s: String(v)}));\n}\n")
+	}
+	strings.write_string(&b, "})(this);\n")
+	return strings.to_string(b)
+}
+
+// Goal: on an input of several hundred kilobytes, a supplied allocator that
+// runs dry anywhere produces exactly one K2085 and never a panic.
+//
+// Method: the same ceiling allocator as above, on a generated 380 KB
+// program, with ceilings from 64 KiB up to the first one the parse fits in.
+// The small samples above run dry within a few frames of the top level;
+// this one runs dry with long lists mid-growth and the node pool mid-chunk,
+// which is where the wind-down used to outgrow the guard's reserve.
+@(test)
+test_supplied_allocator_too_small_for_a_large_input :: proc(t: ^testing.T) {
+	LIMIT_FIRST :: 64 * 1024
+	LIMIT_STEP  :: 37 * 1024
+	LIMIT_MAX   :: 64 * 1024 * 1024
+	source := large_program_source(380 * 1024)
+	refused_runs := 0
+	succeeded := false
+	for limit := LIMIT_FIRST; limit <= LIMIT_MAX && !succeeded; limit += LIMIT_STEP {
+		tracker: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&tracker, context.allocator)
+		limited := LimitedAllocator{tracker = &tracker, limit = i64(limit)}
+		supplied := mem.Allocator{procedure = limited_allocator_proc, data = &limited}
+
+		job: kessel.ParseJob
+		if testing.expect(t, kessel.parse_job_open_inline(&job, source, {}, "large", supplied)) {
+			kessel.parse_job_run(&job)
+			oom_errors := 0
+			for error in job.parser.errors {
+				if error.code == .K2085_OutOfMemory { oom_errors += 1 }
+			}
+			if job.guard.failed {
+				refused_runs += 1
+				testing.expectf(t, oom_errors == 1, "limit %d: %d K2085 errors", limit, oom_errors)
+				testing.expectf(t, len(job.program.body) == 0, "limit %d: body not emptied", limit)
+			} else {
+				testing.expectf(t, len(job.parser.errors) == 0, "limit %d: unexpected errors", limit)
+				succeeded = true
+			}
+			kessel.parse_job_close(&job)
+		}
+		testing.expectf(t, len(tracker.allocation_map) == 0, "limit %d: allocations not released", limit)
+		mem.tracking_allocator_destroy(&tracker)
+	}
+	testing.expectf(t, succeeded, "never fit in %d bytes", LIMIT_MAX)
+	testing.expectf(t, refused_runs > 20, "only %d limits were too small", refused_runs)
 }

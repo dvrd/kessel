@@ -22,11 +22,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - **Library API for Odin consumers** (see "Odin package" in the README):
   - `ParseConfig.max_depth` and `ParseConfig.reject_invalid_utf8` (one `K1017_InvalidUtf8` error at the first ill-formed byte; off by default).
   - `parse_job_open_inline(..., backing := mem.Allocator{})` takes a caller-supplied allocator; everything is returned to it on `parse_job_close`.
-  - Allocation failure is reported as `K2085_OutOfMemory` with an empty `Program` instead of a crash.
+  - Allocation failure is reported as `K2085_OutOfMemory` with an empty `Program` instead of a crash, including with a caller-supplied allocator that runs dry inside one large statement. When that allocator has nothing left at all, the abandoned parse unwinds on at most 1 MiB of OS pages, released on close.
   - `source_positions_init` / `source_position_at` / `source_offset_at`: byte offset ↔ line and UTF-16 column.
   - `sourcemap_builder_*`: a Source Map v3 builder (sources, names, mappings, JSON).
   - `Program.hashbang`.
-  - `ast_walk` with enter/leave callbacks, bounded in depth and iterative along long chains.
+  - `ast_walk` with enter/leave callbacks, bounded in depth and iterative along long chains. Its default depth (`AST_WALK_DEPTH_DEFAULT`, 8 × the parser's 512) walks any tree the parser accepts at its default limit, and a walk cut short by depth or memory still calls `leave` for every node it entered.
   - `scope_query_*`: bindings and references of a name, the symbol at a position, the enclosing function.
   - `function_parameter_view`: one view of a parameter's target and default value, whichever way the parser stored it.
   - `jsx_decode_entities` for the full HTML entity table.

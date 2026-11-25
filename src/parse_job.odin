@@ -230,7 +230,9 @@ ParseJob :: struct {
 	//                   independent of the fixed reservation that ran out.
 	//   heap_emergency  for a caller-supplied allocator: the same
 	//                   allocator asked for small blocks, which it may
-	//                   still have when it refused a 64 KiB one.
+	//                   still have when it refused a 64 KiB one. Tried
+	//                   first; `emergency` is the last resort when the
+	//                   supplied allocator has nothing left at all.
 	emergency:      mvirtual.Arena,
 	heap_emergency: mem.Dynamic_Arena,
 
@@ -353,8 +355,11 @@ parse_job_open :: proc(job: ^ParseJob, path: string, config: ParseConfig) -> boo
 // larger request, never frees individually, and returns everything in
 // parse_job_close, so it suits an embedder with a per-request or tracked
 // heap. An allocator that runs out mid-parse is reported as K2085 in
-// job.parser.errors, not as a crash. `backing` must support free and stay
-// valid until close.
+// job.parser.errors, not as a crash. One exception to "all of its memory":
+// when the allocator has nothing left at all, the parse that is being
+// abandoned finishes its open frames on at most 1 MiB of fresh OS pages
+// (ALLOC_GUARD_FALLBACK_SIZE_MAX), which close releases. `backing` must
+// support free and stay valid until close.
 parse_job_open_inline :: proc(
 	job: ^ParseJob, source: string, config: ParseConfig, label := "<inline>",
 	backing := mem.Allocator{},
@@ -468,9 +473,20 @@ parse_job_run :: proc(job: ^ParseJob) {
 	// Everything the lexer and parser allocate goes through the guard, so
 	// an exhausted arena becomes a K2085 diagnostic instead of a nil
 	// dereference. Later passes keep using job.arena_alloc directly.
-	fallback := mvirtual.arena_allocator(&job.emergency)
-	if job.uses_heap_arena { fallback = mem.dynamic_arena_allocator(&job.heap_emergency) }
-	alloc_guard_init(&job.guard, job.arena_alloc, fallback, &job.lexer.offset)
+	// With a caller-supplied allocator the wind-down asks that allocator
+	// first, in small blocks. When it has nothing left at all, the frames
+	// still open take what they need from fresh OS pages instead (bounded by
+	// ALLOC_GUARD_FALLBACK_SIZE_MAX, released on close): a parse that ran
+	// out of memory must end in a diagnostic, never a panic.
+	os_pages := mvirtual.arena_allocator(&job.emergency)
+	if job.uses_heap_arena {
+		alloc_guard_init(&job.guard, job.arena_alloc,
+			mem.dynamic_arena_allocator(&job.heap_emergency), &job.lexer.offset, os_pages,
+			&job.parser.node_pool.capacity)
+	} else {
+		alloc_guard_init(&job.guard, job.arena_alloc, os_pages, &job.lexer.offset,
+			mem.Allocator{}, &job.parser.node_pool.capacity)
+	}
 	parse_alloc := alloc_guard_allocator(&job.guard)
 
 	// Some AST lists are never `make`d: the first append to such a list
@@ -564,8 +580,8 @@ parse_job_close :: proc(job: ^ParseJob) {
 		mem.dynamic_arena_destroy(&job.heap_emergency)
 	} else {
 		if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
-		mvirtual.arena_destroy(&job.emergency) // no-op when never used
 	}
+	mvirtual.arena_destroy(&job.emergency) // no-op when never used
 	if job.owns_source { source_release(job.source, context.allocator) }
 	job.opened = false
 }

@@ -12,6 +12,12 @@ parse_statement_or_declaration :: proc(p: ^Parser) -> ^Statement {
 	depth_saved, depth_ok := parser_depth_enter(p)
 	defer p.depth_left = depth_saved
 	if !depth_ok { return nil }
+	// An allocation failure only the guard saw (a list that could not grow)
+	// does not stop the grammar by itself, and a program can be one huge
+	// top-level statement. Checking at every statement, nested ones
+	// included, halts the lexer within a statement of the failure, so the
+	// emergency memory is left for the frames that still have to unwind.
+	if parser_memory_failed(p) { parser_out_of_memory(p) }
 	// At statement start, `/` or `/=` must be a regex literal (not
 	// division), because no LHS exists. Re-lex if the lexer's
 	// previous-token-class heuristic guessed wrong (typical case after
