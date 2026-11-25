@@ -65,7 +65,12 @@ FormatPass :: struct {
 // The second parse needs an arena of its own. A native build reserves
 // address space for it. WebAssembly has none to reserve and borrows a buffer.
 @(private="file")
-format_reparse_open :: proc(check: ^ParseJob, buffer: ^[]u8, text: string, original: ^ParseJob) -> bool {
+format_reparse_open :: proc(
+	check: ^ParseJob,
+	buffer: ^[]u8,
+	text: string,
+	original: ^ParseJob,
+) -> bool {
 	when ODIN_ARCH == .wasm32 || ODIN_ARCH == .wasm64p32 {
 		bytes, err := make([]u8, int(arena_reserve_for_source(len(text))))
 		if err != nil { return false }
@@ -95,37 +100,56 @@ format_reparse_close :: proc(check: ^ParseJob, buffer: []u8) {
 	if buffer != nil { delete(buffer) }
 }
 
+// The working state of one pass over a program.
+@(private="file")
+FormatPassState :: struct {
+	job:            ^ParseJob,
+	options:        FormatOptions,
+	source:         string,
+	newline:        string,
+	out:            strings.Builder,
+	parts:          [dynamic]FormatPart,
+	tokens:         [dynamic]FastToken,
+	scanner:        Lexer,
+	printer:        FormatContext,
+	// Documents are many times larger than the text they describe. They live
+	// in a scratch arena that is reset after every statement, because the
+	// parse arena is sized for the tree alone.
+	scratch:        mem.Dynamic_Arena,
+	// The source offset up to which text has been written, the index of the
+	// last statement that was formatted, and the output column.
+	previous_end:   u32,
+	previous_index: int,
+	column:         int,
+}
+
 // One pass over the program. `skip` names statements that must keep their
 // original text.
 @(private="file")
 format_pass :: proc(job: ^ParseJob, options: FormatOptions, skip: []bool) -> FormatPass {
 	source := string(job.source.data)
-	newline := format_line_ending(options.end_of_line, source)
 	comments := job.lexer.comments[:]
-	out := strings.builder_make(0, len(source), job.arena_alloc)
+	state := FormatPassState {
+		job = job, options = options, source = source,
+		newline = format_line_ending(options.end_of_line, source),
+		previous_index = -2,
+	}
+	state.out = strings.builder_make(0, len(source), job.arena_alloc)
+	state.parts = make([dynamic]FormatPart, job.arena_alloc)
+	state.tokens = make([dynamic]FastToken, job.arena_alloc)
+	init_lexer(&state.scanner, "", job.arena_alloc, .Module)
+	state.scanner.source = source
+	state.scanner.source_bytes = job.source.data
+	block := FORMAT_SCRATCH_BLOCK_BYTES
+	mem.dynamic_arena_init(&state.scratch, context.allocator, context.allocator, block, block / 4)
+	defer mem.dynamic_arena_destroy(&state.scratch)
+	scratch_alloc := mem.dynamic_arena_allocator(&state.scratch)
+	format_context_init(&state.printer, source, options, job.arena_alloc, scratch_alloc)
+	state.printer.typescript = job.lang == .TS || job.lang == .TSX
+	state.printer.comments = comments
+	state.printer.comment_stamps = make([]u32, len(comments), job.arena_alloc)
 	spans := make([]Loc, len(job.program.body), job.arena_alloc)
 	formatted := 0
-	parts := make([dynamic]FormatPart, job.arena_alloc)
-	tokens := make([dynamic]FastToken, job.arena_alloc)
-	scanner: Lexer
-	init_lexer(&scanner, "", job.arena_alloc, .Module)
-	scanner.source = source
-	scanner.source_bytes = job.source.data
-	previous_end: u32
-	previous_index := -2
-	column := 0
-	// Documents are many times larger than the text they describe. They live
-	// in a scratch arena that is reset after every statement, because the
-	// parse arena is sized for the tree alone.
-	scratch: mem.Dynamic_Arena
-	mem.dynamic_arena_init(&scratch, context.allocator, context.allocator, FORMAT_SCRATCH_BLOCK_BYTES, FORMAT_SCRATCH_BLOCK_BYTES / 4)
-	defer mem.dynamic_arena_destroy(&scratch)
-	scratch_alloc := mem.dynamic_arena_allocator(&scratch)
-	printer: FormatContext
-	format_context_init(&printer, source, options, job.arena_alloc, scratch_alloc)
-	printer.typescript = job.lang == .TS || job.lang == .TSX
-	printer.comments = comments
-	printer.comment_stamps = make([]u32, len(comments), job.arena_alloc)
 	for statement, index in job.program.body {
 		if skip != nil && skip[index] { continue }
 		module_list := false
@@ -139,78 +163,104 @@ format_pass :: proc(job: ^ParseJob, options: FormatOptions, skip: []bool) -> For
 		loc := get_statement_loc(statement)
 		if loc.end <= loc.start { continue }
 		if format_is_ignored(comments, source, loc) { continue }
-		clear(&parts)
+		clear(&state.parts)
 		doc: Doc
-		// Only the general printer places comments.
-		commented := format_has_comment(comments, loc)
 		if module_list {
-			if commented { continue }
-			clear(&tokens)
-			scanner.offset = int(loc.start)
-			for scanner.offset < int(loc.end) {
-				token := lex_token(&scanner)
-				if token.kind == .EOF || token.end > loc.end { break }
-				append(&tokens, token)
-			}
-			if len(tokens) == 0 || tokens[len(tokens)-1].end != loc.end { continue }
-			if !format_module_parts(&parts, tokens[:], source, options, job.arena_alloc) { continue }
+			if !format_pass_module(&state, loc) { continue }
 		} else {
-			mem.dynamic_arena_reset(&scratch)
-			printed, ok := format_statement_doc(&printer, job.program, index)
-			if ok {
-				loc.end = format_statement_end(source, statement, loc)
-				// The comments above and beside the statement print with
-				// it, so that they take Prettier's spacing too.
-				body := job.program.body[:]
-				gap_start := previous_end
-				if index > 0 && previous_index + 1 != index {
-					gap_start = get_statement_loc(body[index-1]).end
-				}
-				next_start := u32(len(source))
-				if index + 1 < len(body) { next_start = get_statement_loc(body[index+1]).start }
-				around, covered, attached := format_statement_comments(
-					&printer, gap_start, loc.start, loc.end, next_start, index > 0, index + 1 < len(body))
-				if attached && gap_start <= loc.start && loc.end <= next_start {
-					doc = format_with_comments(&printer, around, printed)
-					loc = covered
-				} else {
-					printer.failed = false
-					doc = printed
-				}
-			} else if commented || !format_data_statement(&parts, statement, source, options, job.arena_alloc) {
-				// The data printer still covers typed declarations, which
-				// the general printer does not print yet.
-				continue
-			}
+			ok: bool
+			doc, ok = format_pass_statement(&state, index, &loc)
+			if !ok { continue }
 		}
-
-		gap := source[previous_end:loc.start]
-		if previous_index + 1 == index && strings.trim_space(gap) == "" {
-			strings.write_string(&out, newline)
-			if format_has_blank_line(gap) { strings.write_string(&out, newline) }
-			column = 0
-		} else {
-			strings.write_string(&out, gap)
-			line := max(strings.last_index_byte(gap, '\n'), strings.last_index_byte(gap, '\r')) + 1
-			if line > 0 { column = 0 }
-			column += format_width(gap[line:])
-		}
-		span_start := u32(len(out.buf))
-		if doc != nil {
-			column = format_doc_print(&out, doc, options, column, newline, scratch_alloc)
-		} else {
-			column = format_layout_write(&out, parts[:], options, column, newline)
-		}
-		spans[index] = {span_start, u32(len(out.buf))}
+		spans[index] = format_pass_emit(&state, index, loc, doc)
 		formatted += 1
-		previous_end = loc.end
-		previous_index = index
 	}
-	if previous_index < 0 { return {text = source, spans = spans} }
-	tail := source[previous_end:]
-	if strings.trim_space(tail) == "" { strings.write_string(&out, newline) }
-	else { strings.write_string(&out, tail) }
-	return {text = strings.to_string(out), spans = spans, formatted = formatted}
+	if state.previous_index < 0 { return {text = source, spans = spans} }
+	tail := source[state.previous_end:]
+	if strings.trim_space(tail) == "" { strings.write_string(&state.out, state.newline) }
+	else { strings.write_string(&state.out, tail) }
+	return {text = strings.to_string(state.out), spans = spans, formatted = formatted}
+}
+
+// Fills `parts` for an import or export list. Only the general printer
+// places comments, so a commented list keeps its text.
+@(private="file")
+format_pass_module :: proc(state: ^FormatPassState, loc: Loc) -> bool {
+	if format_has_comment(state.job.lexer.comments[:], loc) { return false }
+	clear(&state.tokens)
+	state.scanner.offset = int(loc.start)
+	for state.scanner.offset < int(loc.end) {
+		token := lex_token(&state.scanner)
+		if token.kind == .EOF || token.end > loc.end { break }
+		append(&state.tokens, token)
+	}
+	count := len(state.tokens)
+	if count == 0 || state.tokens[count-1].end != loc.end { return false }
+	alloc := state.job.arena_alloc
+	return format_module_parts(&state.parts, state.tokens[:], state.source, state.options, alloc)
+}
+
+// Builds the document for any other statement, or fills `parts` through the
+// data printer, which still covers typed declarations. `loc` grows to cover
+// the comments that print with the statement.
+@(private="file")
+format_pass_statement :: proc(state: ^FormatPassState, index: int, loc: ^Loc) -> (Doc, bool) {
+	job, source := state.job, state.source
+	body := job.program.body[:]
+	statement := body[index]
+	mem.dynamic_arena_reset(&state.scratch)
+	printed, ok := format_statement_doc(&state.printer, job.program, index)
+	if !ok {
+		if format_has_comment(job.lexer.comments[:], loc^) { return nil, false }
+		alloc := job.arena_alloc
+		return nil, format_data_statement(&state.parts, statement, source, state.options, alloc)
+	}
+	loc.end = format_statement_end(source, statement, loc^)
+	// The comments above and beside the statement print with it, so that
+	// they take Prettier's spacing too.
+	gap_start := state.previous_end
+	if index > 0 && state.previous_index + 1 != index {
+		gap_start = get_statement_loc(body[index-1]).end
+	}
+	next_start := u32(len(source))
+	if index + 1 < len(body) { next_start = get_statement_loc(body[index+1]).start }
+	around, covered, attached := format_statement_comments(
+		&state.printer, gap_start, loc.start, loc.end, next_start, index > 0, index + 1 < len(body))
+	if attached && gap_start <= loc.start && loc.end <= next_start {
+		loc^ = covered
+		return format_with_comments(&state.printer, around, printed), true
+	}
+	state.printer.failed = false
+	return printed, true
+}
+
+// Writes the gap before a statement and then the statement. Returns where
+// the statement's text lies in the output.
+@(private="file")
+format_pass_emit :: proc(state: ^FormatPassState, index: int, loc: Loc, doc: Doc) -> Loc {
+	out, newline := &state.out, state.newline
+	gap := state.source[state.previous_end:loc.start]
+	if state.previous_index + 1 == index && strings.trim_space(gap) == "" {
+		strings.write_string(out, newline)
+		if format_has_blank_line(gap) { strings.write_string(out, newline) }
+		state.column = 0
+	} else {
+		strings.write_string(out, gap)
+		line := max(strings.last_index_byte(gap, '\n'), strings.last_index_byte(gap, '\r')) + 1
+		if line > 0 { state.column = 0 }
+		state.column += format_width(gap[line:])
+	}
+	start := u32(len(out.buf))
+	if doc != nil {
+		alloc := mem.dynamic_arena_allocator(&state.scratch)
+		state.column = format_doc_print(out, doc, state.options, state.column, newline, alloc)
+	} else {
+		parts := state.parts[:]
+		state.column = format_layout_write(out, parts, state.options, state.column, newline)
+	}
+	state.previous_end = loc.end
+	state.previous_index = index
+	return {start, u32(len(out.buf))}
 }
 
 // A top-level directive's span stops before its semicolon. The printed
@@ -262,7 +312,13 @@ format_is_ignored :: proc(comments: []Comment, source: string, loc: Loc) -> bool
 // Token boundaries preserve distinctions the AST intentionally normalizes,
 // including empty named imports and explicit aliases with identical names.
 @(private="file")
-format_module_parts :: proc(parts: ^[dynamic]FormatPart, tokens: []FastToken, source: string, options: FormatOptions, alloc: mem.Allocator) -> bool {
+format_module_parts :: proc(
+	parts: ^[dynamic]FormatPart,
+	tokens: []FastToken,
+	source: string,
+	options: FormatOptions,
+	alloc: mem.Allocator,
+) -> bool {
 	bracket_space := " " if options.bracket_spacing else ""
 	breakable := false
 	for token, i in tokens {
@@ -275,12 +331,16 @@ format_module_parts :: proc(parts: ^[dynamic]FormatPart, tokens: []FastToken, so
 			breakable = format_list_breakable(tokens[i+1:], source, prev)
 			if next != .RBrace {
 				if breakable { append(parts, FormatPart{kind = .Group}) }
-				append(parts, FormatPart{kind = .Line if breakable else .Text, text = bracket_space, indent = true})
+				kind := FormatPart{kind = .Line if breakable else .Text}.kind
+				append(parts, FormatPart{kind = kind, text = bracket_space, indent = true})
 			}
 		case .RBrace:
 			if prev != .LBrace {
-				if breakable && options.trailing_comma { append(parts, FormatPart{kind = .If_Break, text = ","}) }
-				append(parts, FormatPart{kind = .Line if breakable else .Text, text = bracket_space})
+				if breakable && options.trailing_comma {
+					append(parts, FormatPart{kind = .If_Break, text = ","})
+				}
+				kind := FormatPart{kind = .Line if breakable else .Text}.kind
+				append(parts, FormatPart{kind = kind, text = bracket_space})
 				if breakable { append(parts, FormatPart{kind = .End}) }
 			}
 			append(parts, FormatPart{kind = .Text, text = "}"})
@@ -288,7 +348,10 @@ format_module_parts :: proc(parts: ^[dynamic]FormatPart, tokens: []FastToken, so
 		case .Comma:
 			if next != .RBrace {
 				append(parts, FormatPart{kind = .Text, text = ","})
-				if next != .LBrace { append(parts, FormatPart{kind = .Line if breakable else .Text, text = " ", indent = true}) }
+				if next != .LBrace {
+					kind := FormatPart{kind = .Line if breakable else .Text}.kind
+					append(parts, FormatPart{kind = kind, text = " ", indent = true})
+				}
 			}
 		case .Colon: append(parts, FormatPart{kind = .Text, text = ": "})
 		case .Semi:

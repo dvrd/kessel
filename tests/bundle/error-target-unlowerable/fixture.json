@@ -1,0 +1,7 @@
+{
+  "error": "fields.mjs: error: class fields cannot be lowered",
+  "args": [
+    "--target",
+    "es2019"
+  ]
+}

@@ -71,7 +71,7 @@ function withoutLines(log, patterns) {
 function checkDiagnostics(binary, temp) {
   const cases = [
     ['class C { @d #hidden = 1; }', /private member/],
-    ['class C { @d accessor value = 1; }', /accessor field/],
+    ['class C { @d accessor [name()] = 1; }', /accessor field/],
     ['const C = @d class {};', /class expression/],
     ['const C = class { @d method() {} };', /class expression/],
     ['class C { @d get value() { return 1; } @d set value(next) {} }', /both accessors/],

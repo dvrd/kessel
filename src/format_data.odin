@@ -14,7 +14,13 @@ FormatDataFrame :: struct {
 }
 
 @(private)
-format_data_statement :: proc(parts: ^[dynamic]FormatPart, statement: ^Statement, source: string, options: FormatOptions, alloc: mem.Allocator) -> bool {
+format_data_statement :: proc(
+	parts: ^[dynamic]FormatPart,
+	statement: ^Statement,
+	source: string,
+	options: FormatOptions,
+	alloc: mem.Allocator,
+) -> bool {
 	value: ^Expression
 	declaration: ^VariableDeclaration
 	#partial switch node in statement^ {
@@ -53,7 +59,8 @@ format_data_statement :: proc(parts: ^[dynamic]FormatPart, statement: ^Statement
 		format_text(parts, " =")
 		format_data_assignment_line(parts)
 	}
-	if value == nil || !format_data_initializer(parts, value, source, options, alloc) { return false }
+	if value == nil { return false }
+	if !format_data_initializer(parts, value, source, options, alloc) { return false }
 	format_text(parts, ";")
 	return true
 }
@@ -61,7 +68,13 @@ format_data_statement :: proc(parts: ^[dynamic]FormatPart, statement: ^Statement
 // An assertion applies to the expression on its left. Walk down to the data
 // literal, then emit the assertions from the innermost to the outermost.
 @(private="file")
-format_data_initializer :: proc(parts: ^[dynamic]FormatPart, expr: ^Expression, source: string, options: FormatOptions, alloc: mem.Allocator) -> bool {
+format_data_initializer :: proc(
+	parts: ^[dynamic]FormatPart,
+	expr: ^Expression,
+	source: string,
+	options: FormatOptions,
+	alloc: mem.Allocator,
+) -> bool {
 	assert(expr != nil)
 	suffixes: [FORMAT_GROUP_DEPTH_MAX]struct { operator, name: string }
 	count := 0
@@ -78,8 +91,10 @@ format_data_initializer :: proc(parts: ^[dynamic]FormatPart, expr: ^Expression, 
 				format_text(parts, suffixes[count].name)
 			}
 			return true
-		case ^TSAsExpression: value, operator, type_node = node.expression, " as ", node.type_annotation
-		case ^TSSatisfiesExpression: value, operator, type_node = node.expression, " satisfies ", node.type_annotation
+		case ^TSAsExpression:
+			value, operator, type_node = node.expression, " as ", node.type_annotation
+		case ^TSSatisfiesExpression:
+			value, operator, type_node = node.expression, " satisfies ", node.type_annotation
 		case: return false
 		}
 		if count == len(suffixes) { return false }
@@ -93,7 +108,8 @@ format_data_initializer :: proc(parts: ^[dynamic]FormatPart, expr: ^Expression, 
 
 @(private="file")
 format_data_assignment_line :: proc(parts: ^[dynamic]FormatPart) {
-	append(parts, FormatPart{kind = .Group}, FormatPart{kind = .Line, text = " ", indent = true}, FormatPart{kind = .End})
+	line := FormatPart{kind = .Line, text = " ", indent = true}
+	append(parts, FormatPart{kind = .Group}, line, FormatPart{kind = .End})
 }
 
 @(private="file")
@@ -120,7 +136,11 @@ format_data_type_name :: proc(t: ^TSType, source: string) -> string {
 }
 
 @(private="file")
-format_data_atom :: proc(expr: ^Expression, options: FormatOptions, alloc: mem.Allocator) -> string {
+format_data_atom :: proc(
+	expr: ^Expression,
+	options: FormatOptions,
+	alloc: mem.Allocator,
+) -> string {
 	#partial switch node in expr^ {
 	case ^Identifier: return node.name
 	case ^BooleanLiteral: return "true" if node.value else "false"
@@ -169,7 +189,13 @@ format_data_open_array :: proc(array: ^ArrayExpression) -> (frame: FormatDataFra
 }
 
 @(private="file")
-format_data_parts :: proc(parts: ^[dynamic]FormatPart, root: ^Expression, source: string, options: FormatOptions, alloc: mem.Allocator) -> bool {
+format_data_parts :: proc(
+	parts: ^[dynamic]FormatPart,
+	root: ^Expression,
+	source: string,
+	options: FormatOptions,
+	alloc: mem.Allocator,
+) -> bool {
 	frames: [FORMAT_GROUP_DEPTH_MAX-1]FormatDataFrame
 	depth := 0
 	value := root
@@ -184,7 +210,8 @@ format_data_parts :: proc(parts: ^[dynamic]FormatPart, root: ^Expression, source
 				bracket = "{"
 				if options.bracket_spacing { space = " " }
 				if frame.count > 0 {
-					force = strings.contains_any(source[node.loc.start:node.properties[0].loc.start], "\r\n\u2028\u2029")
+					head := source[node.loc.start:node.properties[0].loc.start]
+					force = strings.contains_any(head, "\r\n\u2028\u2029")
 				}
 			case ^ArrayExpression:
 				frame, force = format_data_open_array(node)
@@ -229,7 +256,14 @@ format_data_parts :: proc(parts: ^[dynamic]FormatPart, root: ^Expression, source
 }
 
 @(private="file")
-format_data_item :: proc(parts: ^[dynamic]FormatPart, frame: ^FormatDataFrame, source: string, options: FormatOptions, alloc: mem.Allocator) -> (^Expression, bool) {
+format_data_item :: proc(
+	parts: ^[dynamic]FormatPart,
+	frame: ^FormatDataFrame,
+	source: string,
+	options: FormatOptions,
+	alloc: mem.Allocator) -> (^Expression,
+	bool,
+) {
 	assert(frame.index < frame.count)
 	loc: Loc
 	prop: ^Property
@@ -245,9 +279,11 @@ format_data_item :: proc(parts: ^[dynamic]FormatPart, frame: ^FormatDataFrame, s
 	}
 	if frame.index > 0 {
 		format_text(parts, ",")
-		separator := FormatPart{kind = .Fill_Line if frame.fill else .Line, text = " ", indent = true}
+		separator := FormatPart{kind = .Line, text = " ", indent = true}
+		if frame.fill { separator.kind = .Fill_Line }
 		if frame.previous_end > 0 && frame.previous_end <= loc.start {
-			if format_has_blank_line(source[frame.previous_end:loc.start]) { separator.kind = .Blank_Line }
+			gap := source[frame.previous_end:loc.start]
+			if format_has_blank_line(gap) { separator.kind = .Blank_Line }
 		}
 		append(parts, separator)
 	}
@@ -256,7 +292,8 @@ format_data_item :: proc(parts: ^[dynamic]FormatPart, frame: ^FormatDataFrame, s
 	key := format_data_atom(prop.key, options, alloc)
 	if key == "" { return nil, false }
 	if !prop.computed {
-		if literal, quoted := prop.key^.(^StringLiteral); quoted && format_identifier_key(literal.raw) {
+		literal, quoted := prop.key^.(^StringLiteral)
+		if quoted && format_identifier_key(literal.raw) {
 			key = literal.raw[1:len(literal.raw)-1]
 		}
 	}
@@ -267,7 +304,8 @@ format_data_item :: proc(parts: ^[dynamic]FormatPart, frame: ^FormatDataFrame, s
 	if value == nil { return nil, false }
 	format_text(parts, ":")
 	#partial switch _ in value^ {
-	case ^Identifier, ^StringLiteral, ^NullLiteral, ^BigIntLiteral, ^UnaryExpression, ^ObjectExpression, ^ArrayExpression:
+	case ^Identifier, ^StringLiteral, ^NullLiteral, ^BigIntLiteral, ^UnaryExpression,
+	     ^ObjectExpression, ^ArrayExpression:
 		key_width := format_width(key) + (2 if prop.computed else 0)
 		if key_width > int(options.tab_width) + 2 {
 			format_data_assignment_line(parts)
@@ -279,7 +317,11 @@ format_data_item :: proc(parts: ^[dynamic]FormatPart, frame: ^FormatDataFrame, s
 }
 
 @(private="file")
-format_data_close :: proc(parts: ^[dynamic]FormatPart, frame: ^FormatDataFrame, options: FormatOptions) {
+format_data_close :: proc(
+	parts: ^[dynamic]FormatPart,
+	frame: ^FormatDataFrame,
+	options: FormatOptions,
+) {
 	assert(frame.count > 0)
 	last_hole := frame.array != nil && frame.array.elements[frame.count-1] == nil
 	if last_hole { format_text(parts, ",") }

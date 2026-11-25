@@ -1819,9 +1819,10 @@ check_ts_ambiguous_jsx_like_arrow :: proc(p: ^Parser, expr: ^Expression) {
 }
 
 // Lexer + parser state snapshot used by parse_ts_lt_expression for its
-// cheap 2-token lookahead. Does NOT cover dynamic arrays (templates,
-// comments) because this trial-parse never touches template strings or
-// emits comments; only scalar lex + parser fields matter.
+// cheap 2-token lookahead. Does NOT cover the template arrays because this
+// trial-parse never touches template strings. Comments are covered by their
+// count: a trial lexes past the snapshot and records the comments it meets,
+// and the real parse records them again after the rewind.
 TrialSnapshot :: struct {
 	// Lexer scalars
 	lex_offset:             int,
@@ -1842,6 +1843,7 @@ TrialSnapshot :: struct {
 	cur_type:       TokenType,
 	prev_token_end: u32,
 	errors_len:     int,
+	comments_len:   int,
 }
 
 lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
@@ -1862,6 +1864,7 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 		cur_type                = p.cur_type,
 		prev_token_end          = p.prev_token_end,
 		errors_len              = len(p.errors),
+		comments_len            = len(l.comments),
 	}
 }
 
@@ -1894,6 +1897,9 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 	p.prev_token_end         = s.prev_token_end
 	// Drop any parse errors accumulated during the speculative parse.
 	if len(p.errors) > s.errors_len { resize(&p.errors, s.errors_len) }
+	// The rewound lexer scans these comments a second time.
+	assert(len(l.comments) >= s.comments_len)
+	if len(l.comments) > s.comments_len { resize(&l.comments, s.comments_len) }
 }
 
 // Parse a generic arrow `<T, ...>(params) [: RetType]? => body` after the

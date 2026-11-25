@@ -1,0 +1,7 @@
+{
+  "entries": [
+    "a.mjs",
+    "b.mjs"
+  ],
+  "error": "export 'value' can change after the entry has run"
+}

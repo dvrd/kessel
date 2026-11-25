@@ -1,0 +1,14 @@
+{
+  "expected": "expected.txt",
+  "excludes": [
+    "process.env.NODE_ENV ===",
+    "__DEV__"
+  ],
+  "args": [
+    "--define",
+    "process.env.NODE_ENV=\"production\"",
+    "--define=__VERSION__=\"1.2.3\"",
+    "--define",
+    "__DEV__=false"
+  ]
+}

@@ -24,6 +24,7 @@ DeclarationItem :: struct {
 	region, child: int,
 	selected, root: bool,
 	text: string,
+	preamble: string, // An unexported statement printed ahead of the declaration.
 	errors: [dynamic]DeclarationDiagnostic,
 }
 
@@ -50,6 +51,9 @@ DeclarationEmit :: struct {
 	output: DeclarationOutput,
 	module: bool,
 	default_name: string,
+	private_names: [dynamic]DeclarationPrivateName,
+	private_owner: DeclarationPrivateOwner,
+	private_name, private_parameter: string,
 }
 
 // The queue starts at exports. Printing a signature discovers the declarations
@@ -70,7 +74,7 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 		state.output.output = string(job.source.data)
 		return state.output
 	}
-	state.module = job.program.type == .Module || job.is_commonjs || dts_external_module(job)
+	state.module = dts_external_module(job)
 	codegen_init(&state.writer, {indent = "    "}, string(job.source.data), allocator)
 	dts_index_regions(&state)
 	state.default_name = "_default"
@@ -85,6 +89,8 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 		clear(&state.references)
 		clear(&state.scopes)
 		clear(&state.conditionals)
+		clear(&state.private_names)
+		state.private_owner, state.private_name, state.private_parameter = .Inferred, "", ""
 		state.writer.pos = 0
 		state.writer.depth = state.regions[item.region].depth
 		state.writer.at_line_start = false
@@ -123,20 +129,27 @@ declarations_generate :: proc(job: ^ParseJob, allocator: mem.Allocator) -> Decla
 	return state.output
 }
 
-// `import x = require("m")` and `export =` make a file an external module even
-// when the parser classifies it as a script, so its locals are not global.
+// TypeScript treats a file as a module when it has an import or an export.
+// The parser's own classification is wider (a top-level `await` is enough),
+// and a script's unexported declarations are global and must be emitted.
 @(private)
 dts_external_module :: proc(job: ^ParseJob) -> bool {
 	for stmt in job.program.body {
 		assert(stmt != nil)
 		#partial switch s in stmt^ {
-		case ^TSExportAssignment: return true
+		case ^ImportDeclaration, ^ExportNamedDeclaration, ^ExportDefaultDeclaration: return true
+		case ^ExportAllDeclaration, ^TSExportAssignment: return true
 		case ^TSImportEqualsDeclaration:
 			_, external := s.module_reference.(^TSExternalModuleReference)
 			if external { return true }
 		}
 	}
-	return false
+	// `import.meta` is the one module indicator that is an expression.
+	find_meta :: proc(user: rawptr, node: AstNode) -> AstWalkAction {
+		if meta, found := node.(^MetaProperty); found && meta.meta.name == "import" { return .Stop }
+		return .Continue
+	}
+	return ast_walk(job.program, {enter = find_meta}, context.allocator) == .Stopped
 }
 
 @(private)
@@ -214,6 +227,8 @@ dts_index :: proc(state: ^DeclarationEmit, statement: Statement, group: int) {
 		if visibility == .Local && state.region != 0 { root = false }
 	case ^TSModuleDeclaration:
 		if id, ok := s.id^.(^Identifier); ok { name = id.name }
+		// A global augmentation is only meaningful at the top level of a file.
+		if s.global && state.region != 0 { return }
 		if s.global || name == "" { root = true }
 	case ^ExportNamedDeclaration, ^ExportDefaultDeclaration, ^ExportAllDeclaration, ^TSExportAssignment, ^TSNamespaceExportDeclaration:
 	case: return
@@ -250,7 +265,9 @@ dts_emit_item :: proc(state: ^DeclarationEmit, item: ^DeclarationItem) {
 		dts_function(state, s, get_statement_loc(state.regions[state.region].body[item.group]))
 	case ^TSModuleDeclaration:
 		dts_namespace_header(state, s)
-		if item.child != 0 {
+		// `global { }` without `declare` is not ambient, so its unexported
+		// members are private to the block and TypeScript emits it empty.
+		if item.child != 0 && (s.declare || !s.global) {
 			child := &state.regions[item.child]
 			child.active = true
 			for index := child.first; index < child.end; index += 1 {
@@ -268,6 +285,7 @@ dts_emit_item :: proc(state: ^DeclarationEmit, item: ^DeclarationItem) {
 		gen_ts_interface_declaration_full(cg, s)
 	case ^TSTypeAliasDeclaration:
 		dts_type_parameters(state, s.type_parameters, s.loc)
+		state.private_owner, state.private_name = .Alias, s.id.name
 		gen_ts_type_alias_declaration_full(cg, s)
 	case ^ExportNamedDeclaration:
 		if s.source == nil {

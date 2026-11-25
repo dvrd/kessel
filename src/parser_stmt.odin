@@ -636,6 +636,11 @@ parse_expression_statement :: proc(p: ^Parser) -> ^Statement {
 
 	expr_stmt, stmt := new_stmt(p, ExpressionStatement)
 	expr_stmt.loc = start
+	// A template token is located at its first quasi, one byte after the
+	// backtick. The statement begins where its expression begins.
+	if expression_start := loc_from_expr(expr).start; expression_start < start.start {
+		expr_stmt.loc.start = expression_start
+	}
 	expr_stmt.expression = expr
 
 	// ECMA-262 §12.10 - ExpressionStatement requires a `;` (or ASI). When
@@ -2645,8 +2650,12 @@ parse_function_param_rest :: proc(p: ^Parser, param: ^FunctionParameter) -> ^Fun
 		// extend the RestElement span to cover the annotation.
 		if is_token(p, .Colon) && allow_ts_mode(p) {
 			ann := parse_ts_type_annotation(p)
-			if ident, ok := arg_pattern.(^Identifier); ok {
-				ident.type_annotation = ann
+			// A destructured rest (`...[a, b]: T[]`) keeps its annotation on
+			// the pattern node, like a destructured ordinary parameter.
+			#partial switch target in arg_pattern {
+			case ^Identifier: target.type_annotation = ann
+			case ^ObjectPattern: target.type_annotation = ann
+			case ^ArrayPattern: target.type_annotation = ann
 			}
 		}
 		rest.loc.end = prev_end_offset(p)

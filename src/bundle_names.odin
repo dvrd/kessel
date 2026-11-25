@@ -176,7 +176,12 @@ bundle_interop_name :: proc(g: ^BundleGraph, module: ^BundleModule, node_mode: b
 		module.interop_names[slot] = bundle_unique_name(g,
 			fmt.aprintf("import_%s", stem, allocator = g.alloc))
 	}
-	return module.interop_names[slot]
+	// Each file that reads through the object declares it for itself.
+	name := module.interop_names[slot]
+	declared := false
+	for used in g.interop_used { declared ||= used == name }
+	if !declared { append(&g.interop_used, name) }
+	return name
 }
 
 bundle_external_interop_name :: proc(
