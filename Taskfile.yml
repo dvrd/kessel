@@ -192,7 +192,8 @@ tasks:
 
   test:minify:
     desc: Compare compressed programs with their original runtime results and check source maps.
-    deps: [build]
+    # The source-map check reads three files of the pinned real-world corpus.
+    deps: [build, test:real:fetch]
     cmds:
       - node tests/verifiers/verify_minify.js {{.CLI_ARGS}}
 
