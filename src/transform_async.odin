@@ -44,6 +44,8 @@ AsyncScan :: struct {
 	arrow:     bool,           // The root takes `arguments` and `new.target` from outside.
 	method:    bool,           // The root may contain `super`.
 	fields:    [dynamic]Loc,   // Class field initializers around the current node.
+	generator: bool,           // The root is an async generator; its suspensions are marked.
+	arrows:    int,            // Arrows between the root and the current node.
 	uses_this: bool,
 	arguments: string,         // Capture bindings; empty until one is needed.
 	target:    string,
@@ -54,7 +56,7 @@ AsyncScan :: struct {
 // are rewritten in place; nil means the expression prints as it now is.
 async_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 	state := cg.transform
-	assert(state.target < .ES2017)
+	assert(state.target < .ES2018)
 	#partial switch node in expr^ {
 	case ^FunctionExpression:
 		async_function(cg, node, false)
@@ -70,9 +72,14 @@ async_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 		}
 	case ^ClassExpression:
 		async_class_members(cg, node)
+	case ^YieldExpression:
+		if state.async_marks[rawptr(node)] { return async_generator_yield(cg, node) }
 	case ^AwaitExpression:
+		if state.async_marks[rawptr(node)] {
+			return async_generator_await(cg, node.argument, node.loc)
+		}
 		// Outside a function it is a top-level await, which the caller refuses.
-		if !target_inside_function(cg, node.loc.start) { return nil }
+		if state.target >= .ES2017 || !target_inside_function(cg, node.loc.start) { return nil }
 		yield := new(YieldExpression, state.allocator)
 		yield^ = {loc = node.loc, argument = node.argument}
 		return transform_expression(state, yield)
@@ -96,7 +103,8 @@ async_lower_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 // be visible, and replace a binding, where the original was not.
 async_declaration :: proc(cg: ^Codegen, function: ^FunctionExpression) {
 	state := cg.transform
-	if function == nil || !function.async || state.target >= .ES2017 { return }
+	if function == nil || !function.async { return }
+	if state.target >= (TransformTarget.ES2018 if function.generator else .ES2017) { return }
 	if id, named := function.id.?; named {
 		if state.async_block_functions == nil {
 			model := transform_model(cg)
@@ -120,7 +128,7 @@ async_declaration :: proc(cg: ^Codegen, function: ^FunctionExpression) {
 }
 
 async_class_members :: proc(cg: ^Codegen, class: ^ClassExpression) {
-	if cg.transform.target >= .ES2017 { return }
+	if cg.transform.target >= .ES2018 { return }
 	for element in class.body.body {
 		if element.kind != .Method { continue }
 		value, present := element.value.?
@@ -133,9 +141,9 @@ async_class_members :: proc(cg: ^Codegen, class: ^ClassExpression) {
 async_function :: proc(cg: ^Codegen, function: ^FunctionExpression, method: bool) {
 	state := cg.transform
 	if function == nil || !function.async || function.no_body { return }
-	// An async generator needs a different driver; the printer refuses it.
-	if function.generator || state.target >= .ES2017 { return }
-	scan := AsyncScan{cg = cg, root = function, method = method}
+	// Async generators arrived one edition after async functions.
+	if state.target >= (TransformTarget.ES2018 if function.generator else .ES2017) { return }
+	scan := AsyncScan{cg = cg, root = function, method = method, generator = function.generator}
 	box: Expression = function
 	if !async_scan_run(&scan, &box) { return }
 	at := function.body.loc.start
@@ -154,14 +162,17 @@ async_function :: proc(cg: ^Codegen, function: ^FunctionExpression, method: bool
 	append(&body, ..function.body.body[:directives])
 	if captures := async_captures(&scan, at); captures != nil { append(&body, captures) }
 	arguments := transform_identifier(state, "arguments", at)
-	run := async_run(cg, class_this(state, at), arguments, generator, at)
+	driver := TransformHelper.Async_Generator if function.generator else .Async
+	run := async_run(cg, driver, class_this(state, at), arguments, generator, at)
 	append(&body, async_return(state, run, at))
 
 	function.async = false
+	function.generator = false
 	function.params = async_placeholders(cg, function.params[:], at, nil)
 	function.body.loc = {at, at}
 	function.body.body = body
 	assert(!function.async)
+	assert(!function.generator)
 	assert(generator.generator)
 }
 
@@ -204,7 +215,7 @@ async_arrow :: proc(cg: ^Codegen, arrow: ^ArrowFunctionExpression) {
 	// `this` is in its temporal dead zone in a derived constructor before
 	// `super()` returns, so an arrow that never reads it must not either.
 	receiver := class_this(state, at) if scan.uses_this else target_void(state, {at, at})
-	run := async_run(cg, receiver, transform_expression(state, passed), generator, at)
+	run := async_run(cg, .Async, receiver, transform_expression(state, passed), generator, at)
 	arrow.async = false
 	captures := async_captures(&scan, at)
 	if captures == nil {
@@ -260,13 +271,14 @@ async_placeholders :: proc(
 }
 
 async_run :: proc(
-	cg: ^Codegen, receiver, arguments: ^Expression, generator: ^FunctionExpression, at: u32,
+	cg: ^Codegen, driver: TransformHelper, receiver, arguments: ^Expression,
+	generator: ^FunctionExpression, at: u32,
 ) -> ^Expression {
 	state := cg.transform
 	assert(generator.generator)
 	assert(!generator.async)
 	body := transform_expression(state, generator)
-	return class_helper_call(cg, .Async, {receiver, arguments, body}, at)
+	return class_helper_call(cg, driver, {receiver, arguments, body}, at)
 }
 
 async_return :: proc(state: ^TransformState, value: ^Expression, at: u32) -> ^Statement {
@@ -382,7 +394,8 @@ async_super_call :: proc(cg: ^Codegen, node: ^CallExpression) -> ^Expression {
 	call := new(CallExpression, state.allocator)
 	call^ = node^
 	call.optional = false
-	call.callee = target_member(state, method, transform_identifier(state, "call", at), false, node.loc)
+	name := transform_identifier(state, "call", at)
+	call.callee = target_member(state, method, name, false, node.loc)
 	call.arguments = make([dynamic]^Expression, 0, len(node.arguments) + 1, state.allocator)
 	append(&call.arguments, class_this(state, at))
 	append(&call.arguments, ..node.arguments[:])
@@ -466,8 +479,11 @@ async_scan_field :: proc(element: ^ClassElement) -> (range: Loc, found: bool) {
 
 async_scan_leave :: proc(user: rawptr, node: AstNode) {
 	scan := cast(^AsyncScan)user
-	if element, is_element := node.(^ClassElement); is_element {
-		if _, found := async_scan_field(element); found { pop(&scan.fields) }
+	#partial switch value in node {
+	case ^ClassElement:
+		if _, found := async_scan_field(value); found { pop(&scan.fields) }
+	case ^ArrowFunctionExpression:
+		if rawptr(value) != scan.root { scan.arrows -= 1 }
 	}
 }
 
@@ -478,6 +494,15 @@ async_scan_enter :: proc(user: rawptr, node: AstNode) -> AstWalkAction {
 	#partial switch value in node {
 	case ^FunctionExpression:
 		return .Continue if rawptr(value) == scan.root else .Skip
+	case ^ArrowFunctionExpression:
+		if rawptr(value) != scan.root { scan.arrows += 1 }
+	case ^AwaitExpression:
+		// One in a nested async arrow belongs to that arrow.
+		if scan.generator && scan.arrows == 0 { state.async_marks[rawptr(value)] = true }
+	case ^YieldExpression:
+		if scan.generator && scan.arrows == 0 { state.async_marks[rawptr(value)] = true }
+	case ^ReturnStatement:
+		if scan.generator && scan.arrows == 0 { async_generator_return(cg, value) }
 	case ^ClassElement:
 		if range, found := async_scan_field(value); found { append(&scan.fields, range) }
 	case ^ThisExpression:

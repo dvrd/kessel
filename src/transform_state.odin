@@ -19,7 +19,7 @@ TransformHelper :: enum u8 {
 	Private_Init, Private_Brand, Private_Get, Private_Set, Private_Method,
 	Private_Accessor_Get, Private_Accessor_Set, Private_Readonly, Private_In,
 	Object_Spread, Rest_Pair,
-	Async, Async_Super,
+	Async, Async_Super, Async_Await, Async_Generator, Async_Iterator, Async_Delegate,
 }
 
 TransformState :: struct {
@@ -47,6 +47,8 @@ TransformState :: struct {
 	async_targets: map[u32]string,          // `new.target` offsets to their capture binding.
 	async_supers:  map[u32]string,          // `super` offsets to their reference maker.
 	async_block_functions: map[u32]bool,    // Functions declared in a block of sloppy code.
+	async_marks:   map[rawptr]bool,         // `await` and `yield` nodes of lowered async generators.
+	async_loops_done: bool,                 // Every `for await` in a function has been rewritten.
 }
 
 // Reads of intrinsics inside a helper resolve in module scope, so a source
@@ -72,6 +74,25 @@ TRANSFORM_HELPER_GLOBALS := [TransformHelper][]string{
 	.Rest_Pair            = {"Object", "Reflect", "Symbol", "String"},
 	.Async                = {"Promise"},
 	.Async_Super          = {"Reflect"},
+	.Async_Await          = {},
+	.Async_Generator      = {"Promise", "Symbol"},
+	.Async_Iterator       = {"Promise", "Symbol", "Object", "TypeError"},
+	.Async_Delegate       = {"Symbol", "TypeError"},
+}
+
+// Helpers a helper calls. Its text names them `$0`, `$1`, in this order, and
+// asking for the helper asks for them too.
+TRANSFORM_HELPER_USES := [TransformHelper][]TransformHelper{
+	.Decorate = {}, .Decorate_Param = {}, .Decorate_Metadata = {},
+	.Define_Field = {}, .Prop_Key = {}, .Set_Name = {}, .Take_Member = {},
+	.Private_Init = {}, .Private_Brand = {}, .Private_Get = {}, .Private_Set = {},
+	.Private_Method = {}, .Private_Accessor_Get = {}, .Private_Accessor_Set = {},
+	.Private_Readonly = {}, .Private_In = {},
+	.Object_Spread = {}, .Rest_Pair = {},
+	.Async = {}, .Async_Super = {}, .Async_Await = {},
+	.Async_Generator = {.Async_Await},
+	.Async_Iterator  = {},
+	.Async_Delegate  = {.Async_Await, .Async_Iterator},
 }
 
 TRANSFORM_HELPER_KINDS := [TransformHelper]string{
@@ -95,6 +116,10 @@ TRANSFORM_HELPER_KINDS := [TransformHelper]string{
 	.Rest_Pair            = "rest",
 	.Async                = "async",
 	.Async_Super          = "super_ref",
+	.Async_Await          = "await",
+	.Async_Generator      = "async_generator",
+	.Async_Iterator       = "async_iterator",
+	.Async_Delegate       = "async_delegate",
 }
 
 // Every line ends a statement or opens or closes a block, so the compact
@@ -286,6 +311,211 @@ TRANSFORM_HELPER_BODIES := [TransformHelper]string{
     };
   };
 }`,
+	// What an async generator yields to its driver in order to wait for a
+	// value. `delegated` marks the result of a call that `yield*` forwarded.
+	.Async_Await = `(value, delegated) {
+  this.value = value;
+  this.delegated = delegated;
+}`,
+	// Drives a generator as the body of an async generator. Requests wait in
+	// a queue and are served one at a time. A yielded $0 is awaited and its
+	// outcome sent back in; any other yielded value answers the request.
+	// `return(value)` awaits the value before the generator sees it, as the
+	// suspended `yield` would.
+	.Async_Generator = `(self, args, body) {
+  var generator = body.apply(self, args);
+  var queue = [];
+  var started = false;
+  var busy = false;
+  var finished = false;
+  var facade = {};
+  function settle(value, done) {
+    busy = false;
+    queue.shift().resolve({ value: value, done: done });
+  }
+  function fail(error) {
+    busy = false;
+    queue.shift().reject(error);
+  }
+  function wait(value, fulfilled, rejected) {
+    var awaited;
+    try {
+      awaited = Promise.resolve(value);
+    } catch (error) {
+      rejected(error);
+      return;
+    }
+    awaited.then(fulfilled, rejected);
+  }
+  function step(method, value) {
+    var result;
+    try {
+      result = generator[method](value);
+    } catch (error) {
+      finished = true;
+      fail(error);
+      return;
+    }
+    if (result.done) {
+      finished = true;
+      settle(result.value, true);
+      return;
+    }
+    var out = result.value;
+    if (!(out instanceof $0)) {
+      settle(out, false);
+      return;
+    }
+    var again = out.delegated && queue[0].method === "return" ? "return" : "next";
+    wait(out.value, resume(again), resume("throw"));
+  }
+  function resume(method) {
+    return function (value) {
+      step(method, value);
+      drain();
+    };
+  }
+  function ended(head) {
+    finished = true;
+    if (head.method === "next") {
+      settle(void 0, true);
+    } else if (head.method === "throw") {
+      fail(head.value);
+    } else {
+      busy = true;
+      wait(head.value, function (value) {
+        settle(value, true);
+        drain();
+      }, function (error) {
+        fail(error);
+        drain();
+      });
+    }
+  }
+  function drain() {
+    while (queue.length > 0 && !busy) {
+      var head = queue[0];
+      if (finished || !started && head.method !== "next") {
+        ended(head);
+      } else {
+        started = true;
+        busy = true;
+        if (head.method === "return") wait(head.value, resume("return"), resume("throw"));
+        else step(head.method, head.value);
+      }
+    }
+  }
+  function enqueue(method) {
+    return function (value) {
+      return new Promise(function (resolve, reject) {
+        queue.push({ method: method, value: value, resolve: resolve, reject: reject });
+        drain();
+      });
+    };
+  }
+  facade.next = enqueue("next");
+  facade.throw = enqueue("throw");
+  facade.return = enqueue("return");
+  facade[Symbol.asyncIterator] = function () {
+    return facade;
+  };
+  return facade;
+}`,
+	// The async iterator of a value, or its sync iterator behind promises,
+	// as a record: `next` is read once, `close` and `fail` answer with
+	// nothing when the iterator has no such method and with a boxed result
+	// when it has, and `check` insists on an object.
+	.Async_Iterator = `(iterable) {
+  var method = iterable[Symbol.asyncIterator];
+  var sync = method === void 0 || method === null;
+  var iterator = sync ? iterable[Symbol.iterator]() : method.call(iterable);
+  if (Object(iterator) !== iterator) throw new TypeError("The iterator is not an object");
+  var next = iterator.next;
+  function check(result) {
+    if (Object(result) !== result) throw new TypeError("The iterator result is not an object");
+    return result;
+  }
+  function unwrap(result, closes) {
+    var done = check(result).done;
+    return Promise.resolve(result.value).then(function (value) {
+      return { value: value, done: done };
+    }, function (error) {
+      if (closes && !done && iterator.return) iterator.return();
+      throw error;
+    });
+  }
+  function call(name, absent) {
+    return function (value) {
+      var given = arguments.length > 0 ? [value] : [];
+      var member = name === "next" ? next : iterator[name];
+      if (member === void 0 || member === null) {
+        if (!sync) return void 0;
+        return { value: absent(value) };
+      }
+      if (!sync) return { value: member.apply(iterator, given) };
+      try {
+        return { value: unwrap(member.apply(iterator, given), name !== "return") };
+      } catch (error) {
+        return { value: Promise.reject(error) };
+      }
+    };
+  }
+  var step = call("next");
+  return {
+    check: check,
+    next: function (value) {
+      return step(value).value;
+    },
+    close: call("return", function (value) {
+      return Promise.resolve({ value: value, done: true });
+    }),
+    fail: call("throw", function () {
+      if (iterator.return) iterator.return();
+      return Promise.reject(new TypeError("The iterator does not provide a throw method"));
+    }),
+  };
+}`,
+	// The iterator `yield*` delegates to inside an async generator. Each
+	// request is forwarded to the source and answered in two steps: first a
+	// $0 for the driver to wait on, then the awaited result itself.
+	.Async_Delegate = `(iterable) {
+  var source = $1(iterable);
+  var waiting = false;
+  var closing = false;
+  var facade = {};
+  function pump(promise) {
+    waiting = true;
+    return { value: new $0(promise, true), done: false };
+  }
+  function result(value) {
+    waiting = false;
+    if (closing) throw new TypeError("The iterator does not provide a throw method");
+    return source.check(value);
+  }
+  facade.next = function (value) {
+    return waiting ? result(value) : pump(source.next(value));
+  };
+  facade.throw = function (error) {
+    if (waiting) {
+      waiting = false;
+      throw error;
+    }
+    var thrown = source.fail(error);
+    if (thrown) return pump(thrown.value);
+    closing = true;
+    var closed = source.close();
+    return pump(closed ? closed.value : void 0);
+  };
+  facade.return = function (value) {
+    if (waiting) return result(value);
+    var closed = source.close(value);
+    return closed ? pump(closed.value) : { value: value, done: true };
+  };
+  facade[Symbol.iterator] = function () {
+    return facade;
+  };
+  return facade;
+}`,
 }
 
 transform_state_init :: proc(
@@ -337,6 +567,7 @@ transform_state_init :: proc(
 	state.super_done = make(map[^Expression]bool, 8, state.allocator)
 	state.async_targets = make(map[u32]string, 8, state.allocator)
 	state.async_supers = make(map[u32]string, 8, state.allocator)
+	state.async_marks = make(map[rawptr]bool, 8, state.allocator)
 	state.temp_scopes = make([dynamic][dynamic]string, 0, 8, state.allocator)
 	append(&state.temp_scopes, make([dynamic]string, 0, 4, state.allocator))
 	cg.transform = state
@@ -348,6 +579,8 @@ transform_helper :: proc(cg: ^Codegen, helper: TransformHelper) -> string {
 	assert(state != nil)
 	if state.helpers[helper] == "" {
 		state.helpers[helper] = codegen_fresh_runtime_binding(cg, TRANSFORM_HELPER_KINDS[helper])
+		// No helper uses itself, directly or through another, so this ends.
+		for used in TRANSFORM_HELPER_USES[helper] { transform_helper(cg, used) }
 		for name in TRANSFORM_HELPER_GLOBALS[helper] {
 			if codegen_resource_root_binding(cg, name) {
 				what := "a top-level binding shadows a global the lowering helpers need"
@@ -370,7 +603,15 @@ transform_finish_program :: proc(cg: ^Codegen) {
 		cg_str(cg, name)
 		remaining := TRANSFORM_HELPER_BODIES[helper]
 		for line in strings.split_iterator(&remaining, "\n") {
-			cg_str(cg, strings.trim_space(line) if cg.cfg.minified else line)
+			text := strings.trim_space(line) if cg.cfg.minified else line
+			for used, index in TRANSFORM_HELPER_USES[helper] {
+				assert(index < 2)
+				assert(state.helpers[used] != "")
+				text, _ = strings.replace_all(
+					text, "$0" if index == 0 else "$1", state.helpers[used], context.temp_allocator,
+				)
+			}
+			cg_str(cg, text)
 			cg_newline(cg)
 		}
 	}

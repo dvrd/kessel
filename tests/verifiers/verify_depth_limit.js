@@ -493,7 +493,8 @@ async function section_chains(build) {
     const label = `[${build.name}] async chain ${name} x${CHAIN_TERMS}`;
     const member = name === 'super' || name === 'new_super';
     const source = write_source('js', member ? `class A extends B{async m(){return await ${chain};}}` :
-      `async function f(p=1){return await (${chain});}x=async()=>${chain};class A{async m(){return ${chain};}}`);
+      `async function f(p=1){return await (${chain});}x=async()=>${chain};class A{async m(){return ${chain};}}` +
+      `async function*g(){yield ${chain};for await(const v of ${chain}){return ${chain};}}`);
     const result = await run(build.bin, TOOLS.transform_es2015(source.file, source.dir));
     if (expect_survived(result, `${label} transform_es2015`)) {
       expect(result.status === 0, `${label}: expected exit 0, got ${result.status}: ${result.stderr.slice(0, 200)}`);

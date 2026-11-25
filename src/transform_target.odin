@@ -249,7 +249,7 @@ target_lower :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
 	if target < .ES2018 {
 		if lowered := rest_lower_expression(cg, expr); lowered != nil { return lowered }
 	}
-	if target < .ES2017 {
+	if target < .ES2018 {
 		if lowered := async_lower_expression(cg, expr); lowered != nil { return lowered }
 	}
 	#partial switch node in expr^ {
@@ -697,6 +697,12 @@ target_check_module_statement :: proc(cg: ^Codegen, stmt: Statement) {
 transform_lower_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	state := cg.transform
 	if state == nil || state.target == .ESNext { return }
+	// Fresh bindings exist only once printing has begun, and every `for await`
+	// lies inside a statement, so the first statement is early enough.
+	if !state.async_loops_done {
+		state.async_loops_done = true
+		async_lower_loops(cg, state.job.program)
+	}
 	// Explicit resource management is newer than every edition a target can name.
 	resource: ^VariableDeclaration
 	#partial switch node in stmt {

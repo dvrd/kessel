@@ -5,6 +5,8 @@
 // output, at each target and from both printers, must print the same log.
 // async.js is a module (strict code); async-sloppy.cjs is a script, where
 // `this` defaults to the global object and `arguments` is tied to parameters.
+// async-generators.js covers async generators and `for await`, which are
+// lowered below ES2018.
 //
 // With --reference each output is also parsed by acorn at the grammar level
 // of its target, and TypeScript and OXC lower the same fixtures. Where a
@@ -20,6 +22,10 @@ const fixtures = path.resolve(__dirname, '../transform/target');
 const plans = [
   { name: 'async.js', extension: 'mjs', targets: ['es2015', 'es2016', 'es2017', 'esnext'] },
   { name: 'async-sloppy.cjs', extension: 'cjs', targets: ['es2015', 'es2016', 'es2017', 'esnext'] },
+  // OXC lowers async generators through five more helpers of @oxc-project/runtime,
+  // which is not installed, so only TypeScript is compared here.
+  { name: 'async-generators.js', extension: 'mjs', targets: ['es2015', 'es2016', 'es2017', 'es2018', 'esnext'],
+    references: ['typescript'], lowered: ['es2015', 'es2016', 'es2017'] },
 ];
 
 // Fixture lines a reference is run without, by the tag that ends the line.
@@ -39,6 +45,28 @@ const withheld = {
     var: 'a body var no longer shares the parameter binding',
     // Not about async: a lowered private method is a plain function named _Hidden_hidden.
     private: 'private methods are lowered to named functions',
+    // The rest concerns async generators and for await. TypeScript's driver
+    // answers queued requests out of order: a return() made while the body
+    // runs is settled after the next() calls made later.
+    queue: 'queued requests are answered out of order',
+    // return(rejectedPromise) at a yield throws a TypeError out of the helper itself.
+    rejected: 'return of a rejected promise crashes the helper',
+    // The value an inner iterator returns from return() is dropped by yield*.
+    forward: 'yield* loses the result of the inner return()',
+    // throw() on a yield* whose source has no throw method is passed on as is,
+    // without closing the source and without the TypeError.
+    nothrow: 'yield* does not close a source without throw()',
+    // An iterator result that is not an object loops forever or is accepted.
+    badresult: 'iterator results are not checked',
+    // `next` is read from the iterator on every step instead of once.
+    once: 'next is read on every iteration',
+    // The loop variable and the body share one block, so `const item` in the
+    // body of `for await (const item of ...)` is a redeclaration.
+    redeclare: 'the body cannot redeclare the loop variable',
+    // A sync iterator is not closed when a value it yields rejects.
+    syncclose: 'a sync source is not closed on a rejected value',
+    // return() on a new generator and a loop left by break take two ticks more.
+    ticks: 'two extra microtask ticks',
   },
   oxc: {
     // OXC 0.127.0 leaves `super.count++` inside the generator, a syntax error.
@@ -100,7 +128,7 @@ function checkReferences(directory, plan, source, oracle) {
   const ts = require('../../bench/node_modules/typescript');
   const script = plan.extension === 'cjs';
   let compared = 0;
-  for (const target of ['es2015', 'es2016']) {
+  for (const target of plan.lowered || ['es2015', 'es2016']) {
     const lowered = {
       // A script stays sloppy only when TypeScript is told not to treat it as a module.
       typescript: text => ts.transpileModule(text, { fileName: plan.name, compilerOptions: script ?
@@ -114,6 +142,7 @@ function checkReferences(directory, plan, source, oracle) {
       },
     };
     for (const [reference, lower] of Object.entries(lowered)) {
+      if (plan.references && !plan.references.includes(reference)) continue;
       const text = withoutTags(source, Object.keys(withheld[reference]));
       const expected = execute(directory, 'reduced.' + plan.extension, text);
       const actual = execute(directory, reference + '.' + plan.extension, lower(text));
@@ -127,8 +156,9 @@ function checkReferences(directory, plan, source, oracle) {
 
 function checkDiagnostics(binary, temp) {
   const cases = [
-    ['es2016', 'js', 'async function* f() {}', /async generators/],
-    ['es2016', 'js', 'async function f() { for await (const x of y) {} }', /for await/],
+    ['es2017', 'js', 'export {}; for await (const x of y) {}', /top-level await|for await/],
+    ['es2017', 'js', 'async function f() { for await (using x of y) {} }', /using declaration in the head/],
+    ['es2017', 'cjs', 'if (x) { async function* f() {} }', /block of sloppy code/],
     ['es2016', 'js', 'await 1;', /top-level await/],
     ['es2016', 'js', 'const f = async () => arguments;', /arguments outside a function/],
     ['es2016', 'js', 'class A extends B { constructor() { const f = async () => super(); f(); } }', /super call/],
@@ -190,8 +220,10 @@ module.exports = function verifyAsync(binary, temp, run, oracle) {
         const code = run(binary, ['transform', file, '--target=' + target, ...flags]);
         assert.equal(execute(directory, 'kessel.' + plan.extension, code), expected, [plan.name, target, ...flags].join(' '));
         outputs += 1;
-        const lowers = target === 'es2015' || target === 'es2016';
-        assert.equal(/\basync\b|\bawait\b/.test(code.replace(/"[^"\n]*"/g, '""').replace(/\/\/.*$/gm, '')), !lowers, target);
+        // Below ES2017 no `async` or `await` is left outside strings and comments.
+        const plain = code.replace(/"[^"\n]*"/g, '""').replace(/\/\/.*$/gm, '');
+        if (target === 'es2015' || target === 'es2016') assert.doesNotMatch(plain, /\basync\b|\bawait\b/, target);
+        if ((plan.lowered || []).includes(target)) assert.doesNotMatch(plain, /async\s*(function)?\s*\*|for await/, target);
         if (!oracle || target === 'esnext') continue;
         const acorn = require('../../bench/node_modules/acorn');
         acorn.parse(code, { ecmaVersion: Number(target.slice(2)), sourceType: plan.extension === 'cjs' ? 'script' : 'module' });
