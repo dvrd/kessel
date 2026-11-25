@@ -1687,6 +1687,18 @@ try {
     passed++;
   } catch (e) { console.error('FAIL: lint categories and plugins:', e); failed++; }
 
+  // parseAsync must keep every buffer the native call reads alive until it
+  // completes; collecting garbage mid-call once turned a TypeScript parse into
+  // a JavaScript one. Runs in a child process because it needs --expose-gc.
+  try {
+    const stress = require('node:path').join(__dirname, '../../tests/verifiers/verify_npm_async_gc.js');
+    if (require('node:fs').existsSync(stress)) {
+      const result = spawnSync(process.execPath, ['--expose-gc', stress], { encoding: 'utf8' });
+      assert.equal(result.status, 0, result.stdout + result.stderr);
+    }
+    passed++;
+  } catch (e) { console.error('FAIL: parseAsync under garbage collection:', e); failed++; }
+
   console.log(`kessel npm test: ${passed} passed, ${failed} failed`);
   process.exit(failed > 0 ? 1 : 0);
 })();

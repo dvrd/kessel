@@ -389,15 +389,27 @@ function callParseBinary(sourceBuf, filename, opts) {
 function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
   if (!_parse_binary_v2) {
     const lang = resolveLang(filename, opts);
-    _parse_binary.async(sourceBuf, sourceBuf.length, lang, callback);
+    _parse_binary.async(sourceBuf, sourceBuf.length, lang, function (err, result) {
+      keepAlive(sourceBuf);
+      callback(err, result);
+    });
     return;
   }
 
   const filenameBuf = Buffer.from(filename || 'lib', 'utf8');
   const native = resolveNativeOptions(opts, true);
+  // koffi passes a Buffer's memory to the native call without copying it, and
+  // the call runs on a worker thread after this function returns. Every buffer
+  // it reads must stay reachable until it completes, or the garbage collector
+  // can free it mid-call: the native side then reads garbage (a parse once came
+  // back as JavaScript instead of TypeScript). The callback keeps them alive.
   if (_parse_binary_v3) {
+    const optionsBuf = parseOptionsBlock(native);
     _parse_binary_v3.async(sourceBuf, sourceBuf.length, filenameBuf, filenameBuf.length,
-      parseOptionsBlock(native), callback);
+      optionsBuf, function (err, result) {
+        keepAlive(sourceBuf, filenameBuf, optionsBuf);
+        callback(err, result);
+      });
     return;
   }
   requireNewParseEntry(native);
@@ -415,8 +427,17 @@ function callParseBinaryAsync(sourceBuf, filename, opts, callback) {
     native.sourceIsDts,
     native.commonjs,
     native.disallowAmbiguousJSXLike,
-    callback
+    function (err, result) {
+      keepAlive(sourceBuf, filenameBuf);
+      callback(err, result);
+    }
   );
+}
+
+// Referenced from a native call's completion callback so the buffers that call
+// reads cannot be collected while it runs.
+function keepAlive(...buffers) {
+  return buffers.length;
 }
 
 // Shared post-FFI pipeline: validate, copy out, free the handle, decode,
