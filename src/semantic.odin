@@ -519,6 +519,7 @@ sem_walk_function_declaration :: proc(ctx: ^SemCtx, declaration: ^FunctionDeclar
 	if declaration == nil { return }
 	if name, ok := declaration.id.?; ok {
 		id := sem_declare(ctx, name.name, .Function, flags, name.loc.start, name.loc.end)
+		if ctx.mangle != nil { mangle_note_function(ctx.mangle, ctx.cur_scope, name.loc.start, declaration.expr.loc) }
 		scope := &ctx.model.scopes[ctx.cur_scope]
 		if !scope.strict && ctx.lang != .TS && ctx.lang != .TSX && !declaration.expr.async && !declaration.expr.generator {
 			if !semantic_is_function_scope(ctx.model, ctx.cur_scope) { append(&ctx.block_functions, id) }
@@ -690,6 +691,7 @@ sem_walk_var_decl :: proc(ctx: ^SemCtx, d: ^VariableDeclaration, flags: SymbolFl
 	}
 	for decl in d.declarations {
 		sem_declare_pattern(ctx, decl.id, kind, flags)
+		if ctx.mangle != nil && !loop_head { mangle_note_declarator(ctx.mangle, ctx.cur_scope, d, decl.id, decl.init) }
 		if init, ok := decl.init.(^Expression); ok {
 			if ctx.mangle != nil { mangle_keep_inferred_name(ctx.mangle, decl.id, init) }
 			sem_walk_expr(ctx, init)

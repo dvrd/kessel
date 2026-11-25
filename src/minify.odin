@@ -326,6 +326,10 @@ minify_starts_with_punctuation :: proc(cg: ^Codegen, expr: ^Expression) -> bool 
 		case ^UnaryExpression:
 			#partial switch v.operator {
 			case .LogicalNot: return true
+			case .Plus:
+				// `+5` folds to `5`.
+				_, constant := minify_constant(current)
+				return !constant
 			case .Minus, .BitwiseNot:
 				// `-5` stays `-5` and `~5` folds to `-6`. A nested operand could fold to a digit.
 				_, literal := v.argument^.(^NumericLiteral)
@@ -334,17 +338,33 @@ minify_starts_with_punctuation :: proc(cg: ^Codegen, expr: ^Expression) -> bool 
 				return !constant
 			}
 			return false
+		case ^ParenthesizedExpression:
+			// A constant in parentheses prints as its value alone.
+			_, constant := minify_constant(current)
+			return !constant
+		case ^ArrowFunctionExpression:
+			return !v.async && !minify_arrow_bare_parameter(cg, v)
 		case ^BinaryExpression:
 			if _, constant := minify_constant(current); constant { return false }
+			_, precedence := binop_text(v.operator)
+			if minify_operand_grouped(v.left, precedence) { return true }
 			current = v.left
 		case ^UpdateExpression:
 			if v.prefix { return true }
 			current = v.argument
-		case ^LogicalExpression:        current = v.left
-		case ^ConditionalExpression:    current = v.test
+		case ^LogicalExpression:
+			if minify_operand_grouped(v.left, expression_precedence(current)) { return true }
+			current = v.left
+		case ^ConditionalExpression:
+			if minify_operand_grouped(v.test, PREC_COND + 1) { return true }
+			current = v.test
 		case ^AssignmentExpression:     current = v.left
-		case ^MemberExpression:         current = v.object
-		case ^CallExpression:           current = v.callee
+		case ^MemberExpression:
+			if minify_operand_grouped(v.object, PREC_CALL) { return true }
+			current = v.object
+		case ^CallExpression:
+			if minify_operand_grouped(v.callee, PREC_CALL) { return true }
+			current = v.callee
 		case ^TaggedTemplateExpression: current = v.tag
 		case ^SequenceExpression:
 			if len(v.expressions) == 0 { return false }
@@ -358,5 +378,40 @@ minify_starts_with_punctuation :: proc(cg: ^Codegen, expr: ^Expression) -> bool 
 // A keyword needs no space before punctuation: `return!0`, `case"a":`.
 minify_keyword_space :: proc(cg: ^Codegen, operand: ^Expression) {
 	if cg.cfg.compact_syntax && minify_starts_with_punctuation(cg, operand) { return }
+	cg_byte(cg, ' ')
+}
+
+// `new X()` is `new X`. The argument list stays where a member access, a call
+// or a template follows, since those would attach to `X` instead.
+minify_bare_new :: proc(value: ^Expression, parent_prec: int) -> ^NewExpression {
+	node, is_new := value^.(^NewExpression)
+	if !is_new || parent_prec >= PREC_CALL { return nil }
+	if len(node.arguments) != 0 || node.type_parameters != nil { return nil }
+	return node
+}
+
+// Whether the printer puts the first operand of an expression in parentheses
+// because it binds more loosely than its position requires. A constant operand
+// is excluded: it may print as its folded value instead.
+minify_operand_grouped :: proc(operand: ^Expression, required: int) -> bool {
+	if operand == nil || expression_precedence(operand) >= required { return false }
+	#partial switch _ in operand^ {
+	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion, ^TSNonNullExpression,
+	     ^TSInstantiationExpression:
+		// Erased wrappers take the precedence of what they wrap.
+		return false
+	}
+	_, constant := minify_constant(operand)
+	return !constant
+}
+
+// The space before `in`, `of` or `instanceof`. A closing bracket or quote ends
+// the previous token by itself. A digit or a regular expression does not.
+minify_word_space :: proc(cg: ^Codegen) {
+	if cg.cfg.compact_syntax && cg.pos > 0 {
+		switch cg.buf[cg.pos-1] {
+		case ')', ']', '}', '"', '\'', '`': return
+		}
+	}
 	cg_byte(cg, ' ')
 }

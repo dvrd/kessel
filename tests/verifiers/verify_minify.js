@@ -427,6 +427,100 @@ const compressionCases = {
       return [fns.map(f => { const v = f(); return Object.is(v, -0) ? '-0' : v; }), picks, p, q, s, l, c];
     }
     globalThis.result = [spacing(1, 2), spacing(0, -3), spacing('re', 0)];`,
+  // Bindings nothing refers to are deleted with everything only they use. The
+  // functions below observe a binding without naming it, or name one that
+  // shares its spelling with another, and must behave as before.
+  'unused.js': `
+    var log = [];
+    function t(n) { log.push(n); return n; }
+    function outer(a) {
+      function used() { return helper(); }
+      function helper() { return 1; }
+      function dead() { return deadHelper() + cycleA(); }
+      function deadHelper() { return viaVariable; }
+      function cycleA() { return cycleB(); } function cycleB() { return cycleA(); }
+      var viaVariable = function () { return used(); };
+      var effect = t('effect'), plain = 5, literal = { a: [1, 'x', -2, void 0], m() { return dead(); }, get g() { return 1; } };
+      var keptKey = { [t('key')]: 1 }, keptSpread = { ...a }, keptCall = [t('element')], keptRead = a.b, keptTemplate = \`\${t('template')}\`;
+      let unusedLet = 1, usedLet = 2; const unusedConst = /re/g;
+      var twice = 1; var twice = function () {};
+      var self = function () { return self; };
+      var written; written = t('written');
+      return [used(), usedLet, log.splice(0)];
+    }
+    function viaEval(code) { function hidden() { return 'hidden'; } var secret = 7; let quiet = 8; return eval(code); }
+    function nestedEval() { var seen = 1; function visible() { return 2; } return function (c) { return eval(c); }; }
+    function indirect() { var local = 1; return (0, eval)('typeof local'); }
+    function viaWith(o) { var inWith = 1; function fw() { return 2; } with (o) { return [inWith, typeof fw, x]; } }
+    function catchVar() { try { throw 1; } catch (e) { var e = 2; return e; } }
+    function catchOuter() { try { throw 1; } catch (e) { var e = 2; } return e; }
+    function paramVar(p) { var p = 5; return arguments[0]; }
+    function annexB() { var r = typeof lifted; { function lifted() {} } return [r, typeof lifted]; }
+    function strictBlock() { 'use strict'; { function local() { return 1; } function gone() { return local(); } } return typeof local; }
+    function hoist() { return before(); function before() { return after; } var after = 1; }
+    function loops() { for (var i = 0, head = 9; i < 1; i++) {} for (var k in { a: 1 }) {} for (var v of [1]) {} return i; }
+    function mixed() { var both = 1; function both() {} return 2; }
+    function destructured({ a }) { var { b } = { get b() { t('getter'); return 1; } }, [c] = [t('array')]; return [a, log.splice(0)]; }
+    function directive() { function gone() {} 'use strict'; return (function () { return this === undefined; })(); }
+    function defaults(a = function () { return 3; }) { var { d = function () { return viaDefault(); } } = {}; function viaDefault() { return 4; } return a() + d(); }
+    class K { static { var inStatic = function () {}; function staticDead() {} K.ok = 1; } }
+    var labelled = (function () { l: function gone() {} if (log) function alsoGone() {} return 4; })();
+    globalThis.result = [outer({ b: 1 }), viaEval('hidden() + secret + quiet'), nestedEval()('seen + visible()'), indirect(),
+      viaWith({ x: 3 }), catchVar(), catchOuter(), paramVar(1), annexB(), strictBlock(), hoist(), loops(), mixed(),
+      destructured({ a: 6 }), directive(), defaults(), K.ok, labelled];`,
+  'strings.js': `
+    let s = ['it\\'s', "say \\"hi\\"", 'both \\' and "', "line\\nbreak\\n", 'tick \` and \\n\\n\\n', "dollar \${x}\\n\\n", '\\0', "\\0\\n\\n1",
+      'esc\\n\\n\\x41\\u0042\\u{43}', "cont\\
+inued\\n\\n", '\\\\n\\n\\n', 'a\\\\\\'b', "\\r\\n\\r\\n", '\\u2028\\n\\n', '</script>\\n\\n', "$\\{\\n\\n", "$" + "{x}\\n\\n\\n", \`t\` + 'u\\n\\n',
+      'a' + "b'c" + 'd"e' + "f\\n\\n", "\\"\\"\\"'", '\\'\\'\\'"', "\\\`\\\`", '$' + '{', "$\\n\\n" + "{", 'q' + "$\\n\\n\\n" + "{z}\\n\\n\\n"];
+    var keyed = { 'it\\'s': 1, "a\\nb": 2 }, typed = typeof s == 'object';
+    function strict() { 'use strict'; return this; }
+    function legacy() { return ['\\07\\n\\n\\n', "\\8\\n\\n\\n", '\\1\\n\\n\\n', "\\00\\n\\n\\n"]; }
+    globalThis.result = [s, Object.keys(keyed), typed, strict() === undefined, legacy(), s.map(x => x.length)];`,
+  // Without \`let\`, \`const\` or \`class\` the source may be meant for an ES5 engine.
+  'strings-es5.js': `
+    var s = ['it\\'s', "line\\nbreak\\n\\n\\n", 'both \\' and "\\n\\n\\n\\n', "say \\"hi\\""];
+    globalThis.result = s;`,
+  'construct.js': `
+    function K(a) { this.a = a === undefined ? 'none' : a; }
+    K.prototype.m = function () { return this.a + '!'; }; K.prototype.tag = function (q) { return q[0] + this.a; }; K.Inner = K;
+    function F() { return function (q) { return typeof q === 'object' ? 'tagged ' + q[0] : 'called'; }; }
+    var ns = { K: K, make: function () { return K; } };
+    globalThis.result = [new K().a, new K().m(), new K, new K(), new ns.K(), new ns.K().a, new (ns.make())(), new (ns.make())().a,
+      new new Function('this.z = 1')().z, new K()['a'], new K() instanceof K, typeof new K(), new (K)(), (new K()).m(), new K().tag\`x\`,
+      new F()\`q\`, new F()(), new (new F())() instanceof Object, -new K(), new K() + '', [new K()].length, String(new K() ? 1 : 2),
+      (new K(), 3), new K(1).a, new K.Inner().a, new K.Inner, new (K.Inner)().m(), new K().constructor === K];`,
+  'loops.js': `
+    var log = [];
+    function t(n, x) { log.push(n); return x; }
+    function loops(n) {
+      var out = [], i = t('init', 0);
+      while (t('test', i < n)) { out.push(i); i++; }
+      var a = t('a', 1), b = 'k' in { k: 1 };
+      for (var j = t('j', 0); j < 1; j++) out.push(a, b, j);
+      var q = 0;
+      while (true) { if (++q > 2) break; if (q === 1) continue; out.push('q' + q); }
+      let scoped = [];
+      for (let k = 0; k < 2; k++) scoped.push(() => k);
+      var w = 3; outerLoop: while (w--) { while (true) { if (w === 1) continue outerLoop; break; } out.push('w' + w); }
+      do { out.push('once'); } while (false);
+      var late = 'x' in { x: 1 } ? 1 : 2;
+      for (; late < 3; late++) out.push('late');
+      return [out, scoped.map(f => f()), typeof neverRuns, log.splice(0)];
+      while (true) { var neverRuns; }
+    }
+    globalThis.result = [loops(0), loops(2)];`,
+  'comparisons.js': `
+    var values = [0, -0, NaN, null, undefined, '', '0', 1, '1', true, false, [], {}];
+    var order = [];
+    var o = { get a() { order.push('a'); return 1; }, get b() { order.push('b'); return 2; } };
+    function compare(a, b) {
+      return [!(a == b), !(a != b), !(a === b), !(a !== b), !(a < b), !(a >= b), !!(a == b), -!(a === b), typeof !(a == b),
+        a !== b ? 'differ' : 'same', a != b ? 'loose differ' : 'loose same', a === b ? 1 : 2, (!(a == b)).toString(), !(a == b) + 1,
+        !(a === b) ? 'x' : 'y', !(a == b) && a, [!(a == b)][0] === (a != b)];
+    }
+    function sides() { return [o.a !== o.b ? o.a : o.b, !(o.b === o.a), order.splice(0)]; }
+    globalThis.result = [values.map(a => values.map(b => compare(a, b))), sides()];`,
 };
 
 function verifyCompression() {
@@ -490,14 +584,14 @@ function verifyCompression() {
     assert.ok(dangling.includes(text), text);
   }
   const dead = small('dead.js');
-  for (const text of ['if(!1)var hoisted=1;', "t('then');{let q=t('q',1);log.push(q)}", 'if(!1){function inner(){}}', "t('nonempty')", "r=t('r1'),s=!1,u=!0,w=t('w'),x=t('x2')",
+  for (const text of ['function dead(a){var hoisted;', "t('then');{let q=t('q',1);log.push(q)}", 'if(!1){function inner(){}}', "t('nonempty')", "r=t('r1'),s=!1,u=!0,w=t('w'),x=t('x2')",
     '(!0?o.m:0)()', '(!1||o.m)()', '(!0&&o.m)()', "(!0?eval:0)('typeof log')", 'return tail();var late=1;function tail()', "break;default:", 'let early=2;var never}']) {
     assert.ok(dead.includes(text), text);
   }
   assert.doesNotMatch(dead, /never'\)|'else'|'zero'|'empty'\)|'null'|'void'|'differ'|'r2'|'x1'|dead\d/);
   const constants = small('constants.js');
   for (const text of ['const top=1,[first,{second=2}]=[3,{}];', 'let fixed=1,moving=2,{a,...others}={a:3,b:4},out=[];const reassigned=5;',
-    'const counted=7;', 'const[swapped]=[8];', 'const looped=10;', 'let early=11;', 'for(let item of list)', 'for(let key in {k:1})',
+    'const counted=7;', 'const[swapped]=[8];', 'const looped=10;', 'let early=11;', 'for(let item of list)', 'for(let key in{k:1})',
     'for(let step={n:0};', 'const hidden=1,out=[];']) {
     assert.ok(constants.includes(text), text);
   }
@@ -508,11 +602,47 @@ function verifyCompression() {
   assert.ok(emit('minify', write('scoped.js', scoped), ['--no-mangle']).startsWith('const shared=1,other=2;'));
   assert.match(emit('minify', write('scoped.js', scoped), ['--no-mangle']), /\{let inner=shared\+other;/);
   const spacing = small('spacing.js');
-  for (const text of ['return!a', 'return-a', 'return~a', 'return +a', 'return++u', 'return[a]', 'return{a}', 'return"s"+a', 'return`t${a}`',
+  for (const text of ['return!a', 'return-a', 'return~a', 'return+a', 'return++u', 'return[a]', 'return{a}', 'return"s"+a', 'return`t${a}`',
     'return/re/.test(a)', 'return-1}', 'return 1}', 'return-0}', 'return 0}', 'return typeof a', 'return void a', "return'q'.length",
     'return true.toString()', 'return 1+x', 'return!a.b', 'return-x*2', 'return 3}', 'return -3}', 'return o.a', 'return{}.x',
     'case"x":', 'case-1:', 'case!a:', 'case 3:', 'case[1][0]:', 'var{p,q=2}=', 'let[l]=[4],{c}={c:5}']) {
     assert.ok(spacing.includes(text), text);
+  }
+
+  const unused = small('unused.js');
+  assert.doesNotMatch(unused, /dead|cycle[AB]|viaVariable|plain|literal|unusedLet|unusedConst|twice|self|inStatic|gone|alsoGone|function local/);
+  for (const text of ['function used(){return helper()}function helper(){return 1}', "effect=t('effect'),keptKey={[t('key')]:1},keptSpread={...a},keptCall=[t('element')],keptRead=a.b",
+    "var written;return written=t('written')", "function hidden(){return'hidden'}var secret=7;let quiet=8;return eval(code)", 'var seen=1;function visible(){return 2}',
+    "function indirect(){var local=1;return(0,eval)('typeof local')}", 'var inWith=1;function fw(){return 2}', 'catch(e){var e=2;return e}', 'catch(e){var e=2}return e',
+    'var p=5;return arguments[0]', '{function lifted(){}}', "function strictBlock(){'use strict';return typeof local}", 'for(var i=0,head=9;i<1;i++);',
+    'var both=1;function both(){}', 'function directive(){return function(){return this===undefined}()}', 'class K{static {K.ok=1}}', 'l:;']) {
+    assert.ok(unused.includes(text), text);
+  }
+  // `/* @__PURE__ */` marks a call whose result alone matters.
+  const pure = emit('minify', write('pure.mjs', `var kept = /* @__PURE__ */ make(effect()); var gone = /* @__PURE__ */ make(function () { return other(); }, 1);
+    var gone2 = /*#__PURE__*/ new ns.Thing({ a: 1 }); var kept2 = /* @__PURE__ */ ns[key](); var kept3 = make(1); var kept4 = /* @__PURE__ */ make(...list);
+    function other() {} export default 1;`), ['--no-mangle']);
+  assert.equal(pure, 'var kept=make(effect()),kept2=ns[key](),kept3=make(1),kept4=make(...list);export default 1;');
+  const strings = small('strings.js');
+  for (const text of ['"it\'s"', "'say \"hi\"'", '`both \' and "`', '`line\nbreak\n`', '`dollar \\${x}\n\n`', "'\\0'", "{'it\\'s':1,\"a\\nb\":2}", "'use strict';return this",
+    "['\\07\\n\\n\\n',\"\\8\\n\\n\\n\",'\\1\\n\\n\\n',\"\\00\\n\\n\\n\"]", "typeof s=='object'", '`\\r\n\\r\n`']) {
+    assert.ok(strings.includes(text), text);
+  }
+  assert.equal(small('strings-es5.js'), 'var s=["it\'s","line\\nbreak\\n\\n\\n",\'both \\\' and "\\n\\n\\n\\n\',\'say "hi"\'];globalThis.result=s;');
+  const construct = small('construct.js');
+  for (const text of ['[new K().a,new K().m(),new K,new K,new ns.K,new ns.K().a,new (ns.make()),new (ns.make())().a,', "new K().tag`x`,new F()`q`,new F()(),",
+    "-new K,new K+'',[new K].length,String(new K?1:2),(new K,3),new K(1).a,new K.Inner().a,new K.Inner,"]) {
+    assert.ok(construct.includes(text), text);
+  }
+  const loops = small('loops.js');
+  for (const text of ["for(var out=[],i=t('init',0);t('test',i<n);)out.push(i),i++;", "for(var a=t('a',1),b=('k'in {k:1}),j=t('j',0);j<1;j++)", 'for(var q=0;;){if(++q>2)break;',
+    'let scoped=[];for(let k=0;k<2;k++)', 'outerLoop:for(;w--;){for(;;){', "do out.push('once');while(!1);", "for(var late=('x'in {x:1})?1:2;late<3;late++)"]) {
+    assert.ok(loops.includes(text), text);
+  }
+  const comparisons = small('comparisons.js');
+  for (const text of ["return[a!=b,a==b,a!==b,a===b,!(a<b),!(a>=b),a==b,-(a!==b),", "a===b?'same':'differ',a==b?'loose same':'loose differ',a===b?1:2,(a!=b).toString(),(a!=b)+1,a===b?'y':'x',",
+    'return[o.a===o.b?o.b:o.a,o.b!==o.a,']) {
+    assert.ok(comparisons.includes(text), text);
   }
 
   // Left-associative chains are as deep as they are long. The compressor walks
@@ -568,7 +698,13 @@ function verifyCompressionFuzz(count) {
   const body = depth => pick(() => statement(depth), () => '{' + statements(depth) + '}', () => '{' + statement(depth) + '}', () => '{}', () => ';')();
   const statement = depth => {
     if (depth <= 0) return pick(effect() + ';', 'return ' + test(1) + ';', 'return;', effect() + ';', 'var w=' + test(0) + ';');
-    switch (random(13)) {
+    switch (random(17)) {
+      // A loop the compressor prints as `for`, a declaration it moves into a
+      // loop head, and declarations nothing reads.
+      case 13: return 'while(n++<2&&' + test(1) + ')' + body(depth - 1);
+      case 14: return '{var u=' + test(1) + ';for(var j=' + test(0) + ';n++<2;)' + body(depth - 1) + '}';
+      case 15: return 'var d' + (serial++) + '=' + pick('1', '"s"', 'function(){t("never")}', '[1,{a:!0}]', 't("' + (serial++) + '")', 'new K', 'new K()') + ';';
+      case 16: return 'if(' + test(1) + '!==' + test(1) + '){var h=1;' + statements(depth - 1) + '}else ' + body(depth - 1);
       case 0: case 1: return 'if(' + test(2) + ')' + body(depth - 1);
       case 2: case 3: return 'if(' + test(2) + ')' + body(depth - 1) + 'else ' + body(depth - 1);
       case 4: return '{' + statements(depth - 1) + '}';
@@ -587,11 +723,11 @@ function verifyCompressionFuzz(count) {
     }
   };
   const statements = depth => Array.from({ length: random(4) }, () => statement(depth)).join('');
-  const functions = Array.from({ length: count }, (_, i) => 'function f' + i + '(a,b,c){var v,f;' + statements(3) + statements(3) + '}');
+  const functions = Array.from({ length: count }, (_, i) => 'function f' + i + '(a,b,c){var v,f,n=0;' + statements(3) + statements(3) + '}');
   let checked = 0;
   for (let start = 0; start < functions.length; start += 50) {
     const slice = functions.slice(start, start + 50);
-    const source = 'var log=[];function t(n){log.push(n);return n}function p(n,x){log.push(n);return x}' +
+    const source = 'var log=[];function t(n){log.push(n);return n}function p(n,x){log.push(n);return x}function K(){log.push("K")}' +
       'var o={get g(){log.push("g");return 1},set s(x){log.push("s"+x)}};' + slice.join('\n') +
       '\nglobalThis.result=[' + slice.map((_, i) => 'f' + (start + i)) + '].map(fn=>{var out=[];' +
       'for(var a of [0,1])for(var b of [null,2])for(var c of [undefined,""]){var r;try{r=fn(a,b,c)}catch(e){r="threw "+e}' +
@@ -606,6 +742,52 @@ function verifyCompressionFuzz(count) {
     checked += slice.length;
   }
   return checked;
+}
+
+// `--define` replaces free names before compression, so the branch a
+// definition decides is deleted. A local binding of the same name is not the
+// defined global and stays as written.
+function verifyDefine() {
+  const production = ['--define', 'process.env.NODE_ENV="production"'];
+  const source = `
+    var log = [];
+    function guarded() { if (process.env.NODE_ENV !== 'production') { log.push('dev'); } else { log.push('prod'); } return process.env.NODE_ENV; }
+    function shadowed(process) { return process.env.NODE_ENV === 'production' ? 'global' : 'local ' + process.env.NODE_ENV; }
+    function flagged() { return [__DEV__ ? 'dev build' : 'prod build', typeof __DEV__, LIMIT + 1, LABEL.length]; }
+    function local() { var __DEV__ = 'mine'; return __DEV__; }
+    var kept = { __DEV__: 1, LIMIT: 2 }, member = kept.__DEV__ + kept.LIMIT;
+    if (process.env.NODE_ENV !== 'production') { log.push('top dev'); var declared = 1; } else { log.push('top prod'); log.push('second'); }
+    globalThis.result = [guarded(), shadowed({ env: { NODE_ENV: 'inner' } }), flagged(), local(), member, typeof declared, log];`;
+  const file = write('define.js', source);
+  const flags = [...production, '--define=__DEV__=false', '--define', 'LIMIT=40 + 1', '--define', 'LABEL="a\\"b"'];
+  const sandbox = () => ({ process: { env: { NODE_ENV: 'production' } }, __DEV__: false, LIMIT: 41, LABEL: 'a"b' });
+  const run = code => { const scope = sandbox(); vm.runInNewContext(code, scope); return JSON.stringify(scope.result); };
+  const bare = code => { const scope = {}; vm.runInNewContext(code, scope); return JSON.stringify(scope.result); };
+  const expected = run(source);
+  for (const pass of [[], ['--no-mangle'], ['--no-compress'], ['--mangle-names']]) {
+    const output = emit('minify', file, [...flags, ...pass]);
+    // The defined names are gone, so the output needs none of them as globals.
+    assert.equal(bare(output), expected, 'define ' + pass.join(' '));
+  }
+  const output = emit('minify', file, [...flags, '--no-mangle']);
+  assert.doesNotMatch(output, /'dev'|'top dev'|dev build|process\.env\.NODE_ENV!|LIMIT\+|LABEL\./);
+  for (const text of ["log.push('prod')", "member=kept.__DEV__+kept.LIMIT,declared;log.push('top prod'),log.push('second'),globalThis.result=", "function shadowed(process){return process.env.NODE_ENV==", "var __DEV__='mine'", '{__DEV__:1,LIMIT:2}', 'kept.__DEV__+kept.LIMIT']) {
+    assert.ok(output.includes(text), text);
+  }
+  // React's CommonJS entry and its development build, as published in react 18.3.1.
+  const react = path.join(root, 'tests/bundle/define-react-production/node_modules_/react');
+  assert.equal(emit('minify', path.join(react, 'index.js'), production),
+    "'use strict';module.exports=require('./cjs/react.production.min.js');");
+  assert.match(emit('minify', path.join(react, 'index.js')), /react\.development\.js/);
+  const development = emit('minify', path.join(react, 'cjs/react.development.js'), production);
+  assert.ok(development.endsWith("'use strict';void 0;") && development.length < 400, 'react.development.js keeps ' + development.length + ' bytes');
+  assert.ok(emit('minify', path.join(react, 'cjs/react.development.js')).length > 20000);
+  // Malformed and unsupported uses are refused.
+  for (const bad of [['--define', 'X'], ['--define=X='], ['--define', 'X=1', '--sourcemap'], ['--define', 'X=1;y()']]) {
+    const result = spawnSync(binary, ['minify', file, ...bad], { encoding: 'utf8' });
+    assert.notEqual(result.status, 0, bad.join(' '));
+    assert.equal(result.stdout, '', bad.join(' '));
+  }
 }
 
 // What a module offers to its importers: every exported name and, for a
@@ -914,6 +1096,10 @@ function verifyCompressedMappings() {
         if (printed[0] === 'let' && original[0] === 'const') continue;
         // A merged `return` or `throw` maps to the `if` statement it replaces.
         if ((printed[0] === 'return' || printed[0] === 'throw') && original[0] === 'if') continue;
+        // The `var` that survives a deleted branch maps to that branch's `if`.
+        if (printed[0] === 'var' && original[0] === 'if') continue;
+        // A `while` loop prints as `for(;test;)`.
+        if (printed[0] === 'for' && original[0] === 'while') continue;
         assert.equal(printed[0], original[0], file + ' ' + line + ':' + column + ' maps to ' + originalLine + ':' + originalColumn);
         identifiers++;
       }
@@ -1121,6 +1307,7 @@ try {
   verifyNameSlots();
   verifyModuleNames();
   verifyCompression();
+  verifyDefine();
   const fuzzed = verifyCompressionFuzz(600);
   verifyJSXNames();
   verifyJSXTagMappings();

@@ -81,6 +81,7 @@ Codegen :: struct {
 	infix_work: [dynamic]CodegenInfixTask,
 	access_work: [dynamic]CodegenAccessFrame,
 	renamed: map[u32]string, // Original binding and reference offsets to shorter local names.
+	bare_new: ^NewExpression, // The `new` about to be printed needs no empty argument list.
 	declaration_emit: ^DeclarationEmit, // Tracks references in public type signatures.
 	cfg: CodegenConfig,
 	source: string, // Borrowed source for syntax spelling omitted by the AST.
@@ -592,6 +593,7 @@ gen_expression_begin :: proc(
 	if cg.transform != nil { value = transform_lower_expression(cg, value) }
 	prec := expression_precedence(value)
 	need_paren := prec < parent_prec
+	if cg.cfg.compact_syntax { cg.bare_new = minify_bare_new(value, parent_prec) }
 	// The grammar forbids bare && and || operands of ?? regardless of precedence.
 	if .Nullish_Operand in ctx && (prec == PREC_LOR || prec == PREC_LAND) { need_paren = true }
 	if .Forbid_In in ctx && prec == PREC_REL {
@@ -1067,7 +1069,9 @@ gen_for_in_statement :: proc(cg: ^Codegen, s: ^ForInStatement) {
 	} else if v, ok := s.left_expr.?; ok {
 		gen_expression(cg, v, PREC_LOWEST)
 	}
-	cg_str(cg, " in ")
+	minify_word_space(cg)
+	cg_str(cg, "in")
+	minify_keyword_space(cg, s.right)
 	gen_expression(cg, s.right, PREC_LOWEST)
 	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
@@ -1097,7 +1101,9 @@ gen_for_of_statement :: proc(cg: ^Codegen, s: ^ForOfStatement) {
 			gen_expression(cg, v, PREC_LOWEST)
 		}
 	}
-	cg_str(cg, " of ")
+	minify_word_space(cg)
+	cg_str(cg, "of")
+	minify_keyword_space(cg, s.right)
 	gen_expression(cg, s.right, PREC_ASSIGN)
 	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
@@ -1797,7 +1803,7 @@ gen_function_expression_like :: proc(
 	cg_str(cg, "function")
 	if generator { cg_byte(cg, '*') }
 	if len(name) > 0 {
-		cg_hard_space(cg)
+		if !generator || !cg.cfg.compact_syntax { cg_hard_space(cg) }
 		if name_start != SOURCE_OFFSET_NONE { sourcemap_record(cg.sm, u32(cg.pos), name_start) }
 		cg_str(cg, name)
 	}
@@ -2666,6 +2672,8 @@ gen_call_suffix :: proc(cg: ^Codegen, e: ^CallExpression, properties: []string) 
 }
 
 gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
+	bare := cg.bare_new == e
+	cg.bare_new = nil
 	cg_str(cg, "new ")
 	// The `new` callee grammar is MemberExpression | NewExpression — a
 	// CallExpression callee needs explicit parens, otherwise
@@ -2678,7 +2686,7 @@ gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
 	} else {
 		gen_expression(cg, e.callee, PREC_CALL)
 	}
-	gen_call_arguments(cg, e)
+	if !bare { gen_call_arguments(cg, e) }
 }
 
 // The arguments of `new` attach to the first call on the callee's left spine:
@@ -2854,7 +2862,7 @@ gen_infix_schedule :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressi
 cg_infix_operator :: proc(cg: ^Codegen, op: string) {
 	word := op == "in" || op == "instanceof"
 	after_bang := op[0] == '=' && cg.pos > 0 && cg.buf[cg.pos - 1] == '!'
-	if word || after_bang { cg_hard_space(cg) } else { cg_space(cg) }
+	if word { minify_word_space(cg) } else if after_bang { cg_hard_space(cg) } else { cg_space(cg) }
 	cg_str(cg, op)
 	if word { cg_hard_space(cg) } else { cg_space(cg) }
 }
@@ -2942,7 +2950,7 @@ gen_yield_expression :: proc(cg: ^Codegen, e: ^YieldExpression, ctx: CodegenExpr
 	cg_str(cg, "yield")
 	if e.delegate { cg_byte(cg, '*') }
 	if arg, ok := e.argument.?; ok {
-		cg_hard_space(cg)
+		if e.delegate && cg.cfg.compact_syntax {} else { minify_keyword_space(cg, arg) }
 		gen_expression(cg, arg, PREC_ASSIGN, ctx)
 	}
 }
