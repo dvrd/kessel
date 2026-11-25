@@ -219,8 +219,10 @@ test_ast_walk_depth_bound :: proc(t: ^testing.T) {
 	testing.expect_value(t, fits, kessel.AstWalkStatus.Completed)
 	partial, exceeded, _ := trace_walk(t, nested, .JS, 0, .Continue, 6)
 	testing.expect_value(t, exceeded, kessel.AstWalkStatus.DepthExceeded)
-	// The node past the bound is never offered, and no `leave` follows.
-	testing.expect_value(t, partial, "+Program +ExprStmt +Array +Array +Array +Array")
+	// The node past the bound is never offered; every node that was entered
+	// is still left, so a visitor that pushes and pops stays balanced.
+	testing.expect_value(t, partial,
+		"+Program +ExprStmt +Array +Array +Array +Array -Array -Array -Array -Array -ExprStmt -Program")
 
 	// Program > ExprStmt > chain > operand: 4 levels for any chain length,
 	// and for mixed member / call / binary / logical chains.
