@@ -28,3 +28,6 @@ HANDOFF.md
 .profile_runs/
 .research/
 node_modules
+
+# Editor logs
+nvim.log
