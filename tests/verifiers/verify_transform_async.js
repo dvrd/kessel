@@ -102,6 +102,21 @@ function execute(directory, name, code) {
   return result.stdout;
 }
 
+// The native run is the specification, except where the engine predates it.
+// ES2025 closes a sync iterator when `for await` meets a rejected value
+// (AsyncFromSyncIteratorContinuation); V8 does so from Node 24. A lowered
+// `for await` follows the specification, so on an older Node the record that
+// closing prints is added to what the native run produced.
+const SYNC_CLOSE_RECORD = 'sync source closed after a rejection\n';
+const SYNC_CLOSE_BEFORE = 'sync source with a rejected value';
+function nativeExpectation(output) {
+  const major = Number(process.versions.node.split('.')[0]);
+  if (major >= 24 || output.includes(SYNC_CLOSE_RECORD)) return output;
+  const at = output.indexOf(SYNC_CLOSE_BEFORE);
+  if (at < 0) return output;
+  return output.slice(0, at) + SYNC_CLOSE_RECORD + output.slice(at);
+}
+
 function withoutTags(source, tags) {
   return source.split('\n').filter(line => !tags.some(tag => line.endsWith('// [' + tag + ']'))).join('\n');
 }
@@ -211,14 +226,18 @@ module.exports = function verifyAsync(binary, temp, run, oracle) {
   for (const plan of plans) {
     const file = path.join(fixtures, plan.name);
     const source = fs.readFileSync(file, 'utf8');
-    const expected = execute(directory, 'native.' + plan.extension, source);
+    const native = execute(directory, 'native.' + plan.extension, source);
+    const expected = native;
     records += expected.trim().split('\n').length;
     assert.ok(expected.split('\n').length > 10, plan.name);
     assert.doesNotMatch(expected, /^FAILED/m);
     for (const target of plan.targets) {
       for (const flags of [[], ['--minified']]) {
         const code = run(binary, ['transform', file, '--target=' + target, ...flags]);
-        assert.equal(execute(directory, 'kessel.' + plan.extension, code), expected, [plan.name, target, ...flags].join(' '));
+        // Below ES2018 `for await` itself is lowered and follows the spec;
+        // from ES2018 on the engine runs it.
+        const wanted = target < 'es2018' ? nativeExpectation(native) : native;
+        assert.equal(execute(directory, 'kessel.' + plan.extension, code), wanted, [plan.name, target, ...flags].join(' '));
         outputs += 1;
         // Below ES2017 no `async` or `await` is left outside strings and comments.
         const plain = code.replace(/"[^"\n]*"/g, '""').replace(/\/\/.*$/gm, '');
