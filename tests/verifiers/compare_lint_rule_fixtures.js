@@ -49,7 +49,11 @@ const knownFlags = ['--corpus', '--update', '--verbose', '--oracle-only', '--no-
 for (const flag of flags) assert.ok(knownFlags.includes(flag), 'Unknown flag ' + flag);
 assert.ok(positional.length >= 2, 'Expected <kessel> <oxlint> [flags] [plugin/rule ...]');
 const binary = path.resolve(positional[0]);
-const oracle = positional[1].includes(path.sep) ? path.resolve(positional[1]) : positional[1];
+// A bare `oxlint` means the copy pinned in bench/package.json when it is
+// installed, and whatever PATH provides otherwise.
+const pinnedOracle = path.join(root, 'bench/node_modules/.bin', process.platform === 'win32' ? 'oxlint.cmd' : 'oxlint');
+const oracle = positional[1].includes(path.sep) ? path.resolve(positional[1])
+  : positional[1] === 'oxlint' && fs.existsSync(pinnedOracle) ? pinnedOracle : positional[1];
 const requested = positional.slice(2);
 const verbose = flags.has('--verbose');
 
@@ -486,7 +490,7 @@ function corpusSpans(tool, ids, workspace) {
     rules: Object.fromEntries(ids.map(id => [qualified(...id.split('/')), 'warn'])) }));
   const result = {};
   // Keep parser memory and subprocess output bounded for large vendor bundles.
-  const batchSize = 8;
+  const batchSize = 4;
   for (let first = 0; first < fixtures.length; first += batchSize) {
     const batch = fixtures.slice(first, first + batchSize);
     const files = batch.map(([relative, digest], index) => {
