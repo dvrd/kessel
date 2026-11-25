@@ -31,7 +31,12 @@ try {
   commit('fix: correct a token');
   assert.equal(nextVersion('0.21.0', releaseBump(repo)), '0.22.0');
   commit('refactor(parser)!: replace tree format');
-  assert.equal(nextVersion('0.21.0', releaseBump(repo)), '1.0.0');
+  // Before 1.0.0 a breaking change raises the minor version, not the major.
+  assert.equal(releaseBump(repo), 'major');
+  assert.equal(nextVersion('0.21.0', releaseBump(repo)), '0.22.0');
+  assert.equal(nextVersion('0.21.3', 'patch'), '0.21.4');
+  // From 1.0.0 on, the usual rules apply.
+  assert.equal(nextVersion('1.4.2', releaseBump(repo)), '2.0.0');
   git('tag', 'v1.0.0');
   commit('fix: preserve output', 'feat: this line describes an older feature');
   assert.equal(nextVersion('1.0.0', releaseBump(repo)), '1.0.1');

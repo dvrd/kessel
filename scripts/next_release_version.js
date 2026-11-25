@@ -42,8 +42,16 @@ function releaseBump(cwd) {
   return bump;
 }
 
+// Before 1.0.0 the public API is not yet declared stable (SemVer item 4), so
+// a breaking change raises the minor version and anything else the patch:
+// 0.21.0 becomes 0.22.0 for both a breaking change and a feature. Going to
+// 1.0.0 is a deliberate decision, made by bumping the version by hand.
 function nextVersion(current, bump) {
   const [major, minor, patch] = current.split('.').map(BigInt);
+  if (major === 0n) {
+    if (bump === 'major' || bump === 'minor') return [0, minor + 1n, 0].join('.');
+    return [0, minor, patch + 1n].join('.');
+  }
   if (bump === 'major') return [major + 1n, 0, 0].join('.');
   if (bump === 'minor') return [major, minor + 1n, 0].join('.');
   return [major, minor, patch + 1n].join('.');

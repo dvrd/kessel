@@ -857,7 +857,7 @@ line, and column for each element. Automatic mode uses `jsxDEV` from
 The npm package is published automatically on every push to `main` whose conventional-commit subject implies a real change:
 
 - `feat:` / `refactor:` → minor bump
-- `feat!:` / `refactor!:` / `BREAKING CHANGE` → major bump
+- `feat!:` / `refactor!:` / `BREAKING CHANGE` → major bump (minor while the version is below 1.0.0; 1.0.0 itself is set by hand)
 - `fix:` / `perf:` / `chore:` / etc. → patch bump
 - Docs-only and CI-only commits don't trigger a release
 
