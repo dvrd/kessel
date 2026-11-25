@@ -5,7 +5,7 @@ const path = require('node:path');
 const { fileURLToPath } = require('node:url');
 const { lintSync } = require('../index');
 const { DocumentText } = require('./document');
-const { formatDocument } = require('./format');
+const { formatDocument, formatRange } = require('./format');
 const { readFrames, writeMessage } = require('./transport');
 
 const languages = new Map(Object.entries({
@@ -111,6 +111,7 @@ class Server {
         positionEncoding: 'utf-16',
         textDocumentSync: { openClose: true, change: 2, save: { includeText: false } },
         documentFormattingProvider: true,
+        documentRangeFormattingProvider: true,
         ...(this.literalActions && { codeActionProvider: { codeActionKinds: ['quickfix', fixKind] } }),
         workspace: { workspaceFolders: { supported: true, changeNotifications: true } },
       },
@@ -124,6 +125,9 @@ class Server {
     return lintSync(filename ?? 'untitled.' + doc.lang, doc.content.text, {
       lang: doc.lang, workspaceRoot: filename && workspaceFor(roots, filename),
       rules: this.settings.rules, reportUnusedDisableDirectives: this.settings.reportUnusedDisableDirectives,
+      // Editors send null for a setting that is not configured.
+      categories: this.settings.categories ?? undefined,
+      plugins: this.settings.plugins ?? undefined,
       fix, includeFixes: !fix && this.literalActions, includeSuggestions: !fix && this.literalActions,
       includeSuppressions: !fix && this.literalActions,
     });
@@ -138,6 +142,9 @@ class Server {
           range: { start: doc.content.bytePosition(d.start), end: doc.content.bytePosition(d.end) },
           severity: d.severity === 'warning' ? 2 : 1, code: d.code || undefined, message: d.message, source: 'kessel',
         };
+        // `code` stays the stable L or K number. The rule name, qualified by its
+        // plugin, travels in `data` for clients that group or filter by rule.
+        if (d.suppression) diagnostic.data = { rule: d.suppression.rule };
         if (this.relatedDiagnostics && d.related?.length) {
           diagnostic.relatedInformation = d.related.map(note => ({
             location: { uri: doc.uri, range: { start: doc.content.bytePosition(note.start), end: doc.content.bytePosition(note.end) } },
@@ -237,6 +244,11 @@ class Server {
       if (method === 'textDocument/formatting' && id !== undefined) {
         const uri = params.textDocument.uri;
         return send({ id, result: formatDocument(this.documents.get(uri), filePath(uri), params.options) });
+      }
+      if (method === 'textDocument/rangeFormatting' && id !== undefined) {
+        const uri = params.textDocument.uri;
+        const doc = this.documents.get(uri);
+        return send({ id, result: formatRange(doc, filePath(uri), params.range, params.options) });
       }
       if (id !== undefined) return fail(-32601, 'Unknown method ' + method);
       if (method === 'initialized' && this.registerWatchers) {

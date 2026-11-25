@@ -23,12 +23,13 @@ boundary. **Disable … for this file** inserts a directive at the top of the
 file, after a hashbang or byte order mark. Existing enable directives still
 take effect. These actions run when you select them in the Quick Fix menu.
 
-Choose **Format Document With…** and select **Kessel** to format imports,
-named re-exports, export lists and nested object and array literals in the
-open buffer. Data literals can appear in a single-name variable declaration
-or a default export. Kessel uses the editor’s tab size, indentation and line
-endings. It preserves statements containing internal comments and leaves
-incomplete syntax alone while you type.
+Choose **Format Document With…** and select **Kessel** to format the open
+buffer: imports and exports, and JavaScript statements, expressions and
+classes. **Format Selection** applies the same formatting to the selected
+lines only. Kessel uses the editor’s tab size, indentation and line endings.
+It changes only the lines that differ, keeps the text of statements it does
+not format yet (most TypeScript and JSX), preserves statements containing
+internal comments and leaves incomplete syntax alone while you type.
 
 To apply safe fixes when you explicitly save a document, add this to your VS Code settings.
 
@@ -42,10 +43,28 @@ To apply safe fixes when you explicitly save a document, add this to your VS Cod
 
 Use `kessel.rules` to override rule settings for an editor window. For example,
 `"kessel.rules": { "prefer-const": "warn" }` highlights bindings that qualify
-for a safe conversion. Set `kessel.reportUnusedDisableDirectives` to `"warn"`
-to find unused suppression comments.
+for a safe conversion. Rule names can carry their plugin, as in
+`"unicorn/no-thenable"` or `"@typescript-eslint/no-namespace"`; the
+**Disable …** actions write the name in that form. Set
+`kessel.reportUnusedDisableDirectives` to `"warn"` to find unused suppression
+comments.
+
+`kessel.categories` and `kessel.plugins` select whole groups of rules, as the
+keys of the same names do in `.oxlintrc.json`. For example,
+`"kessel.categories": { "correctness": "error", "suspicious": "warn" }` with
+`"kessel.plugins": ["typescript", "unicorn"]`. In a project with an
+`.oxlintrc.json` they replace the project’s selection for this window, and
+for a file outside any project they are its configuration. A
+`kessel.lint.json` project has no categories and ignores both settings.
+
+Source nested more than 512 levels deep is reported as error `K2081` at the
+first level that is refused, and is not linted further, formatted or fixed.
 
 ## Building from the Kessel repository
 
 Build the native library for the host platform and run `task build:vscode`.
 The resulting VSIX is in `bin/`. The packaging tools require Node.js 22 or later.
+`task test:vscode:package` checks that the VSIX carries the current server,
+SDK and native library and runs the packaged server through the stdio
+protocol suite without starting an editor. `task test:vscode` installs the
+VSIX in a disposable VS Code profile, which opens an editor window.

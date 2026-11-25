@@ -139,7 +139,8 @@ the AST. Function and class names, labels, the two parts of `import.meta`
 and `new.target`, and module names and sources carry their own UTF-8 byte
 ranges. Quoted module names are string literals with their original `raw` text.
 
-The exported `./binary-reader` accepts wire versions 3 through 8. Version 8
+The exported `./binary-reader` accepts wire versions 3 through 9. Version 9
+adds `Program.hashbang`. Version 8
 records whether to include TypeScript fields, so modules written entirely in
 JavaScript syntax still carry `importKind` and `exportKind` in TS mode. Version 7
 carries TypeScript declarations, annotations, type arguments and modifiers.
@@ -159,6 +160,8 @@ type ParseOptions = {
   sourceIsDts?: boolean;
   commonjs?: boolean;
   disallowAmbiguousJSXLike?: boolean;
+  maxDepth?: number;            // nesting limit, default 512
+  rejectInvalidUtf8?: boolean;  // refuse ill-formed UTF-8 bytes with K1017
 };
 
 type ParseResult = {
@@ -175,15 +178,59 @@ type ParseResult = {
 
 function parseSync(
   filename: string,
-  source: string,
+  source: string | Uint8Array,
   opts?: ParseOptions,
 ): ParseResult;
 
 function parseAsync(
   filename: string,
-  source: string,
+  source: string | Uint8Array,
   opts?: ParseOptions,
 ): Promise<ParseResult>;
+```
+
+#### Nesting depth and untrusted input
+
+Source nested deeper than `maxDepth` levels (brackets, blocks, functions,
+types, JSX elements, prefix operators) is reported as one `K2081` error
+instead of being parsed. The default is 512. Chains such as `a + b + c`,
+`a && b`, `a.b.c` and `a()()` are not nesting and can be any length. Template
+literals nest at most 256 levels (`K1016`), and a parse that runs out of
+memory reports `K2085`.
+
+```js
+const { errors } = parseSync('input.js', untrusted, { maxDepth: 64 });
+if (errors.some(error => error.code === 'K2081')) reject('nested too deeply');
+```
+
+Lowering the limit always works. Raising it needs stack: the parser recurses
+on the stack Koffi allocates for a native call, and overrunning it ends the
+process. Kessel therefore accepts at most 512 levels per 2 MiB of that stack
+and throws a `RangeError` beyond that. With Koffi's default 2 MiB the ceiling
+is 512. To go further, enlarge the stack before any library is loaded:
+
+```js
+require('koffi').config({ sync_stack_size: 8 * 1024 * 1024 }); // maxDepth up to 2048
+const { parseSync } = require('@dvrdlibs/kessel');
+```
+
+`parseAsync` is bounded by `async_stack_size` in the same way. The decoder
+that turns the result into JavaScript objects recurses on the JavaScript
+stack, up to six node levels per source level (a method in a class body opens
+five). Node's default stack held about 3,500 node levels when measured (Node
+26, macOS arm64), which covers every program the default limit accepts. A deeper tree throws a `RangeError`
+with `code: 'AST_Too_Deep'`; run Node with a larger `--stack-size` to decode
+it.
+
+A string source is encoded by the binding and is always well-formed UTF-8;
+an unpaired surrogate becomes U+FFFD. Pass the bytes themselves to parse a
+file without decoding it first. Ill-formed bytes are then parsed as they are
+unless `rejectInvalidUtf8` is set, which reports one `K1017` error covering
+the first ill-formed sequence and returns an empty program.
+
+```js
+const bytes = fs.readFileSync('upload.js');
+const { program, errors } = parseSync('upload.js', bytes, { rejectInvalidUtf8: true });
 ```
 
 #### When to reach for `parseAsync`
@@ -498,13 +545,35 @@ The server checks unsaved text using the workspace's `kessel.lint.json`
 or `.oxlintrc.json`, including nested configs, overrides, and ignores.
 It reports parser and lint diagnostics as you type. Editors can request
 `quickfix` for a selected warning or `source.fixAll.kessel` to apply all
-safe fixes to the open buffer. A `textDocument/formatting` request formats
-module declarations and data literals using the open buffer and the editor's
-indentation settings.
+safe fixes to the open buffer.
+
+`textDocument/formatting` runs the formatter on the open buffer with the
+editor's indentation settings and returns one edit per run of changed lines,
+so lines the formatter leaves alone are never rewritten.
+`textDocument/rangeFormatting` returns the edits that touch the selected
+lines, and only when formatting the partly formatted text would give the
+same document as formatting all of it. A buffer that does not parse gets no
+edits from either request. The formatter covers JavaScript statements,
+expressions and classes; statements it does not format yet (most TypeScript
+and JSX) keep their text.
+
+Diagnostics keep the stable `L` and `K` codes. Lint diagnostics also carry
+`data.rule`, the name used in configuration: `no-debugger` for core rules and
+`plugin/rule` for the others (`unicorn/no-thenable`,
+`typescript/no-namespace`, `oxc/double-comparisons`, `react/rules-of-hooks`).
+The **Disable … for this line** and **for this file** actions write that
+name. The parser's limits appear as ordinary errors: `K2081` for nesting
+beyond 512 levels and `K1016` for template literals nested beyond 256.
 With `react/exhaustive-deps` enabled, the Quick Fix menu offers edits to the
 reported dependency list. SDK clients can request the same proposed edits
 with `lintSync(filename, source, { includeSuggestions: true, rules })`.
 Editor rule overrides go in `initializationOptions.rules` or `settings.kessel.rules`.
+`categories` and `plugins` beside them select whole rule categories and the
+plugins they draw from, as the same keys of an `.oxlintrc.json` do. They
+replace the project's selection in an `.oxlintrc.json` project and are the
+whole configuration for a file outside any project; a `kessel.lint.json`
+project has no categories and ignores them. `lintSync` accepts the same
+`categories` and `plugins` options.
 
 ## Build from source
 

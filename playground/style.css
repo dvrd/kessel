@@ -22,10 +22,11 @@ select { border: 1px solid var(--border); border-radius: 5px; background: #171c2
 input { accent-color: var(--accent); }
 .workspace { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
 section { min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 8px; background: #10141d; }
-.bar { height: 3rem; padding: 0 .9rem; gap: .5rem; justify-content: space-between; border-bottom: 1px solid var(--border); }
+/* Seven views do not fit one row on a phone, so the bar grows instead of scrolling. */
+.bar { min-height: 3rem; padding: 0 .9rem; gap: .25rem .5rem; flex-wrap: wrap; justify-content: space-between; border-bottom: 1px solid var(--border); }
 #source-label, .views button { font-size: .875rem; font-weight: 600; }
-.views { align-self: stretch; gap: .8rem; }
-button { padding: 0 .15rem; height: 100%; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
+.views { align-self: stretch; gap: 0 .8rem; flex-wrap: wrap; }
+button { padding: 0 .15rem; height: 3rem; border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--muted); cursor: pointer; }
 button[aria-pressed=true] { color: var(--accent); border-bottom-color: currentColor; }
 a { color: var(--accent); font-size: .8rem; text-underline-offset: .2em; }
 textarea, pre {

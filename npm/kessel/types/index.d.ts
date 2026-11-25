@@ -168,6 +168,25 @@ export interface ParseOptions {
   commonjs?: boolean;
   /** Match Babel's `disallowAmbiguousJSXLike` parser option. */
   disallowAmbiguousJSXLike?: boolean;
+  /**
+   * Maximum nesting depth of the source (brackets, blocks, functions, types,
+   * JSX, prefix operators, ...). Deeper input is reported as one `K2081`
+   * error instead of being parsed. Default 512. Member, call, binary and
+   * logical chains are not nesting and may be arbitrarily long.
+   *
+   * The parser recurses on the stack Koffi gives a native call, so the
+   * largest accepted value is 512 per 2 MiB of that stack: 512 unless the
+   * application calls `koffi.config({ sync_stack_size })` (and
+   * `async_stack_size` for {@link parseAsync}) before loading any library.
+   * A value outside `1..limit` throws a `RangeError`.
+   */
+  maxDepth?: number;
+  /**
+   * Refuse source that is not well-formed UTF-8 with one `K1017` error and
+   * an empty program. Only a `Uint8Array` source can be ill-formed: a string
+   * is encoded by the binding and unpaired surrogates become U+FFFD.
+   */
+  rejectInvalidUtf8?: boolean;
 }
 
 /**
@@ -180,12 +199,13 @@ export interface ParseOptions {
  *
  * @param filename Path or synthetic name. Drives language detection
  *                 unless overridden by `options.lang`.
- * @param source   UTF-8 source code to parse.
+ * @param source   Source code to parse: a string, or its UTF-8 bytes,
+ *                 which are passed to the parser unchanged.
  * @param options  Optional parse options.
  */
 export function parseSync(
   filename: string,
-  source: string,
+  source: string | Uint8Array,
   options?: ParseOptions
 ): ParseResult;
 
@@ -196,12 +216,13 @@ export function parseSync(
  *
  * @param filename Path or synthetic name. Drives language detection
  *                 unless overridden by `options.lang`.
- * @param source   UTF-8 source code to parse.
+ * @param source   Source code to parse: a string, or its UTF-8 bytes,
+ *                 which are copied and passed to the parser unchanged.
  * @param options  Optional parse options.
  */
 export function parseAsync(
   filename: string,
-  source: string,
+  source: string | Uint8Array,
   options?: ParseOptions
 ): Promise<ParseResult>;
 
@@ -414,6 +435,9 @@ type LintEqualitySetting =
   readonly [LintLevel, 'always' | 'smart' | 'allow-null', { null?: 'always' | 'ignore' | 'never' }?];
 export type LintRuleSetting = LintSeveritySetting | LintEqualitySetting | LintPreferConstSetting | LintGetterSetting | LintFallthroughSetting | LintConsoleSetting | LintHookSetting;
 
+export type LintCategory =
+  'correctness' | 'suspicious' | 'pedantic' | 'perf' | 'style' | 'restriction' | 'nursery';
+
 export interface LintOptions {
   /** Resolve project config, overrides and ignores from this absolute directory. */
   workspaceRoot?: string;
@@ -421,13 +445,35 @@ export interface LintOptions {
   includeFixes?: boolean;
   /** Attach optional edits for manual selection. Hook dependency edits can change when effects run. */
   includeSuggestions?: boolean;
-  /** Include the registered rule name and an available line directive edit for lint diagnostics. */
+  /**
+   * Include the rule name and an available line directive edit for lint diagnostics. The name is
+   * the one configuration files use: bare for core rules, `plugin/rule` for the others.
+   */
   includeSuppressions?: boolean;
   fix?: boolean;
   fixSuggestions?: boolean;
   fixDangerously?: boolean;
   lang?: Lang;
   reportUnusedDisableDirectives?: 'off' | 'warn' | 'error';
+  /**
+   * Severity of whole rule categories, with the meaning of the `categories`
+   * key of an `.oxlintrc.json`. In an `.oxlintrc.json` project the entries
+   * replace the project's; outside any project they are the configuration;
+   * a `kessel.lint.json` project has no categories and ignores them.
+   * Explicit `rules` still take precedence.
+   */
+  categories?: Partial<Record<LintCategory, LintLevel>>;
+  /**
+   * The plugins whose rules the categories may enable, with the meaning of
+   * the `plugins` key of an `.oxlintrc.json`: `typescript`, `unicorn`, `oxc`
+   * and `react`. Omitted, the project's list or oxlint's default
+   * (`typescript`, `unicorn`, `oxc`) applies. Other names select nothing.
+   */
+  plugins?: string[];
+  /**
+   * Rule names may be qualified by their plugin (`unicorn/no-thenable`,
+   * `@typescript-eslint/no-namespace`, `oxc/double-comparisons`).
+   */
   rules?: Record<string, LintRuleSetting> & {
     eqeqeq?: LintSeveritySetting | LintEqualitySetting;
     'prefer-const'?: LintSeveritySetting | LintPreferConstSetting;
