@@ -112,12 +112,22 @@ minify_legacy_octal :: proc(raw: string) -> bool {
 	return len(raw) > 1 && raw[0] == '0' && raw[1] >= '0' && raw[1] <= '9'
 }
 
+// strconv.write_int formats at the width of `int`, which truncates on the
+// 32-bit wasm target (9007199254740991 printed as -1); integers are
+// formatted at 64 bits explicitly.
+MINIFY_DECIMAL_DIGITS :: "0123456789"
+
+minify_write_i64 :: proc(buffer: []byte, value: i64) -> string {
+	assert(len(buffer) > 0)
+	return strconv.write_bits(buffer, u64(value), 10, true, 64, MINIFY_DECIMAL_DIGITS, nil)
+}
+
 minify_number_text :: proc(buffer: []byte, value: f64) -> string {
 	if math.is_nan(value) || math.is_inf(value) { return "" }
 	if value == 0 && math.sign_bit(value) { return "-0" }
 	// Integer formatting avoids exponent punctuation and is exact up to 2^53.
 	if abs(value) < (1 << 53) && value == math.trunc(value) {
-		return strconv.write_int(buffer, i64(value), 10)
+		return minify_write_i64(buffer, i64(value))
 	}
 	text := strconv.write_float(buffer, value, 'g', -1, 64)
 	if len(text) > 0 && text[0] == '+' { text = text[1:] }
@@ -181,7 +191,7 @@ minify_number_compact :: proc(buffer: []byte, text: string) -> string {
 		copy(scratch[length:], digits[:count]); length += count
 		scratch[length] = 'e'; length += 1
 		power: [8]byte
-		spelled := strconv.write_int(power[:], i64(exponent), 10)
+		spelled := minify_write_i64(power[:], i64(exponent))
 		copy(scratch[length:], spelled); length += len(spelled)
 		if length < len(best) { copy(buffer, scratch[:length]); best = string(buffer[:length]) }
 	}

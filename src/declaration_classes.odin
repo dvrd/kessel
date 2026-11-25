@@ -1,6 +1,5 @@
 package kessel
 
-import "core:strconv"
 import "core:strings"
 
 
@@ -115,7 +114,7 @@ dts_heritage :: proc(state: ^DeclarationEmit, s: ^ClassDeclaration, base: ^Expre
 	for suffix := 1; (name in bindings^); suffix += 1 {
 		assert(suffix <= len(state.items) + 1) // Each taken name is a distinct binding.
 		buffer: [24]byte
-		name = strings.concatenate({stem, "_", strconv.write_int(buffer[:], i64(suffix), 10)})
+		name = strings.concatenate({stem, "_", minify_write_i64(buffer[:], i64(suffix))})
 	}
 	item.preamble = strings.concatenate({"const ", name, ": ", type_text, ";"})
 	cg_str(cg, " extends "); cg_str(cg, name)

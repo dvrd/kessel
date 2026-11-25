@@ -186,6 +186,11 @@ function checkTools() {
   assert.ok(compareGenerated('minify', 'library.mjs', library, ['--no-mangle'], parser.minify(library, {mangle: false})));
   assert.ok(compareGenerated('minify', 'library.mjs', library, ['--no-compress'], parser.minify(library, {compress: false})));
   assert.ok(compareGenerated('minify', 'library.mjs', library, ['--mangle-names'], parser.minify(library, {mangleNames: true})));
+  // Integers past 32 bits: wasm32's `int` is 32 bits, and formatting them
+  // at that width printed 9007199254740991 as -1 and 2**32 as 0.
+  const integers = 'f(9007199254740991, 0x1fffffffffffff, 4294967296, 0xffffffff, -2147483649, 1e15);\n';
+  assert.ok(compareGenerated('minify', 'integers.js', integers, [], parser.minify(integers, {language: 'js'})));
+  assert.ok(parser.minify(integers, {language: 'js'}).code.includes('9007199254740991'));
   assert.ok(parser.minify(library).code.length < library.length / 2);
   assert.doesNotMatch(parser.minify(library).code, /unreachable|firstValue/);
   assert.throws(() => parser.minify('x', {mangle: 'all'}), TypeError);
