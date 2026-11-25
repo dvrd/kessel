@@ -165,8 +165,6 @@ lint_parity_stmt :: proc(l: ^Linter, ctx: ^LintContext, stmt: ^Statement) {
 		lint_check_unsafe_finally(l, stmt)
 	case ^ThrowStatement, ^BreakStatement:
 		lint_check_unsafe_finally(l, stmt)
-	case ^VariableDeclaration:
-		lint_check_multi_assign_declaration(l, node)
 	case ^ImportDeclaration:
 		lint_check_rename_module(l, stmt)
 	case ^ExportNamedDeclaration:

@@ -1685,6 +1685,8 @@ lint_walk_var_decl :: proc(l: ^Linter, ctx: ^LintContext, d: ^VariableDeclaratio
 	lint_check_this_alias_declaration(l, ctx, d)
 	lint_queue_unassigned(l, d)
 	lint_check_as_const_declaration(l, ctx, d)
+	// Declarations in a loop head reach this walk without being statements.
+	lint_check_multi_assign_declaration(l, d)
 	for &decl in d.declarations {
 		lint_record_declarator(l, &decl, d.kind)
 		if ctx.dependencies != nil { lint_dependency_binding(ctx.dependencies, &decl, d.kind) }
