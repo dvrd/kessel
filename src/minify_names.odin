@@ -129,6 +129,7 @@ MangleState :: struct {
 	canon: []SymbolId, // First declaration of the runtime binding that a symbol belongs to.
 	keep: []bool,      // Indexed by canonical symbol: the original spelling stays.
 	slot: []u32,       // Indexed by canonical symbol: one-based name slot, or zero.
+	module: bool,      // A module's top-level bindings are private and can be renamed.
 	live_scope: [dynamic]ScopeId,  // Pairs: a scope below the declaration that can see
 	live_symbol: [dynamic]SymbolId, // or contains a use of the symbol.
 }
@@ -172,7 +173,8 @@ mangle_mark_kept :: proc(state: ^MangleState, keep_names: bool, shorthands: []in
 		id := SymbolId(index)
 		canon, found := model.binding_index[{symbol.scope, symbol.name}]
 		state.canon[index] = canon if found else id
-		keep := symbol.scope == SCOPE_ROOT || uses.dynamic_scopes[symbol.scope]
+		// Other scripts and the global object see a script's top-level names.
+		keep := (symbol.scope == SCOPE_ROOT && !state.module) || uses.dynamic_scopes[symbol.scope]
 		keep ||= symbol.kind not_in MANGLE_ELIGIBLE || .Exported in symbol.flags
 		keep ||= uses.keep[symbol.name] || mangle_block_function(model, &symbol)
 		if keep_names {
@@ -268,13 +270,14 @@ mangle_assign_slots :: proc(state: ^MangleState) -> u32 {
 	taken := make([]u32, len(model.symbols) + 1, alloc)
 	slots: u32 = 0
 	for &scope, index in model.scopes {
-		if index == int(SCOPE_ROOT) || len(scope.symbols) == 0 { continue }
-		mark := u32(index)
+		if (index == int(SCOPE_ROOT) && !state.module) || len(scope.symbols) == 0 { continue }
+		// Scope zero must not look like an untouched slot.
+		mark := u32(index) + 1
 		for symbol in ordered[starts[index]:starts[index+1]] {
 			if state.slot[symbol] != 0 && !state.keep[symbol] { taken[state.slot[symbol]-1] = mark }
 		}
 		// A body var that took a parameter's spelling would start with the parameter's value.
-		if scope.kind == .FunctionBody {
+		if index != int(SCOPE_ROOT) && scope.kind == .FunctionBody {
 			for symbol in model.scopes[scope.parent].symbols {
 				if state.slot[symbol] != 0 { taken[state.slot[symbol]-1] = mark }
 			}
@@ -321,6 +324,13 @@ mangle_reserve_names :: proc(state: ^MangleState, alphabet: ^MangleAlphabet) {
 	for ref in model.refs {
 		if ref.resolved == SYMBOL_UNRESOLVED { alphabet.reserved[ref.name] = true }
 	}
+}
+
+// The alias of the binding that `export { name }` refers to, or "" when it kept its name.
+minify_export_alias :: proc(cg: ^Codegen, local: ExportSpecifierName) -> string {
+	name, plain := local.(IdentifierName)
+	if !plain || len(cg.renamed) == 0 { return "" }
+	return cg.renamed[name.loc.start]
 }
 
 // A shorter spelling for a function or class name, when the mangler chose one.
@@ -386,16 +396,17 @@ minify_prepare :: proc(job: ^ParseJob, options: PrintOptions) -> map[u32]string 
 		minify_compress_program(&compressor, job.program)
 	}
 	if !options.mangle { return nil }
-	return minify_local_names(&model, &uses, &alphabet, options)
+	return minify_local_names(&model, &uses, &alphabet, options, job.program.type == .Module)
 }
 
 minify_local_names :: proc(
 	model: ^SemanticModel, uses: ^MangleUses, alphabet: ^MangleAlphabet, options: PrintOptions,
+	module: bool,
 ) -> map[u32]string {
 	alloc := model.alloc
 	count := len(model.symbols)
 	state := MangleState{
-		model = model, uses = uses, canon = make([]SymbolId, count, alloc),
+		model = model, uses = uses, module = module, canon = make([]SymbolId, count, alloc),
 		keep = make([]bool, count, alloc), slot = make([]u32, count, alloc),
 		live_scope = make([dynamic]ScopeId, alloc), live_symbol = make([dynamic]SymbolId, alloc),
 	}

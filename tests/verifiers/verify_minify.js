@@ -391,6 +391,27 @@ const compressionCases = {
       return [fixed, moving, a, others, reassigned, counted, swapped, looped, inner(), out.map(v => typeof v === 'function' ? v() : v)]; }
     function evaluated(code) { const hidden = 1; const out = []; try { eval(code); } catch (e) { out.push(e.constructor.name); } return [hidden, out]; }
     globalThis.result = [top, first, second, consts([13, 14]), evaluated('hidden = 2'), evaluated('')];`,
+  // Constant tests select a branch. Hoisted declarations in the dead branch,
+  // the dead zone of a later `let`, and the receiver of a call all survive.
+  'dead.js': `
+    const log = []; const t = (name, value) => { log.push(name); return value; };
+    const o = { m() { return this === o; } };
+    function dead(a) {
+      if ("production" !== "production") { t('never'); } if (false) { var hoisted = 1; } if (true) { t('then'); } else { t('else'); }
+      if (0) t('zero'); else { let q = t('q', 1); log.push(q); } if (!1) { function inner() {} } if ('') t('empty'); else t('nonempty');
+      if (null) t('null'); if (void 0) t('void'); if (1 === 1) t('same'); if ("a" == "b") t('differ'); else if (a) t('a'); else t('not a');
+      var r = true ? t('r1') : t('r2'), s = false && t('s'), u = true || t('u'), w = false || t('w'), x = 0 ? t('x1') : t('x2');
+      var called = [(true ? o.m : 0)(), (false || o.m)(), (true && o.m)(), (0, o.m)()].map(Boolean);
+      var indirect = (true ? eval : 0)('typeof log'), direct = eval('typeof log');
+      return [typeof hoisted, typeof inner, r, s, u, w, x, called, indirect, direct, log.splice(0)];
+    }
+    function after(a) { try { early; } catch (e) { log.push(e.constructor.name); }
+      if (a) { return tail(); t('dead1'); var late = 1; function tail() { return typeof late + typeof never; } t('dead2'); }
+      switch (a) { case 0: t('case'); break; t('dead3'); default: t('default'); }
+      for (var i = 0; i < 2; i++) { if (i) continue; t('loop'); break; t('dead4'); }
+      throw (t('thrown'), 'x'); t('dead5'); let early = 2; var never; }
+    const run = a => { try { return after(a); } catch (e) { return [String(e), log.splice(0)]; } };
+    globalThis.result = [dead(0), dead(1), run(0), run(1)];`,
   'spacing.js': `
     function spacing(a, x) { const o = { a }; let u = 1;
       const fns = [function () { return !a; }, function () { return -a; }, function () { return ~a; }, function () { return +a; }, function () { return ++u; }, function () { return --u; },
@@ -430,7 +451,9 @@ function verifyCompression() {
       if (name === 'undefined-eval.js') oracle = '[[null,"undefined"],[null,"undefined"],[null,"undefined"],[null,"undefined"]]';
       // It also drops the unused `class Sub extends undefined {}`, which throws a TypeError when evaluated.
       if (name === 'undefined.js') oracle = expected.replace('"undefined","TypeError",[true', '"undefined",null,[true');
-      assert.notEqual(name === 'undefined.js' && oracle, expected);
+      // It removes the read of `early` in its dead zone, and with it the ReferenceError.
+      if (name === 'dead.js') oracle = expected.replace('["ReferenceError","case"', '["case"');
+      assert.notEqual((name === 'undefined.js' || name === 'dead.js') && oracle, expected);
       assert.equal(outcome(result.code), oracle, name + ' Oxc');
     }
   }
@@ -458,7 +481,7 @@ function verifyCompression() {
     assert.ok(arrows.includes(text), text);
   }
   const blocks = small('blocks.js');
-  for (const text of ['{let z=1;', '{function q(){return 1}}', 'empty:;', 'for(var m=0;m<1;m++);', 'default:;}']) {
+  for (const text of ['{let z=1;', '{function q(){return 1}}', 'empty:;', 'for(var m=0;m<1;m++);', "r.push('one');default:}"]) {
     assert.ok(blocks.includes(text), text);
   }
   const dangling = small('dangling.js');
@@ -466,6 +489,12 @@ function verifyCompression() {
     "if(a){inner:if(b)r.push('label')}else r.push('else label')", "if(a)b?r.push('both'):r.push('only a')"]) {
     assert.ok(dangling.includes(text), text);
   }
+  const dead = small('dead.js');
+  for (const text of ['if(!1)var hoisted=1;', "t('then');{let q=t('q',1);log.push(q)}", 'if(!1){function inner(){}}', "t('nonempty')", "r=t('r1'),s=!1,u=!0,w=t('w'),x=t('x2')",
+    '(!0?o.m:0)()', '(!1||o.m)()', '(!0&&o.m)()', "(!0?eval:0)('typeof log')", 'return tail();var late=1;function tail()', "break;default:", 'let early=2;var never}']) {
+    assert.ok(dead.includes(text), text);
+  }
+  assert.doesNotMatch(dead, /never'\)|'else'|'zero'|'empty'\)|'null'|'void'|'differ'|'r2'|'x1'|dead\d/);
   const constants = small('constants.js');
   for (const text of ['const top=1,[first,{second=2}]=[3,{}];', 'let fixed=1,moving=2,{a,...others}={a:3,b:4},out=[];const reassigned=5;',
     'const counted=7;', 'const[swapped]=[8];', 'const looped=10;', 'let early=11;', 'for(let item of list)', 'for(let key in {k:1})',
@@ -481,7 +510,7 @@ function verifyCompression() {
   const spacing = small('spacing.js');
   for (const text of ['return!a', 'return-a', 'return~a', 'return +a', 'return++u', 'return[a]', 'return{a}', 'return"s"+a', 'return`t${a}`',
     'return/re/.test(a)', 'return-1}', 'return 1}', 'return-0}', 'return 0}', 'return typeof a', 'return void a', "return'q'.length",
-    'return!0?-1:1', 'return true.toString()', 'return 1+x', 'return!a.b', 'return-x*2', 'return 3}', 'return -3}', 'return o.a', 'return{}.x',
+    'return true.toString()', 'return 1+x', 'return!a.b', 'return-x*2', 'return 3}', 'return -3}', 'return o.a', 'return{}.x',
     'case"x":', 'case-1:', 'case!a:', 'case 3:', 'case[1][0]:', 'var{p,q=2}=', 'let[l]=[4],{c}={c:5}']) {
     assert.ok(spacing.includes(text), text);
   }
@@ -520,7 +549,8 @@ function verifyCompressionFuzz(count) {
   const pick = (...choices) => choices[random(choices.length)];
   let serial = 0;
   const test = depth => {
-    const leaf = () => pick('p("' + (serial++) + '",a)', 'p("' + (serial++) + '",b)', 'p("' + (serial++) + '",c)', 'v===undefined', 'typeof v==="undefined"');
+    const leaf = () => pick('p("' + (serial++) + '",a)', 'p("' + (serial++) + '",b)', 'p("' + (serial++) + '",c)', 'v===undefined', 'typeof v==="undefined"',
+      'p("' + (serial++) + '",a)', 'p("' + (serial++) + '",b)', 'true', 'false', '0', '"k"==="k"', '"k"!=="k"', 'null');
     if (depth <= 0) return leaf();
     switch (random(8)) {
       case 0: return '!' + test(depth - 1);
@@ -576,6 +606,59 @@ function verifyCompressionFuzz(count) {
     checked += slice.length;
   }
   return checked;
+}
+
+// What a module offers to its importers: every exported name and, for a
+// re-export, where it comes from. Local binding names are not part of it.
+function exportList(file, code) {
+  const { parseSync } = require('../../bench/node_modules/oxc-parser');
+  const names = [];
+  for (const statement of parseSync(file, code).module.staticExports) {
+    for (const entry of statement.entries) {
+      names.push([entry.exportName.kind, entry.exportName.name, entry.moduleRequest && entry.moduleRequest.value,
+        entry.importName.kind, entry.importName.name].join(' '));
+    }
+  }
+  return names.sort();
+}
+
+// A module's top-level bindings are private, so they are renamed. Imports,
+// exported declarations and the names in `export { }` lists keep the
+// spelling other modules use. A script's top level is never renamed.
+function verifyModuleNames() {
+  const source = [
+    "import { readFileSync as readFile } from 'node:fs';", "import * as pathTools from 'node:path';", "import defaultUrl from 'node:url';",
+    'const topValue = 1; let counter = 0; var legacy = 2;',
+    'function helper(amount) { counter += amount; return counter + topValue + legacy; }',
+    'class Shape { area() { return helper(1); } static make() { return new Shape(); } }',
+    'const arrowNamed = () => 3; const unusedTop = 4; { let topValue = 9; counter += topValue; }',
+    'export const exportedConst = helper(2);',
+    'export function exportedFunction() { return [helper.name, Shape.name, arrowNamed.name, typeof readFile, typeof pathTools.join, typeof defaultUrl]; }',
+    'export { helper, Shape as Figure, counter as default, legacy, legacy as "quoted name" };', "export { join } from 'node:path';",
+    'export class Kept { own() { return Kept.name + typeof Shape.make(); } }',
+  ].join('\n');
+  const runner = write('runner.mjs', "const m = await import(process.argv[2]); console.log(JSON.stringify([Object.keys(m).sort(), m.default, " +
+    "m.exportedConst, m.exportedFunction(), m.helper(1), m.default, new m.Figure().area(), m.legacy, m['quoted name'], new m.Kept().own(), typeof m.join]));");
+  const run = code => execFileSync(process.execPath, [runner, write('subject.mjs', code)], { encoding: 'utf8' });
+  const file = write('module.mjs', source);
+  const expected = run(source);
+  for (const flags of [[], ['--no-compress'], ['--no-mangle'], ['--mangle-names']]) {
+    const output = emit('minify', file, flags);
+    assert.deepEqual(exportList(file, output), exportList(file, source), flags.join(' '));
+    const actual = run(output);
+    if (flags.includes('--mangle-names')) {
+      const names = value => { const list = JSON.parse(value); list[3] = list[3].slice(3); list[9] = typeof list[9]; return JSON.stringify(list); };
+      assert.equal(names(actual), names(expected));
+      assert.doesNotMatch(output, /helper\(|class Shape|arrowNamed/);
+    } else {
+      assert.equal(actual, expected, 'module ' + flags.join(' '));
+    }
+    if (!flags.includes('--no-mangle')) assert.doesNotMatch(output, /topValue|counter|unusedTop|\blegacy=/);
+    assert.match(output, /readFile\b.*pathTools.*defaultUrl/s);
+  }
+  assert.match(emit('minify', file), /export \{helper, ?Shape as Figure, ?\w+ as default, ?\w+ as legacy, ?\w+ as "quoted name"\}/);
+  const script = 'const topValue = 1; let counter = 0; function helper(amount) { return amount + topValue + counter; } globalThis.result = helper(2);';
+  assert.match(emit('minify', write('script.js', script)), /const topValue=1;let counter=0;function helper\(/);
 }
 
 function verifyJSXNames() {
@@ -929,7 +1012,7 @@ function compareNamedBindings(verifier, relative, before, after) {
 
 function verifyCorpus() {
   const { parseSync } = require('../../bench/node_modules/oxc-parser');
-  const { fingerprint, loosen } = require('./minify_fingerprint');
+  const { fingerprint, loosen, threw } = require('./minify_fingerprint');
   const { readChecksums, verifyCorpus } = require('./verify_real_world_inputs');
   const corpus = path.join(root, 'bench/real_world');
   verifyCorpus(corpus);
@@ -943,7 +1026,7 @@ function verifyCorpus() {
   // What each output may differ in from its source when both are run.
   const loose = { compressed: {}, full: { messages: true }, named: { names: true, messages: true } };
   let compactBytes = 0, minifiedBytes = 0, namedBytes = 0, checkedProbes = 0, bindings = 0, compressedBindings = 0;
-  let executed = 0, calls = 0, described = 0, modules = 0, unstable = 0;
+  let executed = 0, calls = 0, described = 0, modules = 0, unstable = 0, failedToLoad = 0;
   const checkBindings = process.argv.includes('--bindings');
   const verifier = path.join(root, 'bench/oxc_compare/target/release/examples',
     process.platform === 'win32' ? 'minify_bindings.exe' : 'minify_bindings');
@@ -965,6 +1048,7 @@ function verifyCorpus() {
       assert.ok(result.code === outputs.full, relative + ' SDK output differs from CLI');
     }
     assert.ok(Buffer.byteLength(outputs.full) <= Buffer.byteLength(compact), relative);
+    for (const mode of Object.keys(modes)) assert.deepEqual(exportList(file, outputs[mode]), exportList(file, source), relative + ' exports ' + mode);
     if (checkBindings) {
       bindings += compareBindings(verifier, file, files.renamed);
       compressedBindings += compareBindings(verifier, files.compressed, files.full);
@@ -996,16 +1080,18 @@ function verifyCorpus() {
       unstable++;
     }
     for (const [mode, options] of Object.entries(loose)) {
-      let actual = shown(outputs[mode], withCalls);
-      // A call near its time limit can finish on one run and not the next when
-      // the machine is busy. A real difference shows on every run.
-      for (let attempt = 0; attempt < 3 && loosen(actual, options) !== loosen(expected, options); attempt++) {
-        expected = shown(source, withCalls);
-        actual = shown(outputs[mode], withCalls);
-      }
-      assert.ok(loosen(actual, options) === loosen(expected, options), relative + ' behaves differently after minify ' + modes[mode].join(' '));
+      const actual = shown(outputs[mode], withCalls);
+      // cash-dom's serialize() writes the `name` of each element. With the stand-in
+      // those elements are its own functions, whose names --mangle-names changes.
+      const named = relative === 'batch4/cash-dom.js' && mode === 'named';
+      const compared = text => {
+        const loose = loosen(text, options);
+        return named ? loose.split('\n').filter(line => !line.includes('.fn.serialize(#')).join('\n') : loose;
+      };
+      assert.ok(compared(actual) === compared(expected), relative + ' behaves differently after minify ' + modes[mode].join(' '));
     }
     executed++;
+    if (threw(expected)) failedToLoad++;
     calls += (expected.match(/\(#\d\) /g) || []).length;
     described += (expected.match(/\(#\d\)/g) || []).length;
   }
@@ -1021,7 +1107,7 @@ function verifyCorpus() {
   }
   console.log(executed + ' scripts left the same globals and exports and returned the same results from ' + calls +
     ' exported-function calls under compression, renaming and --mangle-names (' + modules + ' modules not executed, ' +
-    unstable + ' scripts compared without calls).');
+    unstable + ' scripts compared without calls, ' + failedToLoad + ' scripts still throw while loading).');
   console.log(readChecksums().size + ' real outputs reparsed in four pass combinations, ' + checkedProbes +
     ' library API probes passed. Compact ' + compactBytes + ' bytes, minified ' + minifiedBytes +
     ' bytes, with --mangle-names ' + namedBytes + ' bytes.');
@@ -1033,6 +1119,7 @@ try {
   verifyEffects();
   verifyNames();
   verifyNameSlots();
+  verifyModuleNames();
   verifyCompression();
   const fuzzed = verifyCompressionFuzz(600);
   verifyJSXNames();

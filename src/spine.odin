@@ -44,10 +44,13 @@ import "base:runtime"
 EXPR_SPINE_INLINE_COUNT :: 32
 
 // Upper bound on a chain. Every chain node occupies at least 16 bytes of
-// arena and at least one byte of source, and source offsets are u32, so
-// a longer chain cannot come from the parser; hitting the bound means
-// the tree is cyclic or corrupt.
-EXPR_SPINE_COUNT_MAX :: 1 << 31
+// arena, so 2^30 links would need 16 GiB of AST: a longer chain cannot
+// come from the parser, and hitting the bound means the tree is cyclic
+// or corrupt. The bound is 2^30 rather than 2^31 so that it fits in `int`
+// on 32-bit targets (the wasm playground).
+EXPR_SPINE_COUNT_MAX :: 1 << 30
+
+#assert(EXPR_SPINE_COUNT_MAX <= max(i32))
 
 #assert(EXPR_SPINE_INLINE_COUNT > 0)
 #assert(EXPR_SPINE_INLINE_COUNT < EXPR_SPINE_COUNT_MAX)

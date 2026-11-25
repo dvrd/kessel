@@ -99,7 +99,7 @@ BUNDLE_UNRESOLVED        :: i32(-2)
 BUNDLE_DEFAULT_LOCAL     :: "*default*"
 
 #assert(BUNDLE_MODULES_MAX <= int(max(i32)))
-#assert(BUNDLE_SOURCE_BYTES_MAX <= int(max(u32)))
+#assert(u64(BUNDLE_SOURCE_BYTES_MAX) <= u64(max(u32)))
 
 BundleFormat   :: enum u8 { ESM, CJS, IIFE }
 BundlePlatform :: enum u8 { Node, Browser }

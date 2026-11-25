@@ -1430,7 +1430,12 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 		first = false
 		if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, sp.loc.start) }
 		if type_only { cg_str(cg, "type ") }
-		if export_name_eq(sp.local, sp.exported) {
+		if alias := minify_export_alias(cg, sp.local); alias != "" {
+			// The module still exports the original name for a shortened binding.
+			cg_str(cg, alias)
+			cg_str(cg, " as ")
+			gen_export_specifier_name(cg, sp.exported)
+		} else if export_name_eq(sp.local, sp.exported) {
 			gen_export_specifier_name(cg, sp.local)
 		} else {
 			gen_export_specifier_name(cg, sp.local)
