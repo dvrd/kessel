@@ -361,10 +361,18 @@ name lookups.
 `'es2024'`. Kessel lowers exponentiation, optional catch binding, optional
 chaining, nullish coalescing, logical assignment, numeric separators, and the
 ES2022 class features: public fields, private names, `#x in o` and static
-blocks, and object rest and spread. Newer syntax it cannot lower, such as
-async functions below `es2017`, is reported in `errors` and no code is
-returned. Lowered public fields are defined, as the language specifies;
-`assumptions: { setPublicClassFields: true }` assigns them instead.
+blocks, object rest and spread, and async functions. Newer syntax it cannot
+lower, such as async generators below `es2018`, is reported in `errors` and
+no code is returned. Lowered public fields are defined, as the language
+specifies; `assumptions: { setPublicClassFields: true }` assigns them instead.
+
+Below `es2017` an async function becomes a function that runs a generator.
+Arrows stay arrows and methods stay methods, with the same `name` and
+`length`; an `async function` declaration or expression becomes an ordinary
+function, which unlike the original has a `prototype` and can be called with
+`new`. `await` resolves its operand with `Promise.resolve(value).then(...)`,
+so a `then` method that a program installed on a native promise is called
+where `await` would not call it.
 
 ```js
 transformSync('read.ts', 'export const read = (a?: Box) => a?.value ?? 0;', { target: 'es2019' });

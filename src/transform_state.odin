@@ -19,6 +19,7 @@ TransformHelper :: enum u8 {
 	Private_Init, Private_Brand, Private_Get, Private_Set, Private_Method,
 	Private_Accessor_Get, Private_Accessor_Set, Private_Readonly, Private_In,
 	Object_Spread, Rest_Pair,
+	Async, Async_Super,
 }
 
 TransformState :: struct {
@@ -42,6 +43,10 @@ TransformState :: struct {
 	class_computed: map[u32]bool,           // Anonymous classes named by a computed key.
 	super_done:    map[^Expression]bool,    // `super(...)` calls that already carry initializers.
 	weak_checked:  bool,
+	async_arguments: map[u32]bool,          // Free uses of `arguments`; true inside a function.
+	async_targets: map[u32]string,          // `new.target` offsets to their capture binding.
+	async_supers:  map[u32]string,          // `super` offsets to their reference maker.
+	async_block_functions: map[u32]bool,    // Functions declared in a block of sloppy code.
 }
 
 // Reads of intrinsics inside a helper resolve in module scope, so a source
@@ -65,6 +70,8 @@ TRANSFORM_HELPER_GLOBALS := [TransformHelper][]string{
 	.Private_In           = {"TypeError"},
 	.Object_Spread        = {"Object", "Reflect"},
 	.Rest_Pair            = {"Object", "Reflect", "Symbol", "String"},
+	.Async                = {"Promise"},
+	.Async_Super          = {"Reflect"},
 }
 
 TRANSFORM_HELPER_KINDS := [TransformHelper]string{
@@ -86,6 +93,8 @@ TRANSFORM_HELPER_KINDS := [TransformHelper]string{
 	.Private_In           = "private_in",
 	.Object_Spread        = "spread",
 	.Rest_Pair            = "rest",
+	.Async                = "async",
+	.Async_Super          = "super_ref",
 }
 
 // Every line ends a statement or opens or closes a block, so the compact
@@ -225,6 +234,58 @@ TRANSFORM_HELPER_BODIES := [TransformHelper]string{
   };
   return pair;
 }`,
+	// Drives a generator as the body of an async function. `await` is a
+	// `yield`: the value is resolved as a promise and its outcome is sent
+	// back in. The generator is created inside the promise, so an error in
+	// a parameter rejects instead of being thrown at the caller.
+	.Async = `(self, args, body) {
+  return new Promise(function (resolve, reject) {
+    var generator = body.apply(self, args);
+    function step(method, value) {
+      var result;
+      var awaited;
+      try {
+        result = generator[method](value);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+      if (result.done) {
+        resolve(result.value);
+        return;
+      }
+      try {
+        awaited = Promise.resolve(result.value);
+      } catch (error) {
+        step("throw", error);
+        return;
+      }
+      awaited.then(fulfilled, rejected);
+    }
+    function fulfilled(value) {
+      step("next", value);
+    }
+    function rejected(error) {
+      step("throw", error);
+    }
+    step("next", void 0);
+  });
+}`,
+	// `super[key]` as an object that can be read, assigned and updated, for
+	// code that moved into a function where `super` cannot be written.
+	.Async_Super = `(read, write) {
+  return function (key) {
+    var name = Reflect.ownKeys({ [key]: 0 })[0];
+    return {
+      get value() {
+        return read(name);
+      },
+      set value(next) {
+        write(name, next);
+      },
+    };
+  };
+}`,
 }
 
 transform_state_init :: proc(
@@ -274,6 +335,8 @@ transform_state_init :: proc(
 	state.class_names = make(map[u32]string, 8, state.allocator)
 	state.class_computed = make(map[u32]bool, 8, state.allocator)
 	state.super_done = make(map[^Expression]bool, 8, state.allocator)
+	state.async_targets = make(map[u32]string, 8, state.allocator)
+	state.async_supers = make(map[u32]string, 8, state.allocator)
 	state.temp_scopes = make([dynamic][dynamic]string, 0, 8, state.allocator)
 	append(&state.temp_scopes, make([dynamic]string, 0, 4, state.allocator))
 	cg.transform = state
