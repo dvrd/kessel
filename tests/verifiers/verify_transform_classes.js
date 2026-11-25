@@ -211,6 +211,8 @@ function checkDiagnostics(binary, temp) {
     ['const WeakMap = Map; class C { #x = 1; }', /WeakMap or WeakSet/],
     ['class C { accessor [key()] = 1; }', /accessor field/],
     ['class C { accessor #x = 1; }', /accessor field/],
+    ['const made = { [key()]: class { static mark = 1; } };', /value of a computed property/],
+    ['class Holder { [key()] = class { #secret = 1; }; }', /value of a computed property/],
   ];
   const file = path.join(temp, 'class-diagnostic.js');
   for (const [source, pattern] of cases) {
@@ -220,6 +222,9 @@ function checkDiagnostics(binary, temp) {
     assert.equal(result.stdout, '', source);
     assert.match(result.stderr, pattern, source);
   }
+  // A class that stays a plain class expression is still named by its key.
+  fs.writeFileSync(file, 'const made = { [key()]: class { field = 1; }, [other()]: class Named { static mark = 1; } };');
+  assert.equal(spawnSync(binary, ['transform', file, '--target=es2021']).status, 0);
   // At a target that has the features, the class is printed as written.
   fs.writeFileSync(file, 'class C { #x = 1; static y = 2; static { C.z = 3; } }');
   const kept = spawnSync(binary, ['transform', file, '--target=es2022', '--minified'], { encoding: 'utf8' });

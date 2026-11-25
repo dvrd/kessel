@@ -216,6 +216,22 @@ rest_params :: proc(cg: ^Codegen, params: []FunctionParameter, body: ^FunctionBo
 		param.pattern = transform_identifier(state, name, at)^.(^Identifier)
 	}
 	if len(bindings) == 0 { return }
+	// The pattern is now bound by `var` when the body starts. A function
+	// declared in the body under one of its names would be assigned over,
+	// where a parameter of that name is replaced by the function.
+	names := make(map[string]bool, 8, context.temp_allocator)
+	for binding in bindings {
+		rest_bound_names(binding^.(^VariableDeclaration).declarations[0].id, &names)
+	}
+	for statement in body.body {
+		function, declared := statement^.(^FunctionDeclaration)
+		if !declared { continue }
+		if id, named := function.id.?; named && names[id.name] {
+			what := "object rest in a parameter that a function in the body redeclares is not lowered"
+			cg_strip_unsupported(cg, function.loc, what)
+			return
+		}
+	}
 	directives := min(len(body.directives), len(body.body))
 	statements := make([dynamic]^Statement, 0, len(body.body) + len(bindings), state.allocator)
 	append(&statements, ..body.body[:directives])
@@ -442,4 +458,20 @@ spread_property_copies :: proc(cg: ^Codegen, property: Property) -> bool {
 		return false
 	}
 	return true
+}
+
+// The names a binding pattern declares. Patterns nest no deeper than the parser allows.
+rest_bound_names :: proc(pattern: Pattern, names: ^map[string]bool) {
+	switch node in pattern {
+	case ^Identifier:        names[node.name] = true
+	case ^ObjectPattern:
+		for property in node.properties { rest_bound_names(property.value, names) }
+	case ^ArrayPattern:
+		for element in node.elements {
+			if inner, present := element.?; present { rest_bound_names(inner, names) }
+		}
+	case ^AssignmentPattern: rest_bound_names(node.left, names)
+	case ^RestElement:       rest_bound_names(node.argument, names)
+	case ^MemberExpression:
+	}
 }

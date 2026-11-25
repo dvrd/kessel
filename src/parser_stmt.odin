@@ -404,6 +404,15 @@ parse_block_statement :: proc(p: ^Parser) -> ^Statement {
 	// Track nesting depth for import/export position check.
 	p.block_depth += 1
 	defer p.block_depth -= 1
+	// A StatementList is never parameterised by [In]. A block reached from a
+	// for-statement head is a function body (`for (var f = () => { return "a"
+	// in o; }; ;)`) or a class static block, and `in` is an operator again
+	// inside it. Every arrow-body path and parse_static_block come through
+	// here, so this is the one place the flag is cleared for them. The cost is
+	// one byte saved and restored per block.
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
+	defer p.ctx.no_in = prev_no_in
 	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
 		prev_offset := int(cur_offset(p))
 		stmt := parse_statement_or_declaration(p)
@@ -2457,6 +2466,13 @@ parse_function_params :: proc(p: ^Parser) -> [dynamic]FunctionParameter {
 	if is_token(p, .RParen) {
 		return params
 	}
+
+	// FormalParameters are not parameterised by [In]: a default such as
+	// `function (a = "x" in o) {}` may use `in` even when the function sits in
+	// a for-statement head. One save and restore per parameter list.
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
+	defer p.ctx.no_in = prev_no_in
 
 	// Cap bumped from 3 → 8 (S23). Profile on monaco showed this was the
 	// #1 slow-path source: 1465 grow events / parse for functions with
@@ -4521,7 +4537,12 @@ parse_class_field_initializer :: proc(p: ^Parser, is_declare, is_readonly, is_ab
 	p.ctx.in_generator_params = false
 	p.ctx.in_field_init = true
 	p.ctx.in_static_block = false
+	// §15.7 FieldDefinition : ClassElementName Initializer[+In]. The for-head
+	// restriction on `in` stops at the class body.
+	prev_no_in := p.ctx.no_in
+	p.ctx.no_in = false
 	init_expr := parse_assignment_expression(p)
+	p.ctx.no_in = prev_no_in
 	p.ctx.in_async = prev_in_async
 	p.ctx.in_generator = prev_in_generator
 	p.ctx.in_async_params = prev_in_async_params
@@ -4675,9 +4696,11 @@ parse_class_name_bigint :: proc(p: ^Parser, kind: ClassElementKind) -> ClassElem
 	} else {
 		big.value = current.value
 	}
-	big.loc.end = prev_end_offset(p)
 	key = big_e
+	// Consume the token before reading its end; see parse_property_key.
 	eat(p)
+	big.loc.end = prev_end_offset(p)
+	assert(big.loc.start < big.loc.end)
 	return ClassElementName{key = key, kind = kind, computed = false}
 }
 

@@ -1697,7 +1697,13 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	// Fast path: simple integer (no dot, no exponent, no underscore, fits in u64)
 	value: f64
-	if is_simple_int && (end - start) <= 15 {
+	if legacy_zero_prefix && !legacy_zero_prefix_has_89 && is_simple_int {
+		// §B.1.1 LegacyOctalIntegerLiteral: `010` is eight, not ten. The digit
+		// loop above accumulated in base ten because it cannot know that no
+		// `8` or `9` follows until the literal ends, so the value is redone
+		// here. Only this cold Annex B spelling pays for the second pass.
+		value = lex_legacy_octal_value(src[start:end])
+	} else if is_simple_int && (end - start) <= 15 {
 		value = f64(acc)
 	} else {
 		text := l.source[start:end]
@@ -1727,6 +1733,37 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
+}
+
+// Mathematical value of a LegacyOctalIntegerLiteral (§B.1.1), rounded to the
+// nearest f64 the way the engine rounds any NumericLiteral (§12.9.3).
+//
+// The top bits are gathered in a u64. Once another digit would no longer fit,
+// the remaining digits only move the binary exponent, and whether any of them
+// was non-zero is folded into bit zero as a sticky bit. The u64 then holds at
+// least 61 significant bits, more than the 53 an f64 keeps, so the conversion
+// rounds exactly as the full integer would.
+lex_legacy_octal_value :: proc(digits: []u8) -> f64 {
+	assert(len(digits) >= 2)
+	assert(digits[0] == '0')
+	mantissa: u64 = 0
+	shift_bits: u32 = 0
+	sticky := false
+	for digit in digits {
+		assert(digit >= '0' && digit <= '7')
+		if mantissa >> 61 == 0 {
+			mantissa = mantissa << 3 | u64(digit - '0')
+		} else {
+			shift_bits += 3
+			if digit != '0' { sticky = true }
+		}
+	}
+	if sticky { mantissa |= 1 }
+	value := f64(mantissa)
+	// Scaling by a power of two is exact; past the f64 range it overflows to
+	// infinity, which is also what the engine evaluates such a literal to.
+	for ; shift_bits > 0 && value < max(f64); shift_bits -= 3 { value *= 8 }
+	return value
 }
 
 lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
@@ -2036,6 +2073,36 @@ append_utf8 :: #force_inline proc(cook_buf: ^[dynamic]u8, cp: u32) {
 	}
 }
 
+// Append the code point of a `\u` escape to a cooked value, keeping the value
+// in WTF-8: UTF-8, plus 3-byte sequences for surrogates that have no partner.
+//
+// A JavaScript string is a sequence of UTF-16 code units, so a high surrogate
+// followed by a low one is a single supplementary code point however the two
+// were spelled: `\uD83D\uDE00`, `\u{D83D}\u{DE00}`, or the two halves on either
+// side of a line continuation. When `cp` is a low surrogate and the value
+// already ends in a high one, the pair is rewritten as its 4-byte sequence.
+// Leaving it as two 3-byte sequences would be neither UTF-8 nor WTF-8.
+//
+// The three bytes ED A0..AF 80..BF at the end of the buffer can only be a high
+// surrogate: ED is a lead byte, never a continuation byte, so they cannot be
+// the tail of a longer sequence.
+append_utf8_joining_surrogates :: proc(cook_buf: ^[dynamic]u8, cp: u32) {
+	assert(cp <= 0x10FFFF)
+	length := len(cook_buf)
+	if cp >= 0xDC00 && cp <= 0xDFFF && length >= 3 {
+		lead, second, third := cook_buf[length - 3], cook_buf[length - 2], cook_buf[length - 1]
+		if lead == 0xED && second >= 0xA0 && second <= 0xAF && third >= 0x80 && third <= 0xBF {
+			high := 0xD000 | u32(second & 0x3F) << 6 | u32(third & 0x3F)
+			assert(high >= 0xD800 && high <= 0xDBFF)
+			resize(cook_buf, length - 3)
+			append_utf8(cook_buf, 0x10000 + (high - 0xD800) * 0x400 + (cp - 0xDC00))
+			assert(len(cook_buf) == length + 1) // Six bytes became four.
+			return
+		}
+	}
+	append_utf8(cook_buf, cp)
+}
+
 hex_val :: #force_inline proc(c: u8) -> i32 {
 	switch {
 	case c >= '0' && c <= '9': return i32(c - '0')
@@ -2201,7 +2268,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						} else if overflow {
 							bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: code point out of range [0..0x10FFFF]", code = .K1011_InvalidEscapeSequence})
 						} else {
-							append_utf8(&cook_buf, cp)
+							append_utf8_joining_surrogates(&cook_buf, cp)
 						}
 					} else {
 						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: missing closing '}'", code = .K1011_InvalidEscapeSequence})
@@ -2244,7 +2311,10 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 							}
 						}
 					}
-						append_utf8(&cook_buf, cp)
+						// Not the `\uHHHH\uHHHH` shape handled above, but `cp` may
+						// still complete a pair begun by `\u{D83D}` or a high
+						// surrogate before a line continuation.
+						append_utf8_joining_surrogates(&cook_buf, cp)
 						l.offset += 6
 					} else {
 						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits", code = .K1011_InvalidEscapeSequence})
@@ -2822,27 +2892,24 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		bump_append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive", code = .K1012_InvalidRegex})
 	}
 
-	// Now that flags are parsed, run the full pattern validator. It owns
-	// every diagnostic that depends on flag context (property escapes,
-	// strict IdentityEscape, char-class range early errors in u/v mode,
-	// v-flag set notation, …) plus the flag-agnostic named-group checks.
+	// Now that flags are parsed, validate the pattern. Every diagnostic that
+	// depends on flag context (property escapes, strict IdentityEscape, class
+	// ranges, `v` set notation, …) comes from here, together with the
+	// flag-agnostic quantifier and named-group checks.
 	//
-	// Promoted to always-on (2026-05-08). Was previously gated on
-	// check_semantics, mirroring OXC's parser/semantic split, but every
-	// diagnostic emitted here is a §22.2.1 early error — a SyntaxError
-	// that ECMA-262 specifies as parse-phase. Running it always closes
-	// ~356 negatives in `parser_test262.snap` (the
-	// `language/literals/regexp` and `built-ins/RegExp/property-escapes`
-	// clusters) without any false-positive risk on positive fixtures —
-	// `semantic_test262.snap` has been at 47088/47090 positives for
-	// multiple sessions with this code path active.
+	// Always on: each diagnostic is a §22.2.1 early error, a SyntaxError the
+	// specification assigns to the parse phase, and the regexp negatives in
+	// `parser_test262.snap` depend on it.
 	//
-	// Post-#5 the validator no longer reaches into lexer state — it
-	// takes (source, span, flags, alloc) and returns a
-	// [dynamic]RegexDiagnostic. We map those back into LexerError so the
-	// lexer's error channel stays the single source of truth.
+	// regex_validate_literal never reaches into lexer state: it takes
+	// (source, span, flags, alloc) and returns diagnostics, which are mapped
+	// into LexerError so the lexer's error channel stays the single source
+	// of truth. It accepts an ordinary literal after the validator's scans
+	// and consults the regexp tree builder for the rest; see its comment.
 	if !l.skip_regex_validation {
-		diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
+		diags := regex_validate_literal(
+			l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator,
+		)
 		for d in diags {
 			// Propagate the validator's code if it set one, otherwise
 			// fall back to K1012_InvalidRegex — every regex-validator
@@ -3026,7 +3093,9 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 			// \uHHHH or \u{H...H}. Reuse the shared decoder.
 			cp, ok, consumed := decode_u_escape(src, i)
 			if ok {
-				append_utf8(&buf, cp)
+				// Joins an escaped surrogate pair into one code point, as
+				// string literals do; see StringLiteral.value in ast.odin.
+				append_utf8_joining_surrogates(&buf, cp)
 				i += consumed - 1
 			} else {
 				bump_append(&buf, ch)

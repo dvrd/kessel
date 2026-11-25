@@ -116,7 +116,46 @@ let ignoringRejections = false;
 // Compare two results with `loosen(text, { names, messages })`: `names` ignores
 // function names and `messages` ignores error message text, for a program
 // whose locals were renamed.
+// A stand-in for the browser and for other modules: one object that answers every property read,
+// call and construction with itself. It lets a library that touches
+// `document` while loading finish loading, so its functions can be called.
+// It is created inside the sandbox and behaves the same for both programs.
+const DOM_STUB = `(() => {
+  const any = new Proxy(function () {}, {
+    get(target, key) {
+      if (key === Symbol.toPrimitive) return () => '';
+      if (key === Symbol.iterator) return function* () {};
+      if (key === 'prototype') return target.prototype;
+      if (key === 'then' || typeof key === 'symbol') return undefined;
+      if (key === 'length' || key === 'nodeType') return key === 'length' ? 0 : 1;
+      if (key === 'userAgent' || key === 'href' || key === 'readyState' || key === 'nodeName') return key === 'readyState' ? 'complete' : '';
+      return any;
+    },
+    set() { return true; }, has() { return true; }, apply() { return any; }, construct() { return any; },
+    ownKeys() { return ['prototype']; }, deleteProperty() { return true; },
+  });
+  for (const name of ['document', 'navigator', 'location', 'localStorage', 'sessionStorage', 'history', 'screen', 'getComputedStyle',
+    'matchMedia', 'requestAnimationFrame', 'cancelAnimationFrame', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval',
+    'addEventListener', 'removeEventListener', 'MutationObserver', 'ResizeObserver', 'IntersectionObserver', 'XMLHttpRequest', 'fetch',
+    'Image', 'CustomEvent', 'Event', 'process', 'queueMicrotask', 'atob', 'btoa', 'URL', 'Headers', 'Request', 'Response',
+    'Document', 'HTMLVideoElement', 'HTMLCanvasElement', 'HTMLImageElement']) globalThis[name] = any;
+  // Most scripts that fail to load alone are CommonJS files asking for a sibling module.
+  globalThis.require = () => any;
+  for (const name of ['Node', 'Element', 'HTMLElement', 'SVGElement', 'DocumentFragment', 'EventTarget']) globalThis[name] = function () {};
+})();`;
+
 function fingerprint(code, calls = false) {
+  const bare = fingerprintIn(code, calls, false);
+  // A script that needs a browser or another module gets the stand-in on a second attempt.
+  return bare.startsWith('throw ') ? 'dom\n' + fingerprintIn(code, calls, true) : bare;
+}
+
+// Whether a description is of a script that did not finish loading.
+function threw(text) {
+  return text.startsWith('dom\nthrow ');
+}
+
+function fingerprintIn(code, calls, dom) {
   if (calls && !ignoringRejections) {
     process.on('unhandledRejection', () => {});
     ignoringRejections = true;
@@ -129,7 +168,7 @@ function fingerprint(code, calls = false) {
     'globalThis.Date = class extends Date { constructor(...args) { super(...(args.length ? args : [1700000000000])); }' +
     ' static now() { return 1700000000000; } };' +
     'if (globalThis.performance) performance.now = () => 5;' +
-    'globalThis.require = name => { throw new Error("no module " + name); };', context);
+    'globalThis.require = name => { throw new Error("no module " + name); };' + (dom ? DOM_STUB : ''), context);
   const baseline = new Map();
   // Built-ins that exist before the script runs are identical on both sides.
   for (const key of Reflect.ownKeys(context)) baseline.set(context[key], baseline.size);
@@ -155,4 +194,4 @@ function fingerprint(code, calls = false) {
   return out.join('\n');
 }
 
-module.exports = { fingerprint, loosen };
+module.exports = { fingerprint, loosen, threw };

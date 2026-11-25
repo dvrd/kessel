@@ -1,2 +1,2 @@
-import { Counter } from './fields.mjs';
-console.log(Counter.count);
+import { big } from './bigint.mjs';
+console.log(big);

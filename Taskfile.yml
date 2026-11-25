@@ -365,7 +365,7 @@ tasks:
     desc: Check regexp tree structure, Unicode sets, diagnostics, and Node accept/reject agreement.
     deps: [build, build:lib]
     cmds:
-      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_regex_ast_structure,coverage.test_regex_ast_unicode_sets,coverage.test_regex_ast_legacy_and_invalid,coverage.test_regex_ast_character_values,coverage.test_regex_ast_legacy_code_units,coverage.test_regex_ast_modifiers,coverage.test_regex_ast_duplicate_names,coverage.test_regex_ast_annex_b,coverage.test_regex_ast_legacy_octal,coverage.test_regex_ast_class_atoms,coverage.test_regex_ast_set_notation,coverage.test_regex_ast_properties
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_regex_ast_structure,coverage.test_regex_ast_unicode_sets,coverage.test_regex_ast_legacy_and_invalid,coverage.test_regex_ast_character_values,coverage.test_regex_ast_legacy_code_units,coverage.test_regex_ast_modifiers,coverage.test_regex_ast_duplicate_names,coverage.test_regex_ast_annex_b,coverage.test_regex_ast_legacy_octal,coverage.test_regex_ast_class_atoms,coverage.test_regex_ast_set_notation,coverage.test_regex_ast_properties,coverage.test_regex_literal_verdicts
       - node tests/verifiers/verify_regex_ast_cli.js
       - node tests/verifiers/verify_regex_ast_reference.js
 

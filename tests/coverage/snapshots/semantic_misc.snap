@@ -1,7 +1,7 @@
 semantic_misc Summary:
-AST Parsed     : 110/110 (100.00%)
-Positive Passed: 110/110 (100.00%)
-Negative Passed: 288/288 (100.00%)
+AST Parsed     : 119/119 (100.00%)
+Positive Passed: 119/119 (100.00%)
+Negative Passed: 305/305 (100.00%)
 tests/coverage/misc/fail/await-expr-in-block-in-class-static-block.mjs:4:7: 'await' is not allowed in a class static block
 tests/coverage/misc/fail/commonjs-export-statement.cjs:2:1: 'export' is only valid in module code
 tests/coverage/misc/fail/commonjs-import-meta.cjs:2:12: 'import.meta' is only valid in module code
@@ -73,6 +73,13 @@ tests/coverage/misc/fail/import-type-source-not-string.ts:3:25: String literal e
 tests/coverage/misc/fail/import-type-without-from.ts:1:13: Expected 'from', got string literal
 tests/coverage/misc/fail/import-without-from.js:1:16: Expected 'from', got string literal
 tests/coverage/misc/fail/jsx-like-in-js.js:1:24: Expected '>', got ';'
+tests/coverage/misc/fail/kessel-dangling-comma-block.js:2:18: Expected expression after ','
+tests/coverage/misc/fail/kessel-dangling-comma-condition.js:2:8: Expected expression after ','
+tests/coverage/misc/fail/kessel-dangling-comma-for-update.js:2:29: Expected expression after ','
+tests/coverage/misc/fail/kessel-dangling-comma-member.js:2:6: Expected expression after ','
+tests/coverage/misc/fail/kessel-dangling-comma-paren-comment.js:2:17: Parenthesized expressions may not have a trailing comma
+tests/coverage/misc/fail/kessel-dangling-comma-rest-param.js:2:11: Rest element may not have a trailing comma
+tests/coverage/misc/fail/kessel-dangling-comma-statement.js:2:4: Expected expression after ','
 tests/coverage/misc/fail/kessel-depth-limit-arrays.js:3:515: Maximum nesting depth exceeded (limit 512)
 tests/coverage/misc/fail/kessel-depth-limit-arrows.js:3:1280: Maximum nesting depth exceeded (limit 512)
 tests/coverage/misc/fail/kessel-depth-limit-blocks.js:3:513: Maximum nesting depth exceeded (limit 512)
@@ -82,10 +89,20 @@ tests/coverage/misc/fail/kessel-depth-limit-non-null.ts:3:1534: Maximum nesting 
 tests/coverage/misc/fail/kessel-depth-limit-parens.js:3:512: Maximum nesting depth exceeded (limit 512)
 tests/coverage/misc/fail/kessel-depth-limit-tuple-type.ts:3:265: Maximum nesting depth exceeded (limit 512)
 tests/coverage/misc/fail/kessel-depth-limit-unary.js:3:514: Maximum nesting depth exceeded (limit 512)
+tests/coverage/misc/fail/kessel-for-head-in-concise-arrow.js:4:28: Expected ')', got ';'
 tests/coverage/misc/fail/kessel-jsx-closing-tag-name-span.jsx:3:16: Expected corresponding JSX closing tag for 'p'.
 tests/coverage/misc/fail/kessel-jsx-spread-attribute-no-operand.jsx:2:18: Expected an expression after '...' in JSX spread
 tests/coverage/misc/fail/kessel-jsx-spread-child-no-operand.jsx:2:18: Expected an expression after '...' in JSX spread
+tests/coverage/misc/fail/kessel-legacy-octal-strict.js:4:13: Legacy octal literals are not allowed in strict mode
 tests/coverage/misc/fail/kessel-regex-quantified-lookbehind-and-leading.js:7:20: Quantifier without preceding atom
+tests/coverage/misc/fail/kessel-regexp-class-boundary-escape-u.js:3:3: Invalid identity escape
+tests/coverage/misc/fail/kessel-regexp-legacy-range-reversed.js:2:4: Character class range is reversed
+tests/coverage/misc/fail/kessel-regexp-quantified-assertion.js:2:3: Term cannot be quantified
+tests/coverage/misc/fail/kessel-regexp-quantifier-bounds-reversed.js:2:3: Quantifier minimum exceeds maximum
+tests/coverage/misc/fail/kessel-regexp-stacked-quantifier.js:2:4: Term cannot be quantified
+tests/coverage/misc/fail/kessel-regexp-unknown-script-value.js:2:2: Unknown Unicode property name or value
+tests/coverage/misc/fail/kessel-regexp-v-class-double-range.js:2:6: Unescaped syntax character in a Unicode set
+tests/coverage/misc/fail/kessel-regexp-v-class-string-syntax-char.js:3:6: Unescaped syntax character in a Unicode set
 tests/coverage/misc/fail/kessel-template-nesting-over-cap.js:5:1035: Template literal nesting exceeds 256 levels
 tests/coverage/misc/fail/kessel-ts2300-class-field-method.ts:8:3: Duplicate identifier 'a'.
 tests/coverage/misc/fail/kessel-ts2391-fn-decl-no-impl.ts:7:1: Function implementation name must be 'foo'.

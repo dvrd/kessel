@@ -39,6 +39,7 @@ TransformState :: struct {
 	classes:       map[u32]^LoweredClass,   // By the offset of the class body.
 	class_list:    [dynamic]^LoweredClass,
 	class_names:   map[u32]string,          // Contextual names of anonymous class expressions.
+	class_computed: map[u32]bool,           // Anonymous classes named by a computed key.
 	super_done:    map[^Expression]bool,    // `super(...)` calls that already carry initializers.
 	weak_checked:  bool,
 }
@@ -271,6 +272,7 @@ transform_state_init :: proc(
 	state.classes = make(map[u32]^LoweredClass, 8, state.allocator)
 	state.class_list = make([dynamic]^LoweredClass, 0, 8, state.allocator)
 	state.class_names = make(map[u32]string, 8, state.allocator)
+	state.class_computed = make(map[u32]bool, 8, state.allocator)
 	state.super_done = make(map[^Expression]bool, 8, state.allocator)
 	state.temp_scopes = make([dynamic][dynamic]string, 0, 8, state.allocator)
 	append(&state.temp_scopes, make([dynamic]string, 0, 4, state.allocator))
