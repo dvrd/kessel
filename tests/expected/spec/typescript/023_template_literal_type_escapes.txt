@@ -1,0 +1,105 @@
+{
+  "type": "Program",
+  "start": 83,
+  "end": 156,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 83,
+      "end": 121,
+      "id": {
+        "type": "Identifier",
+        "start": 88,
+        "end": 90,
+        "name": "T1",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSTemplateLiteralType",
+        "start": 93,
+        "end": 120,
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 93,
+            "end": 104,
+            "tail": false,
+            "value": { "raw": "a\\tb\\r\\n", "cooked": "a\tb\r\n" }
+          },
+          {
+            "type": "TemplateElement",
+            "start": 110,
+            "end": 120,
+            "tail": true,
+            "value": { "raw": "\\u0041\\\\", "cooked": "A\\" }
+          }
+        ],
+        "types": [
+          {
+            "type": "TSStringKeyword",
+            "start": 104,
+            "end": 110
+          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 122,
+      "end": 155,
+      "id": {
+        "type": "Identifier",
+        "start": 127,
+        "end": 129,
+        "name": "T2",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSTemplateLiteralType",
+        "start": 132,
+        "end": 154,
+        "quasis": [
+          {
+            "type": "TemplateElement",
+            "start": 132,
+            "end": 141,
+            "tail": false,
+            "value": { "raw": "plain ", "cooked": "plain " }
+          },
+          {
+            "type": "TemplateElement",
+            "start": 147,
+            "end": 154,
+            "tail": true,
+            "value": { "raw": " tail", "cooked": " tail" }
+          }
+        ],
+        "types": [
+          {
+            "type": "TSNumberKeyword",
+            "start": 141,
+            "end": 147
+          }
+        ]
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 82,
+      "value": " Template literal types keep their escapes: a cooked tab or CR LF is other text."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=0B reserved=16777216B ratio=0%
+Parse errors: 0

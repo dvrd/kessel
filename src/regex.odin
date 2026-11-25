@@ -5,24 +5,19 @@ import "core:mem"
 import "core:slice"
 
 // ============================================================================
-// Regular expression pattern validator (ES2025 §22.2.1).
+// Regular expression literal validation (ES2025 §22.2.1 plus Annex B.1.2).
 //
-// Called via the public `regex_validate` entry below. The validator
-// returns its diagnostics to the caller, which routes them into
-// whatever error channel they prefer (the lexer appends to
-// `l.lexer_errors` today; a future semantic checker could call
-// `regex_validate` directly on RegExpLiteral nodes post-parse). Bytes
-// covered are exclusively `src[pat_start:pat_end]`, the closed-open
-// range of the pattern body (between the opening `/` and the closing
-// `/`). The validator never mutates lexer cursor state because it
-// never sees the lexer.
+// `regex_validate_literal` below is the entry point. It returns its
+// diagnostics to the caller, which routes them into whatever error channel it
+// prefers (the lexer appends to `l.lexer_errors`). Bytes covered are
+// exclusively `src[pat_start:pat_end]`, the closed-open range of the pattern
+// body between the opening `/` and the closing `/`. Nothing here sees the
+// lexer or mutates its cursor.
 //
-// The pre-#5 API took `l: ^Lexer` everywhere and reached into
-// `l.source_bytes` / `l.lexer_errors`. That coupling made regex
-// validation a lexer concern even though the brief calls it semantic.
-// Public API is now `regex_validate(source, span, flags, alloc)`; the
-// internal procs route through a small `RegexValidator` value that
-// holds the borrowed source bytes and the per-call diagnostics buffer.
+// The procedures after the entry point form the validator: linear scans over
+// the pattern that allocate nothing unless they report. They do not decide
+// alone any more. The entry point explains how the verdict is shared with the
+// regexp tree builder (regex_ast.odin).
 // ============================================================================
 
 // One validator-emitted diagnostic. Caller maps these onto whatever
@@ -41,34 +36,81 @@ RegexDiagnostic :: struct {
 }
 
 // Per-call validator state. Source is borrowed; errors and allocator
-// are owned. Constructed inside `regex_validate` and threaded into the
-// internal validator procs as their first argument. Not exported - the
+// are owned. Constructed inside `regex_validate_literal` and threaded into
+// the internal validator procs as their first argument. Not exported - the
 // caller never builds one directly.
 RegexValidator :: struct {
 	source:    []u8,                      // borrowed
 	errors:    [dynamic]RegexDiagnostic,  // owned, built per-call
 	allocator: mem.Allocator,
+	// Set by the structure pass when the pattern has a shape this validator
+	// cannot judge exactly (see QuantScan.suspect). regex_validate_literal
+	// then asks the tree builder instead of trusting an empty error list.
+	suspect: bool,
 }
 
-// regex_validate is the public entry point. Builds a RegexValidator,
-// runs the full pattern pipeline, and returns the populated diagnostic
-// list. The returned slice is backed by the validator's [dynamic] which
-// is allocated on `alloc` - typically the parse arena. Caller iterates
-// the returned slice and routes diagnostics into its own channel.
+// regex_validate_literal is what the lexer calls for a regexp literal. It
+// decides accept or reject and returns the diagnostics of a rejection.
 //
-// Empty return = no diagnostics. The validator never panics or aborts;
-// every malformed regex surfaces as one or more diagnostics.
-regex_validate :: proc(
-	source:           []u8,
+// Two implementations know the pattern grammar. The validator in this file is
+// a few linear scans with no allocation, cheap enough for the lexer, and loose:
+// it was grown against the conformance corpus and both over- and under-rejects
+// outside it. The tree builder (regex_ast.odin) is a strict parser that agrees
+// with V8 on tens of thousands of patterns and costs about a node per pattern
+// byte. The grammar decision belongs to the builder wherever that is
+// affordable:
+//
+//   * With `u` or `v` the builder always decides. Those flags carry nearly all
+//     of the grammar the validator gets wrong (property names and values, set
+//     notation, strict escapes) and are rare: 79 of the 9256 literals in
+//     bench/real_world have `u`, none has `v`.
+//   * Without them the validator runs first. A pattern it has no complaint
+//     about and no doubt about (`suspect`) is accepted on the spot; that is the
+//     hot path and it never reaches the builder. Anything else goes to the
+//     builder, whose verdict stands, so a validator complaint about a valid
+//     pattern is dropped and a doubt is settled either way.
+//
+// The validator's diagnostics are still what a rejected literal reports, since
+// their wording and offsets are pinned by the conformance snapshots. The
+// builder's own message is used only when the validator has none.
+regex_validate_literal :: proc(
+	source:             []u8,
 	pat_start, pat_end: u32,
-	has_u, has_v:     bool,
-	alloc:            mem.Allocator,
+	has_u, has_v:       bool,
+	alloc:              mem.Allocator,
 ) -> []RegexDiagnostic {
+	assert(pat_start <= pat_end)
+	if int(pat_end) > len(source) { return nil }
 	v: RegexValidator
 	v.source    = source
 	v.errors    = make([dynamic]RegexDiagnostic, 0, 4, alloc)
 	v.allocator = alloc
-	regex_validate_pattern(&v, pat_start, pat_end, has_u, has_v)
+
+	// `u` together with `v` is already a flag error; there is no grammar to
+	// consult for that combination, so the validator's reading is kept.
+	strict := has_u != has_v
+	if !strict {
+		regex_validate_pattern(&v, pat_start, pat_end, has_u, has_v)
+		if has_u && has_v { return v.errors[:] }
+		if len(v.errors) == 0 && !v.suspect { return nil }
+	}
+
+	flags := RegexAstFlags{.Unicode_Sets} if has_v else RegexAstFlags{.Unicode} if has_u else {}
+	verdict, verdict_error := regex_pattern_verdict(string(source[pat_start:pat_end]), flags)
+	switch verdict {
+	case .Accepted:
+		return nil
+	case .Rejected, .Unknown:
+		if strict { regex_validate_pattern(&v, pat_start, pat_end, has_u, has_v) }
+		if verdict == .Rejected && len(v.errors) == 0 {
+			assert(verdict_error.kind == .Invalid_Pattern)
+			append(&v.errors, RegexDiagnostic{
+				offset  = pat_start + verdict_error.offset,
+				message = verdict_error.message,
+				code    = .K1012_InvalidRegex,
+			})
+		}
+	}
 	return v.errors[:]
 }
 
@@ -741,39 +783,200 @@ regex_skip_group_prefix :: proc(src: []u8, i, pe: int) -> int {
 	return j
 }
 
+// What a quantifier at the current position would apply to.
+QuantTerm :: enum u8 {
+	Atom,            // a character, escape, class or group: quantifiable
+	Assertion,       // `^`, `$`, `\b`, `\B`: never quantifiable
+	Quantifier,      // a quantifier: only the lazy `?` may follow
+	Lazy_Quantifier, // a quantifier and its `?`: nothing may follow
+}
+
 // Mutable scan state shared by the quantifier-structure handlers below.
 // `expecting_atom` is true wherever the next non-class character would start
 // a fresh Atom (start of pattern, after `(`, after `|`); `stack` records the
 // is-lookbehind flag of each currently-open paren so a quantifier directly
 // after a `(?<=…)` / `(?<!…)` close can be rejected.
+//
+// `suspect` collects the early errors this scan can smell but not prove:
+// a quantifier stacked on a quantifier or on an assertion (`a**`, `^*`,
+// `\b+`), `{n,m}` with n above m, a class range that runs backwards
+// (`[z-a]`), and `\k` inside a class. Proving them needs the real grammar
+// (Annex B decides what `{` and `\k` even are), so the scan only raises the
+// flag and regex_validate_literal lets the tree builder rule. The flag may be
+// raised for a valid pattern; that costs a builder run, never a wrong answer.
 QuantScan :: struct {
 	in_class:                   bool,
 	expecting_atom:             bool,
 	last_closed_was_lookbehind: bool,
+	suspect:                    bool,
+	term:                       QuantTerm,
+	// Index of the `}` that closes the braced quantifier being scanned, so its
+	// digits are not taken for atoms. Below every index when there is none.
+	brace_end:                  int,
 	depth:                      int,
 	stack:                      [64]bool,
 }
 
-// quant_scan_trivia consumes a leading escape (`\x`) or any byte inside a
-// `[…]` class at src[i], which are plain non-quantifier symbols for both
-// rules. Returns the advanced index and whether a byte was consumed (the
-// caller continues when consumed is true).
+// quant_scan_trivia consumes a leading escape (`\x`) or the next atom or
+// range inside a `[…]` class at src[i], which are plain non-quantifier symbols
+// for both rules. Returns the advanced index and whether anything was consumed
+// (the caller continues when consumed is true).
 quant_scan_trivia :: proc(s: ^QuantScan, src: []u8, i, pe: int) -> (next: int, consumed: bool) {
 	c := src[i]
+	if s.in_class {
+		if c == ']' {
+			s.in_class = false; s.expecting_atom = false; s.last_closed_was_lookbehind = false
+			s.term = .Atom
+			return i + 1, true
+		}
+		return quant_scan_class_member(s, src, i, pe), true
+	}
 	if c == '\\' && i + 1 < pe {
 		s.expecting_atom = false; s.last_closed_was_lookbehind = false
+		escaped := src[i + 1]
+		s.term = .Assertion if escaped == 'b' || escaped == 'B' else .Atom
 		return i + 2, true
 	}
-	if c == '[' && !s.in_class {
+	if c == '[' {
 		s.in_class = true; s.expecting_atom = false; s.last_closed_was_lookbehind = false
-		return i + 1, true
+		// `[^`: the caret negates the class and is not an atom.
+		return i + 2 if i + 1 < pe && src[i + 1] == '^' else i + 1, true
 	}
-	if c == ']' && s.in_class {
-		s.in_class = false; s.expecting_atom = false; s.last_closed_was_lookbehind = false
-		return i + 1, true
-	}
-	if s.in_class { return i + 1, true }
 	return i, false
+}
+
+// How much the scan knows about one legacy-mode class atom.
+ClassAtomKind :: enum u8 {
+	Character, // a single code unit whose value is known
+	Set,       // `\d`, `\w`, `\s` and their complements
+	Unknown,   // an atom this scan does not decode: octal, `\c`, astral, `\k`
+}
+
+// quant_scan_class_member consumes the class atom at src[i], and the range it
+// begins if a `-` and a second atom follow (ClassAtom `-` ClassAtom, §22.2.1),
+// and returns the index after it. A range is suspect when its ends are known
+// characters in the wrong order or when either end is Unknown. A range with a
+// Set end is valid in the legacy grammar (Annex B.1.2), where the hyphen is
+// then a literal.
+quant_scan_class_member :: proc(s: ^QuantScan, src: []u8, i, pe: int) -> int {
+	assert(s.in_class)
+	assert(i < pe)
+	if src[i] == '\\' && i + 1 < pe && src[i + 1] == 'k' { s.suspect = true }
+	left_end, left_value, left_kind := regex_legacy_class_atom(src, i, pe)
+	assert(left_end > i)
+	is_range := left_end + 1 < pe && src[left_end] == '-' && src[left_end + 1] != ']'
+	if !is_range { return left_end }
+	right_end, right_value, right_kind := regex_legacy_class_atom(src, left_end + 1, pe)
+	assert(right_end > left_end + 1)
+	if left_kind == .Unknown || right_kind == .Unknown {
+		s.suspect = true
+	} else if left_kind == .Character && right_kind == .Character {
+		if left_value > right_value { s.suspect = true }
+	}
+	return right_end
+}
+
+// regex_legacy_class_atom decodes the class atom at src[i] as the grammar
+// without `u`/`v` reads it: one UTF-16 code unit per atom. It returns the
+// index after the atom, never beyond `pe`. Anything it is not certain about is
+// Unknown, which sends a range using it to the tree builder.
+regex_legacy_class_atom :: proc(
+	src: []u8,
+	i, pe: int,
+) -> (end: int, value: u32, kind: ClassAtomKind) {
+	assert(i < pe)
+	c := src[i]
+	if c != '\\' || i + 1 >= pe {
+		if c < 0x80 { return i + 1, u32(c), .Character }
+		// A character outside the BMP is two code units, hence two atoms.
+		width := 2 if c < 0xE0 else 3 if c < 0xF0 else 4
+		if c < 0xC0 || width == 4 || i + width > pe { return i + 1, 0, .Unknown }
+		decoded, ok := regex_class_atom_codepoint(src, i, i + width)
+		return i + width, decoded, .Character if ok else .Unknown
+	}
+	escaped := src[i + 1]
+	switch escaped {
+	case 'd', 'D', 's', 'S', 'w', 'W':
+		return i + 2, 0, .Set
+	case 'x', 'u':
+		// `\xHH` and `\uHHHH`; with fewer hex digits an identity escape.
+		digits := 2 if escaped == 'x' else 4
+		if i + 2 + digits > pe { return i + 2, u32(escaped), .Character }
+		for k in 0 ..< digits {
+			digit := hex_digit_val(src[i + 2 + k])
+			if digit < 0 { return i + 2, u32(escaped), .Character }
+			value = value * 16 + u32(digit)
+		}
+		return i + 2 + digits, value, .Character
+	case 'b': return i + 2, 0x08, .Character
+	case 'n': return i + 2, 0x0A, .Character
+	case 'r': return i + 2, 0x0D, .Character
+	case 't': return i + 2, 0x09, .Character
+	case 'f': return i + 2, 0x0C, .Character
+	case 'v': return i + 2, 0x0B, .Character
+	case '0' ..= '9':
+		// Legacy octal: the atom takes every digit that may belong to it.
+		end = i + 2
+		for end < pe && end < i + 4 && src[end] >= '0' && src[end] <= '7' { end += 1 }
+		// `\0` on its own is NUL, the usual lower end of `[\0-\x1F]`.
+		if escaped == '0' && end == i + 2 { return end, 0, .Character }
+		return end, 0, .Unknown
+	case 'c', 'k':
+		// Whether these are escapes at all depends on what follows and on
+		// the rest of the pattern.
+		return i + 2, 0, .Unknown
+	}
+	if escaped >= 0x80 { return i + 2, 0, .Unknown }
+	return i + 2, u32(escaped), .Character // identity escape
+}
+
+// quant_scan_term tracks what a quantifier would apply to at src[i], a byte
+// outside any class that is not an escape, and reports the two quantifier
+// shapes that are never valid: a quantifier on a quantifier or assertion, and
+// `{n,m}` with the bounds reversed.
+quant_scan_term :: proc(s: ^QuantScan, src: []u8, i, pe: int) -> (suspect: bool) {
+	if i <= s.brace_end { return false }
+	c := src[i]
+	braced := c == '{' && regex_is_braced_quantifier(src, i, pe)
+	if braced {
+		s.brace_end = i + 1
+		for src[s.brace_end] != '}' { s.brace_end += 1 }
+	}
+	if c == '?' || c == '*' || c == '+' || braced {
+		switch s.term {
+		case .Atom:
+			s.term = .Quantifier
+		case .Quantifier:
+			if c == '?' { s.term = .Lazy_Quantifier } else { suspect = true }
+		case .Assertion, .Lazy_Quantifier:
+			suspect = true
+		}
+		if braced && regex_braced_bounds_reversed(src, i, pe) { suspect = true }
+	} else {
+		s.term = .Assertion if c == '^' || c == '$' else .Atom
+	}
+	return suspect
+}
+
+// The complete braced quantifier at src[off] has a lower bound above its upper
+// bound: `{3,2}`. Bounds are compared as digit strings so that no value
+// overflows.
+regex_braced_bounds_reversed :: proc(src: []u8, off, pe: int) -> bool {
+	assert(regex_is_braced_quantifier(src, off, pe))
+	lower_start := off + 1
+	lower_end := lower_start
+	for src[lower_end] >= '0' && src[lower_end] <= '9' { lower_end += 1 }
+	if src[lower_end] != ',' { return false }       // `{n}`
+	upper_start := lower_end + 1
+	upper_end := upper_start
+	for src[upper_end] >= '0' && src[upper_end] <= '9' { upper_end += 1 }
+	if upper_end == upper_start { return false }     // `{n,}`
+	for lower_start < lower_end - 1 && src[lower_start] == '0' { lower_start += 1 }
+	for upper_start < upper_end - 1 && src[upper_start] == '0' { upper_start += 1 }
+	lower := string(src[lower_start:lower_end])
+	upper := string(src[upper_start:upper_end])
+	if len(lower) != len(upper) { return len(lower) > len(upper) }
+	return lower > upper
 }
 
 // quant_scan_group handles `(`, `)`, `|`, and ordinary characters, updating
@@ -815,7 +1018,7 @@ regex_validate_structure :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
 	pe := int(pat_end)
 	if int(pat_start) >= pe { return }
 
-	s := QuantScan{expecting_atom = true}
+	s := QuantScan{expecting_atom = true, brace_end = -1}
 
 	// Each concern's diagnostics are buffered then flushed in a fixed
 	// [modifier][leading-quantifier][lookbehind] order so the emission
@@ -834,6 +1037,7 @@ regex_validate_structure :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
 		next, consumed := quant_scan_trivia(&s, src, i, pe)
 		if consumed { i = next; continue }
 		c := src[i]
+		if quant_scan_term(&s, src, i, pe) { s.suspect = true }
 		// Leading quantifier — a quantifier where an Atom is expected.
 		if s.expecting_atom {
 			if c == '?' || c == '*' || c == '+' ||
@@ -868,6 +1072,7 @@ regex_validate_structure :: proc(v: ^RegexValidator, pat_start, pat_end: u32) {
 	for e in mod_errors { append(&v.errors, e) }
 	for e in lq_errors { append(&v.errors, e) }
 	for e in lb_errors { append(&v.errors, e) }
+	v.suspect = s.suspect
 }
 
 // True iff src[off:pe] starts with a structurally-complete

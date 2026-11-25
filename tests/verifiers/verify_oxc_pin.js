@@ -7,6 +7,7 @@ const { spawnSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '../..');
 const QUIET = process.argv.includes('--quiet');
+const REQUIRE_INSTALLED = process.argv.includes('--require-installed');
 const PIN_PATH = path.join(ROOT, 'OXC_ORACLE.json');
 const OXC_DIR = path.resolve(ROOT, '../oxc');
 const BENCH_PACKAGE = path.join(ROOT, 'bench/package.json');
@@ -135,6 +136,22 @@ if (fs.existsSync(BENCH_LOCK)) {
       '  oracle:            ' + expectedOxcParser + '\n' +
       '  package-lock node: ' + lockedOxcParser
     );
+  }
+}
+
+if (REQUIRE_INSTALLED) {
+  const installedPath = path.join(ROOT, 'bench/node_modules/oxc-parser');
+  try {
+    const installed = require(path.join(installedPath, 'package.json'));
+    if (installed.version !== expectedOxcParser) {
+      throw new Error('expected ' + expectedOxcParser + ', found ' + installed.version);
+    }
+    if (typeof require(installedPath).parseSync !== 'function') {
+      throw new Error('native parseSync unavailable');
+    }
+  } catch (error) {
+    fail('verify_oxc_pin: cannot load the pinned npm oracle: ' + error.message +
+         '\nInstall the locked dependencies with (cd bench && npm ci).');
   }
 }
 

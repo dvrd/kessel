@@ -657,31 +657,31 @@
     {
       "type": "Line",
       "start": 75,
-      "end": 147,
+      "end": 145,
       "value": " a generic class — a type parameter list, a typed field initialiser,"
     },
     {
       "type": "Line",
-      "start": 148,
-      "end": 221,
+      "start": 146,
+      "end": 219,
       "value": " typed method parameters, a typed return type, and a typed cast used as"
     },
     {
       "type": "Line",
-      "start": 222,
-      "end": 295,
+      "start": 220,
+      "end": 293,
       "value": " an expression. The parser must resolve each TS production at the right"
     },
     {
       "type": "Line",
-      "start": 296,
-      "end": 367,
+      "start": 294,
+      "end": 365,
       "value": " spot without mis-recognising the `<T>` type-parameter list as JSX or"
     },
     {
       "type": "Line",
-      "start": 368,
-      "end": 409,
+      "start": 366,
+      "end": 407,
       "value": " the `as T` as a relational expression."
     }
   ]

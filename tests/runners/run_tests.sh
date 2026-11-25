@@ -43,10 +43,15 @@ if [[ ! -x "$KESSEL_BIN" ]]; then
     echo -e "${RED}Error: kessel binary not found at $KESSEL_BIN${NC}"
     exit 1
 fi
+if ! command -v timeout >/dev/null; then
+    echo "GNU timeout is required to run the fixture suite" >&2
+    exit 1
+fi
 
 normalize_output() {
     awk '
         /^--- Statistics ---$/ { exit }
+        /-->/ { sub(/\/.*\/tests\/runners\/\.\.\/fixtures\//, "tests/fixtures/") }
         { print }
     ' "$1"
 }
@@ -122,7 +127,9 @@ while IFS= read -r fixture; do
     else
         cmd=(timeout 10 "$KESSEL_BIN" parse --json --stats "$fixture")
     fi
-    if ! "${cmd[@]}" >"$output_file" 2>&1; then
+    if "${cmd[@]}" >"$output_file" 2>&1; then
+        exit_code=0
+    else
         exit_code=$?
     fi
 
@@ -187,7 +194,10 @@ while IFS= read -r fixture; do
     normalize_output "$output_file" > "$normalized_output_file"
     normalize_output "$expected_file" > "$normalized_expected_file"
 
-    if cmp -s "$normalized_output_file" "$normalized_expected_file"; then
+    # Compare decoded JSON on a text mismatch so alternate spellings of
+    # the same IEEE-754 number do not create compiler-dependent goldens.
+    if cmp -s "$normalized_output_file" "$normalized_expected_file" ||
+       node "$ROOT_DIR/tests/verifiers/compare_golden_json.js" "$normalized_output_file" "$normalized_expected_file"; then
         echo -e "${GREEN}PASS${NC}"
         PASSED=$((PASSED + 1))
     elif [[ "$UPDATE_MODE" == true ]]; then

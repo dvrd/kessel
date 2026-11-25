@@ -1,0 +1,11 @@
+import { Color, Direction, describe } from './enums';
+import { Point } from './point.js';
+import type { Named } from './types';
+import { Named as NamedValue, util } from './types';
+import Widget from './widget';
+const origin = new Point(1, 2);
+const named: Named = { name: 'n' };
+console.log(Color.Green, Color[1], Direction.Up, describe(Color.Blue), origin.sum(), named.name, typeof NamedValue, util.double(4));
+console.log(Widget(), origin.x);
+export { Color };
+export default origin;

@@ -1,0 +1,138 @@
+[
+  {
+    "name": "side effect, empty named and namespace clauses",
+    "source": "import 'a';import{}from'b';export{};export*as api from'c';",
+    "options": {},
+    "parser": "typescript",
+    "expected": "import \"a\";\nimport {} from \"b\";\nexport {};\nexport * as api from \"c\";\n"
+  },
+  {
+    "name": "TypeScript specifiers and explicit aliases",
+    "source": "import type { A as A,B } from 'types';export {type B as C,type A} from 'types';",
+    "options": {
+      "printWidth": 32
+    },
+    "parser": "typescript",
+    "expected": "import type {\n  A as A,\n  B,\n} from \"types\";\nexport {\n  type B as C,\n  type A,\n} from \"types\";\n"
+  },
+  {
+    "name": "single specifier on a long line",
+    "source": "export {longLocal as longPublic}from'long-module-name';",
+    "options": {
+      "printWidth": 12
+    },
+    "parser": "typescript",
+    "expected": "export { longLocal as longPublic } from \"long-module-name\";\n"
+  },
+  {
+    "name": "default plus named specifier",
+    "source": "import Default,{Alpha}from'module';",
+    "options": {
+      "printWidth": 20
+    },
+    "parser": "typescript",
+    "expected": "import Default, {\n  Alpha,\n} from \"module\";\n"
+  },
+  {
+    "name": "named import and attributes break independently",
+    "source": "import{a,b}from'x' with {foo:'a',bar:'b'};",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "import { a, b } from \"x\" with {\n  foo: \"a\",\n  bar: \"b\",\n};\n"
+  },
+  {
+    "name": "type attribute stays inline",
+    "source": "import 'long-name' with { 'type':'json' };",
+    "options": {
+      "printWidth": 10
+    },
+    "parser": "typescript",
+    "expected": "import \"long-name\" with { type: \"json\" };\n"
+  },
+  {
+    "name": "empty attributes",
+    "source": "export {}from'm' with {};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "export {} from \"m\" with {};\n"
+  },
+  {
+    "name": "namespace and module strings",
+    "source": "export {'x-y' as 'named-export',x as y}from'm';",
+    "options": {
+      "singleQuote": true
+    },
+    "parser": "typescript",
+    "expected": "export { 'x-y' as 'named-export', x as y } from 'm';\n"
+  },
+  {
+    "name": "tabs and trailing comma",
+    "source": "import { Alpha, Beta } from 'library';",
+    "options": {
+      "printWidth": 15,
+      "useTabs": true,
+      "trailingComma": "none"
+    },
+    "parser": "typescript",
+    "expected": "import {\n\tAlpha,\n\tBeta\n} from \"library\";\n"
+  },
+  {
+    "name": "bracket spacing",
+    "source": "import { a, type T } from 'types';",
+    "options": {
+      "bracketSpacing": false
+    },
+    "parser": "typescript",
+    "expected": "import {a, type T} from \"types\";\n"
+  },
+  {
+    "name": "preserve one blank line",
+    "source": "import 'a';\n\n\nexport * from 'b';",
+    "options": {},
+    "parser": "typescript",
+    "expected": "import \"a\";\n\nexport * from \"b\";\n"
+  },
+  {
+    "name": "quoted attribute keys",
+    "source": "import 'm' with {'space key':'v','other':'y'};",
+    "options": {
+      "singleQuote": true,
+      "printWidth": 20,
+      "tabWidth": 4
+    },
+    "parser": "typescript",
+    "expected": "import 'm' with {\n    'space key': 'v',\n    other: 'y',\n};\n"
+  },
+  {
+    "name": "Unicode names",
+    "source": "import{日本,語 as 日本語}from'文';",
+    "options": {
+      "printWidth": 24
+    },
+    "parser": "typescript",
+    "expected": "import {\n  日本,\n  語 as 日本語,\n} from \"文\";\n"
+  },
+  {
+    "name": "escape and quote counts",
+    "source": "import \"I\\'ve got a \\\\ file\";import 'a\"b\"c';import 'm\\u1234';",
+    "options": {},
+    "parser": "typescript",
+    "expected": "import \"I\\'ve got a \\\\ file\";\nimport 'a\"b\"c';\nimport \"m\\u1234\";\n"
+  },
+  {
+    "name": "phase import",
+    "source": "import source phase from'example';import defer * as ns from'other';",
+    "options": {},
+    "parser": "babel",
+    "expected": "import source phase from \"example\";\nimport defer * as ns from \"other\";\n"
+  },
+  {
+    "name": "trailing comma on input",
+    "source": "export {alpha as alpha,}from'm';",
+    "options": {},
+    "parser": "typescript",
+    "expected": "export { alpha as alpha } from \"m\";\n"
+  }
+]

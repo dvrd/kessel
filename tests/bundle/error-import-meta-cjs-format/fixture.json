@@ -1,0 +1,7 @@
+{
+  "error": "import.meta is not available",
+  "args": [
+    "--format",
+    "cjs"
+  ]
+}

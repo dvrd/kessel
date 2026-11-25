@@ -1,0 +1,354 @@
+[
+ {
+  "name": "component with list and conditionals",
+  "source": "export function TodoList({ todos, onToggle, onDelete }: Props) {\n  const [filter, setFilter] = useState<Filter>(\"all\");\n  const visible = useMemo(() => todos.filter(t => filter === \"all\" || (filter === \"done\") === t.done), [todos, filter]);\n  if (!todos.length) return <p className=\"empty\">Nothing to do! Add a task above to get started with your day.</p>;\n  return (\n    <section className=\"todo-list\" aria-label=\"Todos\">\n      <header>\n        <h2>Todos ({visible.length})</h2>\n        <FilterBar value={filter} onChange={setFilter} options={[\"all\", \"active\", \"done\"]} />\n      </header>\n      <ul>\n        {visible.map(todo => (\n          <li key={todo.id} className={todo.done ? \"done\" : undefined} onClick={() => onToggle(todo.id)}>\n            <input type=\"checkbox\" checked={todo.done} readOnly /> {todo.title}\n            {todo.due && <time dateTime={todo.due.toISOString()}>{formatDate(todo.due)}</time>}\n            <button onClick={e => { e.stopPropagation(); onDelete(todo.id); }}>×</button>\n          </li>\n        ))}\n      </ul>\n      {visible.length === 0 ? <p>No matching todos.</p> : visible.length > 10 ? <Pagination total={visible.length} /> : null}\n      <footer>\n        Showing <strong>{visible.length}</strong> of <strong>{todos.length}</strong> items. <a href=\"/help\">Need help?</a>\n      </footer>\n    </section>\n  );\n}\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "export function TodoList({ todos, onToggle, onDelete }: Props) {\n  const [filter, setFilter] = useState<Filter>(\"all\");\n  const visible = useMemo(\n    () =>\n      todos.filter((t) => filter === \"all\" || (filter === \"done\") === t.done),\n    [todos, filter],\n  );\n  if (!todos.length)\n    return (\n      <p className=\"empty\">\n        Nothing to do! Add a task above to get started with your day.\n      </p>\n    );\n  return (\n    <section className=\"todo-list\" aria-label=\"Todos\">\n      <header>\n        <h2>Todos ({visible.length})</h2>\n        <FilterBar\n          value={filter}\n          onChange={setFilter}\n          options={[\"all\", \"active\", \"done\"]}\n        />\n      </header>\n      <ul>\n        {visible.map((todo) => (\n          <li\n            key={todo.id}\n            className={todo.done ? \"done\" : undefined}\n            onClick={() => onToggle(todo.id)}\n          >\n            <input type=\"checkbox\" checked={todo.done} readOnly /> {todo.title}\n            {todo.due && (\n              <time dateTime={todo.due.toISOString()}>\n                {formatDate(todo.due)}\n              </time>\n            )}\n            <button\n              onClick={(e) => {\n                e.stopPropagation();\n                onDelete(todo.id);\n              }}\n            >\n              ×\n            </button>\n          </li>\n        ))}\n      </ul>\n      {visible.length === 0 ? (\n        <p>No matching todos.</p>\n      ) : visible.length > 10 ? (\n        <Pagination total={visible.length} />\n      ) : null}\n      <footer>\n        Showing <strong>{visible.length}</strong> of{\" \"}\n        <strong>{todos.length}</strong> items. <a href=\"/help\">Need help?</a>\n      </footer>\n    </section>\n  );\n}\n"
+ },
+ {
+  "name": "spread and template attributes",
+  "source": "const Button = ({ children, variant = \"primary\", ...rest }) => <button className={`btn btn-${variant}`} {...rest}>{children}</button>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const Button = ({ children, variant = \"primary\", ...rest }) => (\n  <button className={`btn btn-${variant}`} {...rest}>\n    {children}\n  </button>\n);\n"
+ },
+ {
+  "name": "nested providers and routes",
+  "source": "const App = () => (\n  <Provider store={store}>\n    <Router>\n      <Suspense fallback={<Spinner />}>\n        <Routes>\n          <Route path=\"/\" element={<Home />} />\n          <Route path=\"/about\" element={<About title=\"About us\" description=\"A very long description that goes on and on\" />} />\n        </Routes>\n      </Suspense>\n    </Router>\n  </Provider>\n);\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const App = () => (\n  <Provider store={store}>\n    <Router>\n      <Suspense fallback={<Spinner />}>\n        <Routes>\n          <Route path=\"/\" element={<Home />} />\n          <Route\n            path=\"/about\"\n            element={\n              <About\n                title=\"About us\"\n                description=\"A very long description that goes on and on\"\n              />\n            }\n          />\n        </Routes>\n      </Suspense>\n    </Router>\n  </Provider>\n);\n"
+ },
+ {
+  "name": "conditional children and long logical child",
+  "source": "function Card({ title, body, footer }) {\n  return <div className=\"card\">\n    {title ? <h3 className=\"card-title\">{title}</h3> : <h3 className=\"card-title card-title--empty\">Untitled card with a long placeholder</h3>}\n    <div className=\"card-body\">{body}</div>\n    {footer !== undefined && footer !== null && footer !== false && <div className=\"card-footer\">{footer}</div>}\n  </div>;\n}\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "function Card({ title, body, footer }) {\n  return (\n    <div className=\"card\">\n      {title ? (\n        <h3 className=\"card-title\">{title}</h3>\n      ) : (\n        <h3 className=\"card-title card-title--empty\">\n          Untitled card with a long placeholder\n        </h3>\n      )}\n      <div className=\"card-body\">{body}</div>\n      {footer !== undefined && footer !== null && footer !== false && (\n        <div className=\"card-footer\">{footer}</div>\n      )}\n    </div>\n  );\n}\n"
+ },
+ {
+  "name": "text with expressions",
+  "source": "const el = <Trans>Hello <b>{name}</b>, you have {count} new {count === 1 ? \"message\" : \"messages\"}.</Trans>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const el = (\n  <Trans>\n    Hello <b>{name}</b>, you have {count} new{\" \"}\n    {count === 1 ? \"message\" : \"messages\"}.\n  </Trans>\n);\n"
+ },
+ {
+  "name": "object attribute",
+  "source": "const x = <div style={{ display: \"flex\", flexDirection: \"column\", alignItems: \"center\", justifyContent: \"space-between\" }} />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const x = (\n  <div\n    style={{\n      display: \"flex\",\n      flexDirection: \"column\",\n      alignItems: \"center\",\n      justifyContent: \"space-between\",\n    }}\n  />\n);\n"
+ },
+ {
+  "name": "render prop and boolean attribute",
+  "source": "const y = <Foo render={({ a, b }) => <Bar a={a} b={b} />} items={[1, 2, 3]} label=\"a label\" data-test-id=\"foo\" aria-hidden />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const y = (\n  <Foo\n    render={({ a, b }) => <Bar a={a} b={b} />}\n    items={[1, 2, 3]}\n    label=\"a label\"\n    data-test-id=\"foo\"\n    aria-hidden\n  />\n);\n"
+ },
+ {
+  "name": "conditional chain of elements",
+  "source": "const z = isLoading ? <Spinner size=\"large\" /> : error ? <ErrorMessage error={error} retry={refetch} /> : <DataTable rows={data.rows} columns={columns} />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const z = isLoading ? (\n  <Spinner size=\"large\" />\n) : error ? (\n  <ErrorMessage error={error} retry={refetch} />\n) : (\n  <DataTable rows={data.rows} columns={columns} />\n);\n"
+ },
+ {
+  "name": "logical element in return",
+  "source": "function F() { return cond && <span>ok</span>; }\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "function F() {\n  return cond && <span>ok</span>;\n}\n"
+ },
+ {
+  "name": "type arguments on an element",
+  "source": "const w = <Generic<string> value=\"x\" />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const w = <Generic<string> value=\"x\" />;\n"
+ },
+ {
+  "name": "explicit spaces",
+  "source": "const t = <p>{\" \"}a{\" \"}<b>c</b>{\" \"}</p>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const t = (\n  <p>\n    {\" \"}\n    a <b>c</b>{\" \"}\n  </p>\n);\n"
+ },
+ {
+  "name": "blank lines between children",
+  "source": "const u = <div>\n  {list.length > 0 && (\n    <ul>{list.map((item, index) => <Item key={index} {...item} />)}</ul>\n  )}\n\n  <p>\n    text\n  </p>\n</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const u = (\n  <div>\n    {list.length > 0 && (\n      <ul>\n        {list.map((item, index) => (\n          <Item key={index} {...item} />\n        ))}\n      </ul>\n    )}\n\n    <p>text</p>\n  </div>\n);\n"
+ },
+ {
+  "name": "elements in attributes",
+  "source": "const v = <A b={<C />} d={e ? <F /> : <G />} h={i && <J />} />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const v = <A b={<C />} d={e ? <F /> : <G />} h={i && <J />} />;\n"
+ },
+ {
+  "name": "long string attribute",
+  "source": "const s = <div className=\"a very long class name list that goes past the print width limit of eighty characters\">x</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const s = (\n  <div className=\"a very long class name list that goes past the print width limit of eighty characters\">\n    x\n  </div>\n);\n"
+ },
+ {
+  "name": "element as an argument",
+  "source": "root.render(<React.StrictMode><App /></React.StrictMode>);\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "root.render(\n  <React.StrictMode>\n    <App />\n  </React.StrictMode>,\n);\n"
+ },
+ {
+  "name": "text before an element",
+  "source": "const q = <label>Name: <input value={name} onChange={e => setName(e.target.value)} /></label>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const q = (\n  <label>\n    Name: <input value={name} onChange={(e) => setName(e.target.value)} />\n  </label>\n);\n"
+ },
+ {
+  "name": "adjacent expressions",
+  "source": "const r = <ul>{a}{b}</ul>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const r = (\n  <ul>\n    {a}\n    {b}\n  </ul>\n);\n"
+ },
+ {
+  "name": "entities and quotes in text",
+  "source": "const o = <div>&nbsp;&copy; 2024 \"quoted\" it's</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const o = <div>&nbsp;&copy; 2024 \"quoted\" it's</div>;\n"
+ },
+ {
+  "name": "member and namespaced names",
+  "source": "const p2 = <Foo.Bar.Baz xlink:href=\"#a\" data={`template ${literal}`}>{`only template child`}</Foo.Bar.Baz>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const p2 = (\n  <Foo.Bar.Baz\n    xlink:href=\"#a\"\n    data={`template ${literal}`}\n  >{`only template child`}</Foo.Bar.Baz>\n);\n"
+ },
+ {
+  "name": "line breaks and short words",
+  "source": "const a = <div>a<br />b<br />c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee ff gg hh ii jj kk</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const a = (\n  <div>\n    a<br />b<br />c d e f g h i j k l m n o p q r s t u v w x y z aa bb cc dd ee\n    ff gg hh ii jj kk\n  </div>\n);\n"
+ },
+ {
+  "name": "paragraph fill",
+  "source": "const b = <p>Lorem ipsum dolor sit amet, <em>consectetur</em> adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam.</p>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const b = (\n  <p>\n    Lorem ipsum dolor sit amet, <em>consectetur</em> adipiscing elit, sed do\n    eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim\n    veniam.\n  </p>\n);\n"
+ },
+ {
+  "name": "leading and trailing spaces",
+  "source": "const c = <span> leading and trailing </span>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const c = <span> leading and trailing </span>;\n"
+ },
+ {
+  "name": "explicit spaces at line ends",
+  "source": "const d = <div>\n  <A />{\" \"}\n  <B /> text{\" \"}\n  {expr}\n  {\" \"}\n  <C />\n</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const d = (\n  <div>\n    <A /> <B /> text {expr} <C />\n  </div>\n);\n"
+ },
+ {
+  "name": "blank lines between expressions",
+  "source": "const e = <div>\n  {a}\n  {b}\n\n  {c}\n\n\n  <D />\n</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const e = (\n  <div>\n    {a}\n    {b}\n\n    {c}\n\n    <D />\n  </div>\n);\n"
+ },
+ {
+  "name": "whitespace-only children",
+  "source": "const f = <div>   </div>; const g = <div> </div>; const h = <div>{\" \"}</div>; const i = <div>\n</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const f = <div> </div>;\nconst g = <div> </div>;\nconst h = <div> </div>;\nconst i = <div></div>;\n"
+ },
+ {
+  "name": "small elements and fragments",
+  "source": "const j = <b>x</b>; const k = <><A /><B /></>; const l = <></>; const m = <A></A>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const j = <b>x</b>;\nconst k = (\n  <>\n    <A />\n    <B />\n  </>\n);\nconst l = <></>;\nconst m = <A></A>;\n"
+ },
+ {
+  "name": "class component",
+  "source": "class V extends React.Component { render() { const { a } = this.props; return <div onClick={this.handleClick}>{a}{this.state.b ? <B /> : <C c=\"d\" />}</div>; } }\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "class V extends React.Component {\n  render() {\n    const { a } = this.props;\n    return (\n      <div onClick={this.handleClick}>\n        {a}\n        {this.state.b ? <B /> : <C c=\"d\" />}\n      </div>\n    );\n  }\n}\n"
+ },
+ {
+  "name": "elements in callbacks and operators",
+  "source": "const n = list.map(x => <li>{x}</li>); const o = useCallback(() => <div />, []); const p = cond ? <A /> : <B />; const q = (await load()) || <Fallback />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const n = list.map((x) => <li>{x}</li>);\nconst o = useCallback(() => <div />, []);\nconst p = cond ? <A /> : <B />;\nconst q = (await load()) || <Fallback />;\n"
+ },
+ {
+  "name": "call in an attribute",
+  "source": "const r = <div className={classNames(\"a\", { b: isB, c: isC }, someOtherVeryLongClassName, andAnotherOne)} id={id}>content</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const r = (\n  <div\n    className={classNames(\n      \"a\",\n      { b: isB, c: isC },\n      someOtherVeryLongClassName,\n      andAnotherOne,\n    )}\n    id={id}\n  >\n    content\n  </div>\n);\n"
+ },
+ {
+  "name": "multi-line string attribute",
+  "source": "const s = <Foo bar=\"multi\nline\" baz />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const s = (\n  <Foo\n    bar=\"multi\nline\"\n    baz\n  />\n);\n"
+ },
+ {
+  "name": "comments as children",
+  "source": "const t = <div>{/* comment */}<A />{/* another */}</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const t = (\n  <div>\n    {/* comment */}\n    <A />\n    {/* another */}\n  </div>\n);\n"
+ },
+ {
+  "name": "expressions between text",
+  "source": "const u = <div>{cond ? \"yes\" : \"no\"} {a + b} {fn(1, 2)} {obj.prop} {`tpl`} {!flag}</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const u = (\n  <div>\n    {cond ? \"yes\" : \"no\"} {a + b} {fn(1, 2)} {obj.prop} {`tpl`} {!flag}\n  </div>\n);\n"
+ },
+ {
+  "name": "function as a child",
+  "source": "const v = <Parent>{(value) => <Child value={value} other={other} more={more} evenMore={evenMore} />}</Parent>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const v = (\n  <Parent>\n    {(value) => (\n      <Child value={value} other={other} more={more} evenMore={evenMore} />\n    )}\n  </Parent>\n);\n"
+ },
+ {
+  "name": "logical children",
+  "source": "const w = <A>{cond && <B />}{cond || <C />}{cond ?? <D />}</A>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const w = (\n  <A>\n    {cond && <B />}\n    {cond || <C />}\n    {cond ?? <D />}\n  </A>\n);\n"
+ },
+ {
+  "name": "conditional with a nested callback",
+  "source": "function X() { return <div>\n    {loading ? <Spinner /> : <ul>{items.map(i => <li key={i}>{i}</li>)}</ul>}\n  </div>; }\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "function X() {\n  return (\n    <div>\n      {loading ? (\n        <Spinner />\n      ) : (\n        <ul>\n          {items.map((i) => (\n            <li key={i}>{i}</li>\n          ))}\n        </ul>\n      )}\n    </div>\n  );\n}\n"
+ },
+ {
+  "name": "several declarators",
+  "source": "const y = <input value={value} />, z = <img src=\"a.png\" alt=\"An image\" />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const y = <input value={value} />,\n  z = <img src=\"a.png\" alt=\"An image\" />;\n"
+ },
+ {
+  "name": "elements as arguments",
+  "source": "foo(<div>hello</div>, <span>world</span>); bar(<div className=\"aaaaaaaaaaaaaaaaaaaaaaaaaa\" id=\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\">hello</div>);\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "foo(<div>hello</div>, <span>world</span>);\nbar(\n  <div\n    className=\"aaaaaaaaaaaaaaaaaaaaaaaaaa\"\n    id=\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\"\n  >\n    hello\n  </div>,\n);\n"
+ },
+ {
+  "name": "elements as property values",
+  "source": "const aa = { key: <div />, other: <span>long text long text long text long text long text long text long</span> };\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const aa = {\n  key: <div />,\n  other: (\n    <span>\n      long text long text long text long text long text long text long\n    </span>\n  ),\n};\n"
+ },
+ {
+  "name": "arrays and arrow bodies",
+  "source": "const bb = [<A key=\"1\" />, <B key=\"2\" />]; const cc = () => <div />; const dd = async () => <div>{await x}</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const bb = [<A key=\"1\" />, <B key=\"2\" />];\nconst cc = () => <div />;\nconst dd = async () => <div>{await x}</div>;\n"
+ },
+ {
+  "name": "default export of an arrow",
+  "source": "export default () => <div>default</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "export default () => <div>default</div>;\n"
+ },
+ {
+  "name": "text touching expressions",
+  "source": "const ee = <div>{a}b</div>; const ff = <div>a{b}</div>; const gg = <div>a {b} c</div>; const hh = <div>{a} {b}</div>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const ee = <div>{a}b</div>;\nconst ff = <div>a{b}</div>;\nconst gg = <div>a {b} c</div>;\nconst hh = (\n  <div>\n    {a} {b}\n  </div>\n);\n"
+ },
+ {
+  "name": "attribute quotes",
+  "source": "const ii = <div aria-label={\"string in braces\"} title='single' other=\"dou'ble\" third='mi\"x' />;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const ii = (\n  <div\n    aria-label={\"string in braces\"}\n    title=\"single\"\n    other=\"dou'ble\"\n    third='mi\"x'\n  />\n);\n"
+ },
+ {
+  "name": "element in an attribute with children",
+  "source": "const jj = <Tooltip content={<span>Some <b>rich</b> tooltip content that is long enough to break</span>}><Icon name=\"info\" /></Tooltip>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const jj = (\n  <Tooltip\n    content={\n      <span>\n        Some <b>rich</b> tooltip content that is long enough to break\n      </span>\n    }\n  >\n    <Icon name=\"info\" />\n  </Tooltip>\n);\n"
+ },
+ {
+  "name": "paragraph with a link and a break",
+  "source": "const kk = <p>\n  A very long sentence with a <a href=\"https://example.com/a/very/long/url/that/goes/on\">link</a>, punctuation; and (parentheses).\n  <br />\n  Second line.\n</p>;\n",
+  "options": {},
+  "parser": "typescript",
+  "extension": ".tsx",
+  "expected": "const kk = (\n  <p>\n    A very long sentence with a{\" \"}\n    <a href=\"https://example.com/a/very/long/url/that/goes/on\">link</a>,\n    punctuation; and (parentheses).\n    <br />\n    Second line.\n  </p>\n);\n"
+ }
+]

@@ -1,0 +1,80 @@
+name: Primary tests
+
+on:
+  workflow_call:
+    inputs:
+      release_checks:
+        description: Run the complete release gate on the checked-out revision.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The matched benchmark builds its reference revision from this history.
+          fetch-depth: ${{ inputs.release_checks && '0' || '1' }}
+          persist-credentials: false
+
+      - name: Install Odin
+        uses: laytan/setup-odin@v2
+        with:
+          token: ${{ github.token }}
+          release: dev-2026-11
+
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: '3.x'
+          repo-token: ${{ github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install GNU timeout if needed
+        run: |
+          if ! command -v timeout >/dev/null; then
+            brew install coreutils
+            printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          fi
+
+      - name: Fetch conformance corpora
+        run: bash tests/runners/oxc_corpus_fetch.sh
+
+      # The primary gate compares against reference tools installed here
+      # (oxc-parser, Babel, Prettier, oxlint, source-map-js) and loads the SDK.
+      - name: Install reference tools
+        run: |
+          npm ci --prefix bench
+          npm ci --prefix npm/kessel
+
+      # `task test` starts with `odin check -vet` on every release target.
+      - name: Check conformance and fixtures
+        run: task test
+
+      - name: Prepare release inputs
+        if: inputs.release_checks
+        run: |
+          revision=$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")
+          git init --quiet ../oxc
+          git -C ../oxc fetch --no-tags --depth=1 https://github.com/oxc-project/oxc.git "$revision"
+          git -C ../oxc checkout --quiet --detach FETCH_HEAD
+          # Cargo runs inside the comparison workspace. Use the compiler pinned by its oracle.
+          cp ../oxc/rust-toolchain.toml bench/oxc_compare/rust-toolchain.toml
+
+      - name: Run release gate
+        if: inputs.release_checks
+        run: task test:release
+
+      - name: Check both npm async paths on the release corpus
+        if: inputs.release_checks
+        run: |
+          task test:npm:real
+          task test:npm:real -- --preload-koffi
+          task test:npm:typed -- --preload-koffi

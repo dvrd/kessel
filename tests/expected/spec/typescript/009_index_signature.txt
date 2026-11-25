@@ -127,13 +127,13 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 73,
+      "end": 71,
       "value": " TS index signature — `[k: KeyType]: ValueType` inside an interface /"
     },
     {
       "type": "Line",
-      "start": 74,
-      "end": 148,
+      "start": 72,
+      "end": 146,
       "value": " type literal. ESTree/TS: TSIndexSignature.parameters + .typeAnnotation."
     }
   ]

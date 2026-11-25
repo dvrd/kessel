@@ -1,0 +1,13 @@
+{
+  "contains": [
+    "PURE_USED_EFFECT",
+    "LISTED_POLYFILL_EFFECT",
+    "LISTED_GLOB_EFFECT",
+    "IMPURE_EFFECT"
+  ],
+  "excludes": [
+    "PURE_UNUSED_EFFECT",
+    "PURE_BARE_IMPORT_EFFECT",
+    "LISTED_DROPPED_EFFECT"
+  ]
+}

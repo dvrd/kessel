@@ -1,0 +1,152 @@
+package kessel
+
+// Binary and logical expressions. Operands of operators that chain, such as
+// `a + b + c` or `a && b && c`, print as one flat list so that every operator
+// of the chain breaks at the same level. A port of Prettier's binaryish rules.
+
+@(private = "file")
+format_binary_sides :: proc(expr: ^Expression) -> (left, right: ^Expression) {
+	#partial switch node in expr^ {
+	case ^BinaryExpression: return node.left, node.right
+	case ^LogicalExpression: return node.left, node.right
+	}
+	return nil, nil
+}
+
+// Appends the operands and operators of the binary expression on top of the
+// path. `nested` is true for the left operands that were flattened into it.
+@(private = "file")
+format_binary_parts :: proc(
+	f: ^FormatContext,
+	parts: ^[dynamic]Doc,
+	inside_parens: bool,
+) {
+	current := format_path_at(f, 0)
+	node := current.expr
+	if !format_is_binaryish(node) {
+		append(parts, doc_group(f, format_expr_entered(f)))
+		return
+	}
+	kind := current.kind
+	parent_kind := format_parent(f).kind
+	left, right := format_binary_sides(node)
+	left_inner := format_expr_unwrap(left)
+	right_inner := format_expr_unwrap(right)
+	if left_inner == nil || right_inner == nil {
+		f.failed = true
+		return
+	}
+	flattened := format_is_binaryish(left_inner) && format_should_flatten(node, left_inner)
+	left_end, right_start := get_expression_loc(left).end, get_expression_loc(right).start
+	// Where the operator starts, unless the left side ends in parentheses.
+	operator_start := u32(format_next_code_index(f.source, left_end))
+	if operator_start >= right_start || f.source[operator_start] == ')' {operator_start = left_end}
+	if flattened {
+		if _, entered := format_expr_enter(f, left, .Left); !entered {return}
+		format_binary_parts(f, parts, inside_parens)
+		format_path_pop(f)
+	} else {
+		// `a /* note */ && b`: the comment trails the left operand.
+		trailing := format_operand_trailing_comments(f, left_end, operator_start)
+		append(parts, doc_group(f, fc(f, format_expr(f, left, .Left), trailing)))
+	}
+	operator := ft(f, format_binary_operator_text(node))
+	right_doc := format_expr(f, right, .Right)
+	leading_start := left_end if flattened else operator_start
+	right_doc = fc(f, format_operand_leading_comments(f, leading_start, right_start), right_doc)
+	tail: Doc
+	if format_should_inline_logical(node) {
+		tail = fc(f, operator, ft(f, " "), right_doc)
+	} else {
+		tail = fc(f, operator, doc_line(), right_doc)
+	}
+	// An operand group of its own lets `a * b` stay together inside a
+	// longer `+` chain. Logical tests inside `if (…)` break all at once.
+	should_group := !(inside_parens && kind == .Logical)
+	should_group = should_group && parent_kind != kind
+	should_group = should_group && format_expr_kind(left_inner) != kind
+	should_group = should_group && format_expr_kind(right_inner) != kind
+	if should_group {tail = doc_group(f, tail)}
+	append(parts, ft(f, " "), tail)
+}
+
+// `Boolean(a && b)` prints its argument like a condition.
+@(private = "file")
+format_is_boolean_call_argument :: proc(f: ^FormatContext) -> bool {
+	current := format_path_at(f, 0)
+	parent := format_parent(f)
+	if current.key != .Arguments || parent.kind != .Call {return false}
+	call := parent.expr^.(^CallExpression)
+	if call.optional || len(call.arguments) != 1 || call.callee == nil {return false}
+	callee, named := call.callee^.(^Identifier)
+	return named && callee.name == "Boolean"
+}
+
+format_binaryish :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
+	current := format_path_at(f, 0)
+	parent := format_parent(f)
+	grandparent := format_path_at(f, 2)
+	key := current.key
+	parent_kind, grandparent_kind := parent.kind, grandparent.kind
+	inside_parens := false
+	if key != .Body {
+		#partial switch parent_kind {
+		case .If, .While, .Switch, .Do_While: inside_parens = true
+		}
+	}
+	member_parent := false
+	if parent_kind == .Member {member_parent = !parent.expr^.(^MemberExpression).computed}
+	boolean_argument := format_is_boolean_call_argument(f)
+
+	parts := make([dynamic]Doc, f.alloc)
+	format_binary_parts(f, &parts, inside_parens)
+	if f.failed || len(parts) == 0 {return nil}
+	if inside_parens {return fc(f, ..parts[:])}
+	// A callee, unary operand or member object is parenthesised, and the
+	// parentheses hold the break.
+	if (key == .Callee && (parent_kind == .Call || parent_kind == .New)) ||
+	   parent_kind == .Unary ||
+	   member_parent {
+		return fg(f, fi(f, doc_softline(), fc(f, ..parts[:])), doc_softline())
+	}
+	should_not_indent := parent_kind == .Return || parent_kind == .Throw
+	should_not_indent = should_not_indent || (parent_kind == .Arrow_Function && key == .Body)
+	should_not_indent = should_not_indent || (parent_kind == .For && key != .Body)
+	should_not_indent = should_not_indent || parent_kind == .Template || boolean_argument
+	if parent_kind == .JSX_Expression_Container && grandparent_kind == .JSX_Attribute {
+		should_not_indent = true
+	}
+	if parent_kind == .Conditional {
+		#partial switch grandparent_kind {
+		case .Return, .Throw, .Call, .New:
+		case: should_not_indent = true
+		}
+	}
+	should_indent_if_inlining :=
+		parent_kind == .Assignment ||
+		parent_kind == .Variable_Declarator ||
+		parent_kind == .Class_Property ||
+		parent_kind == .Property
+	left, _ := format_binary_sides(expr)
+	left_inner := format_expr_unwrap(left)
+	chained_left := format_is_binaryish(left_inner) && format_should_flatten(expr, left_inner)
+	inline := format_should_inline_logical(expr)
+	if should_not_indent || (inline && !chained_left) || (!inline && should_indent_if_inlining) {
+		return fg(f, ..parts[:])
+	}
+	// A JSX element on the right indents with the chain only when the chain
+	// breaks, so that it can open its parentheses on the operator's line.
+	_, right := format_binary_sides(expr)
+	right_inner := format_expr_unwrap(right)
+	has_jsx := false
+	if right_inner != nil {
+		#partial switch _ in right_inner^ {
+		case ^JSXElement, ^JSXFragment: has_jsx = true
+		}
+	}
+	if !has_jsx || len(parts) < 2 {return fg(f, parts[0], fi(f, ..parts[1:]))}
+	id := doc_group_id(f)
+	last := len(parts) - 1
+	chain := doc_group(f, fc(f, parts[0], fi(f, ..parts[1:last])), false, id)
+	return fg(f, chain, doc_indent_if_break(f, parts[last], id))
+}

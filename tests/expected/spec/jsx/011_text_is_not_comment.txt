@@ -1,0 +1,193 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 237,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 75,
+      "end": 139,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 81,
+          "end": 138,
+          "id": {
+            "type": "Identifier",
+            "start": 81,
+            "end": 82,
+            "name": "a"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 85,
+            "end": 138,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 85,
+              "end": 88,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 86,
+                "end": 87,
+                "name": "p"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXText",
+                "start": 88,
+                "end": 134,
+                "value": " /* text, not a comment */ hello // also text\n",
+                "raw": " /* text, not a comment */ hello // also text\n"
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 134,
+              "end": 138,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 136,
+                "end": 137,
+                "name": "p"
+              }
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 140,
+      "end": 189,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 146,
+          "end": 188,
+          "id": {
+            "type": "Identifier",
+            "start": 146,
+            "end": 147,
+            "name": "b"          },
+          "init": {
+            "type": "JSXElement",
+            "start": 150,
+            "end": 188,
+            "openingElement": {
+              "type": "JSXOpeningElement",
+              "start": 150,
+              "end": 153,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 151,
+                "end": 152,
+                "name": "i"
+              },
+              "attributes": [],
+              "selfClosing": false
+            },
+            "children": [
+              {
+                "type": "JSXExpressionContainer",
+                "start": 153,
+                "end": 160,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 154,
+                  "end": 159,
+                  "name": "value"
+                }
+              },
+              {
+                "type": "JSXText",
+                "start": 160,
+                "end": 184,
+                "value": " /* after a container */",
+                "raw": " /* after a container */"
+              }
+            ],
+            "closingElement": {
+              "type": "JSXClosingElement",
+              "start": 184,
+              "end": 188,
+              "name": {
+                "type": "JSXIdentifier",
+                "start": 186,
+                "end": 187,
+                "name": "i"
+              }
+            }
+          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 190,
+      "end": 215,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 196,
+          "end": 214,
+          "id": {
+            "type": "Identifier",
+            "start": 196,
+            "end": 197,
+            "name": "c"          },
+          "init": {
+            "type": "CallExpression",
+            "start": 200,
+            "end": 214,
+            "callee": {
+              "type": "MemberExpression",
+              "start": 200,
+              "end": 211,
+              "computed": false,
+              "object": {
+                "type": "Literal",
+                "start": 200,
+                "end": 206,
+                "value": null,
+                "raw": "/=\\/*/",
+                "regex": {
+                  "pattern": "=\\/*",
+                  "flags": ""
+                }              },
+              "property": {
+                "type": "Identifier",
+                "start": 207,
+                "end": 211,
+                "name": "test"              }            },
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 212,
+                "end": 213,
+                "name": "s"              }
+            ]          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 74,
+      "value": " Text that looks like a comment is JSX text, and is listed once as text."
+    },
+    {
+      "type": "Block",
+      "start": 216,
+      "end": 236,
+      "value": " a real comment "
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=0B reserved=16777216B ratio=0%
+Parse errors: 0

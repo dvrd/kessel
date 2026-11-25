@@ -18,9 +18,7 @@ package kessel
 // Maybe(^T):        ptr (nil=0) → u32 offset (0=nil)
 // ============================================================================
 
-import "core:mem"
 import "core:os"
-import mvirtual "core:mem/virtual"
 
 // Metadata written at the end of the buffer so the consumer knows where to start
 RawTransferHeader :: struct {
@@ -210,6 +208,89 @@ rewrite_maybe_binding_id_name :: #force_inline proc(field: ^Maybe(BindingIdentif
 // Expression rewriter
 // ============================================================================
 
+// rewrite_expression_chain rewrites a member / call / binary / logical
+// chain. The parser builds these in a loop and does not limit their
+// length, so one frame per link would overflow the stack on a generated
+// million-term expression.
+//
+// This pass already overwrites every pointer in the tree, so the way back
+// up is kept in the tree itself: while descending, each link's chain
+// field temporarily holds its PARENT link; ascending puts the child back
+// and then rewrites it to an offset exactly as rewrite_expr_field would.
+// No storage is needed, so there is no allocation that could fail and
+// leave native pointers in the buffer.
+rewrite_expression_chain :: proc(top: ^Expression, base: uintptr, source_base: uintptr) {
+	assert(rewrite_chain_slot(top) != nil)
+
+	// Descend to the first operand that is not a chain link.
+	parent: ^Expression = nil
+	node := top
+	link_count := 0
+	for link_count < EXPR_SPINE_COUNT_MAX {
+		slot := rewrite_chain_slot(node)
+		if slot == nil { break }
+		child := slot^
+		slot^ = parent
+		parent = node
+		node = child
+		link_count += 1
+	}
+	assert(link_count < EXPR_SPINE_COUNT_MAX, "expression chain is cyclic")
+	assert(link_count > 0)
+
+	// `node` is the innermost operand; it is not a chain link, so this
+	// call cannot re-enter rewrite_expression_chain on the same chain.
+	rewrite_expression(node, base, source_base)
+
+	// Ascend, restoring each chain field and rewriting it to an offset.
+	child := node
+	for _ in 0 ..< link_count {
+		assert(parent != nil)
+		slot := rewrite_chain_slot(parent)
+		grandparent := slot^
+		slot^ = child
+		if child != nil {
+			rewrite_union_ptr(child, base)
+			rewrite_ptr((^rawptr)(slot), base)
+		}
+		rewrite_chain_rest(parent, base, source_base)
+		child = parent
+		parent = grandparent
+	}
+	assert(parent == nil)
+	assert(child == top)
+}
+
+// rewrite_chain_slot returns the address of the field a chain continues
+// through, or nil when `expr` is not a chain link.
+rewrite_chain_slot :: proc(expr: ^Expression) -> ^^Expression {
+	if expr == nil { return nil }
+	#partial switch v in expr {
+	case ^MemberExpression:  if v != nil { return &v.object }
+	case ^CallExpression:    if v != nil { return &v.callee }
+	case ^BinaryExpression:  if v != nil { return &v.left }
+	case ^LogicalExpression: if v != nil { return &v.left }
+	}
+	return nil
+}
+
+// rewrite_chain_rest rewrites the fields of a chain link other than the
+// one the chain continues through.
+rewrite_chain_rest :: proc(expr: ^Expression, base: uintptr, source_base: uintptr) {
+	#partial switch v in expr {
+	case ^MemberExpression:
+		rewrite_expr_field(v.property, &v.property, base, source_base)
+	case ^CallExpression:
+		rewrite_expression_array(&v.arguments, base, source_base)
+	case ^BinaryExpression:
+		rewrite_expr_field(v.right, &v.right, base, source_base)
+	case ^LogicalExpression:
+		rewrite_expr_field(v.right, &v.right, base, source_base)
+	case:
+		unreachable()
+	}
+}
+
 rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintptr) {
 	if expr == nil { return }
 	
@@ -263,12 +344,9 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 		rewrite_arrow_function(v, base, source_base)
 	case ^ClassExpression:
 		rewrite_class_expression(v, base, source_base)
-	case ^MemberExpression:
-		rewrite_expr_field(v.object, &v.object, base, source_base)
-		rewrite_expr_field(v.property, &v.property, base, source_base)
-	case ^CallExpression:
-		rewrite_expr_field(v.callee, &v.callee, base, source_base)
-		rewrite_expression_array(&v.arguments, base, source_base)
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		// Unbounded chains: rewritten by a loop, not one frame per link.
+		rewrite_expression_chain(expr, base, source_base)
 	case ^NewExpression:
 		rewrite_expr_field(v.callee, &v.callee, base, source_base)
 		rewrite_expression_array(&v.arguments, base, source_base)
@@ -280,12 +358,6 @@ rewrite_expression :: proc(expr: ^Expression, base: uintptr, source_base: uintpt
 		rewrite_expr_field(v.argument, &v.argument, base, source_base)
 	case ^UnaryExpression:
 		rewrite_expr_field(v.argument, &v.argument, base, source_base)
-	case ^BinaryExpression:
-		rewrite_expr_field(v.left, &v.left, base, source_base)
-		rewrite_expr_field(v.right, &v.right, base, source_base)
-	case ^LogicalExpression:
-		rewrite_expr_field(v.left, &v.left, base, source_base)
-		rewrite_expr_field(v.right, &v.right, base, source_base)
 	case ^AssignmentExpression:
 		rewrite_expr_field(v.left, &v.left, base, source_base)
 		rewrite_expr_field(v.right, &v.right, base, source_base)
@@ -549,6 +621,11 @@ rewrite_program :: proc(p: ^Program, base: uintptr, source_base: uintptr) {
 	rewrite_dynamic_header(rawptr(&p.directives), base, dir_len)
 
 	rewrite_statement_array(&p.body, base, source_base)
+
+	// A native pointer must not survive into the buffer.
+	if hashbang, present := &p.hashbang.?; present {
+		rewrite_string(&hashbang.value, source_base)
+	}
 }
 
 rewrite_template_literal :: proc(t: ^TemplateLiteral, base: uintptr, source_base: uintptr) {
@@ -893,6 +970,10 @@ rewrite_ts_type :: proc(t: ^TSType, base: uintptr, source_base: uintptr) {
 		rewrite_expr_field(v.parameter_name, &v.parameter_name, base, source_base)
 		rewrite_maybe_ts_type_annotation(&v.type_annotation, base, source_base)
 	case ^TSImportType:
+		if v.has_options {
+			full := cast(^TSImportTypeWithOptions)v
+			rewrite_expr_field(full.options, &full.options, base, source_base)
+		}
 		rewrite_ts_type_field(v.argument, &v.argument, base, source_base)
 		rewrite_maybe_expr(&v.qualifier, base, source_base)
 		rewrite_maybe_ts_type_parameter_instantiation(&v.type_parameters, base, source_base)
@@ -1155,9 +1236,16 @@ rewrite_class_expression :: proc(c: ^ClassExpression, base: uintptr, source_base
 	rewrite_ts_interface_heritage_array(&c.implements, base, source_base)
 	for i in 0..<len(c.body.body) {
 		elem := &c.body.body[i]
+		// The version-one arena format represents fields with the method tag.
+		if elem.kind == .Field { elem.kind = .Method }
 		rewrite_expr_field(elem.key, &elem.key, base, source_base)
 		rewrite_maybe_expr(&elem.value, base, source_base)
-		rewrite_maybe_ts_type_annotation(&elem.type_annotation, base, source_base)
+		if elem.kind == .IndexSignature {
+			rewrite_ts_signature(elem.typing.index_signature, base, source_base)
+			rewrite_ptr((^rawptr)(&elem.typing.index_signature), base)
+		} else {
+			rewrite_maybe_ts_type_annotation(&elem.typing.annotation, base, source_base)
+		}
 		// Per-element decorators (`@bound method() {}`, `@dec field;`).
 		rewrite_decorator_array(&elem.decorators, base, source_base)
 	}
@@ -1264,17 +1352,14 @@ produce_raw_buffer_from_job :: proc(job: ^ParseJob) -> RawTransferResult {
 
 
 // Write raw transfer buffer to a file: [header][arena bytes]
-write_raw_buffer :: proc(result: RawTransferResult, path: string) -> bool {
+write_raw_buffer :: proc(result: RawTransferResult, path: string) -> (ok: bool) {
 	fd, err := os.open(path, os.O_WRONLY | os.O_CREATE | os.O_TRUNC)
 	if err != nil { return false }
-	defer os.close(fd)
+	defer if os.close(fd) != nil { ok = false }
 
-	// Write header
-	header_bytes := transmute([size_of(RawTransferHeader)]u8)result.header
-	os.write(fd, header_bytes[:])
-
-	// Write arena buffer
-	os.write(fd, result.buffer)
-
-	return true
+	header := transmute([size_of(RawTransferHeader)]u8)result.header
+	header_size, header_err := os.write(fd, header[:])
+	if header_err != nil || header_size != len(header) { return false }
+	data_size, data_err := os.write(fd, result.buffer)
+	return data_err == nil && data_size == len(result.buffer)
 }

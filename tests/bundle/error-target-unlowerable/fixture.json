@@ -1,0 +1,7 @@
+{
+  "error": "bigint.mjs: error: BigInt literals cannot be lowered",
+  "args": [
+    "--target",
+    "es2019"
+  ]
+}

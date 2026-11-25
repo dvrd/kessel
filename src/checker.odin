@@ -378,6 +378,9 @@ fn_body_lifts_strict :: proc(body: FunctionBody) -> bool {
 // per parse_job_run.
 checker_run_for_job :: proc(job: ^ParseJob) {
 	if job == nil || job.program == nil { return }
+	// A tree truncated at the nesting limit has holes where the parser
+	// stopped; checking it would bury the single K2081 under artefacts.
+	if job.parser.depth_exceeded { return }
 	c := init_checker(job.arena_alloc)
 	c.source        = job.lexer.source
 	c.source_is_dts = job.source_is_dts
@@ -1610,7 +1613,6 @@ ts_namespace_is_instantiated :: proc(m: ^TSModuleDeclaration) -> bool {
 		if inner == nil { return false }
 		for stmt in inner.body {
 			if stmt == nil { continue }
-			actual := stmt
 			if exp, ok := stmt^.(^ExportNamedDeclaration); ok && exp != nil {
 				if d, have_d := exp.declaration.(^Declaration); have_d && d != nil {
 					#partial switch _ in d^ {
@@ -1720,8 +1722,7 @@ method_fn_has_body :: #force_inline proc(fn: ^FunctionExpression) -> bool {
 //   - getters / setters (kind .Get / .Set) — always have body, can't
 //     overload
 //   - static blocks
-//   - PropertyDefinition (kind == .Method but value is a non-function
-//     expression — a class field with an initialiser)
+//   - fields, even when initialized with a function expression
 //   - abstract methods (no impl needed; abstract is the suppressor)
 elem_is_overloadable_method :: proc(elem: ClassElement) -> (^FunctionExpression, bool) {
 	if elem.kind != .Method && elem.kind != .Constructor { return nil, false }
@@ -2973,6 +2974,39 @@ ck_ubd_binding_name :: proc(pattern: Pattern) -> string {
 //     of offset (unless inside a closure). Used for self-init detection.
 //   closure_depth — incremented when entering a function/arrow/class body.
 //     When > 0, self_name refs are deferred (not flagged).
+// ck_ubd_walk_chain is ck_ubd_walk_expr for call / member / binary /
+// logical chains: the chain operand is reached with a loop because such
+// chains are not bounded by the parser's depth limit (see spine.odin).
+// Operands are visited in source order, as the recursive form did.
+ck_ubd_walk_chain :: proc(
+	c: ^Checker,
+	expr: ^Expression,
+	decls: ^map[string]u32,
+	self_name: string,
+	closure_depth: int,
+) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+
+	ck_ubd_walk_expr(c, spine.leaf, decls, self_name, closure_depth)
+	#reverse for node in spine.nodes {
+		#partial switch e in node^ {
+		case ^CallExpression:
+			for a in e.arguments { ck_ubd_walk_expr(c, a, decls, self_name, closure_depth) }
+		case ^MemberExpression:
+			if e.computed { ck_ubd_walk_expr(c, e.property, decls, self_name, closure_depth) }
+		case ^BinaryExpression:
+			ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
+		case ^LogicalExpression:
+			ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
+		case:
+			unreachable()
+		}
+	}
+}
+
 ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32, self_name: string, closure_depth: int) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -3028,26 +3062,12 @@ ck_ubd_walk_expr :: proc(c: ^Checker, expr: ^Expression, decls: ^map[string]u32,
 			// called). ck_ubd_walk_class_statics only touches statics.
 			ck_ubd_walk_class_statics(c, e.body, decls)
 		}
-	case ^CallExpression:
-		if e == nil { return }
-		ck_ubd_walk_expr(c, e.callee, decls, self_name, closure_depth)
-		for a in e.arguments { ck_ubd_walk_expr(c, a, decls, self_name, closure_depth) }
+	case ^CallExpression, ^MemberExpression, ^BinaryExpression, ^LogicalExpression:
+		ck_ubd_walk_chain(c, expr, decls, self_name, closure_depth)
 	case ^NewExpression:
 		if e == nil { return }
 		ck_ubd_walk_expr(c, e.callee, decls, self_name, closure_depth)
 		for a in e.arguments { ck_ubd_walk_expr(c, a, decls, self_name, closure_depth) }
-	case ^MemberExpression:
-		if e == nil { return }
-		ck_ubd_walk_expr(c, e.object, decls, self_name, closure_depth)
-		if e.computed { ck_ubd_walk_expr(c, e.property, decls, self_name, closure_depth) }
-	case ^BinaryExpression:
-		if e == nil { return }
-		ck_ubd_walk_expr(c, e.left, decls, self_name, closure_depth)
-		ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
-	case ^LogicalExpression:
-		if e == nil { return }
-		ck_ubd_walk_expr(c, e.left, decls, self_name, closure_depth)
-		ck_ubd_walk_expr(c, e.right, decls, self_name, closure_depth)
 	case ^UnaryExpression:
 		if e != nil { ck_ubd_walk_expr(c, e.argument, decls, self_name, closure_depth) }
 	case ^UpdateExpression:
@@ -3737,6 +3757,90 @@ ck_walk_object_expr :: proc(c: ^Checker, ctx: ^CheckerContext, e: ^ObjectExpress
 	}
 }
 
+// ck_walk_chain walks a member / call / binary / logical chain without
+// recursing along it. The parser builds these chains in a loop, so they
+// can be arbitrarily long (a generated million-term `a + b + ...` is
+// valid) while every other kind of nesting is capped by max_depth.
+// Diagnostics come out in the same order as the recursive walk produced:
+// each node's own checks on the way down, its other operands on the way
+// back up.
+ck_walk_chain :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	// Allocation failure leaves the chain unchecked; the parse result
+	// itself is unaffected and no recursion is attempted.
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+
+	for node in spine.nodes { ck_walk_chain_enter(c, ctx, node) }
+	assert(!expr_is_spine_node(spine.leaf))
+	ck_walk_expr(c, ctx, spine.leaf)
+	#reverse for node in spine.nodes { ck_walk_chain_leave(c, ctx, node) }
+}
+
+// ck_walk_chain_enter runs the checks a chain node performs before its
+// chain operand is visited.
+ck_walk_chain_enter :: proc(c: ^Checker, ctx: ^CheckerContext, node: ^Expression) {
+	#partial switch e in node^ {
+	case ^MemberExpression:
+		// §15.7.3 super.#name — migrated to parser.
+		// §15.7.3 — PrivateIdentifier on the property side must be
+		// declared in an enclosing class. Non-private property names are
+		// IdentifierName literals — not subject to scope resolution.
+		if !e.computed && e.property != nil {
+			if pid, ok := e.property^.(^PrivateIdentifier); ok {
+				ck_check_private_name_resolved(c, ctx, pid)
+			}
+		}
+	case ^CallExpression:
+		ck_check_super_call(c, ctx, e)
+	case ^BinaryExpression:
+		// §15.7.3 — `#x in obj` is the only legal position for a bare
+		// PrivateIdentifier. The name must still be declared in an
+		// enclosing class. The general bare-PrivateIdentifier-as-expr
+		// case is rejected at parse-time; only the `in`-form reaches
+		// here as a valid AST shape.
+		if e.operator == .In && e.left != nil {
+			if pid, ok := e.left^.(^PrivateIdentifier); ok {
+				ck_check_private_name_resolved(c, ctx, pid)
+			}
+		}
+	case ^LogicalExpression:
+		// No checks before the left operand.
+	case:
+		unreachable()
+	}
+}
+
+// ck_walk_chain_leave visits the operands of a chain node other than its
+// chain operand: computed property, call arguments, right operand. These
+// are ordinary nested expressions, bounded by the parser's depth limit.
+ck_walk_chain_leave :: proc(c: ^Checker, ctx: ^CheckerContext, node: ^Expression) {
+	#partial switch e in node^ {
+	case ^MemberExpression:
+		if e.computed && e.property != nil { ck_walk_expr(c, ctx, e.property) }
+	case ^CallExpression:
+		for a in e.arguments { ck_walk_expr(c, ctx, a) }
+	case ^BinaryExpression:
+		// The right operand of a binary op is in an uncovered
+		// expression context: nested function / arrow / class bodies
+		// here are not visited by the parser-driven walker for
+		// duplicate-binding purposes (matches OXC). Set scope_skip while
+		// walking the right operand.
+		prev_skip := ctx.scope_skip
+		ctx.scope_skip = true
+		ck_walk_expr(c, ctx, e.right)
+		ctx.scope_skip = prev_skip
+	case ^LogicalExpression:
+		prev_skip := ctx.scope_skip
+		ctx.scope_skip = true
+		ck_walk_expr(c, ctx, e.right)
+		ctx.scope_skip = prev_skip
+	case:
+		unreachable()
+	}
+}
+
 ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -3749,25 +3853,10 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 	case ^ClassExpression:
 		if e != nil { ck_walk_class(c, ctx, e) }
 
-	case ^MemberExpression:
-		if e == nil { return }
-		// §15.7.3 super.#name — migrated to parser.
-		// §15.7.3 — PrivateIdentifier on the property side must be
-		// declared in an enclosing class. Non-private property names are
-		// IdentifierName literals — not subject to scope resolution.
-		if !e.computed && e.property != nil {
-			if pid, ok := e.property^.(^PrivateIdentifier); ok {
-				ck_check_private_name_resolved(c, ctx, pid)
-			}
-		}
-		ck_walk_expr(c, ctx, e.object)
-		if e.computed && e.property != nil { ck_walk_expr(c, ctx, e.property) }
-
-	case ^CallExpression:
-		if e == nil { return }
-		ck_check_super_call(c, ctx, e)
-		ck_walk_expr(c, ctx, e.callee)
-		for a in e.arguments { ck_walk_expr(c, ctx, a) }
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		// Built iteratively by the parser and unbounded in length, so
+		// walked with a loop rather than by recursion (see spine.odin).
+		ck_walk_chain(c, ctx, expr)
 
 	case ^NewExpression:
 		if e == nil { return }
@@ -3793,37 +3882,6 @@ ck_walk_expr :: proc(c: ^Checker, ctx: ^CheckerContext, expr: ^Expression) {
 		ck_walk_expr(c, ctx, e.test)
 		ck_walk_expr(c, ctx, e.consequent)
 		ck_walk_expr(c, ctx, e.alternate)
-
-	case ^BinaryExpression:
-		if e == nil { return }
-		// §15.7.3 — `#x in obj` is the only legal position for a bare
-		// PrivateIdentifier. The name must still be declared in an
-		// enclosing class. The general bare-PrivateIdentifier-as-expr
-		// case is rejected at parse-time; only the `in`-form reaches
-		// here as a valid AST shape.
-		if e.operator == .In && e.left != nil {
-			if pid, ok := e.left^.(^PrivateIdentifier); ok {
-				ck_check_private_name_resolved(c, ctx, pid)
-			}
-		}
-		ck_walk_expr(c, ctx, e.left)
-		// The right operand of a binary op is in an uncovered
-		// expression context: nested function / arrow / class bodies
-		// here are not visited by the parser-driven walker for
-		// duplicate-binding purposes (matches OXC). Set scope_skip while
-		// walking the right operand.
-		prev_skip := ctx.scope_skip
-		ctx.scope_skip = true
-		ck_walk_expr(c, ctx, e.right)
-		ctx.scope_skip = prev_skip
-
-	case ^LogicalExpression:
-		if e == nil { return }
-		ck_walk_expr(c, ctx, e.left)
-		prev_skip := ctx.scope_skip
-		ctx.scope_skip = true
-		ck_walk_expr(c, ctx, e.right)
-		ctx.scope_skip = prev_skip
 
 	case ^AssignmentExpression:
 		ck_walk_assignment_expr(c, ctx, e)
@@ -4583,15 +4641,9 @@ ck_walk_class :: proc(c: ^Checker, ctx: ^CheckerContext, cls: ^ClassExpression) 
 //   * .Get / .Set: value is a FunctionExpression. Walk as `.Method`.
 //   * .Constructor: value is a FunctionExpression. Walk as `.Constructor`
 //     and pass `derived_ctor = has_extends` so super-call is permitted.
-//   * .Method WITH FunctionExpression value: an actual method (regular
-//     or shorthand). Walk as `.Method`.
-//   * .Method WITHOUT a FunctionExpression value: a class field with an
-//     initialiser expression (parser stores fields with kind=.Method and
-//     the expression in elem.value — see parser.odin line 5342). Walk
-//     the initialiser with in_field_init + in_method lifted, no function
-//     entry (the field init runs in a synthetic non-async non-generator
-//     function, but `new.target` and break/continue do not propagate so
-//     we don't need a function_depth bump).
+//   * .Method: the value is a FunctionExpression with a method context.
+//   * .Field: walk its initializer with the field context, even when the
+//     initializer is a FunctionExpression.
 ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: ClassElement, has_extends: bool, extends_null := false) {
 	val, have := elem.value.(^Expression)
 	if !have || val == nil { return }
@@ -4603,7 +4655,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 		return
 	}
 
-	if fn, ok := val^.(^FunctionExpression); ok && fn != nil {
+	if fn, ok := val^.(^FunctionExpression); ok && fn != nil && elem.kind != .Field {
 		switch elem.kind {
 		case .Constructor:
 			prev_extends_null := ctx.extends_null
@@ -4621,7 +4673,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			// TS2784 — get/set accessors cannot declare 'this' parameter.
 			if (elem.kind == .Get || elem.kind == .Set) && ck_is_ts(ctx) {
 				if len(fn.params) > 0 {
-					if id, ok := fn.params[0].pattern.(^Identifier); ok && id != nil && id.name == "this" {
+					if id, found := fn.params[0].pattern.(^Identifier); found && id != nil && id.name == "this" {
 						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "'get' and 'set' accessors cannot declare 'this' parameters")
 					}
 				}
@@ -4629,7 +4681,7 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 			// TS1051 — set accessor cannot have optional parameter.
 			if elem.kind == .Set && ck_is_ts(ctx) {
 				for param in fn.params {
-					if id, ok := param.pattern.(^Identifier); ok && id != nil && id.optional {
+					if id, found := param.pattern.(^Identifier); found && id != nil && id.optional {
 						ck_report_coded(c, u32(id.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have an optional parameter")
 					}
 				}
@@ -4640,8 +4692,8 @@ ck_walk_class_element_value :: proc(c: ^Checker, ctx: ^CheckerContext, elem: Cla
 					ck_report_coded(c, u32(fn.loc.start), .K4061_GetSetForm, "A 'set' accessor cannot have a return type annotation")
 				}
 			}
-		case .StaticBlock:
-			unreachable() // handled above
+		case .StaticBlock, .Field, .IndexSignature:
+			unreachable() // handled outside this switch
 		}
 		return
 	}
@@ -5296,30 +5348,46 @@ ck_report_this_before_super :: proc(c: ^Checker, this_loc: u32) {
 // expr_find_this — returns the source offset of the first ThisExpression
 // in the expression tree, or 0 if none found. Stops at function/arrow/
 // class boundaries (those have their own `this`).
+// expr_find_this_in_chain is expr_find_this for member / call / binary /
+// logical chains, which are unbounded in length and therefore searched
+// with a loop (see spine.odin). Source order is preserved so the first
+// `this` reported is the same one the recursive form found.
+expr_find_this_in_chain :: proc(e: ^Expression) -> u32 {
+	assert(expr_is_spine_node(e))
+	spine: ExprSpine = ---
+	if !expr_spine_open(&spine, e) { return 0 }
+	defer expr_spine_close(&spine)
+
+	if r := expr_find_this(spine.leaf); r != 0 { return r }
+	#reverse for node in spine.nodes {
+		#partial switch v in node^ {
+		case ^MemberExpression:
+			if v.computed {
+				if r := expr_find_this(v.property); r != 0 { return r }
+			}
+		case ^CallExpression:
+			for a in v.arguments {
+				if r := expr_find_this(a); r != 0 { return r }
+			}
+		case ^BinaryExpression:
+			if r := expr_find_this(v.right); r != 0 { return r }
+		case ^LogicalExpression:
+			if r := expr_find_this(v.right); r != 0 { return r }
+		case:
+			unreachable()
+		}
+	}
+	return 0
+}
+
 expr_find_this :: proc(e: ^Expression) -> u32 {
 	if e == nil { return 0 }
 	#partial switch v in e^ {
 	case ^ThisExpression:
 		if v != nil { return u32(v.loc.start) }
-	case ^MemberExpression:
-		if v == nil { return 0 }
-		if r := expr_find_this(v.object); r != 0 { return r }
-		if v.computed { return expr_find_this(v.property) }
-	case ^CallExpression:
-		if v == nil { return 0 }
-		if r := expr_find_this(v.callee); r != 0 { return r }
-		for a in v.arguments {
-			if r := expr_find_this(a); r != 0 { return r }
-		}
+	case ^MemberExpression, ^CallExpression, ^BinaryExpression, ^LogicalExpression:
+		return expr_find_this_in_chain(e)
 	case ^AssignmentExpression:
-		if v == nil { return 0 }
-		if r := expr_find_this(v.left); r != 0 { return r }
-		return expr_find_this(v.right)
-	case ^BinaryExpression:
-		if v == nil { return 0 }
-		if r := expr_find_this(v.left); r != 0 { return r }
-		return expr_find_this(v.right)
-	case ^LogicalExpression:
 		if v == nil { return 0 }
 		if r := expr_find_this(v.left); r != 0 { return r }
 		return expr_find_this(v.right)
@@ -5355,14 +5423,45 @@ expr_find_this :: proc(e: ^Expression) -> u32 {
 
 // expr_is_or_contains_super_call — true if the expression IS or CONTAINS
 // a `super(...)` CallExpression. Stops at function/arrow/class boundaries.
+// expr_chain_contains_super_call is expr_is_or_contains_super_call for
+// call / member / binary / logical chains. Such chains are unbounded in
+// length, so the chain operand is followed with a loop; the answer is a
+// plain "any", so visiting order does not matter and no storage is needed.
+expr_chain_contains_super_call :: proc(e: ^Expression) -> bool {
+	assert(expr_is_spine_node(e))
+	current := e
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		if current == nil { return false }
+		#partial switch v in current^ {
+		case ^CallExpression:
+			if v == nil || v.callee == nil { return false }
+			if _, is_super := v.callee^.(^Super); is_super { return true }
+			for a in v.arguments { if expr_is_or_contains_super_call(a) { return true } }
+			current = v.callee
+		case ^MemberExpression:
+			if v == nil { return false }
+			if v.computed && expr_is_or_contains_super_call(v.property) { return true }
+			current = v.object
+		case ^BinaryExpression:
+			if v == nil { return false }
+			if expr_is_or_contains_super_call(v.right) { return true }
+			current = v.left
+		case ^LogicalExpression:
+			if v == nil { return false }
+			if expr_is_or_contains_super_call(v.right) { return true }
+			current = v.left
+		case:
+			return expr_is_or_contains_super_call(current)
+		}
+	}
+	panic("expression chain exceeds EXPR_SPINE_COUNT_MAX: cyclic tree")
+}
+
 expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
 	if e == nil { return false }
 	#partial switch v in e^ {
-	case ^CallExpression:
-		if v == nil { return false }
-		if _, is_super := v.callee^.(^Super); is_super { return true }
-		if expr_is_or_contains_super_call(v.callee) { return true }
-		for a in v.arguments { if expr_is_or_contains_super_call(a) { return true } }
+	case ^CallExpression, ^MemberExpression, ^BinaryExpression, ^LogicalExpression:
+		return expr_chain_contains_super_call(e)
 	case ^AssignmentExpression:
 		if v == nil { return false }
 		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
@@ -5375,9 +5474,6 @@ expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
 		return expr_is_or_contains_super_call(v.test) ||
 		       expr_is_or_contains_super_call(v.consequent) ||
 		       expr_is_or_contains_super_call(v.alternate)
-	case ^LogicalExpression:
-		if v == nil { return false }
-		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
 	case ^ObjectExpression:
 		if v == nil { return false }
 		for prop in v.properties {
@@ -5391,15 +5487,8 @@ expr_is_or_contains_super_call :: proc(e: ^Expression) -> bool {
 				if expr_is_or_contains_super_call(inner) { return true }
 			}
 		}
-	case ^MemberExpression:
-		if v == nil { return false }
-		if expr_is_or_contains_super_call(v.object) { return true }
-		if v.computed { return expr_is_or_contains_super_call(v.property) }
 	case ^SpreadElement:
 		if v != nil { return expr_is_or_contains_super_call(v.argument) }
-	case ^BinaryExpression:
-		if v == nil { return false }
-		return expr_is_or_contains_super_call(v.left) || expr_is_or_contains_super_call(v.right)
 	case ^UnaryExpression:
 		if v != nil { return expr_is_or_contains_super_call(v.argument) }
 	case ^TSAsExpression:
@@ -6444,32 +6533,54 @@ ck_check_params_vs_body_lex :: proc(c: ^Checker, params: []FunctionParameter, bo
 
 // ck_expr_has_identifier_ref — walk expression tree looking for
 // Identifier with given name. Skips closures (function/arrow/class).
+// ck_chain_has_identifier_ref is ck_expr_has_identifier_ref for binary /
+// logical / call / member chains, followed with a loop because their
+// length is unbounded (see spine.odin). A plain "any": order is free.
+// As in the recursive form, a member's property is not searched.
+ck_chain_has_identifier_ref :: proc(expr: ^Expression, name: string, alloc: mem.Allocator) -> bool {
+	assert(expr_is_spine_node(expr))
+	current := expr
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		if current == nil { return false }
+		#partial switch e in current^ {
+		case ^BinaryExpression:
+			if e == nil { return false }
+			if ck_expr_has_identifier_ref(e.right, name, alloc) { return true }
+			current = e.left
+		case ^LogicalExpression:
+			if e == nil { return false }
+			if ck_expr_has_identifier_ref(e.right, name, alloc) { return true }
+			current = e.left
+		case ^CallExpression:
+			if e == nil { return false }
+			for a in e.arguments { if ck_expr_has_identifier_ref(a, name, alloc) { return true } }
+			current = e.callee
+		case ^MemberExpression:
+			if e == nil { return false }
+			current = e.object
+		case:
+			return ck_expr_has_identifier_ref(current, name, alloc)
+		}
+	}
+	panic("expression chain exceeds EXPR_SPINE_COUNT_MAX: cyclic tree")
+}
+
 ck_expr_has_identifier_ref :: proc(expr: ^Expression, name: string, alloc: mem.Allocator) -> bool {
 	if expr == nil { return false }
 	#partial switch e in expr^ {
 	case ^Identifier:
 		return e != nil && e.name == name
-	case ^BinaryExpression:
-		return e != nil && (ck_expr_has_identifier_ref(e.left, name, alloc) || ck_expr_has_identifier_ref(e.right, name, alloc))
-	case ^CallExpression:
-		if e != nil {
-			if ck_expr_has_identifier_ref(e.callee, name, alloc) { return true }
-			for a in e.arguments { if ck_expr_has_identifier_ref(a, name, alloc) { return true } }
-		}
-		return false
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		return ck_chain_has_identifier_ref(expr, name, alloc)
 	case ^NewExpression:
 		if e != nil { for a in e.arguments { if ck_expr_has_identifier_ref(a, name, alloc) { return true } } }
 		return false
-	case ^MemberExpression:
-		return e != nil && ck_expr_has_identifier_ref(e.object, name, alloc)
 	case ^UnaryExpression:
 		return e != nil && ck_expr_has_identifier_ref(e.argument, name, alloc)
 	case ^ConditionalExpression:
 		return e != nil && (ck_expr_has_identifier_ref(e.test, name, alloc) || ck_expr_has_identifier_ref(e.consequent, name, alloc) || ck_expr_has_identifier_ref(e.alternate, name, alloc))
 	case ^ParenthesizedExpression:
 		return e != nil && ck_expr_has_identifier_ref(e.expression, name, alloc)
-	case ^LogicalExpression:
-		return e != nil && (ck_expr_has_identifier_ref(e.left, name, alloc) || ck_expr_has_identifier_ref(e.right, name, alloc))
 	case ^ArrayExpression:
 		if e != nil { for el in e.elements { if el != nil { if ex, ok := el.(^Expression); ok { if ck_expr_has_identifier_ref(ex, name, alloc) { return true } } } } }
 		return false
@@ -6687,15 +6798,8 @@ ck_check_class_private_duplicates :: proc(c: ^Checker, cls: ^ClassExpression, is
 		name := pid.name
 		prev, _ := seen[name]
 
-		is_field := false
-		if elem.kind == .Method {
-			if _, has_value := elem.value.(^Expression); !has_value {
-				is_field = true
-			}
-		}
-
 		switch {
-		case is_field:
+		case elem.kind == .Field:
 			prev.n_field += 1
 		case elem.kind == .Method:
 			prev.n_meth += 1

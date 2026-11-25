@@ -7,6 +7,7 @@ vars:
   OXC_BENCH: bench/oxc_compare/target/release/oxc_microbench
   BENCH_FILES: bench/real_world
   BENCH_ITERS: 20
+  BENCH_REFERENCE: a138cb1e9e11dd36af82283f2dcb43fbde10b999
 
 tasks:
   build:
@@ -19,12 +20,56 @@ tasks:
       - src/*.odin
 
   build:lib:
-    desc: Build kessel shared library (libkessel.dylib/.so) for the npm package
+    desc: Build the native library for the npm package and editor extension
+    vars:
+      EXTENSION: '{{if eq OS "darwin"}}dylib{{else if eq OS "windows"}}dll{{else}}so{{end}}'
     cmds:
       - mkdir -p bin
-      - odin build {{.SRC}} -build-mode:shared -out:bin/libkessel.dylib -o:speed -no-bounds-check -extra-linker-flags:"-undefined dynamic_lookup"
+      - cd bin && odin build ../{{.SRC}} -build-mode:shared -out:libkessel.{{.EXTENSION}} -o:speed -no-bounds-check {{if eq OS "darwin"}}-extra-linker-flags:"-undefined dynamic_lookup"{{end}}
     sources:
       - src/*.odin
+    generates:
+      - bin/libkessel.{{.EXTENSION}}
+
+  build:wasm:
+    desc: Build the standalone browser parser and playground into bin/playground.
+    deps: [build:wasm:module]
+    cmds:
+      - cp playground/index.html playground/style.css playground/app.mjs playground/worker.mjs playground/parser.mjs bin/playground/
+    sources:
+      - playground/index.html
+      - playground/style.css
+      - playground/app.mjs
+      - playground/worker.mjs
+      - playground/parser.mjs
+    generates:
+      - bin/playground/index.html
+      - bin/playground/style.css
+      - bin/playground/app.mjs
+      - bin/playground/worker.mjs
+      - bin/playground/parser.mjs
+
+  build:wasm:module:
+    internal: true
+    cmds:
+      - mkdir -p bin/playground
+      - odin build playground/native -target:wasi_wasm32 -o:size -extra-linker-flags:"-z stack-size=4194304 --strip-all" -out:bin/playground/kessel-next.wasm
+      - mv bin/playground/kessel-next.wasm bin/playground/kessel.wasm
+    sources: [src/*.odin, playground/native/*.odin]
+    generates: [bin/playground/kessel.wasm]
+
+  test:wasm:
+    desc: Verify the browser parser, formatter, linter, transformer, minifier and declaration emitter against the CLI and formatter fixtures, including memory boundaries.
+    # The tool comparison runs over the pinned real-world corpus.
+    deps: [build, build:wasm, test:real:fetch]
+    cmds:
+      - node tests/verifiers/verify_wasm.mjs
+
+  test:wasm:browser:
+    desc: Exercise the built playground in headless Chromium.
+    deps: [test:wasm]
+    cmds:
+      - node playground/test_browser.mjs
 
   build:debug:
     desc: Build kessel (debug, with bounds checks)
@@ -52,14 +97,118 @@ tasks:
   #   4. pin optionalDependencies and publish @dvrdlibs/kessel.
   # There is no local release task on purpose — single source of truth.
 
+  check:vet:
+    desc: Type-check the sources with -vet on every release target and the wasm playground.
+    cmds:
+      - odin check {{.SRC}} -vet
+      - for: [darwin_amd64, linux_amd64, linux_arm64, windows_amd64]
+        cmd: odin check {{.SRC}} -vet -no-entry-point -target:{{.ITEM}}
+      - odin check playground/native -no-entry-point -target:wasi_wasm32
+
   test:
     desc: "Primary gate — coverage snap gate (50K+ fixtures) + unit fixtures."
     silent: false
     cmds:
+      - task: check:vet
       - task: test:coverage
       - task: test:unit
       - task: test:lint
       - task: test:strip-types
+      - task: test:transform
+      - task: test:jsx
+      - task: test:library
+      - task: test:minify
+      - task: test:format
+      - task: test:watch
+      - task: test:robust
+      - task: test:depth
+      - task: test:bundle
+
+  test:robust:
+    desc: Compare template-literal nesting limits with the JavaScript engine that runs the verifier.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_template_nesting.js
+
+  test:depth:
+    desc: "Nesting-depth gate: deep input is rejected with K2081 and million-term chains survive every tool, on an 8 MB stack, optimized and debug builds."
+    deps: [build, build:debug]
+    cmds:
+      - node tests/verifiers/verify_depth_limit.js
+
+  test:bundle:
+    desc: Bundle the multi-file fixtures and compare their behaviour with the original modules under Node.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_bundle.js {{.CLI_ARGS}}
+
+  test:watch:
+    desc: Verify that lint, fmt and transform respond to file changes and recover from errors.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_watch.js
+
+  test:format:
+    desc: Compare module and data-literal formatting with Prettier and verify idempotence.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_format.js
+
+  test:format:real:
+    desc: Check syntax, comments and formatting idempotence on the pinned release corpus.
+    deps: [build:lib, test:real:verify-inputs]
+    env:
+      KESSEL_REAL_WORLD_ROOT: '{{.BENCH_FILES}}'
+    cmds:
+      - node tests/verifiers/verify_format_corpus.js
+
+  test:format:reference:
+    desc: Measure formatter output against Prettier on the release corpus (files, top-level statements, statement snippets). Then statement snippets from TypeScript sources, then from the JSX fixtures. Uses prettier@3.8.3 from bench/node_modules, or KESSEL_PRETTIER.
+    deps: [build:lib, test:real:verify-inputs]
+    env:
+      KESSEL_REAL_WORLD_ROOT: '{{.BENCH_FILES}}'
+    cmds:
+      - node tests/verifiers/measure_format_reference.js
+      - node tests/verifiers/measure_format_reference.js --typescript
+      - node tests/verifiers/measure_format_reference.js --jsx
+
+  test:transform:
+    desc: Execute JSX transform fixtures and verify diagnostics and source maps.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_transform.js
+
+  test:library:
+    desc: Build the Odin programs that use Kessel as a package and verify what they print.
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_sourcemap_builder.js
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_library_consumer.js
+
+  test:jsx:
+    desc: Compare JSX values, spread children and JSX error spans with the reference parsers.
+    deps: [build]
+    cmds:
+      - NODE_PATH=bench/node_modules node tests/verifiers/verify_jsx_ast.js
+
+  test:minify:
+    desc: Compare compressed programs with their original runtime results and check source maps.
+    # The source-map check reads three files of the pinned real-world corpus.
+    deps: [build, test:real:fetch]
+    cmds:
+      - node tests/verifiers/verify_minify.js {{.CLI_ARGS}}
+
+  test:minify:corpus:
+    desc: Verify optimized outputs, source bindings and library behavior on the pinned real-world corpus.
+    deps: [build, build:lib, test:real:fetch, bench:oxc:verify]
+    cmds:
+      - cmd: cd bench/oxc_compare && cargo build --release --locked --package oxc_cli_equiv --example minify_bindings
+      - node tests/verifiers/verify_minify.js --reference --corpus --bindings --sdk
+
+  test:transform:reference:
+    desc: Compare JSX runtime behavior with the pinned OXC transformer in bench.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_transform.js --reference
 
   test:lint:
     desc: "Lint fixture gate — tests/lint/{pass,fail}/ exit-code assertions for kessel lint. Separate from the parser conformance harness."
@@ -67,6 +216,26 @@ tasks:
     silent: true
     cmds:
       - bash tests/lint/run.sh
+      - node tests/verifiers/verify_lint_directives.js
+      - node tests/verifiers/verify_lint_config.js
+      - node tests/verifiers/verify_lint_fixes.js
+      - node tests/verifiers/verify_lint_bindings.js
+      - node tests/verifiers/verify_lint_flow.js
+      - node tests/verifiers/verify_lint_prefer_const.js
+      - node tests/verifiers/verify_lint_react_hooks.js
+      - node tests/verifiers/verify_lint_parity_cases.js
+
+  test:lint:reference:
+    desc: Compare lint configuration, diagnostic spans and fixes with the pinned oxlint executable.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/verify_lint_reference.js {{.CLI_ARGS}}
+
+  lint:parity:report:
+    desc: Compare Kessel's registered lint names with the pinned oxlint inventory.
+    deps: [build]
+    cmds:
+      - node tests/verifiers/report_lint_parity.js {{.CLI_ARGS}}
 
   test:strip-types:
     desc: "Transformer fixture gate — tests/strip-types/{pass,fail}/ exit-code + re-parse assertions for `kessel strip-types`. Separate from the parser conformance harness."
@@ -75,12 +244,156 @@ tasks:
     cmds:
       - bash tests/strip-types/run.sh
 
+  test:npm:coexistence:
+    desc: Test separately installed Kessel bindings against each other and the previous release.
+    cmds:
+      - bash tests/runners/npm_coexistence.sh
+
+  test:npm:pack:
+    desc: Pack and install the npm parser and native package in a clean project.
+    cmds:
+      - bash tests/runners/npm_pack_smoke.sh
+
+  test:lsp:
+    desc: Exercise the language server through its stdio editor protocol.
+    deps: [build:lib]
+    cmds:
+      - node tests/verifiers/verify_lsp.js
+
+  deps:vscode:
+    internal: true
+    dir: editors/vscode
+    sources: [package.json, package-lock.json]
+    generates: [node_modules/.package-lock.json]
+    cmds:
+      - npm ci --ignore-scripts --no-audit --no-fund
+
+  build:vscode:
+    desc: Package the editor extension and native library for this platform
+    deps: [build:lib, deps:vscode]
+    cmds:
+      - node editors/vscode/package_vsix.js
+
+  test:vscode:package:
+    desc: Check the packaged VSIX and run its language server over stdio, without starting an editor
+    deps: [build:vscode]
+    cmds:
+      - node tests/verifiers/verify_vsix.js
+
+  test:vscode:
+    desc: Install the VSIX in an isolated VS Code profile and exercise diagnostics and fixes
+    deps: [build:vscode]
+    cmds:
+      - node editors/vscode/test/run.js {{.CLI_ARGS}}
+
+  test:npm:registry:
+    desc: Install an exact published version from npm and exercise the parser in a clean consumer.
+    cmds:
+      - bash tests/runners/npm_registry_smoke.sh {{.CLI_ARGS}}
+
+  test:npm:typed:
+    desc: Check CLI and npm ASTs against Oxc across the TypeScript standard library.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_npm_typescript.js --cli {{.CLI_ARGS}}
+
+  test:npm:real:
+    desc: Parse the pinned release corpus through the npm asynchronous API.
+    deps: [build:lib, test:real:verify-inputs]
+    env:
+      KESSEL_REAL_WORLD_ROOT: '{{.BENCH_FILES}}'
+    cmds:
+      - node tests/verifiers/verify_npm_real_world.js {{.CLI_ARGS}}
+
   test:coverage:
     desc: "OXC-style conformance harness — 10 snap files (parser + semantic for test262/babel/typescript/estree/misc). The parser_test262.snap / semantic_test262.snap files are the canonical conformance proof."
     deps: [build]
     silent: true
     cmds:
       - odin test tests/coverage/src -no-bounds-check -o:speed -define:ODIN_TEST_TRACK_MEMORY=false
+
+  test:dts:
+    desc: Compare CLI and SDK declaration output and diagnostics with TypeScript.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js
+
+  test:dts:corpus:
+    desc: Compare declaration ASTs and full diagnostic sets across upstream isolated-declaration fixtures.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --corpus
+
+  test:dts:namespaces:
+    desc: Compare the complete upstream internal-module corpus with TypeScript's isolated declaration emitter.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --namespaces
+
+  test:dts:computed:
+    desc: Compare the upstream computed-property corpus with TypeScript, allowing only the documented differences.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --computed
+
+  test:dts:broad:
+    desc: Compare every TypeScript compiler and conformance input against the recorded list of emitter differences.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_declarations.js --broad {{.CLI_ARGS}}
+
+  test:resolve:
+    desc: Check native and CLI module resolution against filesystem fixtures.
+    deps: [build]
+    cmds:
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_resolver_entry_points,coverage.test_module_resolver_typescript_config,coverage.test_module_resolver_lookup_options
+      - node tests/verifiers/verify_module_resolver_cli.js
+      - node tests/verifiers/verify_module_resolver_options.js
+
+  test:resolve:reference:
+    desc: Compare the resolver with the installed TypeScript, Node, and oxc-resolver.
+    deps: [build, build:lib]
+    cmds:
+      - node tests/verifiers/verify_module_resolver_cli.js --reference
+      - node tests/verifiers/verify_module_resolver_node.js
+      - node tests/verifiers/verify_module_resolver_reference.js
+
+  test:module-lexer:
+    desc: Check fast module dependency extraction and source spans.
+    deps: [build]
+    cmds:
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_module_lexer_dependencies,coverage.test_module_lexer_script_and_invalid,coverage.test_module_lexer_import_phases,coverage.test_module_lexer_export_bindings,coverage.test_module_lexer_typescript_exports,coverage.test_module_lexer_reference_fields,coverage.test_module_lexer_string_export_names,coverage.test_module_lexer_attribute_entries,coverage.test_module_lexer_facade_and_format,coverage.test_module_lexer_scan_contexts,coverage.test_module_lexer_class_export_names
+      - node tests/verifiers/verify_module_lexer_cli.js
+      - task: test:module-lexer:reference
+
+  test:module-lexer:reference:
+    desc: Compare the module lexer field by field with es-module-lexer, an AST oracle and V8 over real-world, node_modules, test262 and Babel sources.
+    deps: [build:lib]
+    cmds:
+      - node tests/verifiers/verify_module_lexer_reference.js
+      - node tests/verifiers/verify_module_lexer_node.js
+
+  test:module-lexer:reference:oracle:
+    desc: Reference gate plus the AST oracle on every file, including those where both lexers already agree (slower).
+    deps: [build:lib]
+    cmds:
+      - node tests/verifiers/verify_module_lexer_reference.js --oracle-all
+
+  test:regexp:
+    desc: Check regexp tree structure, Unicode sets, diagnostics, and Node accept/reject agreement.
+    deps: [build, build:lib]
+    cmds:
+      - odin test tests/coverage/src -o:minimal -define:ODIN_TEST_NAMES=coverage.test_regex_ast_structure,coverage.test_regex_ast_unicode_sets,coverage.test_regex_ast_legacy_and_invalid,coverage.test_regex_ast_character_values,coverage.test_regex_ast_legacy_code_units,coverage.test_regex_ast_modifiers,coverage.test_regex_ast_duplicate_names,coverage.test_regex_ast_annex_b,coverage.test_regex_ast_legacy_octal,coverage.test_regex_ast_class_atoms,coverage.test_regex_ast_set_notation,coverage.test_regex_ast_properties,coverage.test_regex_literal_verdicts
+      - node tests/verifiers/verify_regex_ast_cli.js
+      - node tests/verifiers/verify_regex_ast_reference.js
+
+  test:regexp:reference:
+    desc: "Compare regexp trees with the oxc parser (needs ../oxc and cargo; set OXC_DIR to override)."
+    deps: [build:lib]
+    vars:
+      OXC_DIR: '{{.OXC_DIR | default "../oxc"}}'
+    cmds:
+      - node tests/verifiers/verify_regex_ast_reference.js --oxc {{.OXC_DIR}}
 
   test:coverage:update:
     desc: "Regenerate every snap baseline. Run after a deliberate parser change."
@@ -132,18 +445,21 @@ tasks:
     deps: [build]
     silent: true
     cmds:
+      - node tests/verifiers/verify_codegen_comments.js
       - node tests/verifiers/verify_codegen.js
 
   test:codegen:full:
-    desc: "Codegen round-trip across every corpus (spec + estree + babel + test262 + ts). ~80 known failures baselined in tests/baselines/codegen_known_failures.txt; the gate fails only on NEW divergences. Slow (~10 min). Part of `task test:release`."
+    desc: "Round-trip pretty and minified output across all five corpora. Part of `task test:release`."
     deps: [build]
     silent: false
     cmds:
-      - node tests/verifiers/verify_codegen.js --corpus spec
-      - node tests/verifiers/verify_codegen.js --corpus estree
-      - node tests/verifiers/verify_codegen.js --corpus babel
-      - node tests/verifiers/verify_codegen.js --corpus test262
-      - node tests/verifiers/verify_codegen.js --corpus ts
+      - node tests/verifiers/verify_codegen_invocation.js
+      - node tests/verifiers/verify_codegen_comments.js
+      - node tests/verifiers/verify_codegen.js --corpus spec --both-modes
+      - node tests/verifiers/verify_codegen.js --corpus estree --both-modes
+      - node tests/verifiers/verify_codegen.js --corpus babel --both-modes
+      - node tests/verifiers/verify_codegen.js --corpus test262 --both-modes
+      - node tests/verifiers/verify_codegen.js --corpus ts --both-modes
 
   test:sourcemap:
     desc: "Source-map v3 end-to-end — decode kessel-emitted map with source-map-js and assert positions resolve to the right source lines."
@@ -158,27 +474,41 @@ tasks:
     silent: true
     cmds:
       - |
-        set +e
+        set -eu
         outdir=$(mktemp -d)
         trap 'rm -rf "$outdir"' EXIT
-        find {{.BENCH_FILES}} -type f \( -name '*.js' -o -name '*.mjs' \) -print0 \
-          | xargs -0 -P "$(sysctl -n hw.ncpu 2>/dev/null || nproc || echo 4)" -I{} bash -c '
+        find {{.BENCH_FILES}} -type f \( -name '*.js' -o -name '*.mjs' \) -print0 > "$outdir/inputs"
+        total=$(tr -cd '\000' < "$outdir/inputs" | wc -c | tr -d ' ')
+        if [ "$total" -eq 0 ]; then
+          echo "No real-world inputs found in {{.BENCH_FILES}}" >&2
+          exit 1
+        fi
+        xargs -0 -P "$(sysctl -n hw.ncpu 2>/dev/null || nproc || echo 4)" -I{} bash -c '
               f="$1"; outdir="$2"; bin="$3"
-              base=$(echo "$f" | tr / _)
-              err="$outdir/$base.err"
+              err=$(mktemp "$outdir/stderr.XXXXXX") || exit 1
               timeout 30 "$bin" parse "$f" >/dev/null 2>"$err"
               rc=$?
               if [ "$rc" -ne 0 ]; then
                 echo "FAIL: $f: exit=$rc (crash or timeout)"
-              else
-                n=$(grep "Parse errors:" "$err" | awk "{print \$3}")
-                if [ "${n:-0}" -gt 0 ]; then echo "FAIL: $f: $n errors"; fi
+                touch "$err.fail"
+              elif grep -q "Parse errors: [1-9]" "$err"; then
+                echo "FAIL: $f: parse errors"
+                touch "$err.fail"
               fi
-            ' _ {} "$outdir" ./{{.BIN}}
-        fails=$(find "$outdir" -name '*.err' -exec grep -l "Parse errors: [1-9]" {} \; 2>/dev/null | wc -l | tr -d ' ')
-        total=$(find {{.BENCH_FILES}} -type f \( -name '*.js' -o -name '*.mjs' \) | wc -l | tr -d ' ')
+            ' _ {} "$outdir" ./{{.BIN}} < "$outdir/inputs"
+        fails=$(find "$outdir" -name '*.fail' | wc -l | tr -d ' ')
         echo "$total files parsed, $fails failures"
         [ "$fails" -eq 0 ] || exit 1
+
+  test:real:verify-inputs:
+    desc: Verify the real-world release corpus against its tracked checksums.
+    cmds:
+      - node tests/verifiers/verify_real_world_inputs.js "{{.BENCH_FILES}}"
+
+  test:real:fetch:
+    desc: Fetch missing real-world fixtures from pinned npm package files and verify their checksums.
+    cmds:
+      - node tests/runners/fetch_real_world_inputs.js "{{.BENCH_FILES}}"
 
   test:estree:
     desc: "String-escape decoding parity vs reference parser on key real-world files."
@@ -223,16 +553,25 @@ tasks:
     deps: [build, bench:oxc:build]
     silent: false
     cmds:
+      - node tests/verifiers/verify_release_version.js
+      - node tests/verifiers/verify_oxc_pin.js --require-installed
+      - node tests/verifiers/verify_cli_smoke.js {{.BIN}}
       - task: test:coverage
       - task: test:unit
       - task: test:regression
+      - task: test:real:fetch
       - task: test:real
+      - task: test:npm:typed
+      - task: test:format:real
       - task: test:estree
       - node tests/verifiers/fuzz_diff.js --count 100 --seed 20260421 --parser oxc --strict
       - node tests/verifiers/fuzz_invalid.js --count 300 --seed 20260422 --strict
       - task: test:crashes-known
+      - task: test:transform:reference
+      - node tests/verifiers/verify_minify.js --reference
+      - task: test:dts:corpus
       - task: test:codegen:full
-      - task: test:bench:regression
+      - task: test:bench:reference
       - task: test:lexer-tokens
 
   bench:oxc:verify:
@@ -246,11 +585,7 @@ tasks:
     deps: [bench:oxc:verify]
     dir: bench/oxc_compare
     cmds:
-      - cargo build --release -q
-    status:
-      - test -f ../../{{.OXC_BENCH}}
-      - test -f ../../bench/oxc_compare/target/release/oxc_cli_equiv
-      - test -f ../../bench/oxc_compare/target/release/oxc_codegen_microbench
+      - cargo build --release --locked -q
 
   bench:codegen:compare:
     desc: "Codegen latency — kessel vs oxc-codegen on real-world files."
@@ -265,6 +600,21 @@ tasks:
     silent: false
     cmds:
       - node tests/verifiers/verify_bench_regression.js --iterations 30
+
+  test:bench:reference:
+    desc: Compare against the baseline source revision using the same Odin compiler and host.
+    cmds:
+      - task --force build
+      - node tests/verifiers/verify_bench_sampling.js
+      - |
+        set -eu
+        reference_dir=$(mktemp -d)
+        trap 'rm -rf "$reference_dir"' EXIT
+        git archive --output="$reference_dir/source.tar" {{.BENCH_REFERENCE}} src
+        tar -xf "$reference_dir/source.tar" -C "$reference_dir"
+        cp src/qos_fallback.odin "$reference_dir/src/"
+        odin build "$reference_dir/src" -out:"$reference_dir/kessel" -o:speed -no-bounds-check
+        node tests/verifiers/verify_bench_regression.js --iterations 30 --reference "$reference_dir/kessel"
 
   test:bench:regression:update:
     desc: "Re-capture bench baseline after intentional perf work."

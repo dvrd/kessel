@@ -1,0 +1,523 @@
+{
+  "type": "Program",
+  "start": 82,
+  "end": 243,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 82,
+      "end": 106,
+      "id": {
+        "type": "Identifier",
+        "start": 87,
+        "end": 88,
+        "name": "A",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSTypeReference",
+        "start": 91,
+        "end": 105,
+        "typeName": {
+          "type": "Identifier",
+          "start": 91,
+          "end": 92,
+          "name": "X",
+          "typeAnnotation": null,
+          "optional": false
+        },
+        "typeArguments": {
+          "type": "TSTypeParameterInstantiation",
+          "start": 92,
+          "end": 105,
+          "params": [
+            {
+              "type": "TSFunctionType",
+              "start": 94,
+              "end": 104,
+              "typeParameters": {
+                "type": "TSTypeParameterDeclaration",
+                "start": 94,
+                "end": 97,
+                "params": [
+                  {
+                    "type": "TSTypeParameter",
+                    "start": 95,
+                    "end": 96,
+                    "name": {
+                      "type": "Identifier",
+                      "start": 95,
+                      "end": 96,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "constraint": null,
+                    "default": null,
+                    "in": false,
+                    "out": false,
+                    "const": false
+                  }
+                ]
+              },
+              "params": [],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 100,
+                "end": 104,
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 103,
+                  "end": 104,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 103,
+                    "end": 104,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                }
+              }
+            }
+          ]
+        }
+      },
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 107,
+      "end": 137,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 111,
+          "end": 136,
+          "id": {
+            "type": "Identifier",
+            "start": 111,
+            "end": 136,
+            "name": "b",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 112,
+              "end": 136,
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 114,
+                "end": 136,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 114,
+                  "end": 119,
+                  "name": "Array",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": {
+                  "type": "TSTypeParameterInstantiation",
+                  "start": 119,
+                  "end": 136,
+                  "params": [
+                    {
+                      "type": "TSFunctionType",
+                      "start": 121,
+                      "end": 135,
+                      "typeParameters": {
+                        "type": "TSTypeParameterDeclaration",
+                        "start": 121,
+                        "end": 124,
+                        "params": [
+                          {
+                            "type": "TSTypeParameter",
+                            "start": 122,
+                            "end": 123,
+                            "name": {
+                              "type": "Identifier",
+                              "start": 122,
+                              "end": 123,
+                              "name": "T",
+                              "typeAnnotation": null,
+                              "optional": false
+                            },
+                            "constraint": null,
+                            "default": null,
+                            "in": false,
+                            "out": false,
+                            "const": false
+                          }
+                        ]
+                      },
+                      "params": [
+                        {
+                          "type": "Identifier",
+                          "start": 125,
+                          "end": 129,
+                          "name": "x",
+                          "typeAnnotation": {
+                            "type": "TSTypeAnnotation",
+                            "start": 126,
+                            "end": 129,
+                            "typeAnnotation": {
+                              "type": "TSTypeReference",
+                              "start": 128,
+                              "end": 129,
+                              "typeName": {
+                                "type": "Identifier",
+                                "start": 128,
+                                "end": 129,
+                                "name": "T",
+                                "typeAnnotation": null,
+                                "optional": false
+                              },
+                              "typeArguments": null
+                            }
+                          },
+                          "optional": false
+                        }
+                      ],
+                      "returnType": {
+                        "type": "TSTypeAnnotation",
+                        "start": 131,
+                        "end": 135,
+                        "typeAnnotation": {
+                          "type": "TSTypeReference",
+                          "start": 134,
+                          "end": 135,
+                          "typeName": {
+                            "type": "Identifier",
+                            "start": 134,
+                            "end": 135,
+                            "name": "T",
+                            "typeAnnotation": null,
+                            "optional": false
+                          },
+                          "typeArguments": null
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "optional": false          },
+          "init": null        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 138,
+      "end": 166,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 144,
+          "end": 165,
+          "id": {
+            "type": "Identifier",
+            "start": 144,
+            "end": 145,
+            "name": "c",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "CallExpression",
+            "start": 148,
+            "end": 165,
+            "callee": {
+              "type": "Identifier",
+              "start": 148,
+              "end": 149,
+              "name": "f",
+              "typeAnnotation": null,
+              "optional": false            },
+            "typeArguments": {
+              "type": "TSTypeParameterInstantiation",
+              "start": 149,
+              "end": 162,
+              "params": [
+                {
+                  "type": "TSFunctionType",
+                  "start": 151,
+                  "end": 161,
+                  "typeParameters": {
+                    "type": "TSTypeParameterDeclaration",
+                    "start": 151,
+                    "end": 154,
+                    "params": [
+                      {
+                        "type": "TSTypeParameter",
+                        "start": 152,
+                        "end": 153,
+                        "name": {
+                          "type": "Identifier",
+                          "start": 152,
+                          "end": 153,
+                          "name": "T",
+                          "typeAnnotation": null,
+                          "optional": false
+                        },
+                        "constraint": null,
+                        "default": null,
+                        "in": false,
+                        "out": false,
+                        "const": false
+                      }
+                    ]
+                  },
+                  "params": [],
+                  "returnType": {
+                    "type": "TSTypeAnnotation",
+                    "start": 157,
+                    "end": 161,
+                    "typeAnnotation": {
+                      "type": "TSTypeReference",
+                      "start": 160,
+                      "end": 161,
+                      "typeName": {
+                        "type": "Identifier",
+                        "start": 160,
+                        "end": 161,
+                        "name": "T",
+                        "typeAnnotation": null,
+                        "optional": false
+                      },
+                      "typeArguments": null
+                    }
+                  }
+                }
+              ]
+            },
+            "arguments": [
+              {
+                "type": "Literal",
+                "start": 163,
+                "end": 164,
+                "value": 1,
+                "raw": "1"              }
+            ]          }        }
+      ]    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 167,
+      "end": 194,
+      "id": {
+        "type": "Identifier",
+        "start": 172,
+        "end": 173,
+        "name": "D",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSTypeReference",
+        "start": 176,
+        "end": 193,
+        "typeName": {
+          "type": "Identifier",
+          "start": 176,
+          "end": 177,
+          "name": "X",
+          "typeAnnotation": null,
+          "optional": false
+        },
+        "typeArguments": {
+          "type": "TSTypeParameterInstantiation",
+          "start": 177,
+          "end": 193,
+          "params": [
+            {
+              "type": "TSConstructorType",
+              "start": 178,
+              "end": 192,
+              "abstract": false,
+              "typeParameters": {
+                "type": "TSTypeParameterDeclaration",
+                "start": 182,
+                "end": 185,
+                "params": [
+                  {
+                    "type": "TSTypeParameter",
+                    "start": 183,
+                    "end": 184,
+                    "name": {
+                      "type": "Identifier",
+                      "start": 183,
+                      "end": 184,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "constraint": null,
+                    "default": null,
+                    "in": false,
+                    "out": false,
+                    "const": false
+                  }
+                ]
+              },
+              "params": [],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 188,
+                "end": 192,
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 191,
+                  "end": 192,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 191,
+                    "end": 192,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                }
+              }
+            }
+          ]
+        }
+      },
+      "declare": false    },
+    {
+      "type": "TSTypeAliasDeclaration",
+      "start": 195,
+      "end": 242,
+      "id": {
+        "type": "Identifier",
+        "start": 200,
+        "end": 201,
+        "name": "E",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "typeAnnotation": {
+        "type": "TSImportType",
+        "start": 204,
+        "end": 241,
+        "source": {
+          "type": "Literal",
+          "start": 211,
+          "end": 214,
+          "value": "m",
+          "raw": "\"m\""
+        },
+        "options": null,
+        "qualifier": {
+          "type": "Identifier",
+          "start": 216,
+          "end": 224,
+          "name": "Modifier",
+          "typeAnnotation": null,
+          "optional": false
+        },
+        "typeArguments": {
+          "type": "TSTypeParameterInstantiation",
+          "start": 224,
+          "end": 241,
+          "params": [
+            {
+              "type": "TSFunctionType",
+              "start": 226,
+              "end": 240,
+              "typeParameters": {
+                "type": "TSTypeParameterDeclaration",
+                "start": 226,
+                "end": 229,
+                "params": [
+                  {
+                    "type": "TSTypeParameter",
+                    "start": 227,
+                    "end": 228,
+                    "name": {
+                      "type": "Identifier",
+                      "start": 227,
+                      "end": 228,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "constraint": null,
+                    "default": null,
+                    "in": false,
+                    "out": false,
+                    "const": false
+                  }
+                ]
+              },
+              "params": [
+                {
+                  "type": "Identifier",
+                  "start": 230,
+                  "end": 234,
+                  "name": "x",
+                  "typeAnnotation": {
+                    "type": "TSTypeAnnotation",
+                    "start": 231,
+                    "end": 234,
+                    "typeAnnotation": {
+                      "type": "TSTypeReference",
+                      "start": 233,
+                      "end": 234,
+                      "typeName": {
+                        "type": "Identifier",
+                        "start": 233,
+                        "end": 234,
+                        "name": "T",
+                        "typeAnnotation": null,
+                        "optional": false
+                      },
+                      "typeArguments": null
+                    }
+                  },
+                  "optional": false
+                }
+              ],
+              "returnType": {
+                "type": "TSTypeAnnotation",
+                "start": 236,
+                "end": 240,
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 239,
+                  "end": 240,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 239,
+                    "end": 240,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                }
+              }
+            }
+          ]
+        }
+      },
+      "declare": false    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 81,
+      "value": " A generic function type as a type argument keeps its two angle brackets apart."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=0B reserved=16777216B ratio=0%
+Parse errors: 0

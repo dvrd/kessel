@@ -4,27 +4,58 @@ All notable changes to kessel will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
-## [0.21.0] - 2026-07-22
+## [Unreleased]
+
+### Breaking
+- **`ParseError` has no `loc` field** (changed after v0.4.1). It is now `{start, end, message, code, severity, lint_code}`: `start`/`end` are UTF-8 byte offsets of the offending range and `code` is a stable `ErrorCode`. Code that read `err.loc` should read `err.start`; use `source_position_at` for a line and UTF-16 column.
+- **JSX entities are decoded.** `JSXText.value` and the `value` of JSX string attributes now hold the decoded text (`&amp;` → `&`); `raw` keeps the source text (for attributes, including the quotes). Both used to hold the raw text. Applies to the typed AST, the JSON output and the npm AST. This follows Babel and the ESTree corpus; oxc-parser 0.127.0 does not decode.
+- **`{...xs}` as a JSX child is a `JSXSpreadChild`** whose `expression` is the operand. It used to be a `JSXExpressionContainer` holding a `SpreadElement`.
+- **`{...}` with no operand in JSX is a parse error** (K2020) in attribute and child position. It used to produce a tree.
+- **Input nested deeper than `ParseConfig.max_depth` (default 512) is rejected** with one `K2081_NestingTooDeep` error instead of overflowing the stack. Right-recursive forms count: `a=b=c=…`, `else if` chains, nested ternaries (about 510 links) and curried arrows (about 254). Left-associative chains (`a+b+…`, `a&&b&&…`, `a.b.c…`, `a()()…`) are unlimited.
+- **Template literals nested deeper than 256 levels are rejected** with `K1016_TemplateNestingTooDeep`. Nesting up to 256 levels and any number of open braces inside an interpolation now parse; previously more than 8 levels or 255 braces were mis-lexed.
+- **Stricter syntax checks.** A comma operator now requires its right operand (`a, ;`, `if (a, ) {}`, `x[a, ]` are errors). Regular-expression literals that the engine rejects are now rejected (reversed `{n,m}` bounds and class ranges, `[\B]` and unknown property names with `u`, invalid `v`-flag classes), and several valid `v`-flag literals that were rejected now parse.
+- **Legacy octal literals have their real value**: `010` is 8 (it was 10).
+- **Binary AST version 9** is emitted for programs that start with `#!`, carrying `program.hashbang`. Other programs keep their previous versions, and the npm reader accepts versions 3 through 9.
+- The internal helper `vlq_encode_into` is removed; use the source-map builder below.
 
 ### Added
-- feat(lint): add no-negated-condition + operator-assignment; make all L40xx rules --rule-addressable
-- feat(lint): add compact and checkstyle output formatters (Phase 8e)
-- feat(lint): add unix and github output formatters (Phase 8e)
-- feat(lint): support targeted per-rule disable directives (eslint-disable* rule, ...)
-- feat(lint): add no-useless-else, prefer-object-literal, no-object-constructor, no-arrow-functions-in-class, no-class-assign-in-class (159 rules)
-- feat(lint): add no-useless-catch/constructor/rename, prefer-object-has-own, no-useless-unary (154 rules, 6 new enum entries)
-- feat(lint): add no-implicit-coercion, no-buffer-constructor, no-octal-escape, no-implicit-globals, no-restricted-globals/syntax, prefer-exponentiation-operator (154 rules)
-- feat(lint): add no-loop-func, no-magic-numbers, max-depth, max-lines, max-params, no-magic-strings, no-unsafe-declaration (147 rules)
-- feat(lint): add no-comparison-with-nan, no-new-symbol, no-multi-str, no-string-case, prefer-dot-notation (140 rules)
-- feat(lint): add no-await-in-loop, no-type-alias, no-useless-assignment, no-mixed-operators, no-undefined, no-instanceof, no-extra-label (135 rules)
-- feat(lint): add TS rules no-inferrable-types, no-duplicate-enum-values, prefer-ts-expect-error, no-empty-interface, no-require-imports (127 rules)
-- feat(lint): add no-this-before-super, accessor-pairs, grouped-accessor-pairs, prefer-rest-params, prefer-spread, no-param-reassign (122 rules, 93 fixtures)
-- feat(lint): add no-duplicate-imports, no-useless-computed-key, no-useless-return, prefer-arrow-callback, no-else-return (116 rules, 93 fixtures)
-- feat(lint): add no-void, no-bitwise, no-continue, no-plusplus, yoda (111 rules, 90 fixtures)
-- feat(lint): add no-nested-ternary, no-unneeded-ternary, no-lonely-if, prefer-numeric-literals, no-useless-call (106 rules, 90 fixtures)
-- feat(lint): add no-promise-executor-return, no-template-curly-in-string (101 rules, 88 fixtures)
-- feat(lint): add getter-return, no-global-assign, no-import-assign, no-class-assign, no-func-assign (99 rules, 86 fixtures)
+- **Library API for Odin consumers** (see "Odin package" in the README):
+  - `ParseConfig.max_depth` and `ParseConfig.reject_invalid_utf8` (one `K1017_InvalidUtf8` error at the first ill-formed byte; off by default).
+  - `parse_job_open_inline(..., backing := mem.Allocator{})` takes a caller-supplied allocator; everything is returned to it on `parse_job_close`.
+  - Allocation failure is reported as `K2085_OutOfMemory` with an empty `Program` instead of a crash, including with a caller-supplied allocator that runs dry inside one large statement. When that allocator has nothing left at all, the abandoned parse unwinds on at most 1 MiB of OS pages, released on close.
+  - `source_positions_init` / `source_position_at` / `source_offset_at`: byte offset ↔ line and UTF-16 column.
+  - `sourcemap_builder_*`: a Source Map v3 builder (sources, names, mappings, JSON).
+  - `Program.hashbang`.
+  - `ast_walk` with enter/leave callbacks, bounded in depth and iterative along long chains. Its default depth (`AST_WALK_DEPTH_DEFAULT`, 8 × the parser's 512) walks any tree the parser accepts at its default limit, and a walk cut short by depth or memory still calls `leave` for every node it entered.
+  - `scope_query_*`: bindings and references of a name, the symbol at a position, the enclosing function.
+  - `function_parameter_view`: one view of a parameter's target and default value, whichever way the parser stored it.
+  - `jsx_decode_entities` for the full HTML entity table.
+- `--max-depth=N` for `kessel parse`.
+- Lone surrogates from escapes are documented as WTF-8 in `StringLiteral.value`; an escaped surrogate pair is one code point in both strings and templates.
 
+### Fixed
+- A long left-associative chain no longer overflows the stack in the checker, emitters, linter, printer or any other pass; a 1,000,000-term chain parses and checks on an 8 MB stack.
+- A mismatched JSX closing tag is reported on the closing tag's name, not the token after it.
+- Every parse of a file with an import or export leaked 576 bytes outside the parse arena.
+- `export default /re/;` is one statement; `in` is allowed inside a block-bodied arrow in a `for` initializer; BigInt property keys, substitution-free template literal types and `async` arrows have correct source ranges; `1 + x as T` groups as `(1 + x) as T`.
+- The sources pass `odin check -vet` on every release target, and CI enforces it.
+
+
+### Added (linter)
+- feat(lint): add no-labels, no-multi-assign, no-ternary, no-new, no-return-await rules (162 rules total)
+- feat(lint): support `kessel.lint.json` `ignorePatterns` (glob file-exclusion) (Phase 8d)
+- feat(lint): support `kessel.lint.json` per-glob `overrides` (file-scoped rule severities) (Phase 8d)
+- feat(lint): support `kessel.lint.json` `extends` (config inheritance, string or array) (Phase 8d)
+- feat(lint): add `gitlab` (GitLab Code Quality JSON) and `junit` (JUnit XML) output formatters, and `--deny`/`--warn`/`--allow` severity-alias flags (completes Phase 8e)
+- feat(lint): add `--quiet` (report errors only) and `--max-warnings <N>` (CI warning-count gate) flags
+- feat(lint): add `unix`, `github`, `compact`, and `checkstyle` output formatters via `--format=` (Phase 8e; joins existing `default`/`json`)
+- feat(lint): support targeted per-rule disable directives (`// eslint-disable-next-line no-console` suppresses only the named rule; bare directive suppresses all)
+- feat(lint): add no-negated-condition (L4098) and operator-assignment (L4099) rules
+- feat(lint): add no-implicit-coercion, no-buffer-constructor, no-octal-escape, no-implicit-globals, no-restricted-globals, no-restricted-syntax, prefer-exponentiation-operator
+- feat(lint): add no-useless-else, prefer-object-literal, no-object-constructor, no-arrow-functions-in-class, no-class-assign-in-class, prefer-object-has-own, no-useless-unary (157 rules total)
+
+### Fixed (linter)
+- fix(lint): make every rule `--rule`/config-addressable by name — `lint_rule_by_name` was a hand-maintained switch that stopped at L2025, leaving ~90 already-implemented L40xx rules unreachable; it now scans the static rule-info table
 
 ## [0.20.0] - 2026-07-12
 

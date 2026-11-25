@@ -1,3 +1,5 @@
+#+build !wasi
+
 package kessel
 
 // ============================================================================
@@ -8,6 +10,8 @@ package kessel
 // Exports:
 //   kessel_parse_binary(src, src_len, lang) -> KesselParseResult{handle, buf_ptr, buf_len}
 //   kessel_parse_binary_v2(src, src_len, filename, filename_len, options...) -> KesselParseResult
+//   kessel_parse_binary_v3(src, src_len, filename, filename_len, &KesselParseOptions)
+//       -> KesselParseResult
 //   kessel_free_result(handle)
 //
 // The returned buffer is the compact binary AST (same format as --binary).
@@ -107,7 +111,7 @@ kessel_parse_binary_with_config :: proc(source: string, label: string, config: P
 	// string table so the JS decoder can surface real parse diagnostics
 	// instead of always seeing an empty errors[] array.
 	be: BinaryEmitter
-	binary_emitter_init(&be, source, context.allocator)
+	binary_emitter_init(&be, source, context.allocator, job.parser.allocator, allow_ts_mode(&job.parser))
 	bin_emit_program(&be, job.program)
 	bin_emit_errors(&be, job.parser.errors[:])
 	bin_emit_finalize(&be)
@@ -202,6 +206,86 @@ kessel_parse_binary_v2 :: proc "c" (
 	return kessel_parse_binary_with_config(source, label, config, kessel_bool_from_i32(show_semantic_errors))
 }
 
+// Options block for kessel_parse_binary_v3. Every field is an i32 so the
+// layout is the same on every target and binding. `size` is the number of
+// bytes the caller filled in: a newer library reads only that prefix and
+// leaves the rest zero, and an older library ignores bytes it does not know,
+// so fields are only ever appended. A zero field selects the default, except
+// the tri-state fields, whose defaults are documented beside them.
+KesselParseOptions :: struct {
+	size:                        i32,
+	lang:                        i32, // -1=path detect, 0=JS, 1=JSX, 2=TS, 3=TSX
+	source_type:                 i32, // -1=unambiguous, 0=script, 1=module
+	strict_source_type:          i32,
+	force_strict:                i32,
+	preserve_parens:             i32,
+	ast_only:                    i32,
+	show_semantic_errors:        i32,
+	source_is_dts:               i32, // -1=path detect, 0=false, 1=true
+	is_commonjs:                 i32, // -1=path detect, 0=false, 1=true
+	disallow_ambiguous_jsx_like: i32,
+	max_depth:                   i32, // 0=default (512); see ParseConfig.max_depth
+	reject_invalid_utf8:         i32, // see ParseConfig.reject_invalid_utf8
+}
+
+#assert(size_of(KesselParseOptions) == 13 * size_of(i32))
+#assert(offset_of(KesselParseOptions, max_depth) == 11 * size_of(i32))
+
+// The size of the options block as it was first published. A caller must
+// provide at least this much; kessel_parse_binary_v2 covers older callers.
+KESSEL_PARSE_OPTIONS_SIZE_MIN :: 13 * size_of(i32)
+
+// Parse with every ParseConfig option the bindings expose. Unlike
+// kessel_parse_binary_v2 the options travel in a sized block, so adding an
+// option does not need another entry point. Returns an empty result when the
+// arguments are unusable: a nil source, a negative length, an options block
+// smaller than KESSEL_PARSE_OPTIONS_SIZE_MIN, or a max_depth outside
+// 0..PARSE_DEPTH_MAX_CEILING. The caller owns the stack: a max_depth above
+// the default needs proportionally more of it.
+@(export, link_name="kessel_parse_binary_v3")
+kessel_parse_binary_v3 :: proc "c" (
+	source_ptr: [^]u8,
+	source_len: i32,
+	filename_ptr: [^]u8,
+	filename_len: i32,
+	options_ptr: ^KesselParseOptions,
+) -> KesselParseResult {
+	context = runtime.default_context()
+
+	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
+	if options_ptr == nil { return KesselParseResult{} }
+	if options_ptr.size < KESSEL_PARSE_OPTIONS_SIZE_MIN { return KesselParseResult{} }
+	// Copy the prefix this library knows. A larger block comes from a newer
+	// binding; its extra fields are ignored.
+	options: KesselParseOptions
+	known := min(int(options_ptr.size), size_of(KesselParseOptions))
+	mem.copy(&options, options_ptr, known)
+	if options.max_depth < 0 { return KesselParseResult{} }
+	if options.max_depth > PARSE_DEPTH_MAX_CEILING { return KesselParseResult{} }
+
+	source := string(source_ptr[:source_len])
+	label := "lib"
+	if filename_ptr != nil && filename_len > 0 {
+		label = string(filename_ptr[:filename_len])
+	}
+
+	config := ParseConfig{
+		lang_override               = kessel_lang_from_i32(options.lang),
+		source_type_override        = kessel_source_type_from_i32(options.source_type),
+		strict_source_type          = kessel_bool_from_i32(options.strict_source_type),
+		force_strict                = kessel_bool_from_i32(options.force_strict),
+		preserve_parens             = kessel_bool_from_i32(options.preserve_parens),
+		ast_only                    = kessel_bool_from_i32(options.ast_only),
+		source_is_dts_override      = kessel_maybe_bool_from_i32(options.source_is_dts),
+		is_commonjs_override        = kessel_maybe_bool_from_i32(options.is_commonjs),
+		disallow_ambiguous_jsx_like = kessel_bool_from_i32(options.disallow_ambiguous_jsx_like),
+		max_depth                   = int(options.max_depth),
+		reject_invalid_utf8         = kessel_bool_from_i32(options.reject_invalid_utf8),
+	}
+	semantic := kessel_bool_from_i32(options.show_semantic_errors)
+	return kessel_parse_binary_with_config(source, label, config, semantic)
+}
+
 @(export, link_name="kessel_free_result")
 kessel_free_result :: proc "c" (handle: rawptr) {
 	context = runtime.default_context()
@@ -261,10 +345,10 @@ kessel_codegen :: proc "c" (
 ) -> KesselCodegenResult {
 	context = runtime.default_context()
 	if src_ptr == nil || src_len < 0 { return KesselCodegenResult{} }
-	source := string((cast([^]u8) src_ptr)[:src_len])
+	source := string(src_ptr[:src_len])
 	filename := "input"
 	if filename_ptr != nil && filename_len > 0 {
-		filename = string((cast([^]u8) filename_ptr)[:filename_len])
+		filename = string(filename_ptr[:filename_len])
 	}
 
 	// Parse setup: mirrors parse_job_run on a freshly built ParseConfig.
@@ -284,35 +368,12 @@ kessel_codegen :: proc "c" (
 
 	result := new(LibCodegenResult)
 
-	// Codegen.
-	cg_cfg := CodegenConfig{minified = kessel_bool_from_i32(minified), indent = "  "}
 	cg: Codegen
-	codegen_init(&cg, cg_cfg, len(source), context.allocator)
-	defer codegen_destroy(&cg, context.allocator)
-
 	sm: SourceMap
 	want_sm := kessel_bool_from_i32(want_sourcemap)
-	if want_sm {
-		if job.parser.lexer.num_lines == 0 {
-			build_line_table(job.parser.lexer)
-		}
-		line_offsets := job.parser.lexer.line_offsets[:job.parser.lexer.num_lines]
-		sourcemap_init(&sm, source, line_offsets)
-		codegen_enable_sourcemap(&cg, &sm)
-	}
+	codegen_print_job(&job, &cg, {minified = kessel_bool_from_i32(minified)}, &sm if want_sm else nil)
+	defer codegen_destroy(&cg, context.allocator)
 	defer if want_sm { sourcemap_destroy(&sm) }
-
-	if job.lexer.has_hashbang {
-		cg_str(&cg, "#!")
-		cg_str(&cg, job.lexer.hashbang_value)
-		// Hashbang is a line comment; emit a real newline even in
-		// minified mode so the next token doesn't get swallowed.
-		cg_byte(&cg, '\n')
-	}
-	codegen_program(&cg, job.program)
-	if !cg_cfg.minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') {
-		cg_byte(&cg, '\n')
-	}
 
 	if want_sm {
 		map_json := sourcemap_to_json(
@@ -425,8 +486,9 @@ kessel_lint_binary :: proc "c" (
 	rules_len:    i32,
 ) -> KesselParseResult {
 	context = runtime.default_context()
-	if source_ptr == nil || source_len < 0 { return KesselParseResult{} }
-	source := string(source_ptr[:source_len])
+	runtime.DEFAULT_TEMP_ALLOCATOR_TEMP_GUARD()
+	source, ok := kessel_tool_input(source_ptr, source_len)
+	if !ok { return {} }
 	label := "lib"
 	if filename_ptr != nil && filename_len > 0 {
 		label = string(filename_ptr[:filename_len])
@@ -434,10 +496,10 @@ kessel_lint_binary :: proc "c" (
 
 	config := ParseConfig{
 		lang_override = kessel_lang_from_i32(lang),
-		ast_only      = true,
+		ast_only      = false,
 	}
 	job: ParseJob
-	if !parse_job_open_inline(&job, source, config, label) {
+	if !parse_job_open_inline(&job, source, lint_parse_config(label, config), label) {
 		return KesselParseResult{}
 	}
 	defer parse_job_close(&job)
@@ -450,14 +512,13 @@ kessel_lint_binary :: proc "c" (
 	overrides: [dynamic]LintOverride
 	if rules_ptr != nil && rules_len > 0 {
 		overrides = make([dynamic]LintOverride, context.temp_allocator)
-		lint_parse_rules_text(string(rules_ptr[:rules_len]), &overrides)
+		if !lint_parse_rules_text(string(rules_ptr[:rules_len]), &overrides) {
+			// A negative length distinguishes invalid rule settings from a failed parse job.
+			return {buf_len = -1}
+		}
 	}
-	l := lint_run_for_job(&job, overrides[:])
-	combined := make([dynamic]ParseError, 0, len(job.parser.errors) + len(l.diagnostics), context.temp_allocator)
-	for e in job.parser.errors { append(&combined, e) }
-	for d in l.diagnostics      { append(&combined, d) }
-
-	buf := lint_emit_diagnostics_buffer(combined[:], context.allocator)
+	linter := lint_run_for_job(&job, {overrides=overrides[:]})
+	buf := lint_emit_diagnostics_buffer(kessel_lint_diagnostics(&job, &linter), context.allocator)
 
 	result := new(LibResult, context.allocator)
 	result.buf = buf
@@ -468,4 +529,11 @@ kessel_lint_binary :: proc "c" (
 		buf_ptr = result.buf_ptr,
 		buf_len = i32(result.buf_len),
 	}
+}
+
+kessel_lint_diagnostics :: proc(job: ^ParseJob, linter: ^Linter) -> []ParseError {
+	combined := make([dynamic]ParseError, 0, len(job.parser.errors) + len(linter.diagnostics), job.arena_alloc)
+	append(&combined, ..job.parser.errors[:])
+	append(&combined, ..linter.diagnostics[:])
+	return combined[:]
 }

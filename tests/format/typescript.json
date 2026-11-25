@@ -1,0 +1,191 @@
+[
+ {
+  "name": "type aliases and unions",
+  "source": "type A = string | number; type LongUnion = 'aaaaaaaaaaaaaaaaa' | 'bbbbbbbbbbbbbbbbbbbbb' | 'cccccccccccccccccccc' | 'dddddddddddddddddd'; declare type D = A | null;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type A = string | number;\ntype LongUnion =\n  | \"aaaaaaaaaaaaaaaaa\"\n  | \"bbbbbbbbbbbbbbbbbbbbb\"\n  | \"cccccccccccccccccccc\"\n  | \"dddddddddddddddddd\";\ndeclare type D = A | null;\n"
+ },
+ {
+  "name": "union that hugs an object or a name",
+  "source": "type Maybe = { value: string, error: Error } | null; type Opt = SomeVeryLongTypeName<WithArguments, AndMore> | void;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type Maybe = { value: string; error: Error } | null;\ntype Opt = SomeVeryLongTypeName<WithArguments, AndMore> | void;\n"
+ },
+ {
+  "name": "intersections of objects and names",
+  "source": "type I1 = A & B & C; type I2 = { a: string } & { b: number } & Named; type I3 = Named & { a: string; b: number } & Other;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type I1 = A & B & C;\ntype I2 = { a: string } & { b: number } & Named;\ntype I3 = Named & { a: string; b: number } & Other;\n"
+ },
+ {
+  "name": "interface members",
+  "source": "interface Foo<T> extends Bar, Baz.Qux { a: string; readonly b?: number; c(x: number): void; [key: string]: any; new (x: number): Foo<T>; (y: string): void; get size(): number; set size(value: number); \"quoted-key\": 1; \"plain\": 2 }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "interface Foo<T> extends Bar, Baz.Qux {\n  a: string;\n  readonly b?: number;\n  c(x: number): void;\n  [key: string]: any;\n  new (x: number): Foo<T>;\n  (y: string): void;\n  get size(): number;\n  set size(value: number);\n  \"quoted-key\": 1;\n  plain: 2;\n}\n"
+ },
+ {
+  "name": "interface heritage",
+  "source": "interface Empty {}\ninterface One extends Base<string> { x: 1 }\ninterface Dotted extends Some.Namespace.Type { x: 1 }\ndeclare interface Many<TFirst, TSecond extends object = {}> extends First<TFirst>, Second<TSecond>, Third { x: 1 }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "interface Empty {}\ninterface One extends Base<string> {\n  x: 1;\n}\ninterface Dotted extends Some.Namespace.Type {\n  x: 1;\n}\ndeclare interface Many<TFirst, TSecond extends object = {}>\n  extends First<TFirst>, Second<TSecond>, Third {\n  x: 1;\n}\n"
+ },
+ {
+  "name": "function and constructor types",
+  "source": "type Fn = (a: number, b: string) => void; type Ctor = new (...args: any[]) => object; type AbstractCtor = abstract new () => object; type Generic = <T>(value: T, options?: { deep: boolean }) => Promise<T>; type Callback = (error: Error | null, result?: { data: Buffer; encoding: string }) => void;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type Fn = (a: number, b: string) => void;\ntype Ctor = new (...args: any[]) => object;\ntype AbstractCtor = abstract new () => object;\ntype Generic = <T>(value: T, options?: { deep: boolean }) => Promise<T>;\ntype Callback = (\n  error: Error | null,\n  result?: { data: Buffer; encoding: string },\n) => void;\n"
+ },
+ {
+  "name": "object types",
+  "source": "type Obj = { a: string, b: number }; type Nested = { a: { b: { c: string } }; method(): void; readonly [index: number]: string };\ntype Expanded = {\n  a: string, b: number };\ntype EmptyObject = {};\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type Obj = { a: string; b: number };\ntype Nested = {\n  a: { b: { c: string } };\n  method(): void;\n  readonly [index: number]: string;\n};\ntype Expanded = {\n  a: string;\n  b: number;\n};\ntype EmptyObject = {};\n"
+ },
+ {
+  "name": "enums",
+  "source": "enum Color { Red, Green = 'green', Blue = 1 << 2 }\ndeclare const enum E { A = 1, 'quoted' = 2 }\nenum None {}\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "enum Color {\n  Red,\n  Green = \"green\",\n  Blue = 1 << 2,\n}\ndeclare const enum E {\n  A = 1,\n  \"quoted\" = 2,\n}\nenum None {}\n"
+ },
+ {
+  "name": "namespaces and modules",
+  "source": "namespace A.B.C { export const x = 1; }\ndeclare module \"foo\" { export function f(a: number): string; export default class K {} }\ndeclare global { interface Window { x: number } }\ndeclare module \"bare\";\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "namespace A.B.C {\n  export const x = 1;\n}\ndeclare module \"foo\" {\n  export function f(a: number): string;\n  export default class K {}\n}\ndeclare global {\n  interface Window {\n    x: number;\n  }\n}\ndeclare module \"bare\";\n"
+ },
+ {
+  "name": "conditional types",
+  "source": "type Cond<T> = T extends string ? 'a' : T extends number ? 'b' : T extends boolean ? 'c' : never;\ntype Unwrap<T> = T extends Promise<infer U> ? U : T extends (infer V)[] ? V : T;\ntype Check<T> = T extends (infer U extends string) ? U : never;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type Cond<T> = T extends string\n  ? \"a\"\n  : T extends number\n    ? \"b\"\n    : T extends boolean\n      ? \"c\"\n      : never;\ntype Unwrap<T> = T extends Promise<infer U> ? U : T extends (infer V)[] ? V : T;\ntype Check<T> = T extends infer U extends string ? U : never;\n"
+ },
+ {
+  "name": "mapped types",
+  "source": "type M = { readonly [K in keyof T]?: T[K] }; type M2 = { -readonly [K in keyof T as `get${Capitalize<K>}`]-?: () => T[K] };\ntype M3 = {\n  [K in Keys]: boolean };\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type M = { readonly [K in keyof T]?: T[K] };\ntype M2 = { -readonly [K in keyof T as `get${Capitalize<K>}`]-?: () => T[K] };\ntype M3 = {\n  [K in Keys]: boolean;\n};\n"
+ },
+ {
+  "name": "tuples",
+  "source": "type Tup = [a: string, b?: number, ...rest: boolean[]]; type Pair = [string, number?]; type Spread = [...Head, Last]; type Nothing = [];\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type Tup = [a: string, b?: number, ...rest: boolean[]];\ntype Pair = [string, number?];\ntype Spread = [...Head, Last];\ntype Nothing = [];\n"
+ },
+ {
+  "name": "type operators and access",
+  "source": "type K = keyof typeof obj; type Ix = T[\"a\"][\"b\"]; type U = (A | B)[]; type F2 = (() => void) | null; type TL = `a${string}b`; type RO = readonly string[]; type US = unique symbol; type Q = typeof import(\"x\"); type P = import(\"x\").Y<Z>; type KA = (keyof T)[];\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type K = keyof typeof obj;\ntype Ix = T[\"a\"][\"b\"];\ntype U = (A | B)[];\ntype F2 = (() => void) | null;\ntype TL = `a${string}b`;\ntype RO = readonly string[];\ntype US = unique symbol;\ntype Q = typeof import(\"x\");\ntype P = import(\"x\").Y<Z>;\ntype KA = (keyof T)[];\n"
+ },
+ {
+  "name": "generics with constraints and defaults",
+  "source": "type G1<T extends object = {}, U = T[]> = Map<T, U>; type G2<TTTTTTTTTTTTTTTTTTTT, UUUUUUUUUUUUUUUUUUUU> = Promise<Array<Record<string, { aaaaaaaaaaaaaaaaaaaa: number; bbbbbbbbbbbbbbbbbbbbbbb: string }>>>;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "type G1<T extends object = {}, U = T[]> = Map<T, U>;\ntype G2<TTTTTTTTTTTTTTTTTTTT, UUUUUUUUUUUUUUUUUUUU> = Promise<\n  Array<\n    Record<\n      string,\n      { aaaaaaaaaaaaaaaaaaaa: number; bbbbbbbbbbbbbbbbbbbbbbb: string }\n    >\n  >\n>;\n"
+ },
+ {
+  "name": "function declarations",
+  "source": "function f<T extends object = {}>(this: Window, a?: T, ...rest: T[]): asserts a is T {}\ndeclare function g(value: unknown): value is string;\nfunction over(a: string): void;\nfunction over(a: number): void;\nfunction over(a: any) {}\nasync function* gen<T>(items: Iterable<T>): AsyncGenerator<T, void, undefined> { yield* items; }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "function f<T extends object = {}>(\n  this: Window,\n  a?: T,\n  ...rest: T[]\n): asserts a is T {}\ndeclare function g(value: unknown): value is string;\nfunction over(a: string): void;\nfunction over(a: number): void;\nfunction over(a: any) {}\nasync function* gen<T>(items: Iterable<T>): AsyncGenerator<T, void, undefined> {\n  yield* items;\n}\n"
+ },
+ {
+  "name": "parameters that hug",
+  "source": "function h1({ a, b }: { a: string; b: number }) {} function h2(options: { a: string; b: number }): void {} const h3 = (props: { children: Node[]; title: string }) => props.title;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "function h1({ a, b }: { a: string; b: number }) {}\nfunction h2(options: { a: string; b: number }): void {}\nconst h3 = (props: { children: Node[]; title: string }) => props.title;\n"
+ },
+ {
+  "name": "classes",
+  "source": "abstract class C<T> extends D<T> implements I, J { private readonly x: number = 1; protected static y?: string; abstract m(): void; constructor(private a: string, public b = 2) { super(); } declare z: number; w!: string; [k: string]: any; override get v(): number { return 1 } static accessor count = 0; public async *items<U>(this: C<T>, filter?: (item: U) => boolean): AsyncGenerator<U> {} \"quoted\": string; }\ndeclare class Ambient { method(): void; static create(): Ambient; }\nclass Impl implements Some.Dotted.Interface { }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "abstract class C<T> extends D<T> implements I, J {\n  private readonly x: number = 1;\n  protected static y?: string;\n  abstract m(): void;\n  constructor(\n    private a: string,\n    public b = 2,\n  ) {\n    super();\n  }\n  declare z: number;\n  w!: string;\n  [k: string]: any;\n  override get v(): number {\n    return 1;\n  }\n  static accessor count = 0;\n  public async *items<U>(\n    this: C<T>,\n    filter?: (item: U) => boolean,\n  ): AsyncGenerator<U> {}\n  \"quoted\": string;\n}\ndeclare class Ambient {\n  method(): void;\n  static create(): Ambient;\n}\nclass Impl implements Some.Dotted.Interface {}\n"
+ },
+ {
+  "name": "class method overloads",
+  "source": "class O { find(id: string): Item; find(ids: string[]): Item[]; find(arg: any): any { return arg; } }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "class O {\n  find(id: string): Item;\n  find(ids: string[]): Item[];\n  find(arg: any): any {\n    return arg;\n  }\n}\n"
+ },
+ {
+  "name": "decorators",
+  "source": "@Injectable()\nclass S { constructor(@Inject(TOKEN) private readonly x: X, @Optional() y?: Y) { init(); }\n  @Input()\n  name: string;\n  @Output() change = new EventEmitter<string>();\n  @HostListener(\"click\", [\"$event\"]) onClick(e) {}\n}\n@a @b.c() class T2 extends S { @d static m() {} }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "@Injectable()\nclass S {\n  constructor(\n    @Inject(TOKEN) private readonly x: X,\n    @Optional() y?: Y,\n  ) {\n    init();\n  }\n  @Input()\n  name: string;\n  @Output() change = new EventEmitter<string>();\n  @HostListener(\"click\", [\"$event\"]) onClick(e) {}\n}\n@a\n@b.c()\nclass T2 extends S {\n  @d static m() {}\n}\n"
+ },
+ {
+  "name": "arrow functions",
+  "source": "const id = <T>(value: T): T => value; const pick = async <T, K extends keyof T>(source: T, ...keys: K[]): Promise<Pick<T, K>> => ({} as Pick<T, K>);\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "const id = <T>(value: T): T => value;\nconst pick = async <T, K extends keyof T>(\n  source: T,\n  ...keys: K[]\n): Promise<Pick<T, K>> => ({}) as Pick<T, K>;\n"
+ },
+ {
+  "name": "variables",
+  "source": "let v: Array<{ a: string }> = [], w: Map<string, Array<number>> = new Map(); declare const version: string; let definite!: number; const [first, second]: [string, number] = pair; const { x, y }: Point = origin;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "let v: Array<{ a: string }> = [],\n  w: Map<string, Array<number>> = new Map();\ndeclare const version: string;\nlet definite!: number;\nconst [first, second]: [string, number] = pair;\nconst { x, y }: Point = origin;\n"
+ },
+ {
+  "name": "import and export forms",
+  "source": "import fs = require(\"fs\"); import X = A.B.C; import type T3 = require(\"t\"); export import Y = X.Z; export as namespace Lib;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "import fs = require(\"fs\");\nimport X = A.B.C;\nimport type T3 = require(\"t\");\nexport import Y = X.Z;\nexport as namespace Lib;\n"
+ },
+ {
+  "name": "export assignment",
+  "source": "export = foo;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "export = foo;\n"
+ },
+ {
+  "name": "exported declarations",
+  "source": "export type { A }; export interface P { q: import(\"x\").Y<Z> } export type Alias<T> = T | undefined; export declare const flag: boolean; export enum Level { Low, High } export abstract class Base {} export default interface Props { a: 1 }\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "export type { A };\nexport interface P {\n  q: import(\"x\").Y<Z>;\n}\nexport type Alias<T> = T | undefined;\nexport declare const flag: boolean;\nexport enum Level {\n  Low,\n  High,\n}\nexport abstract class Base {}\nexport default interface Props {\n  a: 1;\n}\n"
+ },
+ {
+  "name": "casts and type arguments",
+  "source": "const a1 = foo<string>(1); const b1 = new Map<string, number>(); const c1 = <any>d; const e1 = f<T>; x.y<Z>().w<Q, R>(1).k(); const s1 = value satisfies Shape; const n1 = maybe!.value as unknown as Record<string, T[]>;\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "const a1 = foo<string>(1);\nconst b1 = new Map<string, number>();\nconst c1 = <any>d;\nconst e1 = f<T>;\nx.y<Z>().w<Q, R>(1).k();\nconst s1 = value satisfies Shape;\nconst n1 = maybe!.value as unknown as Record<string, T[]>;\n"
+ },
+ {
+  "name": "long type arguments",
+  "source": "const memo = useMemo<Array<{ aaaaaaaaaaaaaaaa: string; bbbbbbbbbbbbbbbbbb: number }>>(() => compute(aaaaaaaaaa, bbbbbbbbbbbb), [a, b]);\nconst assertion = <SomeVeryLongTypeName<WithArgs>>someFunctionCall(withArguments, andMore, andEvenMore);\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "const memo = useMemo<\n  Array<{ aaaaaaaaaaaaaaaa: string; bbbbbbbbbbbbbbbbbb: number }>\n>(() => compute(aaaaaaaaaa, bbbbbbbbbbbb), [a, b]);\nconst assertion = <SomeVeryLongTypeName<WithArgs>>(\n  someFunctionCall(withArguments, andMore, andEvenMore)\n);\n"
+ },
+ {
+  "name": "comments in members",
+  "source": "interface Commented {\n  // leading\n  a: string; // trailing\n  /** doc */\n  b(): void;\n}\nenum Flags {\n  None = 0, // nothing\n  // all of them\n  All = 1,\n}\ntype Lit = {\n  /** doc */ a: string;\n  b: number; // trailing\n};\n",
+  "options": {},
+  "parser": "typescript",
+  "expected": "interface Commented {\n  // leading\n  a: string; // trailing\n  /** doc */\n  b(): void;\n}\nenum Flags {\n  None = 0, // nothing\n  // all of them\n  All = 1,\n}\ntype Lit = {\n  /** doc */ a: string;\n  b: number; // trailing\n};\n"
+ }
+]

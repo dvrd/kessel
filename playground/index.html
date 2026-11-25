@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Playground · Kessel</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div class="brand">Kessel</div>
+      <h1>Playground</h1>
+      <p>Parse, lint, format, transform, minify and emit declarations in your browser. Nothing leaves this page.</p>
+    </header>
+    <div class="controls">
+      <label>Language
+        <select id="language">
+          <option value="js">JavaScript</option><option value="jsx">JSX</option>
+          <option value="ts">TypeScript</option><option value="tsx" selected>TSX</option>
+        </select>
+      </label>
+      <label class="check"><input type="checkbox" id="semantics"> Semantic diagnostics</label>
+      <label>Target
+        <select id="target">
+          <option value="esnext" selected>ESNext</option><option value="es2022">ES2022</option>
+          <option value="es2020">ES2020</option><option value="es2017">ES2017</option>
+          <option value="es2015">ES2015</option>
+        </select>
+      </label>
+      <label>JSX
+        <select id="jsx">
+          <option value="automatic" selected>Automatic</option><option value="classic">Classic</option>
+          <option value="preserve">Preserve</option>
+        </select>
+      </label>
+    </div>
+    <div class="workspace">
+      <section aria-labelledby="source-label">
+        <div class="bar"><label for="source" id="source-label">Source</label></div>
+        <textarea id="source" spellcheck="false" autocapitalize="off" autocomplete="off" aria-describedby="status">type Props = { name: string };
+
+export function Greeting({ name }: Props) {
+  return &lt;h1&gt;Hello, {name}!&lt;/h1&gt;;
+}
+</textarea>
+      </section>
+      <section aria-label="Tool output">
+        <div class="bar">
+          <div class="views" role="group" aria-label="Output view">
+            <button id="tree" data-kind="parse" type="button" aria-pressed="true" aria-controls="output">AST</button>
+            <button id="formatted" data-kind="format" type="button" aria-pressed="false" aria-controls="output">Formatted</button>
+            <button id="errors" data-kind="parse" type="button" aria-pressed="false" aria-controls="output">Diagnostics</button>
+            <button id="lint" data-kind="lint" type="button" aria-pressed="false" aria-controls="output">Lint</button>
+            <button id="transform" data-kind="transform" type="button" aria-pressed="false" aria-controls="output">JavaScript</button>
+            <button id="minify" data-kind="minify" type="button" aria-pressed="false" aria-controls="output">Minified</button>
+            <button id="declaration" data-kind="declaration" type="button" aria-pressed="false" aria-controls="output">Declarations</button>
+          </div>
+          <a id="download" download="kessel-ast.json" hidden>Download JSON</a>
+        </div>
+        <pre id="output" tabindex="0" aria-label="Tool output"></pre>
+      </section>
+    </div>
+    <div class="feedback"><p id="status" role="status">Loading Kessel…</p><button id="retry" type="button" hidden>Retry loading</button></div>
+    <noscript>Enable JavaScript to run the playground.</noscript>
+  </main>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

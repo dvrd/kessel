@@ -96,61 +96,61 @@
     {
       "type": "Line",
       "start": 148,
-      "end": 222,
+      "end": 221,
       "value": " an ExpressionStatement wrapping a StringLiteral, per ESTree §Directive"
     },
     {
       "type": "Line",
-      "start": 223,
-      "end": 291,
+      "start": 222,
+      "end": 290,
       "value": " Prologues. Prior to the fix, Kessel emitted the directive only in"
     },
     {
       "type": "Line",
-      "start": 292,
-      "end": 366,
+      "start": 291,
+      "end": 363,
       "value": " `directives` — downstream tools that walk `body` (most of them) saw a"
     },
     {
       "type": "Line",
-      "start": 367,
-      "end": 440,
+      "start": 364,
+      "end": 437,
       "value": " body that was missing the leading string statement, which drifted from"
     },
     {
       "type": "Line",
-      "start": 441,
-      "end": 503,
+      "start": 438,
+      "end": 500,
       "value": " OXC and broke any round-trip that reconstructed the source."
     },
     {
       "type": "Line",
-      "start": 504,
-      "end": 506,
+      "start": 501,
+      "end": 503,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 507,
-      "end": 579,
+      "start": 504,
+      "end": 574,
       "value": " Methodology: the regression verifier asserts the signature counts —"
     },
     {
       "type": "Line",
-      "start": 580,
-      "end": 652,
+      "start": 575,
+      "end": 647,
       "value": " at minimum 1 ExpressionStatement AND 1 StringLiteral (ESTree Literal)"
     },
     {
       "type": "Line",
-      "start": 653,
-      "end": 725,
+      "start": 648,
+      "end": 720,
       "value": " reachable from the body path, even though the first `body` entry here"
     },
     {
       "type": "Line",
-      "start": 726,
-      "end": 793,
+      "start": 721,
+      "end": 788,
       "value": " is the string literal itself (not followed by other statements)."
     }
   ]

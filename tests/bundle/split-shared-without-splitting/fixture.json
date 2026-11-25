@@ -1,0 +1,12 @@
+{
+  "entries": [
+    "one.mjs",
+    "two.mjs",
+    "three.cjs"
+  ],
+  "once": [
+    "console.log('registry created')",
+    "console.log('tag loaded')",
+    "console.log('late evaluated')"
+  ]
+}

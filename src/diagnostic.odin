@@ -61,6 +61,7 @@ ErrorCode :: enum u16 {
 	K2060_DuplicateLabel                          = 2060,
 	K2070_RequiredFormOrBinding                   = 2070,
 	K2080_ParserBudgetExceeded                    = 2080,
+	K2081_NestingTooDeep                          = 2081,
 	K2090_MalformedDecorator                      = 2090,
 
 	// K3xxx — ECMA-262 early errors. Phase 4 first slice covers the
@@ -147,6 +148,12 @@ ErrorCode :: enum u16 {
 	K4063_OptionalAndInit                         = 4063,
 	K4064_DecoratorInvalid                        = 4064,
 	K4080_DuplicateImplementation                 = 4080,
+
+	// Resource limits and input hardening. Listed last, out of numeric
+	// order, so concurrent additions to the ranges above do not collide.
+	K1016_TemplateNestingTooDeep                  = 1016,
+	K1017_InvalidUtf8                             = 1017,
+	K2085_OutOfMemory                             = 2085,
 }
 
 // ErrorInfo is the static record looked up by ErrorCode. Held in a
@@ -298,6 +305,29 @@ error_info_part1 :: proc(code: ErrorCode) -> ErrorInfo {
 		return ErrorInfo{
 			default_message = "maximum parsing iterations exceeded",
 			hint            = "this is a kessel safety net — file a bug report with the offending source",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2085 — an allocation the parse needed could not be satisfied: the
+	//   source needs more memory than the job's arena (or the allocator
+	//   the caller supplied) can provide. Parsing stops at the reported
+	//   offset; the AST produced so far is incomplete and must not be used.
+	case .K2085_OutOfMemory:
+		return ErrorInfo{
+			default_message = "out of memory: input exceeds the parser arena",
+			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K2081 — the source nests deeper than ParseConfig.max_depth. The
+	//   parser is recursive, so nesting depth is stack depth; the limit
+	//   turns a would-be stack overflow into one ordinary diagnostic.
+	case .K2081_NestingTooDeep:
+		return ErrorInfo{
+			default_message = "maximum nesting depth exceeded",
+			hint            = "flatten the nesting, or raise the parser's max_depth",
 			ts_code         = "",
 			severity        = .Error,
 		}
@@ -629,6 +659,28 @@ error_info_part3 :: proc(code: ErrorCode) -> ErrorInfo {
 		return ErrorInfo{
 			default_message = "unterminated block comment",
 			hint            = "",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1016 — template literals nested deeper than TEMPLATE_DEPTH_MAX
+	//   interpolation levels (src/lexer.odin). A kessel resource limit,
+	//   not an ECMA-262 rule: the lexer stops instead of mis-tracking `}`.
+	case .K1016_TemplateNestingTooDeep:
+		return ErrorInfo{
+			default_message = "template literal nesting is too deep",
+			hint            = "move inner template literals into variables",
+			ts_code         = "",
+			severity        = .Error,
+		}
+
+	// K1017 — the source bytes are not well-formed UTF-8. Only reported
+	//   when the caller opts in (ParseConfig.reject_invalid_utf8); the
+	//   span covers the first ill-formed sequence.
+	case .K1017_InvalidUtf8:
+		return ErrorInfo{
+			default_message = "source is not valid UTF-8",
+			hint            = "re-save the file as UTF-8",
 			ts_code         = "",
 			severity        = .Error,
 		}

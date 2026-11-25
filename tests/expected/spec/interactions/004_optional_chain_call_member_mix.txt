@@ -266,43 +266,43 @@
     {
       "type": "Line",
       "start": 72,
-      "end": 147,
+      "end": 145,
       "value": " permits — `?.` into a property, `?.` into a computed member, `?.` into"
     },
     {
       "type": "Line",
-      "start": 148,
-      "end": 219,
+      "start": 146,
+      "end": 217,
       "value": " a call, and then non-optional `.` and `[...]` continuations once the"
     },
     {
       "type": "Line",
-      "start": 220,
-      "end": 291,
+      "start": 218,
+      "end": 289,
       "value": " chain is live. All in one expression so the parser can't split them."
     },
     {
       "type": "Line",
-      "start": 292,
-      "end": 294,
+      "start": 290,
+      "end": 292,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 295,
-      "end": 367,
+      "start": 293,
+      "end": 365,
       "value": " `??` (nullish coalescing) is deliberately right at the outside so the"
     },
     {
       "type": "Line",
-      "start": 368,
-      "end": 441,
+      "start": 366,
+      "end": 439,
       "value": " fallback expression exercises the operator-precedence boundary between"
     },
     {
       "type": "Line",
-      "start": 442,
-      "end": 472,
+      "start": 440,
+      "end": 470,
       "value": " the chain and the coalesce."
     }
   ]

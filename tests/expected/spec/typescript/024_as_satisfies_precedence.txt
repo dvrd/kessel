@@ -1,0 +1,4618 @@
+{
+  "type": "Program",
+  "start": 156,
+  "end": 2894,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "VariableDeclaration",
+      "start": 156,
+      "end": 201,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 170,
+          "end": 176,
+          "id": {
+            "type": "Identifier",
+            "start": 170,
+            "end": 176,
+            "name": "a",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 171,
+              "end": 176,
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 173,
+                "end": 176
+              }
+            },
+            "optional": false          },
+          "init": null        },
+        {
+          "type": "VariableDeclarator",
+          "start": 178,
+          "end": 184,
+          "id": {
+            "type": "Identifier",
+            "start": 178,
+            "end": 184,
+            "name": "b",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 179,
+              "end": 184,
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 181,
+                "end": 184
+              }
+            },
+            "optional": false          },
+          "init": null        },
+        {
+          "type": "VariableDeclarator",
+          "start": 186,
+          "end": 192,
+          "id": {
+            "type": "Identifier",
+            "start": 186,
+            "end": 192,
+            "name": "c",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 187,
+              "end": 192,
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 189,
+                "end": 192
+              }
+            },
+            "optional": false          },
+          "init": null        },
+        {
+          "type": "VariableDeclarator",
+          "start": 194,
+          "end": 200,
+          "id": {
+            "type": "Identifier",
+            "start": 194,
+            "end": 200,
+            "name": "T",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 195,
+              "end": 200,
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 197,
+                "end": 200
+              }
+            },
+            "optional": false          },
+          "init": null        }
+      ],
+      "declare": true    },
+    {
+      "type": "VariableDeclaration",
+      "start": 265,
+      "end": 289,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 271,
+          "end": 288,
+          "id": {
+            "type": "Identifier",
+            "start": 271,
+            "end": 275,
+            "name": "add1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 278,
+            "end": 288,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 278,
+              "end": 283,
+              "operator": "+",
+              "left": {
+                "type": "Identifier",
+                "start": 278,
+                "end": 279,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 282,
+                "end": 283,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 287,
+              "end": 288,
+              "typeName": {
+                "type": "Identifier",
+                "start": 287,
+                "end": 288,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 290,
+      "end": 316,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 296,
+          "end": 315,
+          "id": {
+            "type": "Identifier",
+            "start": 296,
+            "end": 300,
+            "name": "add2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 303,
+            "end": 315,
+            "operator": "+",
+            "left": {
+              "type": "Identifier",
+              "start": 303,
+              "end": 304,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 308,
+              "end": 314,
+              "expression": {
+                "type": "Identifier",
+                "start": 308,
+                "end": 309,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 313,
+                "end": 314,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 313,
+                  "end": 314,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 317,
+      "end": 343,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 323,
+          "end": 342,
+          "id": {
+            "type": "Identifier",
+            "start": 323,
+            "end": 327,
+            "name": "add3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 331,
+            "end": 342,
+            "operator": "+",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 331,
+              "end": 337,
+              "expression": {
+                "type": "Identifier",
+                "start": 331,
+                "end": 332,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 336,
+                "end": 337,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 336,
+                  "end": 337,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 341,
+              "end": 342,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 344,
+      "end": 375,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 350,
+          "end": 374,
+          "id": {
+            "type": "Identifier",
+            "start": 350,
+            "end": 354,
+            "name": "mul1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSSatisfiesExpression",
+            "start": 357,
+            "end": 374,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 357,
+              "end": 362,
+              "operator": "*",
+              "left": {
+                "type": "Identifier",
+                "start": 357,
+                "end": 358,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 361,
+                "end": 362,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 373,
+              "end": 374,
+              "typeName": {
+                "type": "Identifier",
+                "start": 373,
+                "end": 374,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 376,
+      "end": 409,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 382,
+          "end": 408,
+          "id": {
+            "type": "Identifier",
+            "start": 382,
+            "end": 386,
+            "name": "mul2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 389,
+            "end": 408,
+            "operator": "*",
+            "left": {
+              "type": "Identifier",
+              "start": 389,
+              "end": 390,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSSatisfiesExpression",
+              "start": 394,
+              "end": 407,
+              "expression": {
+                "type": "Identifier",
+                "start": 394,
+                "end": 395,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 406,
+                "end": 407,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 406,
+                  "end": 407,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 410,
+      "end": 443,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 416,
+          "end": 442,
+          "id": {
+            "type": "Identifier",
+            "start": 416,
+            "end": 420,
+            "name": "mul3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 424,
+            "end": 442,
+            "operator": "*",
+            "left": {
+              "type": "TSSatisfiesExpression",
+              "start": 424,
+              "end": 437,
+              "expression": {
+                "type": "Identifier",
+                "start": 424,
+                "end": 425,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 436,
+                "end": 437,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 436,
+                  "end": 437,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 441,
+              "end": 442,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 444,
+      "end": 469,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 450,
+          "end": 468,
+          "id": {
+            "type": "Identifier",
+            "start": 450,
+            "end": 454,
+            "name": "pow1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 457,
+            "end": 468,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 457,
+              "end": 463,
+              "operator": "**",
+              "left": {
+                "type": "Identifier",
+                "start": 457,
+                "end": 458,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 462,
+                "end": 463,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 467,
+              "end": 468,
+              "typeName": {
+                "type": "Identifier",
+                "start": 467,
+                "end": 468,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 470,
+      "end": 497,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 476,
+          "end": 496,
+          "id": {
+            "type": "Identifier",
+            "start": 476,
+            "end": 480,
+            "name": "pow2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 483,
+            "end": 496,
+            "operator": "**",
+            "left": {
+              "type": "Identifier",
+              "start": 483,
+              "end": 484,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 489,
+              "end": 495,
+              "expression": {
+                "type": "Identifier",
+                "start": 489,
+                "end": 490,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 494,
+                "end": 495,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 494,
+                  "end": 495,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 498,
+      "end": 525,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 504,
+          "end": 524,
+          "id": {
+            "type": "Identifier",
+            "start": 504,
+            "end": 508,
+            "name": "pow3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 512,
+            "end": 524,
+            "operator": "**",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 512,
+              "end": 518,
+              "expression": {
+                "type": "Identifier",
+                "start": 512,
+                "end": 513,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 517,
+                "end": 518,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 517,
+                  "end": 518,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 523,
+              "end": 524,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 526,
+      "end": 553,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 532,
+          "end": 552,
+          "id": {
+            "type": "Identifier",
+            "start": 532,
+            "end": 538,
+            "name": "shift1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 541,
+            "end": 552,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 541,
+              "end": 547,
+              "operator": ">>",
+              "left": {
+                "type": "Identifier",
+                "start": 541,
+                "end": 542,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 546,
+                "end": 547,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 551,
+              "end": 552,
+              "typeName": {
+                "type": "Identifier",
+                "start": 551,
+                "end": 552,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 554,
+      "end": 583,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 560,
+          "end": 582,
+          "id": {
+            "type": "Identifier",
+            "start": 560,
+            "end": 566,
+            "name": "shift2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 570,
+            "end": 582,
+            "operator": ">>",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 570,
+              "end": 576,
+              "expression": {
+                "type": "Identifier",
+                "start": 570,
+                "end": 571,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 575,
+                "end": 576,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 575,
+                  "end": 576,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 581,
+              "end": 582,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 584,
+      "end": 608,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 590,
+          "end": 607,
+          "id": {
+            "type": "Identifier",
+            "start": 590,
+            "end": 594,
+            "name": "bit1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 597,
+            "end": 607,
+            "operator": "&",
+            "left": {
+              "type": "Identifier",
+              "start": 597,
+              "end": 598,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 601,
+              "end": 607,
+              "expression": {
+                "type": "Identifier",
+                "start": 601,
+                "end": 602,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 606,
+                "end": 607,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 606,
+                  "end": 607,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 609,
+      "end": 635,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 615,
+          "end": 634,
+          "id": {
+            "type": "Identifier",
+            "start": 615,
+            "end": 619,
+            "name": "bit2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 622,
+            "end": 634,
+            "operator": "&",
+            "left": {
+              "type": "Identifier",
+              "start": 622,
+              "end": 623,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 627,
+              "end": 633,
+              "expression": {
+                "type": "Identifier",
+                "start": 627,
+                "end": 628,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 632,
+                "end": 633,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 632,
+                  "end": 633,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 636,
+      "end": 662,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 642,
+          "end": 661,
+          "id": {
+            "type": "Identifier",
+            "start": 642,
+            "end": 646,
+            "name": "bit3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 650,
+            "end": 661,
+            "operator": "|",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 650,
+              "end": 656,
+              "expression": {
+                "type": "Identifier",
+                "start": 650,
+                "end": 651,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 655,
+                "end": 656,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 655,
+                  "end": 656,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 660,
+              "end": 661,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 728,
+      "end": 752,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 734,
+          "end": 751,
+          "id": {
+            "type": "Identifier",
+            "start": 734,
+            "end": 738,
+            "name": "rel1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 741,
+            "end": 751,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 741,
+              "end": 746,
+              "operator": ">",
+              "left": {
+                "type": "Identifier",
+                "start": 741,
+                "end": 742,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 745,
+                "end": 746,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 750,
+              "end": 751,
+              "typeName": {
+                "type": "Identifier",
+                "start": 750,
+                "end": 751,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 753,
+      "end": 779,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 759,
+          "end": 778,
+          "id": {
+            "type": "Identifier",
+            "start": 759,
+            "end": 763,
+            "name": "rel2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 766,
+            "end": 778,
+            "operator": ">",
+            "left": {
+              "type": "Identifier",
+              "start": 766,
+              "end": 767,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 771,
+              "end": 777,
+              "expression": {
+                "type": "Identifier",
+                "start": 771,
+                "end": 772,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 776,
+                "end": 777,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 776,
+                  "end": 777,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 780,
+      "end": 806,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 786,
+          "end": 805,
+          "id": {
+            "type": "Identifier",
+            "start": 786,
+            "end": 790,
+            "name": "rel3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 794,
+            "end": 805,
+            "operator": ">",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 794,
+              "end": 800,
+              "expression": {
+                "type": "Identifier",
+                "start": 794,
+                "end": 795,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 799,
+                "end": 800,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 799,
+                  "end": 800,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 804,
+              "end": 805,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 807,
+      "end": 833,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 813,
+          "end": 832,
+          "id": {
+            "type": "Identifier",
+            "start": 813,
+            "end": 817,
+            "name": "rel4",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 821,
+            "end": 832,
+            "operator": "<",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 821,
+              "end": 827,
+              "expression": {
+                "type": "Identifier",
+                "start": 821,
+                "end": 822,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 826,
+                "end": 827,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 826,
+                  "end": 827,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 831,
+              "end": 832,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 834,
+      "end": 868,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 840,
+          "end": 867,
+          "id": {
+            "type": "Identifier",
+            "start": 840,
+            "end": 844,
+            "name": "rel5",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 848,
+            "end": 867,
+            "operator": "<=",
+            "left": {
+              "type": "TSSatisfiesExpression",
+              "start": 848,
+              "end": 861,
+              "expression": {
+                "type": "Identifier",
+                "start": 848,
+                "end": 849,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 860,
+                "end": 861,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 860,
+                  "end": 861,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 866,
+              "end": 867,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 869,
+      "end": 902,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 875,
+          "end": 901,
+          "id": {
+            "type": "Identifier",
+            "start": 875,
+            "end": 879,
+            "name": "rel6",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 882,
+            "end": 901,
+            "operator": "<",
+            "left": {
+              "type": "Identifier",
+              "start": 882,
+              "end": 883,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSSatisfiesExpression",
+              "start": 887,
+              "end": 900,
+              "expression": {
+                "type": "Identifier",
+                "start": 887,
+                "end": 888,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 899,
+                "end": 900,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 899,
+                  "end": 900,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 903,
+      "end": 927,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 909,
+          "end": 926,
+          "id": {
+            "type": "Identifier",
+            "start": 909,
+            "end": 912,
+            "name": "in1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 915,
+            "end": 926,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 915,
+              "end": 921,
+              "operator": "in",
+              "left": {
+                "type": "Identifier",
+                "start": 915,
+                "end": 916,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 920,
+                "end": 921,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 925,
+              "end": 926,
+              "typeName": {
+                "type": "Identifier",
+                "start": 925,
+                "end": 926,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 928,
+      "end": 954,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 934,
+          "end": 953,
+          "id": {
+            "type": "Identifier",
+            "start": 934,
+            "end": 937,
+            "name": "in2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 940,
+            "end": 953,
+            "operator": "in",
+            "left": {
+              "type": "Identifier",
+              "start": 940,
+              "end": 941,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 946,
+              "end": 952,
+              "expression": {
+                "type": "Identifier",
+                "start": 946,
+                "end": 947,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 951,
+                "end": 952,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 951,
+                  "end": 952,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 955,
+      "end": 981,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 961,
+          "end": 980,
+          "id": {
+            "type": "Identifier",
+            "start": 961,
+            "end": 964,
+            "name": "in3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 968,
+            "end": 980,
+            "operator": "in",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 968,
+              "end": 974,
+              "expression": {
+                "type": "Identifier",
+                "start": 968,
+                "end": 969,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 973,
+                "end": 974,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 973,
+                  "end": 974,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 979,
+              "end": 980,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 982,
+      "end": 1016,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 988,
+          "end": 1015,
+          "id": {
+            "type": "Identifier",
+            "start": 988,
+            "end": 993,
+            "name": "inst1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 996,
+            "end": 1015,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 996,
+              "end": 1010,
+              "operator": "instanceof",
+              "left": {
+                "type": "Identifier",
+                "start": 996,
+                "end": 997,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 1009,
+                "end": 1010,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1014,
+              "end": 1015,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1014,
+                "end": 1015,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1017,
+      "end": 1053,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1023,
+          "end": 1052,
+          "id": {
+            "type": "Identifier",
+            "start": 1023,
+            "end": 1028,
+            "name": "inst2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 1031,
+            "end": 1052,
+            "operator": "instanceof",
+            "left": {
+              "type": "Identifier",
+              "start": 1031,
+              "end": 1032,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 1045,
+              "end": 1051,
+              "expression": {
+                "type": "Identifier",
+                "start": 1045,
+                "end": 1046,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1050,
+                "end": 1051,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1050,
+                  "end": 1051,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1054,
+      "end": 1090,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1060,
+          "end": 1089,
+          "id": {
+            "type": "Identifier",
+            "start": 1060,
+            "end": 1065,
+            "name": "inst3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 1069,
+            "end": 1089,
+            "operator": "instanceof",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 1069,
+              "end": 1075,
+              "expression": {
+                "type": "Identifier",
+                "start": 1069,
+                "end": 1070,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1074,
+                "end": 1075,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1074,
+                  "end": 1075,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 1088,
+              "end": 1089,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1143,
+      "end": 1168,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1149,
+          "end": 1167,
+          "id": {
+            "type": "Identifier",
+            "start": 1149,
+            "end": 1152,
+            "name": "eq1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 1155,
+            "end": 1167,
+            "operator": "===",
+            "left": {
+              "type": "Identifier",
+              "start": 1155,
+              "end": 1156,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 1161,
+              "end": 1167,
+              "expression": {
+                "type": "Identifier",
+                "start": 1161,
+                "end": 1162,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1166,
+                "end": 1167,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1166,
+                  "end": 1167,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1169,
+      "end": 1196,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1175,
+          "end": 1195,
+          "id": {
+            "type": "Identifier",
+            "start": 1175,
+            "end": 1178,
+            "name": "eq2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 1181,
+            "end": 1195,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 1182,
+              "end": 1189,
+              "operator": "===",
+              "left": {
+                "type": "Identifier",
+                "start": 1182,
+                "end": 1183,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 1188,
+                "end": 1189,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1194,
+              "end": 1195,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1194,
+                "end": 1195,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1197,
+      "end": 1222,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1203,
+          "end": 1221,
+          "id": {
+            "type": "Identifier",
+            "start": 1203,
+            "end": 1206,
+            "name": "eq3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 1209,
+            "end": 1221,
+            "operator": "!==",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 1209,
+              "end": 1215,
+              "expression": {
+                "type": "Identifier",
+                "start": 1209,
+                "end": 1210,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1214,
+                "end": 1215,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1214,
+                  "end": 1215,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 1220,
+              "end": 1221,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1223,
+      "end": 1248,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1229,
+          "end": 1247,
+          "id": {
+            "type": "Identifier",
+            "start": 1229,
+            "end": 1233,
+            "name": "and1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "LogicalExpression",
+            "start": 1236,
+            "end": 1247,
+            "operator": "&&",
+            "left": {
+              "type": "Identifier",
+              "start": 1236,
+              "end": 1237,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 1241,
+              "end": 1247,
+              "expression": {
+                "type": "Identifier",
+                "start": 1241,
+                "end": 1242,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1246,
+                "end": 1247,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1246,
+                  "end": 1247,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1249,
+      "end": 1276,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1255,
+          "end": 1275,
+          "id": {
+            "type": "Identifier",
+            "start": 1255,
+            "end": 1259,
+            "name": "and2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 1262,
+            "end": 1275,
+            "expression": {
+              "type": "LogicalExpression",
+              "start": 1263,
+              "end": 1269,
+              "operator": "&&",
+              "left": {
+                "type": "Identifier",
+                "start": 1263,
+                "end": 1264,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 1268,
+                "end": 1269,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1274,
+              "end": 1275,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1274,
+                "end": 1275,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1277,
+      "end": 1301,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1283,
+          "end": 1300,
+          "id": {
+            "type": "Identifier",
+            "start": 1283,
+            "end": 1286,
+            "name": "or1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "LogicalExpression",
+            "start": 1289,
+            "end": 1300,
+            "operator": "||",
+            "left": {
+              "type": "TSAsExpression",
+              "start": 1289,
+              "end": 1295,
+              "expression": {
+                "type": "Identifier",
+                "start": 1289,
+                "end": 1290,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1294,
+                "end": 1295,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1294,
+                  "end": 1295,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "right": {
+              "type": "Identifier",
+              "start": 1299,
+              "end": 1300,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1302,
+      "end": 1335,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1308,
+          "end": 1334,
+          "id": {
+            "type": "Identifier",
+            "start": 1308,
+            "end": 1311,
+            "name": "or2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSSatisfiesExpression",
+            "start": 1314,
+            "end": 1334,
+            "expression": {
+              "type": "LogicalExpression",
+              "start": 1315,
+              "end": 1321,
+              "operator": "||",
+              "left": {
+                "type": "Identifier",
+                "start": 1315,
+                "end": 1316,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 1320,
+                "end": 1321,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1333,
+              "end": 1334,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1333,
+                "end": 1334,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1336,
+      "end": 1365,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1342,
+          "end": 1364,
+          "id": {
+            "type": "Identifier",
+            "start": 1342,
+            "end": 1350,
+            "name": "nullish1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "LogicalExpression",
+            "start": 1353,
+            "end": 1364,
+            "operator": "??",
+            "left": {
+              "type": "Identifier",
+              "start": 1353,
+              "end": 1354,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 1358,
+              "end": 1364,
+              "expression": {
+                "type": "Identifier",
+                "start": 1358,
+                "end": 1359,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1363,
+                "end": 1364,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1363,
+                  "end": 1364,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1366,
+      "end": 1397,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1372,
+          "end": 1396,
+          "id": {
+            "type": "Identifier",
+            "start": 1372,
+            "end": 1380,
+            "name": "nullish2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 1383,
+            "end": 1396,
+            "expression": {
+              "type": "LogicalExpression",
+              "start": 1384,
+              "end": 1390,
+              "operator": "??",
+              "left": {
+                "type": "Identifier",
+                "start": 1384,
+                "end": 1385,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "right": {
+                "type": "Identifier",
+                "start": 1389,
+                "end": 1390,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1395,
+              "end": 1396,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1395,
+                "end": 1396,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1414,
+      "end": 1443,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1420,
+          "end": 1442,
+          "id": {
+            "type": "Identifier",
+            "start": 1420,
+            "end": 1425,
+            "name": "cond1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 1428,
+            "end": 1442,
+            "test": {
+              "type": "TSAsExpression",
+              "start": 1428,
+              "end": 1434,
+              "expression": {
+                "type": "Identifier",
+                "start": 1428,
+                "end": 1429,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1433,
+                "end": 1434,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1433,
+                  "end": 1434,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "consequent": {
+              "type": "Identifier",
+              "start": 1437,
+              "end": 1438,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            },
+            "alternate": {
+              "type": "Identifier",
+              "start": 1441,
+              "end": 1442,
+              "name": "c",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1444,
+      "end": 1485,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1450,
+          "end": 1484,
+          "id": {
+            "type": "Identifier",
+            "start": 1450,
+            "end": 1455,
+            "name": "cond2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ConditionalExpression",
+            "start": 1458,
+            "end": 1484,
+            "test": {
+              "type": "Identifier",
+              "start": 1458,
+              "end": 1459,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "consequent": {
+              "type": "TSAsExpression",
+              "start": 1462,
+              "end": 1468,
+              "expression": {
+                "type": "Identifier",
+                "start": 1462,
+                "end": 1463,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1467,
+                "end": 1468,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1467,
+                  "end": 1468,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "alternate": {
+              "type": "TSSatisfiesExpression",
+              "start": 1471,
+              "end": 1484,
+              "expression": {
+                "type": "Identifier",
+                "start": 1471,
+                "end": 1472,
+                "name": "c",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1483,
+                "end": 1484,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1483,
+                  "end": 1484,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1486,
+      "end": 1517,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1492,
+          "end": 1516,
+          "id": {
+            "type": "Identifier",
+            "start": 1492,
+            "end": 1497,
+            "name": "cond3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 1500,
+            "end": 1516,
+            "expression": {
+              "type": "ConditionalExpression",
+              "start": 1501,
+              "end": 1510,
+              "test": {
+                "type": "Identifier",
+                "start": 1501,
+                "end": 1502,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "consequent": {
+                "type": "Identifier",
+                "start": 1505,
+                "end": 1506,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              },
+              "alternate": {
+                "type": "Identifier",
+                "start": 1509,
+                "end": 1510,
+                "name": "c",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1515,
+              "end": 1516,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1515,
+                "end": 1516,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1574,
+      "end": 1595,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1580,
+          "end": 1594,
+          "id": {
+            "type": "Identifier",
+            "start": 1580,
+            "end": 1584,
+            "name": "neg1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 1587,
+            "end": 1594,
+            "expression": {
+              "type": "UnaryExpression",
+              "start": 1587,
+              "end": 1589,
+              "operator": "-",
+              "prefix": true,
+              "argument": {
+                "type": "Identifier",
+                "start": 1588,
+                "end": 1589,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1593,
+              "end": 1594,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1593,
+                "end": 1594,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1596,
+      "end": 1619,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1602,
+          "end": 1618,
+          "id": {
+            "type": "Identifier",
+            "start": 1602,
+            "end": 1606,
+            "name": "neg2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 1609,
+            "end": 1618,
+            "operator": "-",
+            "prefix": true,
+            "argument": {
+              "type": "TSAsExpression",
+              "start": 1611,
+              "end": 1617,
+              "expression": {
+                "type": "Identifier",
+                "start": 1611,
+                "end": 1612,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1616,
+                "end": 1617,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1616,
+                  "end": 1617,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1620,
+      "end": 1648,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1626,
+          "end": 1647,
+          "id": {
+            "type": "Identifier",
+            "start": 1626,
+            "end": 1630,
+            "name": "not1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSSatisfiesExpression",
+            "start": 1633,
+            "end": 1647,
+            "expression": {
+              "type": "UnaryExpression",
+              "start": 1633,
+              "end": 1635,
+              "operator": "!",
+              "prefix": true,
+              "argument": {
+                "type": "Identifier",
+                "start": 1634,
+                "end": 1635,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1646,
+              "end": 1647,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1646,
+                "end": 1647,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1649,
+      "end": 1679,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1655,
+          "end": 1678,
+          "id": {
+            "type": "Identifier",
+            "start": 1655,
+            "end": 1659,
+            "name": "not2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 1662,
+            "end": 1678,
+            "operator": "!",
+            "prefix": true,
+            "argument": {
+              "type": "TSSatisfiesExpression",
+              "start": 1664,
+              "end": 1677,
+              "expression": {
+                "type": "Identifier",
+                "start": 1664,
+                "end": 1665,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1676,
+                "end": 1677,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1676,
+                  "end": 1677,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1680,
+      "end": 1710,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1686,
+          "end": 1709,
+          "id": {
+            "type": "Identifier",
+            "start": 1686,
+            "end": 1693,
+            "name": "typeof1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 1696,
+            "end": 1709,
+            "expression": {
+              "type": "UnaryExpression",
+              "start": 1696,
+              "end": 1704,
+              "operator": "typeof",
+              "prefix": true,
+              "argument": {
+                "type": "Identifier",
+                "start": 1703,
+                "end": 1704,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 1708,
+              "end": 1709,
+              "typeName": {
+                "type": "Identifier",
+                "start": 1708,
+                "end": 1709,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1711,
+      "end": 1743,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1717,
+          "end": 1742,
+          "id": {
+            "type": "Identifier",
+            "start": 1717,
+            "end": 1724,
+            "name": "typeof2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 1727,
+            "end": 1742,
+            "operator": "typeof",
+            "prefix": true,
+            "argument": {
+              "type": "TSAsExpression",
+              "start": 1735,
+              "end": 1741,
+              "expression": {
+                "type": "Identifier",
+                "start": 1735,
+                "end": 1736,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1740,
+                "end": 1741,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1740,
+                  "end": 1741,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 1744,
+      "end": 1772,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 1750,
+          "end": 1771,
+          "id": {
+            "type": "Identifier",
+            "start": 1750,
+            "end": 1755,
+            "name": "void1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "UnaryExpression",
+            "start": 1758,
+            "end": 1771,
+            "operator": "void",
+            "prefix": true,
+            "argument": {
+              "type": "TSAsExpression",
+              "start": 1764,
+              "end": 1770,
+              "expression": {
+                "type": "Identifier",
+                "start": 1764,
+                "end": 1765,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1769,
+                "end": 1770,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1769,
+                  "end": 1770,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 1773,
+      "end": 2004,
+      "id": {
+        "type": "Identifier",
+        "start": 1788,
+        "end": 1793,
+        "name": "waits",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "expression": false,
+      "generator": false,
+      "async": true,
+      "params": [],
+      "returnType": null,
+      "body": {
+        "type": "BlockStatement",
+        "start": 1796,
+        "end": 2004,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 1800,
+            "end": 1828,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 1806,
+                "end": 1827,
+                "id": {
+                  "type": "Identifier",
+                  "start": 1806,
+                  "end": 1812,
+                  "name": "await1",
+                  "typeAnnotation": null,
+                  "optional": false                },
+                "init": {
+                  "type": "TSAsExpression",
+                  "start": 1815,
+                  "end": 1827,
+                  "expression": {
+                    "type": "AwaitExpression",
+                    "start": 1815,
+                    "end": 1822,
+                    "argument": {
+                      "type": "Identifier",
+                      "start": 1821,
+                      "end": 1822,
+                      "name": "a",
+                      "typeAnnotation": null,
+                      "optional": false                    }
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 1826,
+                    "end": 1827,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 1826,
+                      "end": 1827,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }              }
+            ]          },
+          {
+            "type": "VariableDeclaration",
+            "start": 1831,
+            "end": 1861,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 1837,
+                "end": 1860,
+                "id": {
+                  "type": "Identifier",
+                  "start": 1837,
+                  "end": 1843,
+                  "name": "await2",
+                  "typeAnnotation": null,
+                  "optional": false                },
+                "init": {
+                  "type": "AwaitExpression",
+                  "start": 1846,
+                  "end": 1860,
+                  "argument": {
+                    "type": "TSAsExpression",
+                    "start": 1853,
+                    "end": 1859,
+                    "expression": {
+                      "type": "Identifier",
+                      "start": 1853,
+                      "end": 1854,
+                      "name": "a",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeAnnotation": {
+                      "type": "TSTypeReference",
+                      "start": 1858,
+                      "end": 1859,
+                      "typeName": {
+                        "type": "Identifier",
+                        "start": 1858,
+                        "end": 1859,
+                        "name": "T",
+                        "typeAnnotation": null,
+                        "optional": false
+                      },
+                      "typeArguments": null
+                    }                  }                }              }
+            ]          },
+          {
+            "type": "ForOfStatement",
+            "start": 1864,
+            "end": 1893,
+            "left": {
+              "type": "VariableDeclaration",
+              "start": 1869,
+              "end": 1879,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 1875,
+                  "end": 1879,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 1875,
+                    "end": 1879,
+                    "name": "item",
+                    "typeAnnotation": null,
+                    "optional": false                  },
+                  "init": null                }
+              ]
+            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 1883,
+              "end": 1889,
+              "expression": {
+                "type": "Identifier",
+                "start": 1883,
+                "end": 1884,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1888,
+                "end": 1889,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1888,
+                  "end": 1889,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "await": false,
+            "body": {
+              "type": "BlockStatement",
+              "start": 1891,
+              "end": 1893,
+              "body": [
+              ]            }          },
+          {
+            "type": "ForInStatement",
+            "start": 1896,
+            "end": 1924,
+            "left": {
+              "type": "VariableDeclaration",
+              "start": 1901,
+              "end": 1910,
+              "kind": "const",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 1907,
+                  "end": 1910,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 1907,
+                    "end": 1910,
+                    "name": "key",
+                    "typeAnnotation": null,
+                    "optional": false                  },
+                  "init": null                }
+              ]
+            },
+            "right": {
+              "type": "TSAsExpression",
+              "start": 1914,
+              "end": 1920,
+              "expression": {
+                "type": "Identifier",
+                "start": 1914,
+                "end": 1915,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 1919,
+                "end": 1920,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 1919,
+                  "end": 1920,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "body": {
+              "type": "BlockStatement",
+              "start": 1922,
+              "end": 1924,
+              "body": [
+              ]            }          },
+          {
+            "type": "ForStatement",
+            "start": 1927,
+            "end": 1962,
+            "init": {
+              "type": "VariableDeclaration",
+              "start": 1932,
+              "end": 1953,
+              "kind": "let",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 1936,
+                  "end": 1953,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 1936,
+                    "end": 1937,
+                    "name": "i",
+                    "typeAnnotation": null,
+                    "optional": false                  },
+                  "init": {
+                    "type": "TSAsExpression",
+                    "start": 1940,
+                    "end": 1953,
+                    "expression": {
+                      "type": "BinaryExpression",
+                      "start": 1941,
+                      "end": 1947,
+                      "operator": "in",
+                      "left": {
+                        "type": "Identifier",
+                        "start": 1941,
+                        "end": 1942,
+                        "name": "a",
+                        "typeAnnotation": null,
+                        "optional": false                      },
+                      "right": {
+                        "type": "Identifier",
+                        "start": 1946,
+                        "end": 1947,
+                        "name": "b",
+                        "typeAnnotation": null,
+                        "optional": false                      }
+                    },
+                    "typeAnnotation": {
+                      "type": "TSTypeReference",
+                      "start": 1952,
+                      "end": 1953,
+                      "typeName": {
+                        "type": "Identifier",
+                        "start": 1952,
+                        "end": 1953,
+                        "name": "T",
+                        "typeAnnotation": null,
+                        "optional": false
+                      },
+                      "typeArguments": null
+                    }                  }                }
+              ]
+            },
+            "test": {
+              "type": "Identifier",
+              "start": 1955,
+              "end": 1956,
+              "name": "i",
+              "typeAnnotation": null,
+              "optional": false            },
+            "update": null,
+            "body": {
+              "type": "BlockStatement",
+              "start": 1960,
+              "end": 1962,
+              "body": [
+              ]            }          },
+          {
+            "type": "ForStatement",
+            "start": 1965,
+            "end": 2002,
+            "init": {
+              "type": "VariableDeclaration",
+              "start": 1970,
+              "end": 1993,
+              "kind": "let",
+              "declarations": [
+                {
+                  "type": "VariableDeclarator",
+                  "start": 1974,
+                  "end": 1993,
+                  "id": {
+                    "type": "Identifier",
+                    "start": 1974,
+                    "end": 1975,
+                    "name": "i",
+                    "typeAnnotation": null,
+                    "optional": false                  },
+                  "init": {
+                    "type": "BinaryExpression",
+                    "start": 1980,
+                    "end": 1992,
+                    "operator": "in",
+                    "left": {
+                      "type": "TSAsExpression",
+                      "start": 1980,
+                      "end": 1986,
+                      "expression": {
+                        "type": "Identifier",
+                        "start": 1980,
+                        "end": 1981,
+                        "name": "a",
+                        "typeAnnotation": null,
+                        "optional": false
+                      },
+                      "typeAnnotation": {
+                        "type": "TSTypeReference",
+                        "start": 1985,
+                        "end": 1986,
+                        "typeName": {
+                          "type": "Identifier",
+                          "start": 1985,
+                          "end": 1986,
+                          "name": "T",
+                          "typeAnnotation": null,
+                          "optional": false
+                        },
+                        "typeArguments": null
+                      }                    },
+                    "right": {
+                      "type": "Identifier",
+                      "start": 1991,
+                      "end": 1992,
+                      "name": "b",
+                      "typeAnnotation": null,
+                      "optional": false                    }                  }                }
+              ]
+            },
+            "test": {
+              "type": "Identifier",
+              "start": 1995,
+              "end": 1996,
+              "name": "i",
+              "typeAnnotation": null,
+              "optional": false            },
+            "update": null,
+            "body": {
+              "type": "BlockStatement",
+              "start": 2000,
+              "end": 2002,
+              "body": [
+              ]            }          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2065,
+      "end": 2093,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2071,
+          "end": 2092,
+          "id": {
+            "type": "Identifier",
+            "start": 2071,
+            "end": 2077,
+            "name": "arrow1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 2080,
+            "end": 2092,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "typeParameters": null,
+            "params": [],
+            "returnType": null,
+            "body": {
+              "type": "TSAsExpression",
+              "start": 2086,
+              "end": 2092,
+              "expression": {
+                "type": "Identifier",
+                "start": 2086,
+                "end": 2087,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2091,
+                "end": 2092,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2091,
+                  "end": 2092,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2094,
+      "end": 2124,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2100,
+          "end": 2123,
+          "id": {
+            "type": "Identifier",
+            "start": 2100,
+            "end": 2106,
+            "name": "arrow2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2109,
+            "end": 2123,
+            "expression": {
+              "type": "ArrowFunctionExpression",
+              "start": 2110,
+              "end": 2117,
+              "id": null,
+              "expression": true,
+              "generator": false,
+              "async": false,
+              "typeParameters": null,
+              "params": [],
+              "returnType": null,
+              "body": {
+                "type": "Identifier",
+                "start": 2116,
+                "end": 2117,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2122,
+              "end": 2123,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2122,
+                "end": 2123,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2125,
+      "end": 2156,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2131,
+          "end": 2155,
+          "id": {
+            "type": "Identifier",
+            "start": 2131,
+            "end": 2137,
+            "name": "arrow3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ArrowFunctionExpression",
+            "start": 2140,
+            "end": 2155,
+            "id": null,
+            "expression": true,
+            "generator": false,
+            "async": false,
+            "typeParameters": null,
+            "params": [],
+            "returnType": null,
+            "body": {
+              "type": "TSAsExpression",
+              "start": 2146,
+              "end": 2155,
+              "expression": {
+                "type": "ObjectExpression",
+                "start": 2147,
+                "end": 2149,
+                "properties": [
+                ]
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2154,
+                "end": 2155,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2154,
+                  "end": 2155,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2157,
+      "end": 2173,
+      "kind": "let",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2161,
+          "end": 2172,
+          "id": {
+            "type": "Identifier",
+            "start": 2161,
+            "end": 2172,
+            "name": "target",
+            "typeAnnotation": {
+              "type": "TSTypeAnnotation",
+              "start": 2167,
+              "end": 2172,
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 2169,
+                "end": 2172
+              }
+            },
+            "optional": false          },
+          "init": null        }
+      ]    },
+    {
+      "type": "ExpressionStatement",
+      "start": 2174,
+      "end": 2190,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 2174,
+        "end": 2189,
+        "operator": "=",
+        "left": {
+          "type": "Identifier",
+          "start": 2174,
+          "end": 2180,
+          "name": "target",
+          "typeAnnotation": null,
+          "optional": false        },
+        "right": {
+          "type": "TSAsExpression",
+          "start": 2183,
+          "end": 2189,
+          "expression": {
+            "type": "Identifier",
+            "start": 2183,
+            "end": 2184,
+            "name": "a",
+            "typeAnnotation": null,
+            "optional": false
+          },
+          "typeAnnotation": {
+            "type": "TSTypeReference",
+            "start": 2188,
+            "end": 2189,
+            "typeName": {
+              "type": "Identifier",
+              "start": 2188,
+              "end": 2189,
+              "name": "T",
+              "typeAnnotation": null,
+              "optional": false
+            },
+            "typeArguments": null
+          }        }      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 2191,
+      "end": 2209,
+      "expression": {
+        "type": "AssignmentExpression",
+        "start": 2192,
+        "end": 2208,
+        "operator": "=",
+        "left": {
+          "type": "TSAsExpression",
+          "start": 2192,
+          "end": 2203,
+          "expression": {
+            "type": "Identifier",
+            "start": 2192,
+            "end": 2198,
+            "name": "target",
+            "typeAnnotation": null,
+            "optional": false
+          },
+          "typeAnnotation": {
+            "type": "TSTypeReference",
+            "start": 2202,
+            "end": 2203,
+            "typeName": {
+              "type": "Identifier",
+              "start": 2202,
+              "end": 2203,
+              "name": "T",
+              "typeAnnotation": null,
+              "optional": false
+            },
+            "typeArguments": null
+          }        },
+        "right": {
+          "type": "Identifier",
+          "start": 2207,
+          "end": 2208,
+          "name": "a",
+          "typeAnnotation": null,
+          "optional": false        }      }    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2210,
+      "end": 2234,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2216,
+          "end": 2233,
+          "id": {
+            "type": "Identifier",
+            "start": 2216,
+            "end": 2219,
+            "name": "seq",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2222,
+            "end": 2233,
+            "expression": {
+              "type": "SequenceExpression",
+              "start": 2223,
+              "end": 2227,
+              "expressions": [
+                {
+                  "type": "Identifier",
+                  "start": 2223,
+                  "end": 2224,
+                  "name": "a",
+                  "typeAnnotation": null,
+                  "optional": false                },
+                {
+                  "type": "Identifier",
+                  "start": 2226,
+                  "end": 2227,
+                  "name": "b",
+                  "typeAnnotation": null,
+                  "optional": false                }
+              ]
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2232,
+              "end": 2233,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2232,
+                "end": 2233,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "FunctionDeclaration",
+      "start": 2235,
+      "end": 2294,
+      "id": {
+        "type": "Identifier",
+        "start": 2245,
+        "end": 2248,
+        "name": "gen",
+        "typeAnnotation": null,
+        "optional": false
+      },
+      "typeParameters": null,
+      "expression": false,
+      "generator": true,
+      "async": false,
+      "params": [],
+      "returnType": null,
+      "body": {
+        "type": "BlockStatement",
+        "start": 2251,
+        "end": 2294,
+        "body": [
+          {
+            "type": "VariableDeclaration",
+            "start": 2253,
+            "end": 2278,
+            "kind": "const",
+            "declarations": [
+              {
+                "type": "VariableDeclarator",
+                "start": 2259,
+                "end": 2277,
+                "id": {
+                  "type": "Identifier",
+                  "start": 2259,
+                  "end": 2260,
+                  "name": "y",
+                  "typeAnnotation": null,
+                  "optional": false                },
+                "init": {
+                  "type": "TSAsExpression",
+                  "start": 2263,
+                  "end": 2277,
+                  "expression": {
+                    "type": "YieldExpression",
+                    "start": 2264,
+                    "end": 2271,
+                    "argument": {
+                      "type": "Identifier",
+                      "start": 2270,
+                      "end": 2271,
+                      "name": "a",
+                      "typeAnnotation": null,
+                      "optional": false                    },
+                    "delegate": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2276,
+                    "end": 2277,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2276,
+                      "end": 2277,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }              }
+            ]          },
+          {
+            "type": "ExpressionStatement",
+            "start": 2279,
+            "end": 2292,
+            "expression": {
+              "type": "YieldExpression",
+              "start": 2279,
+              "end": 2291,
+              "argument": {
+                "type": "TSAsExpression",
+                "start": 2285,
+                "end": 2291,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 2285,
+                  "end": 2286,
+                  "name": "a",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 2290,
+                  "end": 2291,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 2290,
+                    "end": 2291,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                }              },
+              "delegate": false            }          }
+        ]
+      },
+      "declare": false    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2354,
+      "end": 2395,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2360,
+          "end": 2394,
+          "id": {
+            "type": "Identifier",
+            "start": 2360,
+            "end": 2366,
+            "name": "chain1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSSatisfiesExpression",
+            "start": 2369,
+            "end": 2394,
+            "expression": {
+              "type": "TSAsExpression",
+              "start": 2369,
+              "end": 2382,
+              "expression": {
+                "type": "TSAsExpression",
+                "start": 2369,
+                "end": 2375,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 2369,
+                  "end": 2370,
+                  "name": "a",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 2374,
+                  "end": 2375,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 2374,
+                    "end": 2375,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                }
+              },
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 2379,
+                "end": 2382
+              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2393,
+              "end": 2394,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2393,
+                "end": 2394,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2396,
+      "end": 2444,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2402,
+          "end": 2443,
+          "id": {
+            "type": "Identifier",
+            "start": 2402,
+            "end": 2408,
+            "name": "chain2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2411,
+            "end": 2443,
+            "expression": {
+              "type": "Identifier",
+              "start": 2411,
+              "end": 2412,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false
+            },
+            "typeAnnotation": {
+              "type": "TSParenthesizedType",
+              "start": 2416,
+              "end": 2443,
+              "typeAnnotation": {
+                "type": "TSConditionalType",
+                "start": 2417,
+                "end": 2442,
+                "checkType": {
+                  "type": "TSTypeReference",
+                  "start": 2417,
+                  "end": 2418,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 2417,
+                    "end": 2418,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                },
+                "extendsType": {
+                  "type": "TSAnyKeyword",
+                  "start": 2427,
+                  "end": 2430
+                },
+                "trueType": {
+                  "type": "TSTypeReference",
+                  "start": 2433,
+                  "end": 2434,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 2433,
+                    "end": 2434,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                },
+                "falseType": {
+                  "type": "TSNeverKeyword",
+                  "start": 2437,
+                  "end": 2442
+                }
+              }
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2445,
+      "end": 2472,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2451,
+          "end": 2471,
+          "id": {
+            "type": "Identifier",
+            "start": 2451,
+            "end": 2457,
+            "name": "angle1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2460,
+            "end": 2471,
+            "expression": {
+              "type": "TSTypeAssertion",
+              "start": 2460,
+              "end": 2464,
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2461,
+                "end": 2462,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2461,
+                  "end": 2462,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              },
+              "expression": {
+                "type": "Identifier",
+                "start": 2463,
+                "end": 2464,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              }
+            },
+            "typeAnnotation": {
+              "type": "TSAnyKeyword",
+              "start": 2468,
+              "end": 2471
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2473,
+      "end": 2502,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2479,
+          "end": 2501,
+          "id": {
+            "type": "Identifier",
+            "start": 2479,
+            "end": 2485,
+            "name": "angle2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSTypeAssertion",
+            "start": 2488,
+            "end": 2501,
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2489,
+              "end": 2490,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2489,
+                "end": 2490,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            },
+            "expression": {
+              "type": "TSAsExpression",
+              "start": 2492,
+              "end": 2500,
+              "expression": {
+                "type": "Identifier",
+                "start": 2492,
+                "end": 2493,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSAnyKeyword",
+                "start": 2497,
+                "end": 2500
+              }
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2503,
+      "end": 2534,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2509,
+          "end": 2533,
+          "id": {
+            "type": "Identifier",
+            "start": 2509,
+            "end": 2515,
+            "name": "angle3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2518,
+            "end": 2533,
+            "expression": {
+              "type": "BinaryExpression",
+              "start": 2519,
+              "end": 2528,
+              "operator": "+",
+              "left": {
+                "type": "TSTypeAssertion",
+                "start": 2519,
+                "end": 2523,
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 2520,
+                  "end": 2521,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 2520,
+                    "end": 2521,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                },
+                "expression": {
+                  "type": "Identifier",
+                  "start": 2522,
+                  "end": 2523,
+                  "name": "a",
+                  "typeAnnotation": null,
+                  "optional": false
+                }              },
+              "right": {
+                "type": "Identifier",
+                "start": 2527,
+                "end": 2528,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2532,
+              "end": 2533,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2532,
+                "end": 2533,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2535,
+      "end": 2559,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2541,
+          "end": 2558,
+          "id": {
+            "type": "Identifier",
+            "start": 2541,
+            "end": 2547,
+            "name": "angle4",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "BinaryExpression",
+            "start": 2550,
+            "end": 2558,
+            "operator": "<",
+            "left": {
+              "type": "Identifier",
+              "start": 2550,
+              "end": 2551,
+              "name": "a",
+              "typeAnnotation": null,
+              "optional": false            },
+            "right": {
+              "type": "TSTypeAssertion",
+              "start": 2554,
+              "end": 2558,
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2555,
+                "end": 2556,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2555,
+                  "end": 2556,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              },
+              "expression": {
+                "type": "Identifier",
+                "start": 2557,
+                "end": 2558,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false
+              }            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2560,
+      "end": 2582,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2566,
+          "end": 2581,
+          "id": {
+            "type": "Identifier",
+            "start": 2566,
+            "end": 2571,
+            "name": "bang1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2574,
+            "end": 2581,
+            "expression": {
+              "type": "TSNonNullExpression",
+              "start": 2574,
+              "end": 2576,
+              "expression": {
+                "type": "Identifier",
+                "start": 2574,
+                "end": 2575,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2580,
+              "end": 2581,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2580,
+                "end": 2581,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2583,
+      "end": 2607,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2589,
+          "end": 2606,
+          "id": {
+            "type": "Identifier",
+            "start": 2589,
+            "end": 2594,
+            "name": "bang2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSNonNullExpression",
+            "start": 2598,
+            "end": 2606,
+            "expression": {
+              "type": "TSAsExpression",
+              "start": 2598,
+              "end": 2604,
+              "expression": {
+                "type": "Identifier",
+                "start": 2598,
+                "end": 2599,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2603,
+                "end": 2604,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2603,
+                  "end": 2604,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2608,
+      "end": 2639,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2614,
+          "end": 2638,
+          "id": {
+            "type": "Identifier",
+            "start": 2614,
+            "end": 2619,
+            "name": "bang3",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2622,
+            "end": 2638,
+            "expression": {
+              "type": "MemberExpression",
+              "start": 2623,
+              "end": 2633,
+              "computed": false,
+              "object": {
+                "type": "TSNonNullExpression",
+                "start": 2623,
+                "end": 2631,
+                "expression": {
+                  "type": "TSAsExpression",
+                  "start": 2623,
+                  "end": 2629,
+                  "expression": {
+                    "type": "Identifier",
+                    "start": 2623,
+                    "end": 2624,
+                    "name": "a",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2628,
+                    "end": 2629,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2628,
+                      "end": 2629,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }
+                }              },
+              "property": {
+                "type": "Identifier",
+                "start": 2632,
+                "end": 2633,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2637,
+              "end": 2638,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2637,
+                "end": 2638,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2640,
+      "end": 2667,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2646,
+          "end": 2666,
+          "id": {
+            "type": "Identifier",
+            "start": 2646,
+            "end": 2653,
+            "name": "member1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "MemberExpression",
+            "start": 2656,
+            "end": 2666,
+            "computed": false,
+            "object": {
+              "type": "TSAsExpression",
+              "start": 2657,
+              "end": 2663,
+              "expression": {
+                "type": "Identifier",
+                "start": 2657,
+                "end": 2658,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2662,
+                "end": 2663,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2662,
+                  "end": 2663,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "property": {
+              "type": "Identifier",
+              "start": 2665,
+              "end": 2666,
+              "name": "b",
+              "typeAnnotation": null,
+              "optional": false            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2668,
+      "end": 2693,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2674,
+          "end": 2692,
+          "id": {
+            "type": "Identifier",
+            "start": 2674,
+            "end": 2681,
+            "name": "member2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2684,
+            "end": 2692,
+            "expression": {
+              "type": "MemberExpression",
+              "start": 2684,
+              "end": 2687,
+              "computed": false,
+              "object": {
+                "type": "Identifier",
+                "start": 2684,
+                "end": 2685,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "property": {
+                "type": "Identifier",
+                "start": 2686,
+                "end": 2687,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2691,
+              "end": 2692,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2691,
+                "end": 2692,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2694,
+      "end": 2720,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2700,
+          "end": 2719,
+          "id": {
+            "type": "Identifier",
+            "start": 2700,
+            "end": 2705,
+            "name": "call1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "CallExpression",
+            "start": 2708,
+            "end": 2719,
+            "callee": {
+              "type": "TSAsExpression",
+              "start": 2709,
+              "end": 2715,
+              "expression": {
+                "type": "Identifier",
+                "start": 2709,
+                "end": 2710,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2714,
+                "end": 2715,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2714,
+                  "end": 2715,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "typeArguments": null,
+            "arguments": [
+              {
+                "type": "Identifier",
+                "start": 2717,
+                "end": 2718,
+                "name": "b",
+                "typeAnnotation": null,
+                "optional": false              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2721,
+      "end": 2750,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2727,
+          "end": 2749,
+          "id": {
+            "type": "Identifier",
+            "start": 2727,
+            "end": 2732,
+            "name": "call2",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TSAsExpression",
+            "start": 2735,
+            "end": 2749,
+            "expression": {
+              "type": "CallExpression",
+              "start": 2735,
+              "end": 2744,
+              "callee": {
+                "type": "Identifier",
+                "start": 2735,
+                "end": 2736,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false              },
+              "typeArguments": null,
+              "arguments": [
+                {
+                  "type": "TSAsExpression",
+                  "start": 2737,
+                  "end": 2743,
+                  "expression": {
+                    "type": "Identifier",
+                    "start": 2737,
+                    "end": 2738,
+                    "name": "b",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2742,
+                    "end": 2743,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2742,
+                      "end": 2743,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }
+              ]
+            },
+            "typeAnnotation": {
+              "type": "TSTypeReference",
+              "start": 2748,
+              "end": 2749,
+              "typeName": {
+                "type": "Identifier",
+                "start": 2748,
+                "end": 2749,
+                "name": "T",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeArguments": null
+            }          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2751,
+      "end": 2779,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2757,
+          "end": 2778,
+          "id": {
+            "type": "Identifier",
+            "start": 2757,
+            "end": 2761,
+            "name": "new1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "NewExpression",
+            "start": 2764,
+            "end": 2778,
+            "callee": {
+              "type": "TSAsExpression",
+              "start": 2769,
+              "end": 2775,
+              "expression": {
+                "type": "Identifier",
+                "start": 2769,
+                "end": 2770,
+                "name": "a",
+                "typeAnnotation": null,
+                "optional": false
+              },
+              "typeAnnotation": {
+                "type": "TSTypeReference",
+                "start": 2774,
+                "end": 2775,
+                "typeName": {
+                  "type": "Identifier",
+                  "start": 2774,
+                  "end": 2775,
+                  "name": "T",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeArguments": null
+              }            },
+            "typeArguments": null,
+            "arguments": [
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2780,
+      "end": 2805,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2786,
+          "end": 2804,
+          "id": {
+            "type": "Identifier",
+            "start": 2786,
+            "end": 2790,
+            "name": "tpl1",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "TemplateLiteral",
+            "start": 2793,
+            "end": 2804,
+            "quasis": [
+              {
+                "type": "TemplateElement",
+                "start": 2794,
+                "end": 2794,
+                "tail": false,
+                "value": { "raw": "", "cooked": "" }
+              },
+              {
+                "type": "TemplateElement",
+                "start": 2803,
+                "end": 2803,
+                "tail": true,
+                "value": { "raw": "", "cooked": "" }
+              }
+            ],
+            "expressions": [
+              {
+                "type": "TSAsExpression",
+                "start": 2796,
+                "end": 2802,
+                "expression": {
+                  "type": "Identifier",
+                  "start": 2796,
+                  "end": 2797,
+                  "name": "a",
+                  "typeAnnotation": null,
+                  "optional": false
+                },
+                "typeAnnotation": {
+                  "type": "TSTypeReference",
+                  "start": 2801,
+                  "end": 2802,
+                  "typeName": {
+                    "type": "Identifier",
+                    "start": 2801,
+                    "end": 2802,
+                    "name": "T",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeArguments": null
+                }              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2806,
+      "end": 2853,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2812,
+          "end": 2852,
+          "id": {
+            "type": "Identifier",
+            "start": 2812,
+            "end": 2818,
+            "name": "spread",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ArrayExpression",
+            "start": 2821,
+            "end": 2852,
+            "elements": [
+              {
+                "type": "SpreadElement",
+                "start": 2822,
+                "end": 2831,
+                "argument": {
+                  "type": "TSAsExpression",
+                  "start": 2825,
+                  "end": 2831,
+                  "expression": {
+                    "type": "Identifier",
+                    "start": 2825,
+                    "end": 2826,
+                    "name": "a",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2830,
+                    "end": 2831,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2830,
+                      "end": 2831,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }              },
+              {
+                "type": "SpreadElement",
+                "start": 2833,
+                "end": 2851,
+                "argument": {
+                  "type": "TSSatisfiesExpression",
+                  "start": 2837,
+                  "end": 2850,
+                  "expression": {
+                    "type": "Identifier",
+                    "start": 2837,
+                    "end": 2838,
+                    "name": "b",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2849,
+                    "end": 2850,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2849,
+                      "end": 2850,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }              }
+            ]          }        }
+      ]    },
+    {
+      "type": "VariableDeclaration",
+      "start": 2854,
+      "end": 2893,
+      "kind": "const",
+      "declarations": [
+        {
+          "type": "VariableDeclarator",
+          "start": 2860,
+          "end": 2892,
+          "id": {
+            "type": "Identifier",
+            "start": 2860,
+            "end": 2863,
+            "name": "obj",
+            "typeAnnotation": null,
+            "optional": false          },
+          "init": {
+            "type": "ObjectExpression",
+            "start": 2866,
+            "end": 2892,
+            "properties": [
+              {
+                "type": "Property",
+                "start": 2868,
+                "end": 2879,
+                "kind": "init",
+                "method": false,
+                "shorthand": false,
+                "computed": false,
+                "optional": false,
+                "key": {
+                  "type": "Identifier",
+                  "start": 2868,
+                  "end": 2871,
+                  "name": "key",
+                  "typeAnnotation": null,
+                  "optional": false                },
+                "value": {
+                  "type": "TSAsExpression",
+                  "start": 2873,
+                  "end": 2879,
+                  "expression": {
+                    "type": "Identifier",
+                    "start": 2873,
+                    "end": 2874,
+                    "name": "a",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2878,
+                    "end": 2879,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2878,
+                      "end": 2879,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }
+              },
+              {
+                "type": "SpreadElement",
+                "start": 2881,
+                "end": 2890,
+                "argument": {
+                  "type": "TSAsExpression",
+                  "start": 2884,
+                  "end": 2890,
+                  "expression": {
+                    "type": "Identifier",
+                    "start": 2884,
+                    "end": 2885,
+                    "name": "b",
+                    "typeAnnotation": null,
+                    "optional": false
+                  },
+                  "typeAnnotation": {
+                    "type": "TSTypeReference",
+                    "start": 2889,
+                    "end": 2890,
+                    "typeName": {
+                      "type": "Identifier",
+                      "start": 2889,
+                      "end": 2890,
+                      "name": "T",
+                      "typeAnnotation": null,
+                      "optional": false
+                    },
+                    "typeArguments": null
+                  }                }
+              }
+            ]          }        }
+      ]    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 77,
+      "value": " `as` and `satisfies` have relational precedence and associate to the left."
+    },
+    {
+      "type": "Line",
+      "start": 78,
+      "end": 155,
+      "value": " Each line pairs the bare spelling with the grouping that changes the tree."
+    },
+    {
+      "type": "Line",
+      "start": 202,
+      "end": 264,
+      "value": " Binary: additive, multiplicative, exponent, shift, bitwise."
+    },
+    {
+      "type": "Line",
+      "start": 663,
+      "end": 727,
+      "value": " Relational, `in` and `instanceof`: same level, left to right."
+    },
+    {
+      "type": "Line",
+      "start": 1091,
+      "end": 1142,
+      "value": " Equality and logical: looser than the assertion."
+    },
+    {
+      "type": "Line",
+      "start": 1398,
+      "end": 1413,
+      "value": " Conditional."
+    },
+    {
+      "type": "Line",
+      "start": 1518,
+      "end": 1573,
+      "value": " Unary, update and await: tighter than the assertion."
+    },
+    {
+      "type": "Line",
+      "start": 2005,
+      "end": 2064,
+      "value": " Arrow bodies and assignments: looser than the assertion."
+    },
+    {
+      "type": "Line",
+      "start": 2295,
+      "end": 2353,
+      "value": " Chains of both keywords, and the other assertion forms."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=142480B reserved=16777216B ratio=0%
+Parse errors: 0

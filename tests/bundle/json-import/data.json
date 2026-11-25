@@ -1,0 +1,6 @@
+{
+  "name": "fixture",
+  "list": [1, 2, 3],
+  "nested": { "deep": true },
+  "text": "line\u2028separator"
+}

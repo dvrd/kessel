@@ -1,0 +1,77 @@
+{
+  "name": "kessel",
+  "displayName": "Kessel",
+  "description": "JavaScript, JSX, TypeScript and TSX diagnostics, safe lint fixes and formatting.",
+  "version": "0.1.0",
+  "publisher": "dvrd",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dvrd/kessel.git",
+    "directory": "editors/vscode"
+  },
+  "engines": { "vscode": "^1.91.0" },
+  "categories": ["Linters", "Formatters"],
+  "extensionKind": ["workspace"],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:javascriptreact",
+    "onLanguage:typescript",
+    "onLanguage:typescriptreact"
+  ],
+  "main": "./extension.js",
+  "files": ["extension.js", "README.md", "LICENSE", "npm/kessel/**", "bin/**", "node_modules/**"],
+  "contributes": {
+    "configuration": {
+      "title": "Kessel",
+      "properties": {
+        "kessel.rules": {
+          "type": "object",
+          "default": {},
+          "scope": "window",
+          "description": "Override lint rules from project configuration in this editor window. Rule names may carry their plugin, for example \"unicorn/no-thenable\" or \"@typescript-eslint/no-namespace\"."
+        },
+        "kessel.categories": {
+          "type": "object",
+          "default": {},
+          "scope": "window",
+          "additionalProperties": false,
+          "properties": {
+            "correctness": { "enum": ["off", "warn", "error"] },
+            "suspicious": { "enum": ["off", "warn", "error"] },
+            "pedantic": { "enum": ["off", "warn", "error"] },
+            "perf": { "enum": ["off", "warn", "error"] },
+            "style": { "enum": ["off", "warn", "error"] },
+            "restriction": { "enum": ["off", "warn", "error"] },
+            "nursery": { "enum": ["off", "warn", "error"] }
+          },
+          "description": "Set the severity of whole rule categories, as the \"categories\" key of .oxlintrc.json does. Applies to files in an .oxlintrc.json project and to files outside any project; a kessel.lint.json project has no categories."
+        },
+        "kessel.plugins": {
+          "type": ["array", "null"],
+          "items": { "type": "string", "enum": ["typescript", "unicorn", "oxc", "react"] },
+          "uniqueItems": true,
+          "default": null,
+          "scope": "window",
+          "description": "Replace the list of lint plugins whose rules the categories enable, as the \"plugins\" key of .oxlintrc.json does. The default uses project configuration."
+        },
+        "kessel.reportUnusedDisableDirectives": {
+          "type": ["string", "null"],
+          "enum": [null, "off", "warn", "error"],
+          "default": null,
+          "scope": "window",
+          "description": "Set the severity of unused lint suppression comments. The default uses project configuration."
+        }
+      }
+    }
+  },
+  "dependencies": {
+    "koffi": "3.3.8",
+    "vscode-languageclient": "11.0.0"
+  },
+  "devDependencies": {
+    "@vscode/test-electron": "3.1.0",
+    "@vscode/vsce": "4.1.1"
+  }
+}

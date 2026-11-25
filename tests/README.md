@@ -13,6 +13,7 @@ tests/
 │   ├── verify_lexer_tokens.js    # Lexer token-stream conformance
 │   ├── verify_bench_regression.js  # Performance regression gate
 │   ├── verify_crashes_known.js     # Known crash-class tracking
+│   ├── verify_depth_limit.js       # Nesting-depth limit and long-chain stack safety
 │   ├── fuzz_diff.js          # Differential fuzzing vs reference
 │   └── fuzz_invalid.js       # Invalid-input mutation fuzzing
 ├── runners/               # Shell runners
@@ -40,7 +41,20 @@ task test:quick        # Fast dev loop — unit + regression + lexer (~8s)
 task test:release      # Zero-tolerance pre-release gate
 ```
 
+Run `task test:format` for the pinned Prettier examples. Set `KESSEL_PRETTIER`
+to the installed reference package to compare more widths and styles. After
+`task test:real:fetch`, run `task test:format:real` to check that formatting the
+release corpus preserves syntax and comments and that a second pass is stable.
+
 ### Primary Gate (`task test`)
+
+CI uses Odin's `dev-2026-11` release for this gate. Fetch the four pinned
+corpora from a fresh checkout before running it. The fetcher reuses existing
+checkouts at the expected revisions.
+
+```bash
+bash tests/runners/oxc_corpus_fetch.sh
+```
 
 Runs the coverage harness across 50K+ fixtures from test262, Babel, TypeScript,
 and ESTree corpora, plus 430 hand-authored unit fixtures. The gate passes when
@@ -51,6 +65,92 @@ task test                      # Run the gate
 task test:coverage:update      # Regenerate snaps after a deliberate fix
 task test:conformance:report   # Human-readable summary
 ```
+
+### Lint reference checks
+
+Run `task test:lint:reference -- /path/to/oxlint` to compare lint configuration,
+binding diagnostics, and autofixes with the oxlint version in `OXC_ORACLE.json`.
+The task can also use `oxlint` on your path.
+The React configuration checks cover plugin aliases, category severities,
+inherited settings and file-specific overrides.
+The control-flow checks also execute 343 combinations of transfers through
+catch and finally to verify which statements JavaScript can reach.
+Add `--upstream` to compare the primary diagnostic ranges on all 85 getter
+fixtures, 63 reachability fixtures, 86 switch fallthrough fixtures and 441
+React Hooks fixtures in the pinned Oxc checkout at `../oxc`. The comparison
+records the two known differences involving duplicate and shadowed dependencies.
+It also compares the fixed syntax trees for all 16 dependency-edit fixtures.
+In two examples, Kessel includes a captured parameter in a newly created
+callback dependency list. A runtime SDK regression exercises two renders with
+different parameter values.
+
+Add `--corpus` to measure agreement on the pinned real-world JavaScript files.
+Run `task test:real:fetch` to provision them. The report counts matching and
+tool-specific byte ranges for getter-return, no-unreachable and no-fallthrough,
+including duplicate diagnostics. An identical file has the same reports from
+both tools for that rule. Some reference warnings cover code that executes.
+
+### TypeScript declaration checks
+
+With the locked dependencies installed in `bench` and `npm/kessel`, run
+`task test:dts` to compare native CLI and SDK declarations and diagnostics with
+TypeScript 5.9.3 and type-check a downstream consumer. Run `task test:dts:corpus`
+with the TypeScript fixtures available under `tests/vendor` to compare each
+single-file input in the upstream isolated-declaration compiler cases. The task
+exits with a failure on a diagnostic or declaration AST difference. The separate
+`task test:dts:namespaces` compares all single-file inputs in TypeScript’s
+`conformance/internalModules` directory, including its invalid-source fixtures.
+`task test:dts:computed` does the same for `conformance/es6/computedProperties`.
+Both allow only the differences listed with their reasons in
+`tests/verifiers/verify_declarations.js`, and fail when a listed input starts
+to match, so the list cannot go stale.
+
+`task test:dts:broad` compares every input under TypeScript’s `compiler` and
+`conformance` directories. Inputs that Kessel’s parser rejects are counted.
+Every other difference must appear in `tests/baselines/dts_typescript_differences.txt`
+with its category (`diagnostics`, `output`, `kessel-accepts` or `kessel-rejects`).
+A new difference or a recorded one that no longer occurs fails the task. After
+reviewing an intended change, refresh the list with
+`task test:dts:broad -- --update`.
+
+### Release Gate (`task test:release`)
+
+The Rust comparison binaries use the pinned sibling OXC checkout, and the
+JavaScript verifiers use the locked dependencies under `bench/` and
+`npm/kessel/`. The release gate includes both declaration comparisons and
+checks formatting against the pinned real-world files.
+
+```bash
+git clone --no-checkout https://github.com/oxc-project/oxc.git ../oxc
+git -C ../oxc checkout --detach "$(node -p "require('./OXC_ORACLE.json').oxc_git_commit")"
+(cd bench && npm ci)
+(cd npm/kessel && npm ci)
+task bench:oxc:verify
+```
+
+The release gate reads 467 real-world JavaScript files. The fetch task downloads
+individual files from the npm package versions in `tests/baselines/real_world.sources`
+and checks each file against `tests/baselines/real_world.sha256`. It reuses
+verified local files and reports a checksum error if an existing file differs.
+
+```bash
+task test:release        # Fetches any missing real-world fixtures
+```
+
+The release gate builds the reference revision pinned in the Taskfile with the
+same Odin compiler and options as the candidate. It measures both binaries on
+the same host and applies the existing 10% per-file and 5% geometric-mean
+thresholds. Keep the pinned reference revision available in the checkout.
+Use `task test:bench:regression` to compare against the stored timings from the
+original benchmark host.
+
+After npm publishes a release, the release workflow checks the public package
+on all five target platforms and compares each installed binary's SHA-256 with
+the corresponding build artifact. Run `task test:npm:registry -- MAJOR.MINOR.PATCH`
+with the exact version to repeat the install locally. Set `KESSEL_PACKAGE_BINARY`
+to the release library's path to include the digest check. The task uses a fresh
+npm cache, verifies all five native package versions, and parses TSX through the
+CommonJS and ESM entry points on the host's installed binary.
 
 ### Individual Checks
 

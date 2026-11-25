@@ -563,6 +563,7 @@ scope_map_set_first :: #force_inline proc(m: ^ScopeMap, name: string, at: u32) {
 // other diagnostics merge into.
 scope_emit :: #force_inline proc(p: ^Parser, at: u32, message: string) {
 	if p == nil { return }
+	if p.depth_exceeded { return }
 	bump_append(&p.errors, ParseError{start = at, end = at, message = message})
 }
 
@@ -799,7 +800,7 @@ check_catch_param_body_shadow :: proc(p: ^Parser, param: Maybe(Pattern), body: [
 	// Catch body is block-scope: function declarations are always lexical.
 	collect_body_lex_names(body, &body_lex, true)
 	for n in param_names {
-		if off, have := scope_map_get(&body_lex, n); have {
+		if off, have_inner := scope_map_get(&body_lex, n); have_inner {
 			report_error_coded_span(p, .K3037_DuplicateIdentifier, u32(off), u32(off), fmt.tprintf("Catch parameter '%s' cannot be redeclared with let/const in catch block", n))
 		}
 	}
@@ -1490,6 +1491,9 @@ collect_esm_import_entry :: proc(spec: ^ImportSpecifierSpec) -> ESMStaticImportE
 // matching case and emits `{}`. Same fix as print_declaration_ast.
 append_import_spec :: proc(specs: ^[dynamic]^ImportSpecifierSpec, spec: $T, allocator: mem.Allocator) {
 	u := new(ImportSpecifierSpec, allocator)
+	// Out of memory: drop the specifier. The allocation guard has latched
+	// the failure, so the parse reports K2085 and discards the tree.
+	if u == nil { return }
 	u^ = spec^
 	append(specs, u)
 }
@@ -2007,6 +2011,9 @@ parse_ts_import_equals :: proc(p: ^Parser, start: Loc, import_kind: ImportExport
 		eat(p)
 		current_expr := head_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)  // consume `.`
 			if p.cur_type != .Identifier && !is_keyword_usable_as_property_name(p.cur_type) &&
 			   p.cur_type != .Await && p.cur_type != .Yield {
@@ -2506,11 +2513,10 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 	#partial switch v in decl^ {
 	case ^FunctionDeclaration:
 		decl_union^ = v
-		// `declare` on the inner declaration marks it ambient (no body)
-		// but the export itself stays `"value"` per ESTree — only an
-		// explicit `export type X` modifier sets exportKind to "type".
+		if v.declare { export_kind = .Type }
 	case ^VariableDeclaration:
 		decl_union^ = v
+		if v != nil && v.declare { export_kind = .Type }
 		// §Explicit Resource Management - `export using x = ...` and
 		// `export await using x = ...` are SyntaxErrors. Using
 		// declarations must use the named-export form: `export { x }`.
@@ -2519,6 +2525,7 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 		}
 	case ^ClassDeclaration:
 		decl_union^ = v
+		if v != nil && v.declare { export_kind = .Type }
 		// §15.7.1 — named exports require a class name.
 		// `export class {}` is invalid; must use `export default class {}`.
 		if v != nil {
@@ -2542,11 +2549,10 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 		export_kind = .Type
 	case ^TSEnumDeclaration:
 		decl_union^ = v
-		// `declare` doesn't lift the export to `type`; only an explicit
-		// `export type` modifier does.
+		if v.declare { export_kind = .Type }
 	case ^TSModuleDeclaration:
 		decl_union^ = v
-		// Same: `export declare namespace N {}` is a value-kind export.
+		if v.declare { export_kind = .Type }
 	case ^TSImportEqualsDeclaration:  decl_union^ = v
 	case:
 		// After `export` (non-default), only declarations are valid.
@@ -2559,37 +2565,18 @@ wrap_export_named_declaration :: proc(p: ^Parser, decl: ^Statement) -> (decl_uni
 	return decl_union, export_kind, true
 }
 
-// report_export_default_function_tail flags an LHS-tail token that would
-// extend the `export default [async] function() {}` declaration into an
-// expression. Per §16.2.3 the FunctionDeclaration ends at `}`; a SAME-line
-// `(`/`[`/`.`/`` `tag` ``/`=>`/postfix `++`/`--` makes the production fail,
-// while a token on the NEXT line is a fresh statement (ASI applies at the
-// declaration boundary). Only same-line continuations are errors. Test262:
-// language/module-code/parse-err-invoke-anon-{fun,gen}-decl.js.
-report_export_default_function_tail :: proc(p: ^Parser) {
-	if cur_has_newline(p) { return }
-	#partial switch p.cur_type {
-	case .LParen, .LBracket, .Dot, .OptionalChain,
-	     .Template, .TemplateHead, .Arrow,
-	     .PlusPlus, .MinusMinus:
-		report_error_coded(p, .K2040_UnexpectedToken, "Unexpected token after 'export default function' declaration")
-	}
-}
-
-// parse_export_default_function handles `export default [async] function`,
-// the §16.2.3 HoistableDeclaration form. parse_function_declaration(is_expr
-// = true) returns a ^Statement wrapping an ExpressionStatement whose
-// .expression is the FunctionExpression, so unwrap that as the default def.
+// A default function declaration may be anonymous. A named declaration
+// introduces a module binding, unlike a parenthesized function expression.
 parse_export_default_function :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
-	p.in_export_default = true
-	fn_stmt := parse_function_declaration(p, true)
-	p.in_export_default = false
+	fn_stmt := parse_function_declaration(p, .Default_Export)
 	if fn_stmt != nil {
-		if expr_stmt, ok := fn_stmt^.(^ExpressionStatement); ok {
-			def = expr_stmt.expression
+		if fn, ok := fn_stmt^.(^FunctionDeclaration); ok {
+			decl := new_node(p, Declaration)
+			decl^ = fn
+			def = decl
 		}
 	}
-	report_export_default_function_tail(p)
+	// The body closes the declaration. Parse the next statement even on the same line.
 	return
 }
 
@@ -2657,6 +2644,13 @@ report_export_default_expr_restrictions :: proc(p: ^Parser) {
 // (`export default null null;`) is flagged.
 parse_export_default_expr :: proc(p: ^Parser) -> (def: ExportDefaultDef) {
 	report_export_default_expr_restrictions(p)
+	// `export default /re/`: the lexer classifies a `/` after `default` as
+	// division, because `default` can also be a property name
+	// (`x.default / 2`). Here no left operand exists, so it starts a regex.
+	if (p.cur_type == .Div || p.cur_type == .AssignDiv) && p.lexer != nil {
+		relex_as_regex(p.lexer)
+		p.cur_type = p.lexer.cur.kind
+	}
 	expr := parse_assignment_expression(p)
 	if expr != nil {
 		def = expr

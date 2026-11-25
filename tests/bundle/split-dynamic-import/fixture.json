@@ -1,0 +1,21 @@
+{
+  "entries": [
+    "entry.mjs"
+  ],
+  "args": [
+    "--splitting"
+  ],
+  "sourcemap": false,
+  "files": [
+    "entry.mjs",
+    "chunk-page_a.mjs",
+    "chunk-page_b.mjs",
+    "chunk-page_helper.mjs",
+    "chunk-legacy.mjs",
+    "chunk-state.mjs"
+  ],
+  "once": [
+    "console.log('page-helper evaluated')",
+    "console.log('state')"
+  ]
+}

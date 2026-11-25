@@ -1,0 +1,760 @@
+[
+  {
+    "name": "variable declarations",
+    "source": "var a=1,b=2;let c;const d=a+b*c;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "var a = 1,\n  b = 2;\nlet c;\nconst d = a + b * c;\n"
+  },
+  {
+    "name": "declarators without values share a line",
+    "source": "var first,second,third;let alpha=1,beta;",
+    "options": {
+      "printWidth": 20
+    },
+    "parser": "typescript",
+    "expected": "var first,\n  second,\n  third;\nlet alpha = 1,\n  beta;\n"
+  },
+  {
+    "name": "number spellings",
+    "source": "x=[0XAB,1E5,1e+10,1.50,.5,5.,0.0,1_000.10,0b11,0O17,10n,0XFFn,1e-07,1.0e0];",
+    "options": {},
+    "parser": "typescript",
+    "expected": "x = [\n  0xab,\n  1e5,\n  1e10,\n  1.5,\n  0.5,\n  5,\n  0.0,\n  1_000.1,\n  0b11,\n  0o17,\n  10n,\n  0xffn,\n  1e-7,\n  1.0,\n];\n"
+  },
+  {
+    "name": "string quotes",
+    "source": "a='single';b=\"double\";c='it\\'s';d=\"say \\\"hi\\\"\";e='mixed \"\\'';f='\\d\\n';",
+    "options": {},
+    "parser": "typescript",
+    "expected": "a = \"single\";\nb = \"double\";\nc = \"it's\";\nd = 'say \"hi\"';\ne = \"mixed \\\"'\";\nf = \"\\d\\n\";\n"
+  },
+  {
+    "name": "single quote preference",
+    "source": "a='single';b=\"double\";c='it\\'s';d=\"say \\\"hi\\\"\";",
+    "options": {
+      "singleQuote": true
+    },
+    "parser": "typescript",
+    "expected": "a = 'single';\nb = 'double';\nc = \"it's\";\nd = 'say \"hi\"';\n"
+  },
+  {
+    "name": "directives",
+    "source": "'use strict';\n\"use asm\"\nfunction f(){'use strict';return 1}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "\"use strict\";\n\"use asm\";\nfunction f() {\n  \"use strict\";\n  return 1;\n}\n"
+  },
+  {
+    "name": "string statement is not a directive",
+    "source": "foo();'not a directive';",
+    "options": {},
+    "parser": "typescript",
+    "expected": "foo();\n(\"not a directive\");\n"
+  },
+  {
+    "name": "function declaration",
+    "source": "function add(first,second){return first+second}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function add(first, second) {\n  return first + second;\n}\n"
+  },
+  {
+    "name": "async and generator functions",
+    "source": "async function load(url){await fetch(url)}\nfunction*numbers(){yield 1;yield*others()}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "async function load(url) {\n  await fetch(url);\n}\nfunction* numbers() {\n  yield 1;\n  yield* others();\n}\n"
+  },
+  {
+    "name": "long parameter list",
+    "source": "function configure(firstOption,secondOption,thirdOption,...rest){return rest}",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "function configure(\n  firstOption,\n  secondOption,\n  thirdOption,\n  ...rest\n) {\n  return rest;\n}\n"
+  },
+  {
+    "name": "default and destructured parameters",
+    "source": "function draw({x,y}={},[first,second]=[],scale=1){return x*scale}",
+    "options": {
+      "printWidth": 44
+    },
+    "parser": "typescript",
+    "expected": "function draw(\n  { x, y } = {},\n  [first, second] = [],\n  scale = 1,\n) {\n  return x * scale;\n}\n"
+  },
+  {
+    "name": "lone destructured parameter hugs",
+    "source": "function render({title,subtitle,children,footer}){return title}",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "function render({\n  title,\n  subtitle,\n  children,\n  footer,\n}) {\n  return title;\n}\n"
+  },
+  {
+    "name": "if else chain",
+    "source": "if(a&&b||c){x()}else if(d){y()}else{z()}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "if ((a && b) || c) {\n  x();\n} else if (d) {\n  y();\n} else {\n  z();\n}\n"
+  },
+  {
+    "name": "if without braces",
+    "source": "if(ready)start();else wait();",
+    "options": {},
+    "parser": "typescript",
+    "expected": "if (ready) start();\nelse wait();\n"
+  },
+  {
+    "name": "long condition breaks inside the parentheses",
+    "source": "if(firstCondition&&secondCondition||thirdCondition&&fourthCondition){run()}",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "if (\n  (firstCondition && secondCondition) ||\n  (thirdCondition && fourthCondition)\n) {\n  run();\n}\n"
+  },
+  {
+    "name": "empty blocks",
+    "source": "if(a){}else{}\nfor(;;){}\nwhile(x){}\ntry{}catch{}finally{}\nfunction noop(){}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "if (a) {\n} else {\n}\nfor (;;) {}\nwhile (x) {}\ntry {\n} catch {\n} finally {\n}\nfunction noop() {}\n"
+  },
+  {
+    "name": "for loops",
+    "source": "for(let i=0,n=list.length;i<n;i++){visit(list[i])}\nfor(;;)tick();\nfor(const key in object)use(key);\nfor(const item of items){use(item)}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "for (let i = 0, n = list.length; i < n; i++) {\n  visit(list[i]);\n}\nfor (;;) tick();\nfor (const key in object) use(key);\nfor (const item of items) {\n  use(item);\n}\n"
+  },
+  {
+    "name": "long for head",
+    "source": "for(let index=startingIndex;index<collection.length;index+=stepSize){visit(index)}",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "for (\n  let index = startingIndex;\n  index < collection.length;\n  index += stepSize\n) {\n  visit(index);\n}\n"
+  },
+  {
+    "name": "while and do while",
+    "source": "while(queue.length>0)process(queue.shift());\ndo{step()}while(!done);\ndo step();while(more)",
+    "options": {},
+    "parser": "typescript",
+    "expected": "while (queue.length > 0) process(queue.shift());\ndo {\n  step();\n} while (!done);\ndo step();\nwhile (more);\n"
+  },
+  {
+    "name": "switch",
+    "source": "switch(kind){case 'a':case 'b':first();break;\n\ncase 'c':{second();break}default:third()}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "switch (kind) {\n  case \"a\":\n  case \"b\":\n    first();\n    break;\n\n  case \"c\": {\n    second();\n    break;\n  }\n  default:\n    third();\n}\n"
+  },
+  {
+    "name": "try catch finally",
+    "source": "try{risky()}catch(error){recover(error)}finally{cleanup()}\ntry{risky()}catch{ignore()}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "try {\n  risky();\n} catch (error) {\n  recover(error);\n} finally {\n  cleanup();\n}\ntry {\n  risky();\n} catch {\n  ignore();\n}\n"
+  },
+  {
+    "name": "labels break and continue",
+    "source": "outer:for(const row of rows){for(const cell of row){if(!cell)continue outer;if(cell.last)break outer}}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "outer: for (const row of rows) {\n  for (const cell of row) {\n    if (!cell) continue outer;\n    if (cell.last) break outer;\n  }\n}\n"
+  },
+  {
+    "name": "return and throw",
+    "source": "function f(a,b){if(!a)throw new Error('missing');return a.value+b.value}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f(a, b) {\n  if (!a) throw new Error(\"missing\");\n  return a.value + b.value;\n}\n"
+  },
+  {
+    "name": "long return wraps in parentheses",
+    "source": "function total(){return firstOperandOfSum+secondOperandOfSum+thirdOperandOfSum}",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "function total() {\n  return (\n    firstOperandOfSum +\n    secondOperandOfSum +\n    thirdOperandOfSum\n  );\n}\n"
+  },
+  {
+    "name": "blank lines between statements",
+    "source": "function f(){\nfirst();\n\n\n\nsecond();\nthird()\n\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  first();\n\n  second();\n  third();\n}\n"
+  },
+  {
+    "name": "empty statements disappear",
+    "source": "function f(){;first();;second();}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  first();\n  second();\n}\n"
+  },
+  {
+    "name": "call arguments",
+    "source": "configure(firstArgument,secondArgument,thirdArgument,fourthArgument);",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "configure(\n  firstArgument,\n  secondArgument,\n  thirdArgument,\n  fourthArgument,\n);\n"
+  },
+  {
+    "name": "last argument callback hugs",
+    "source": "items.forEach(function(item){process(item)});\nitems.map(item=>item.value);\nsetTimeout(()=>{done()},500);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "items.forEach(function (item) {\n  process(item);\n});\nitems.map((item) => item.value);\nsetTimeout(() => {\n  done();\n}, 500);\n"
+  },
+  {
+    "name": "first argument callback hugs",
+    "source": "setTimeout(function(){tick();tock()},500);",
+    "options": {
+      "printWidth": 30
+    },
+    "parser": "typescript",
+    "expected": "setTimeout(function () {\n  tick();\n  tock();\n}, 500);\n"
+  },
+  {
+    "name": "last argument object hugs",
+    "source": "request({method:'POST',url:endpoint,body:payload,headers:defaults});",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "request({\n  method: \"POST\",\n  url: endpoint,\n  body: payload,\n  headers: defaults,\n});\n"
+  },
+  {
+    "name": "function composition breaks every argument",
+    "source": "compose(a=>a+1,b=>b*2);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "compose(\n  (a) => a + 1,\n  (b) => b * 2,\n);\n"
+  },
+  {
+    "name": "member chain",
+    "source": "promise.then(result=>console.log(result)).catch(error=>{handle(error)}).finally(()=>done());",
+    "options": {},
+    "parser": "typescript",
+    "expected": "promise\n  .then((result) => console.log(result))\n  .catch((error) => {\n    handle(error);\n  })\n  .finally(() => done());\n"
+  },
+  {
+    "name": "short member chain stays on one line",
+    "source": "this.items.filter(Boolean).map(String);\nz.object({name:z.string()});",
+    "options": {},
+    "parser": "typescript",
+    "expected": "this.items.filter(Boolean).map(String);\nz.object({ name: z.string() });\n"
+  },
+  {
+    "name": "computed access in a chain",
+    "source": "const first=wrapper.find('SomeSelector').children()[0].props().value;",
+    "options": {
+      "printWidth": 50
+    },
+    "parser": "typescript",
+    "expected": "const first = wrapper\n  .find(\"SomeSelector\")\n  .children()[0]\n  .props().value;\n"
+  },
+  {
+    "name": "optional chaining",
+    "source": "const name=user?.profile?.name??fallback;\ncallback?.(value);\nconst item=(list?.[0]).name;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const name = user?.profile?.name ?? fallback;\ncallback?.(value);\nconst item = (list?.[0]).name;\n"
+  },
+  {
+    "name": "new expressions",
+    "source": "const a=new Foo;const b=new Foo(1,2);const c=new(foo())();const d=new(foo.bar());const e=new foo.Bar();",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const a = new Foo();\nconst b = new Foo(1, 2);\nconst c = new (foo())();\nconst d = new (foo.bar())();\nconst e = new foo.Bar();\n"
+  },
+  {
+    "name": "binary operators",
+    "source": "const area=width*height+padding*2-border/2;\nconst flags=(a&b)|(c<<2);\nconst power=(-x)**2;const mixed=a%b*c;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const area = width * height + padding * 2 - border / 2;\nconst flags = (a & b) | (c << 2);\nconst power = (-x) ** 2;\nconst mixed = (a % b) * c;\n"
+  },
+  {
+    "name": "long binary chain",
+    "source": "const total=firstOperandOfSum+secondOperandOfSum+thirdOperandOfSum+fourthOperandOfSum;",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const total =\n  firstOperandOfSum +\n  secondOperandOfSum +\n  thirdOperandOfSum +\n  fourthOperandOfSum;\n"
+  },
+  {
+    "name": "logical operators",
+    "source": "const ok=first&&second||third;const value=input??fallback;const inlined=enabled&&{mode:'on',level:3};",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const ok = (first && second) || third;\nconst value = input ?? fallback;\nconst inlined = enabled && {\n  mode: \"on\",\n  level: 3,\n};\n"
+  },
+  {
+    "name": "comparison in a condition",
+    "source": "while(index<length&&items[index]!==target)index++;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "while (index < length && items[index] !== target) index++;\n"
+  },
+  {
+    "name": "unary and update",
+    "source": "x=-y;x=+y;x=!y;x=~y;x=typeof y;x=void 0;delete x.y;x=- -y;x=+ +y;x=-(+y);i++;--j;x=!(a&&b);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "x = -y;\nx = +y;\nx = !y;\nx = ~y;\nx = typeof y;\nx = void 0;\ndelete x.y;\nx = -(-y);\nx = +(+y);\nx = -+y;\ni++;\n--j;\nx = !(a && b);\n"
+  },
+  {
+    "name": "conditional expression",
+    "source": "const size=compact?small:large;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const size = compact ? small : large;\n"
+  },
+  {
+    "name": "long conditional breaks",
+    "source": "const label=isPrimaryActionEnabled?primaryActionLabelText:secondaryActionLabelText;",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const label = isPrimaryActionEnabled\n  ? primaryActionLabelText\n  : secondaryActionLabelText;\n"
+  },
+  {
+    "name": "conditional chain",
+    "source": "const kind=value===null?'null':Array.isArray(value)?'array':typeof value==='object'?'object':'scalar';",
+    "options": {
+      "printWidth": 50
+    },
+    "parser": "typescript",
+    "expected": "const kind =\n  value === null\n    ? \"null\"\n    : Array.isArray(value)\n      ? \"array\"\n      : typeof value === \"object\"\n        ? \"object\"\n        : \"scalar\";\n"
+  },
+  {
+    "name": "assignment layouts",
+    "source": "target.property=source.property;\nresult=condition&&otherCondition||fallbackCondition&&anotherFallback;\na=b=c=d;",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "target.property = source.property;\nresult =\n  (condition && otherCondition) ||\n  (fallbackCondition &&\n    anotherFallback);\na = b = c = d;\n"
+  },
+  {
+    "name": "assignment breaks after the operator",
+    "source": "someObject.someLongPropertyName=anotherObject.anotherLongPropertyName.value;",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "someObject.someLongPropertyName =\n  anotherObject.anotherLongPropertyName.value;\n"
+  },
+  {
+    "name": "assignments in expressions",
+    "source": "while((match=pattern.exec(text))){use(match)}\nconst value=(cache[key]=compute(key));",
+    "options": {},
+    "parser": "typescript",
+    "expected": "while ((match = pattern.exec(text))) {\n  use(match);\n}\nconst value = (cache[key] = compute(key));\n"
+  },
+  {
+    "name": "sequence expressions",
+    "source": "for(i=0,j=10;i<j;i++,j--){swap(i,j)}\na=1,b=2;\nconst last=(first(),second());",
+    "options": {},
+    "parser": "typescript",
+    "expected": "for (i = 0, j = 10; i < j; i++, j--) {\n  swap(i, j);\n}\n((a = 1), (b = 2));\nconst last = (first(), second());\n"
+  },
+  {
+    "name": "arrow functions",
+    "source": "const identity=x=>x;const add=(a,b)=>a+b;const make=()=>({});const run=async()=>{await work()};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const identity = (x) => x;\nconst add = (a, b) => a + b;\nconst make = () => ({});\nconst run = async () => {\n  await work();\n};\n"
+  },
+  {
+    "name": "arrow chain",
+    "source": "const curried=first=>second=>third=>first+second+third;",
+    "options": {
+      "printWidth": 30
+    },
+    "parser": "typescript",
+    "expected": "const curried =\n  (first) =>\n  (second) =>\n  (third) =>\n    first + second + third;\n"
+  },
+  {
+    "name": "arrow returning a conditional",
+    "source": "const pick=flag=>flag?firstAlternativeValue:secondAlternativeValue;",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const pick = (flag) =>\n  flag\n    ? firstAlternativeValue\n    : secondAlternativeValue;\n"
+  },
+  {
+    "name": "function expressions",
+    "source": "const f=function(){return 1};const g=function named(a){return a};(function(){setup()})();(()=>{setup()})();",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const f = function () {\n  return 1;\n};\nconst g = function named(a) {\n  return a;\n};\n(function () {\n  setup();\n})();\n(() => {\n  setup();\n})();\n"
+  },
+  {
+    "name": "objects",
+    "source": "const point={x:1,y:2};const empty={};const nested={a:{b:{c:1}},list:[1,2,3],'quoted-key':true,'plain':false};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const point = { x: 1, y: 2 };\nconst empty = {};\nconst nested = {\n  a: { b: { c: 1 } },\n  list: [1, 2, 3],\n  \"quoted-key\": true,\n  plain: false,\n};\n"
+  },
+  {
+    "name": "object written across lines stays expanded",
+    "source": "const point={\nx:1,y:2};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const point = {\n  x: 1,\n  y: 2,\n};\n"
+  },
+  {
+    "name": "object methods and accessors",
+    "source": "const api={get value(){return 1},set value(v){this.v=v},async load(){},*items(){},[computed]:1,shorthand,...rest};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const api = {\n  get value() {\n    return 1;\n  },\n  set value(v) {\n    this.v = v;\n  },\n  async load() {},\n  *items() {},\n  [computed]: 1,\n  shorthand,\n  ...rest,\n};\n"
+  },
+  {
+    "name": "blank lines between properties",
+    "source": "const settings={\nfirst:1,\n\n\nsecond:2,\nthird:3};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const settings = {\n  first: 1,\n\n  second: 2,\n  third: 3,\n};\n"
+  },
+  {
+    "name": "object property layouts",
+    "source": "const config={shortKey:someFunctionCall(argumentOne,argumentTwo),anotherLongPropertyName:anotherValue+yetAnotherValue};",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const config = {\n  shortKey: someFunctionCall(\n    argumentOne,\n    argumentTwo,\n  ),\n  anotherLongPropertyName:\n    anotherValue + yetAnotherValue,\n};\n"
+  },
+  {
+    "name": "arrays",
+    "source": "const list=[1,2,3];const empty=[];const holes=[,a,,b,];const words=['alpha','beta','gamma','delta','epsilon'];",
+    "options": {
+      "printWidth": 30
+    },
+    "parser": "typescript",
+    "expected": "const list = [1, 2, 3];\nconst empty = [];\nconst holes = [, a, , b];\nconst words = [\n  \"alpha\",\n  \"beta\",\n  \"gamma\",\n  \"delta\",\n  \"epsilon\",\n];\n"
+  },
+  {
+    "name": "number arrays fill",
+    "source": "const primes=[2,3,5,7,11,13,17,19,23,29,31,37,41,43,47,53,59,61,67,71,73,79,83,89,97];",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const primes = [\n  2, 3, 5, 7, 11, 13, 17, 19, 23, 29,\n  31, 37, 41, 43, 47, 53, 59, 61, 67,\n  71, 73, 79, 83, 89, 97,\n];\n"
+  },
+  {
+    "name": "matrix rows stay on their own lines",
+    "source": "const identity=[[1,0,0],[0,1,0],[0,0,1]];const points=[{x:1,y:2},{x:3,y:4}];",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const identity = [\n  [1, 0, 0],\n  [0, 1, 0],\n  [0, 0, 1],\n];\nconst points = [\n  { x: 1, y: 2 },\n  { x: 3, y: 4 },\n];\n"
+  },
+  {
+    "name": "destructuring declarations",
+    "source": "const {a,b:{c},...others}=source;const [first,,third=3,...tail]=list;const {one,two:renamed,three=3}=options;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const {\n  a,\n  b: { c },\n  ...others\n} = source;\nconst [first, , third = 3, ...tail] = list;\nconst { one, two: renamed, three = 3 } = options;\n"
+  },
+  {
+    "name": "template literals",
+    "source": "const greeting=`Hello, ${user.name}!`;const multi=`line one\nline ${two}\n`;const tagged=tag`value ${1+2}`;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const greeting = `Hello, ${user.name}!`;\nconst multi = `line one\nline ${two}\n`;\nconst tagged = tag`value ${1 + 2}`;\n"
+  },
+  {
+    "name": "template expressions never break",
+    "source": "const message=`${firstPartOfTheMessage} and ${secondPartOfTheMessage} and ${thirdPart}`;",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const message = `${firstPartOfTheMessage} and ${secondPartOfTheMessage} and ${thirdPart}`;\n"
+  },
+  {
+    "name": "regular expressions",
+    "source": "const pattern=/ab+c/gi;const flags=/x/yusmig;const test=/[/]\\//.test(value);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const pattern = /ab+c/gi;\nconst flags = /x/gimsuy;\nconst test = /[/]\\//.test(value);\n"
+  },
+  {
+    "name": "await and yield",
+    "source": "async function f(){const data=await (await fetch(url)).json();await Promise.all([first(),second()])}\nfunction*g(){const x=yield;yield x+1}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "async function f() {\n  const data = await (await fetch(url)).json();\n  await Promise.all([first(), second()]);\n}\nfunction* g() {\n  const x = yield;\n  yield x + 1;\n}\n"
+  },
+  {
+    "name": "dynamic import and meta",
+    "source": "const module=await import('./module.js');const url=import.meta.url;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const module = await import(\"./module.js\");\nconst url = import.meta.url;\n"
+  },
+  {
+    "name": "require and define stay on one line",
+    "source": "const fs=require('node:fs');define(['dependency-one','dependency-two'],function(one,two){return one+two});",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "const fs = require(\"node:fs\");\ndefine([\n  \"dependency-one\",\n  \"dependency-two\",\n], function (one, two) {\n  return one + two;\n});\n"
+  },
+  {
+    "name": "test call keeps its description on the line",
+    "source": "it('does something rather long that would otherwise wrap',async()=>{await run()});",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "it(\"does something rather long that would otherwise wrap\", async () => {\n  await run();\n});\n"
+  },
+  {
+    "name": "export declarations",
+    "source": "export function helper(a){return a}\nexport const answer=compute(6,7);\nexport default function(){return 1}\nexport default async function named(){}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "export function helper(a) {\n  return a;\n}\nexport const answer = compute(6, 7);\nexport default function () {\n  return 1;\n}\nexport default async function named() {}\n"
+  },
+  {
+    "name": "export default expression",
+    "source": "export default compute(firstArgument,secondArgument);",
+    "options": {
+      "printWidth": 30
+    },
+    "parser": "typescript",
+    "expected": "export default compute(\n  firstArgument,\n  secondArgument,\n);\n"
+  },
+  {
+    "name": "parentheses are normalised",
+    "source": "const a=((1+2))*3;const b=(a,b);const c=(x=>x)(1);const d=(a?b:c)?d:e;const e=typeof(x);const f=(a&&b)||c;const g=a&&(b||c);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const a = (1 + 2) * 3;\nconst b = (a, b);\nconst c = ((x) => x)(1);\nconst d = (a ? b : c) ? d : e;\nconst e = typeof x;\nconst f = (a && b) || c;\nconst g = a && (b || c);\n"
+  },
+  {
+    "name": "object at statement start",
+    "source": "({}).toString.call(value);({a:1});(function(){})();",
+    "options": {},
+    "parser": "typescript",
+    "expected": "({}).toString.call(value);\n({ a: 1 });\n(function () {})();\n"
+  },
+  {
+    "name": "classes",
+    "source": "class Point{constructor(x,y){this.x=x;this.y=y}get length(){return Math.hypot(this.x,this.y)}set length(v){}static origin(){return new Point(0,0)}async load(){}*walk(){}#secret=1;static count=0;static{Point.count=1}}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "class Point {\n  constructor(x, y) {\n    this.x = x;\n    this.y = y;\n  }\n  get length() {\n    return Math.hypot(this.x, this.y);\n  }\n  set length(v) {}\n  static origin() {\n    return new Point(0, 0);\n  }\n  async load() {}\n  *walk() {}\n  #secret = 1;\n  static count = 0;\n  static {\n    Point.count = 1;\n  }\n}\n"
+  },
+  {
+    "name": "class heritage",
+    "source": "class Circle extends Shape{}\nclass Cat extends animals.Mammal{speak(){return 'meow'}}\nconst Mixed=class extends mixin(Base,Other){};",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "class Circle extends Shape {}\nclass Cat extends animals.Mammal {\n  speak() {\n    return \"meow\";\n  }\n}\nconst Mixed = class extends mixin(\n  Base,\n  Other,\n) {};\n"
+  },
+  {
+    "name": "class members keep blank lines",
+    "source": "class A{\nfirst=1;\n\n\nsecond(){}\nthird(){}\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "class A {\n  first = 1;\n\n  second() {}\n  third() {}\n}\n"
+  },
+  {
+    "name": "exported classes",
+    "source": "export class Service{start(){}}\nexport default class{stop(){}}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "export class Service {\n  start() {}\n}\nexport default class {\n  stop() {}\n}\n"
+  },
+  {
+    "name": "destructuring assignment",
+    "source": "({a,b}=source);[first,second]=pair;({a:{b},...rest}=nested);[x=1,[y],...others]=list;({key:this.value,other=2}=options);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "({ a, b } = source);\n[first, second] = pair;\n({\n  a: { b },\n  ...rest\n} = nested);\n[x = 1, [y], ...others] = list;\n({ key: this.value, other = 2 } = options);\n"
+  },
+  {
+    "name": "destructuring in loop heads",
+    "source": "for([key,value]of entries){use(key,value)}\nfor({name}of items)use(name);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "for ([key, value] of entries) {\n  use(key, value);\n}\nfor ({ name } of items) use(name);\n"
+  },
+  {
+    "name": "comments between statements",
+    "source": "function f(){\n// leading line\nfirst();  // trailing line\n\n/* leading block */\nsecond();\n   /**\n      * Documented.\n   * @returns {number}\n      */\nfunction inner(){return 1}\n// last in block\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  // leading line\n  first(); // trailing line\n\n  /* leading block */\n  second();\n  /**\n   * Documented.\n   * @returns {number}\n   */\n  function inner() {\n    return 1;\n  }\n  // last in block\n}\n"
+  },
+  {
+    "name": "comment alone in a block",
+    "source": "function f(){\n// nothing here yet\n}\nif(a){/* empty */}\nclass Empty{\n// no members\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  // nothing here yet\n}\nif (a) {\n  /* empty */\n}\nclass Empty {\n  // no members\n}\n"
+  },
+  {
+    "name": "comments share a line",
+    "source": "function f(){\n/* a */ // b\nfirst();\n/* c */ second();\nthird(); /* d */ // e\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  /* a */ // b\n  first();\n  /* c */ second();\n  third(); /* d */ // e\n}\n"
+  },
+  {
+    "name": "blank lines around comments",
+    "source": "function f(){\nfirst();\n\n\n// spaced\n\n\nsecond();\n// tight\nthird();\n\n// trailing with a gap\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  first();\n\n  // spaced\n\n  second();\n  // tight\n  third();\n\n  // trailing with a gap\n}\n"
+  },
+  {
+    "name": "comments between class members",
+    "source": "class A{\n// first field\nvalue=1;\n\n/** Runs. */\nrun(){} // done\n// last\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "class A {\n  // first field\n  value = 1;\n\n  /** Runs. */\n  run() {} // done\n  // last\n}\n"
+  },
+  {
+    "name": "comments between properties",
+    "source": "const options={\n// the mode\nmode:'fast', // default\n/* retries */\nretries:3,\n// last\n};\nconst blank={\n// to do\n};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const options = {\n  // the mode\n  mode: \"fast\", // default\n  /* retries */\n  retries: 3,\n  // last\n};\nconst blank = {\n  // to do\n};\n"
+  },
+  {
+    "name": "trailing comment expands an object",
+    "source": "call({first:1, // why\nsecond:2});",
+    "options": {},
+    "parser": "typescript",
+    "expected": "call({\n  first: 1, // why\n  second: 2,\n});\n"
+  },
+  {
+    "name": "comments between switch cases",
+    "source": "switch(kind){\n// the common case\ncase 1:\n// inside the case\nfirst();\nbreak;\n// before default\ndefault:\nsecond(); // after\n// end of switch\n}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "switch (kind) {\n  // the common case\n  case 1:\n    // inside the case\n    first();\n    break;\n  // before default\n  default:\n    second(); // after\n  // end of switch\n}\n"
+  },
+  {
+    "name": "comments in nested blocks",
+    "source": "if(a){\n// one\nb();\n}else{\n// two\nc();\n}\ntry{\n// three\nd()}catch(e){\n// four\n}finally{\n// five\ne()}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "if (a) {\n  // one\n  b();\n} else {\n  // two\n  c();\n}\ntry {\n  // three\n  d();\n} catch (e) {\n  // four\n} finally {\n  // five\n  e();\n}\n"
+  },
+  {
+    "name": "comments in callbacks",
+    "source": "items.forEach(function(item){\n// each item\nuse(item); // used\n});\nconst f=()=>{\n// body\nreturn 1};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "items.forEach(function (item) {\n  // each item\n  use(item); // used\n});\nconst f = () => {\n  // body\n  return 1;\n};\n"
+  },
+  {
+    "name": "comments between items on one line",
+    "source": "function f(){first(); /* between */ second(); third() /* after */\n}\nconst o={a:1 /* one */, b:2, /* two */ c:3};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  first();\n  /* between */ second();\n  third(); /* after */\n}\nconst o = { a: 1 /* one */, b: 2, /* two */ c: 3 };\n"
+  },
+  {
+    "name": "annotation comments",
+    "source": "var A=/*#__PURE__*/function(){return 1}();const b=/* @__PURE__ */new Map();state=2 /* Ready */;x.y=/*#__PURE__*/make(1);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "var A = /*#__PURE__*/ (function () {\n  return 1;\n})();\nconst b = /* @__PURE__ */ new Map();\nstate = 2 /* Ready */;\nx.y = /*#__PURE__*/ make(1);\n"
+  },
+  {
+    "name": "comments around statements",
+    "source": "// first\nfirst();   // beside\n\n\n/* block */\nsecond();\n   /**\n    * Doc.\n      */\nfunction third(){}\n// last",
+    "options": {},
+    "parser": "typescript",
+    "expected": "// first\nfirst(); // beside\n\n/* block */\nsecond();\n/**\n * Doc.\n */\nfunction third() {}\n// last\n"
+  },
+  {
+    "name": "comment after a declaration value",
+    "source": "function f(){var c=3 /* three */;var d=1,e=g() /* e */;let o={a:1} /* o */\nreturn c}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "function f() {\n  var c = 3; /* three */\n  var d = 1,\n    e = g(); /* e */\n  let o = { a: 1 }; /* o */\n  return c;\n}\n"
+  },
+  {
+    "name": "comment on a case head",
+    "source": "switch(kind){case 1: // first\nfirst();break;\ndefault: // rest\nrest()}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "switch (kind) {\n  case 1: // first\n    first();\n    break;\n  default: // rest\n    rest();\n}\n"
+  },
+  {
+    "name": "comments between arguments",
+    "source": "visit(node,80 /* Identifier */);load(/*! ./module */ './module.js');remove(child,parent,true /* skip keyed */);x=make(/* first */ a,b /* second */,c);new Thing(1 /* one */);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "visit(node, 80 /* Identifier */);\nload(/*! ./module */ \"./module.js\");\nremove(child, parent, true /* skip keyed */);\nx = make(/* first */ a, b /* second */, c);\nnew Thing(1 /* one */);\n"
+  },
+  {
+    "name": "comments between elements",
+    "source": "const table=[0,/* unused */ 0,1 /* one */];const names=['a' /* first */,'b'];const o={value: /* @__PURE__ */ make()};",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const table = [0, /* unused */ 0, 1 /* one */];\nconst names = [\"a\" /* first */, \"b\"];\nconst o = { value: /* @__PURE__ */ make() };\n"
+  },
+  {
+    "name": "type annotations",
+    "source": "const count:number=1;let name:string,list:Item[];function add(a:number,b?:number):number{return a+b}const pick=(key:string):Entry=>table[key];class Box{get(id:Id):Value{return this.map[id]}}",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const count: number = 1;\nlet name: string, list: Item[];\nfunction add(a: number, b?: number): number {\n  return a + b;\n}\nconst pick = (key: string): Entry => table[key];\nclass Box {\n  get(id: Id): Value {\n    return this.map[id];\n  }\n}\n"
+  },
+  {
+    "name": "casts and assertions",
+    "source": "const a=value as Shape;const b=input satisfies Config;const c=maybe!.field;const d=(x as any).y;const e=(f as Fn)(1);const g=h! as Models.Item[];",
+    "options": {},
+    "parser": "typescript",
+    "expected": "const a = value as Shape;\nconst b = input satisfies Config;\nconst c = maybe!.field;\nconst d = (x as any).y;\nconst e = (f as Fn)(1);\nconst g = h! as Models.Item[];\n"
+  },
+  {
+    "name": "typed callbacks",
+    "source": "items.map((item:Item):string=>item.name);run(function(error:Error,data:Buffer):void{done(error,data)});",
+    "options": {
+      "printWidth": 40
+    },
+    "parser": "typescript",
+    "expected": "items.map(\n  (item: Item): string => item.name,\n);\nrun(function (\n  error: Error,\n  data: Buffer,\n): void {\n  done(error, data);\n});\n"
+  },
+  {
+    "name": "comment before a parenthesised argument",
+    "source": "run(/*a*/ function(){}, /*b*/()=>{}, /*c*/(x+y));pick(first, /*d*/ ( (second) + third), last);",
+    "options": {},
+    "parser": "typescript",
+    "expected": "run(\n  /*a*/ function () {},\n  /*b*/ () => {},\n  /*c*/ x + y,\n);\npick(first, /*d*/ second + third, last);\n"
+  },
+  {
+    "name": "debugger and with labels",
+    "source": "debugger;label:;",
+    "options": {},
+    "parser": "typescript",
+    "expected": "debugger;\nlabel:;\n"
+  }
+]

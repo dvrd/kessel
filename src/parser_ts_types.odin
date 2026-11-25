@@ -1,8 +1,6 @@
 package kessel
 
-import "core:mem"
 import "core:fmt"
-import "core:strings"
 
 // ============================================================================
 // TypeScript Type Parsing (Phase 3)
@@ -93,6 +91,7 @@ parse_ts_return_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann.loc = ann_start
 	ann.type_annotation = inner
 	ann.loc.end = prev_end_offset(p)
+	if child := get_ts_type_loc(inner); child != nil { ann.loc.end = max(ann.loc.end, child.end) }
 	return ann
 }
 
@@ -154,6 +153,7 @@ parse_ts_type_annotation :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
 	ann.loc.end = prev_end_offset(p)
+	if child := get_ts_type_loc(ts_type); child != nil { ann.loc.end = max(ann.loc.end, child.end) }
 	return ann
 }
 
@@ -227,6 +227,7 @@ parse_ts_type_annotation_bare :: proc(p: ^Parser) -> ^TSTypeAnnotation {
 	ann := new_node(p, TSTypeAnnotation)
 	ann.loc = start; ann.type_annotation = ts_type
 	ann.loc.end = prev_end_offset(p)
+	if child := get_ts_type_loc(ts_type); child != nil { ann.loc.end = max(ann.loc.end, child.end) }
 	return ann
 }
 
@@ -348,6 +349,11 @@ looks_like_ts_function_type :: proc(p: ^Parser) -> bool {
 }
 
 parse_ts_type :: proc(p: ^Parser) -> ^TSType {
+	// Conditional types recurse here for the false branch after the
+	// check type's own frames have returned, so this needs its own level.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	check := parse_ts_union_type(p)
 	if check == nil { return nil }
 	// Conditional type: `T extends U ? X : Y`
@@ -433,6 +439,7 @@ parse_ts_union_type :: proc(p: ^Parser) -> ^TSType {
 		u.loc = loc^
 	}
 	u.loc.end = prev_end_offset(p)
+	if last := get_ts_type_loc(types[len(types) - 1]); last != nil { u.loc.end = max(u.loc.end, last.end) }
 	r := new_node(p, TSType); r^ = u; return r
 }
 
@@ -546,8 +553,9 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	node := new_node(p, TSTemplateLiteralType); node.loc = start
 	node.quasis = make([dynamic]TemplateElement, 0, 4, p.allocator)
 	node.types  = make([dynamic]^TSType, 0, 4, p.allocator)
-	head_elem := TemplateElement{loc = loc_from_token(&head), tail = false, raw = head.value}
+	head_elem := TemplateElement{loc = ts_template_quasi_loc(p.lexer.source, loc_from_token(&head), false), tail = false, raw = head.value}
 	if cooked, ok := head.literal.(string); ok { head_elem.cooked = cooked }
+	node.loc.start = head_elem.loc.start
 	bump_append(&node.quasis, head_elem)
 	eat(p) // consume TemplateHead
 	for {
@@ -565,22 +573,23 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		if is_token(p, .RBrace) {
 			l := p.lexer
 			l.offset = int(l.cur.start)
-			l.template_depth += 1  // compensate for the premature decrement
-			l.cur = lex_template_resume(l, l.cur.start, l.cur.flags)
+			// The level was already left by the premature resume, so only
+			// re-scan the continuation text; do not leave a second level.
+			l.cur = lex_template_continue(l, l.cur.start, l.cur.flags)
 			l.lit_write_idx ~= 1
 			l.nxt_valid = false
 			p.cur_type = l.cur.kind
 		}
 		tok := snap_current(p)
 		if tok.type == .TemplateMiddle {
-			mid_elem := TemplateElement{loc = loc_from_token(&tok), tail = false, raw = tok.value}
+			mid_elem := TemplateElement{loc = ts_template_quasi_loc(p.lexer.source, loc_from_token(&tok), false), tail = false, raw = tok.value}
 			if cooked, ok := tok.literal.(string); ok { mid_elem.cooked = cooked }
 			bump_append(&node.quasis, mid_elem)
 			eat(p)
 			continue
 		}
 		if tok.type == .TemplateTail {
-			tail_elem := TemplateElement{loc = loc_from_token(&tok), tail = true, raw = tok.value}
+			tail_elem := TemplateElement{loc = ts_template_quasi_loc(p.lexer.source, loc_from_token(&tok), true), tail = true, raw = tok.value}
 			if cooked, ok := tok.literal.(string); ok { tail_elem.cooked = cooked }
 			bump_append(&node.quasis, tail_elem)
 			eat(p)
@@ -589,9 +598,50 @@ parse_ts_template_literal_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected template middle / tail token in template literal type")
 		break
 	}
-	node.loc.end = prev_end_offset(p) + 1 // include trailing backtick
+	node.loc.end = node.quasis[len(node.quasis) - 1].loc.end
+	// The tail token ends before the closing backtick, so the "end of the last
+	// token" that enclosing nodes close on is one byte short of this type.
+	// Without the correction `type A = \`a${B}\`` (no semicolon), `x as
+	// \`a${B}\`` and a trailing property signature all end inside the template.
+	// parse_template_literal makes the same correction for expressions.
+	if p.prev_token_end < node.loc.end { p.prev_token_end = node.loc.end }
 	r := new_node(p, TSType); r^ = node
-	return parse_ts_postfix(p, r, start)
+	return parse_ts_postfix(p, r, node.loc)
+}
+
+// Wrap a substitution-free template (`\`foo\``) in a TSLiteralType. `content`
+// is the span of the template token, which starts after the opening backtick,
+// so the type and anything built from its start (a union, an array type) would
+// begin one byte late; the literal carries the corrected span. Its single quasi
+// gets the delimiter-inclusive span TypeScript ESTree uses, like the quasis of
+// a TSTemplateLiteralType.
+parse_ts_template_plain_type :: proc(p: ^Parser, lit: ^Expression, content: Loc) -> ^TSType {
+	node := new_node(p, TSLiteralType); node.loc = content; node.literal = lit
+	node.loc.end = prev_end_offset(p)
+	if lit != nil {
+		if template, ok := lit^.(^TemplateLiteral); ok && template != nil {
+			assert(template.loc.start <= content.start)
+			node.loc.start = template.loc.start
+			if len(template.quasis) == 1 {
+				quasi := &template.quasis[0]
+				quasi.loc = ts_template_quasi_loc(p.lexer.source, quasi.loc, true)
+			}
+		}
+	}
+	r := new_node(p, TSType); r^ = node
+	return parse_ts_postfix(p, r, node.loc)
+}
+
+// The lexer gives template fragments content-only spans. TypeScript ESTree
+// includes their surrounding backtick, closing brace and interpolation opener.
+ts_template_quasi_loc :: proc(source: string, content: Loc, tail: bool) -> Loc {
+	result := content
+	if result.start > 0 { result.start -= 1 }
+	end := int(content.end)
+	if tail {
+		if end < len(source) && source[end] == '`' { result.end += 1 }
+	} else if end + 2 <= len(source) && source[end:end + 2] == "${" { result.end += 2 }
+	return result
 }
 
 parse_ts_tuple_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
@@ -730,15 +780,49 @@ parse_ts_tuple_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	return parse_ts_postfix(p, r, start)
 }
 
-parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
-	// TS import type: `import("module").Member<TArgs>`
-	// Grammar (TS 4.6+):
-	//   ImportType: typeof? import ( StringLiteral ImportTypeAttributes? )
-	//                 ( . QualifiedName )? TypeArguments?
-	// Used to reference types from other modules without a top-level
-	// `import` statement - the canonical form in `.d.ts` libraries
-	// (oxc-parser/src-js/index.d.ts: `get program(): import("@oxc-
-	// project/types").Program`).
+// The options object permits one unescaped with/assert key. Its value can be
+// an expression. An object value has the restricted import-attribute grammar.
+parse_ts_import_options :: proc(p: ^Parser) -> ^Expression {
+	obj, expr := new_expr(p, ObjectExpression)
+	obj.loc = cur_loc(p)
+	eat(p) // Opening brace.
+	start := cur_loc(p)
+	if !(cur_value_eq(p, "with") || cur_value_eq(p, "assert")) || cur_has_escape(p) {
+		report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
+	}
+	key, computed, key_ok := parse_property_key(p)
+	if !key_ok || !expect_token(p, .Colon) { return nil }
+	// An import type is erased. Its options expression has no runtime super binding.
+	prior_context := p.ctx
+	defer p.ctx = prior_context
+	p.ctx.no_in = false
+	p.ctx.in_ts_import_options = true
+	value := parse_object_expr(p, ts_attributes = true) if is_token(p, .LBrace) else parse_assignment_expression(p)
+	if value == nil { return nil }
+	obj.properties = make([dynamic]Property, 0, 1, p.allocator)
+	bump_append(&obj.properties, Property{loc = {start.start, prev_end_offset(p)}, key = key, value = value, computed = computed})
+	match_token(p, .Comma)
+	if !expect_token(p, .RBrace) { return nil }
+	obj.loc.end = prev_end_offset(p)
+	return expr
+}
+
+parse_ts_import_attribute :: proc(p: ^Parser) -> ^Property {
+	start := cur_loc(p)
+	#partial switch p.cur_type {
+	case .Dot3: report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
+	case .LBracket: report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
+	case .Number, .BigInt: report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
+	}
+	prop := parse_property(p)
+	if prop != nil && (prop.shorthand || prop.kind != .Init) {
+		report_error_coded_span(p, .K2023_ExpectedKeywordOrPunct, start.start, start.end, "Expected ':' after import attribute key")
+	}
+	return prop
+}
+
+parse_ts_import_type :: proc(p: ^Parser, start: Loc, is_typeof := false) -> ^TSType {
+	import_start := cur_loc(p).start
 	eat(p) // consume `import`
 	if !expect_token(p, .LParen) { return nil }
 	arg_type := parse_ts_type(p)
@@ -749,99 +833,28 @@ parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 			report_error_coded(p, .K2070_RequiredFormOrBinding, "String literal expected in import type")
 		}
 	}
-	// `with { ... }` import-type attributes - stage-3 since TS 5.3.
-	// Eat permissively without strict shape validation; the type
-	// checker handles semantics.
-	if is_token(p, .Comma) {
-		eat(p)
-		// After the comma, `{` must follow (import-type attributes).
-		// `import("foo", )` with trailing comma is a SyntaxError.
-		if is_token(p, .RParen) {
-			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
-		}
-		// Parse import-type options object: `{ with: { key: "value" } }`.
-		// Validate structural constraints that OXC/TSC enforce:
-		//   - The key must be the bare identifier `with` (no escapes,
-		//     not a string literal, not computed).
-		//   - Inner attribute keys must be plain identifiers or string
-		//     literals (no computed properties).
-		//   - No spread elements in the inner object.
+	options: ^Expression
+	if match_token(p, .Comma) {
 		if is_token(p, .LBrace) {
-			eat(p) // consume outer {
-			// Validate the `with` key.
-			if is_token(p, .With) {
-				// Good: bare `with` keyword.
-			} else if is_token(p, .Identifier) && cur_value_eq(p, "with") {
-				// `w\u0069th` — escaped form of `with`.
-				if cur_has_escape(p) {
-					report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
-				}
-			} else if is_token(p, .String) {
-				// `"with"` as string literal key.
-				report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected 'with' in import type options")
-			}
-			eat(p) // consume key (with / identifier / string)
-			if is_token(p, .Colon) { eat(p) } // consume :
-			// Inner value: `{ type: "json" }`. Validate contents.
-			if is_token(p, .LBrace) {
-				eat(p) // consume inner {
-				for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-					if is_token(p, .Dot3) {
-						report_error_coded(p, .K3024_ImportAttributeInvalid, "Spread elements are not allowed in import type options")
-					}
-					if is_token(p, .LBracket) {
-						report_error_coded(p, .K2070_RequiredFormOrBinding, "Import attributes keys must be identifier or string literal")
-					}
-					// Validate the key: must be Identifier, String, or keyword-as-name.
-					// Numeric / BigInt literals as keys are invalid here.
-					if is_token(p, .Number) || is_token(p, .BigInt) {
-						report_error_coded(p, .K3024_ImportAttributeInvalid, "Numeric or bigint literal cannot be an import attribute key")
-					}
-					eat(p) // consume key
-					if !is_token(p, .Colon) && !is_token(p, .RBrace) && !is_token(p, .Comma) {
-						report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected ':' after import attribute key")
-					}
-					if is_token(p, .Colon) {
-						eat(p) // consume :
-						// Skip value tokens until comma or closing brace.
-						inner_depth := 0
-						for !is_token(p, .EOF) {
-							if is_token(p, .LBrace) || is_token(p, .LBracket) { inner_depth += 1 }
-							else if is_token(p, .RBrace) || is_token(p, .RBracket) {
-								if inner_depth == 0 { break }
-								inner_depth -= 1
-							}
-							else if is_token(p, .Comma) && inner_depth == 0 {
-								break
-							}
-							eat(p)
-						}
-					}
-					if is_token(p, .Comma) { eat(p) } // consume comma
-				}
-				if is_token(p, .RBrace) { eat(p) } // consume inner }
-			} else {
-				// Non-object value — skip balanced.
-				depth := 0
-				for !is_token(p, .EOF) {
-					if is_token(p, .LBrace) { depth += 1 }
-					else if is_token(p, .RBrace) {
-						if depth == 0 { break }
-						depth -= 1
-					}
-					eat(p)
-				}
-			}
-			// Trailing comma before outer `}`.
-			match_token(p, .Comma)
-			if is_token(p, .RBrace) { eat(p) } // consume outer }
+			options = parse_ts_import_options(p)
+		} else if is_token(p, .RParen) {
+			report_error_coded(p, .K2023_ExpectedKeywordOrPunct, "Expected '{' after ',' in import type options")
 		}
 	}
 	if !expect_token(p, .RParen) { return nil }
-	it := new_node(p, TSImportType)
+	it: ^TSImportType
+	if options != nil {
+		with_options := new_node(p, TSImportTypeWithOptions)
+		with_options.options = options
+		it = &with_options.base
+		it.has_options = true
+	} else {
+		it = new_node(p, TSImportType)
+	}
 	it.loc = start
+	it.import_start = import_start
 	it.argument = arg_type
-	it.is_typeof = false
+	it.is_typeof = is_typeof
 	// Optional `.QualifiedName` (one or more `.`-separated identifiers).
 	if is_token(p, .Dot) {
 		eat(p)
@@ -850,12 +863,15 @@ parse_ts_import_type :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		id_node^ = qual_id
 		cur_qual := id_node_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			prop_id := parse_identifier(p)
 			prop_node, prop_node_e := new_expr(p, Identifier)
 			prop_node^ = prop_id
 			mem := new_node(p, MemberExpression)
-			mem.loc = it.loc
+			mem.loc = get_expression_loc(cur_qual)
 			mem.object = cur_qual
 			mem.property = prop_node_e
 			mem.computed = false
@@ -898,14 +914,7 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 	// also in is_keyword_usable_as_property_name's whitelist (so an
 	// `obj.import` member access works in expression position).
 	if is_token(p, .Import) {
-		imp_ts := parse_ts_primary_type(p)
-		if imp_ts != nil {
-			#partial switch v in imp_ts^ {
-			case ^TSImportType:
-				if v != nil { v.is_typeof = true }
-			}
-		}
-		return imp_ts
+		return parse_ts_import_type(p, start, is_typeof = true)
 	}
 	// Allow keyword identifiers (Identifier / kw-as-name / Await / Yield).
 	if is_token(p, .Identifier) || is_keyword_usable_as_property_name(p.cur_type) ||
@@ -915,6 +924,9 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 		eat(p)
 		tq_expr = tq_id_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			// `typeof A.` (trailing dot without property) is a
 			// SyntaxError. Check that an identifier follows.
@@ -923,7 +935,7 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 				break
 			}
 			tq_prop := parse_identifier_name(p)
-			tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = start; tq_mem.object = tq_expr
+			tq_mem, tq_mem_e := new_expr(p, MemberExpression); tq_mem.loc = get_expression_loc(tq_expr); tq_mem.object = tq_expr
 			tq_pid, tq_pid_e := new_expr(p, Identifier); tq_pid.loc = tq_prop.loc; tq_pid.name = tq_prop.name
 			tq_mem.property = tq_pid_e; tq_mem.computed = false; tq_mem.optional = false
 			tq_mem.loc.end = prev_end_offset(p)
@@ -943,6 +955,10 @@ parse_ts_type_query :: proc(p: ^Parser, start: Loc) -> ^TSType {
 }
 
 parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
+	// Type operators (`keyof keyof T`) recurse here directly.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	// `abstract new(...) => T` - TS abstract constructor type. `abstract`
 	// lexes as .Identifier (contextual keyword); we require the next token
@@ -1047,10 +1063,7 @@ parse_ts_primary_type :: proc(p: ^Parser) -> ^TSType {
 		// `cooked` decode and §12.9.6 escape validation match the JS
 		// expression-position template handling exactly.
 		lit := parse_template_literal(p, false)
-		node := new_node(p, TSLiteralType); node.loc = start; node.literal = lit
-		node.loc.end = prev_end_offset(p)
-		r := new_node(p, TSType); r^ = node
-		return parse_ts_postfix(p, r, start)
+		return parse_ts_template_plain_type(p, lit, start)
 	case .TemplateHead:
 		// TS template-literal type with substitutions: `\`a${T}b\``. Each
 		// `${...}` slot holds a TYPE, not an expression - so we can't reuse
@@ -1432,45 +1445,12 @@ parse_ts_identifier_type :: proc(p: ^Parser) -> ^TSType {
 
 parse_ts_postfix :: proc(p: ^Parser, base: ^TSType, start: Loc) -> ^TSType {
 	result := base
-	for is_token(p, .LBracket) {
-		// ASI-style guard: if the `[` is on a new line AND the contents
-		// look like an index signature (`[Ident :` ...), this `[` is not
-		// a postfix on the current type - it's the start of the next
-		// interface / type-literal member. Without this guard, code like
-		//   interface I {
-		//     thisIsNotATag(x: string): void
-		//     [x: number]: I;
-		//   }
-		// has `void` greedily extended to `void[x: number]` (TSIndexedAccessType)
-		// and the index signature is consumed mid-type, then everything
-		// downstream cascades. Closes most of the
-		// taggedTemplateStringsWithTypedTags / indexer2A /
-		// noPropertyAccessFromIndexSignature1 cluster.
-		if cur_has_newline(p) {
-   ensure_nxt(p)
-			nxt_kind := p.lexer.nxt.kind
-			// `T\n[]` — empty brackets on new line = new member, not array postfix.
-			if nxt_kind == .RBracket {
-				break
-			}
-			// `T\n[<T>` — generic on new line = new member start (call/construct sig).
-			if nxt_kind == .LAngle {
-				break
-			}
-			if nxt_kind == .Identifier || nxt_kind == .String || nxt_kind == .Number {
-				snap := lexer_snapshot(p)
-				eat(p) // `[`
-				eat(p) // identifier / string / number
-				after := p.cur_type
-				lexer_restore(p, snap)
-				// `[Ident :` → index signature, not postfix.
-				// `[Ident ]` → computed class/interface member.
-				// `["str" ]` → computed method overload.
-				if after == .Colon || after == .RBracket {
-					break
-				}
-			}
-		}
+	// A line terminator before the opening bracket ends a postfix type. In
+	// a member list the bracket can start a computed property or a method.
+	for is_token(p, .LBracket) && !cur_has_newline(p) {
+		// `T[][]...` and `T[K][K]...` wrap in a loop; walkers recurse
+		// through each wrapper, so each one takes a nesting level.
+		if !parser_depth_charge(p) { return result }
 		if is_next_token(p, .RBracket) {
 			// Array type: `T[]`.
 			eat(p); eat(p)
@@ -1526,6 +1506,9 @@ parse_ts_type_reference :: proc(p: ^Parser) -> ^TSType {
 	id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&cur); id.name = cur.value; eat(p)
 	id_expr := id_e
 	for is_token(p, .Dot) {
+		// Dotted names are built in a loop but walked by recursion,
+		// so each segment takes a nesting level.
+		if !parser_depth_charge(p) { break }
 		eat(p); prop := parse_identifier_name(p)
 		mem := new_node(p, MemberExpression); mem.loc = start; mem.object = id_expr
 		pid, pid_e := new_expr(p, Identifier); pid.loc = prop.loc; pid.name = prop.name
@@ -1775,6 +1758,10 @@ build_ts_type_assertion :: proc(p: ^Parser, start: Loc, type_ann: ^TSType, expr:
 }
 
 parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
+	// `<A><B><C>x` recurses through parse_unary_expr.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	assert(p.cur_type == .LAngle)
 
@@ -1828,7 +1815,6 @@ parse_ts_lt_expression :: proc(p: ^Parser) -> ^Expression {
 	if p.cur_type == .Div || p.cur_type == .AssignDiv {
 		relex_as_regex(p.lexer)
 		p.cur_type = p.lexer.cur.kind
-		ft := p.lexer.cur
 	}
 	expr := parse_unary_expr(p)
 	if expr == nil {
@@ -1856,9 +1842,10 @@ check_ts_ambiguous_jsx_like_arrow :: proc(p: ^Parser, expr: ^Expression) {
 }
 
 // Lexer + parser state snapshot used by parse_ts_lt_expression for its
-// cheap 2-token lookahead. Does NOT cover dynamic arrays (templates,
-// comments) because this trial-parse never touches template strings or
-// emits comments; only scalar lex + parser fields matter.
+// cheap 2-token lookahead. Does NOT cover the template arrays because this
+// trial-parse never touches template strings. Comments are covered by their
+// count: a trial lexes past the snapshot and records the comments it meets,
+// and the real parse records them again after the rewind.
 TrialSnapshot :: struct {
 	// Lexer scalars
 	lex_offset:             int,
@@ -1870,12 +1857,16 @@ TrialSnapshot :: struct {
 	lex_lit_value:      [2]LiteralValue,
 	lex_lit_type:       [2]LiteralType,
 	lex_lit_write_idx:  u8,
-	lex_template_depth:     u8,
-	lex_template_brace_stack: [8]u8,
+	// Complete template interpolation state: the enclosing levels are an
+	// immutable linked list, so copying its head pointer captures them all.
+	lex_template_depth:       u16,
+	lex_template_brace_depth: u32,
+	lex_template_outer:       ^TemplateOuterLevel,
 	// Parser scalars — re-derived from lexer on restore
 	cur_type:       TokenType,
 	prev_token_end: u32,
 	errors_len:     int,
+	comments_len:   int,
 }
 
 lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
@@ -1891,14 +1882,24 @@ lexer_snapshot :: proc(p: ^Parser) -> TrialSnapshot {
 		lex_lit_type            = l.lit_type,
 		lex_lit_write_idx       = l.lit_write_idx,
 		lex_template_depth      = l.template_depth,
-		lex_template_brace_stack = l.template_brace_stack,
+		lex_template_brace_depth = l.template_brace_depth,
+		lex_template_outer      = l.template_outer,
 		cur_type                = p.cur_type,
 		prev_token_end          = p.prev_token_end,
 		errors_len              = len(p.errors),
+		comments_len            = len(l.comments),
 	}
 }
 
 lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
+	// After the nesting limit the lexer stays parked at end of input:
+	// rewinding would let the enclosing frames re-parse the same deep
+	// input once per speculation point. Only the speculative
+	// diagnostics are dropped.
+	if p.depth_exceeded {
+		if len(p.errors) > s.errors_len { resize(&p.errors, s.errors_len) }
+		return
+	}
 	l := p.lexer
 	l.offset                 = s.lex_offset
 	l.had_line_terminator    = s.lex_had_line_terminator
@@ -1910,17 +1911,27 @@ lexer_restore :: proc(p: ^Parser, s: TrialSnapshot) {
 	l.lit_type               = s.lex_lit_type
 	l.lit_write_idx          = s.lex_lit_write_idx
 	l.template_depth         = s.lex_template_depth
-	l.template_brace_stack   = s.lex_template_brace_stack
+	l.template_brace_depth   = s.lex_template_brace_depth
+	l.template_outer         = s.lex_template_outer
+	// A halt outlives the rewind: without this the restored cursor would
+	// resume tokenising input the lexer has already given up on.
+	if l.halted { lexer_halt(l) }
 	p.cur_type               = s.cur_type
 	p.prev_token_end         = s.prev_token_end
 	// Drop any parse errors accumulated during the speculative parse.
 	if len(p.errors) > s.errors_len { resize(&p.errors, s.errors_len) }
+	// The rewound lexer scans these comments a second time.
+	assert(len(l.comments) >= s.comments_len)
+	if len(l.comments) > s.comments_len { resize(&l.comments, s.comments_len) }
 }
 
 // Parse a generic arrow `<T, ...>(params) [: RetType]? => body` after the
 // caller has already confirmed (by 1-token lookahead) that the `<` opens a
 // type parameter list. We're still positioned AT the `<`.
 parse_ts_generic_arrow :: proc(p: ^Parser, start: Loc) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	type_params := parse_ts_type_parameters(p)
 
 	// After the type params we must see `(` for the arrow's parameters.
@@ -2380,75 +2391,24 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	p.ts_disallow_conditional_types = 0
 	defer p.ts_disallow_conditional_types = saved_disallow_ct
 
-	// Detect mapped type: `{ [K in T]: V }` or `{ readonly [K in T]?: V }`.
-	// Use `is_next_identifier_value` for cheap lookahead without speculative parse.
-	is_mapped := false
-	readonly_mod := TSMappedTypeModifier.None
-	// modifier_start: position of the first modifier token (readonly/+/-) before
-	// `[`. Used to set the correct start on index signatures that have a modifier.
-	modifier_start := cur_loc(p).start
-
-	// Check `{ readonly [`  - readonly then bracket, plus `+readonly [` / `-readonly [`.
-	// `.Readonly` is not in the lexer - check by string value.
-	if (p.cur_type == .Plus || p.cur_type == .Minus) {
-		sign := p.cur_type == .Plus ? TSMappedTypeModifier.Plus : TSMappedTypeModifier.Minus
-  ensure_nxt(p)
-		nxt := p.lexer.nxt
-		if nxt.kind == .Identifier {
-			nxt_val := p.lexer.source[nxt.start:nxt.end]
-			if nxt_val == "readonly" {
-				readonly_mod = sign
-				eat(p); eat(p) // consume sign and `readonly`
-			}
+	// Only a mapped type consumes its modifier here. Ordinary members parse
+	// their own readonly token so their flags and spans include the modifier.
+	if is_token(p, .LBracket) && ts_mapped_parameter_ahead(p, p.lexer.cur) {
+		return parse_ts_mapped_type(p, start, .None)
+	}
+	if is_token(p, .Identifier) && cur_value_eq(p, "readonly") && is_next_token(p, .LBracket) {
+		if ts_mapped_parameter_ahead(p, p.lexer.nxt) {
+			eat(p)
+			return parse_ts_mapped_type(p, start, .True)
 		}
 	}
-	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") && is_next_token(p, .LBracket) {
-		readonly_mod = .True; eat(p) // consume `readonly`, now at `[`
-	}
-
-	// Check `{ [K in` pattern. Mapped types REQUIRE the literal `in`
-	// keyword between the type-parameter name and the source type, so a
-	// 2-token-ahead probe is enough to disambiguate from:
-	//   - index signature       `[k : T]: V`
-	//   - computed property key `[Symbol.iterator]?(): R`
-	is_index_sig_after_readonly := false
-	if is_token(p, .LBracket) {
-  ensure_nxt(p)
-		nxt := p.lexer.nxt
-		if nxt.kind == .Identifier || nxt.kind == .Let || nxt.kind == .As {
-			snap := lexer_snapshot(p)
-			eat(p) // `[`
-			eat(p) // identifier
-			after := p.cur_type
-			lexer_restore(p, snap)
-			if after == .In {
-				is_mapped = true
-			} else if after == .Colon {
-				is_index_sig_after_readonly = readonly_mod != .None
-			}
+	if is_token(p, .Plus) || is_token(p, .Minus) {
+		if is_next_identifier_value(p, "readonly") {
+			modifier := TSMappedTypeModifier.Plus if is_token(p, .Plus) else TSMappedTypeModifier.Minus
+			eat(p)
+			eat(p)
+			return parse_ts_mapped_type(p, start, modifier)
 		}
-	}
-
-	// `readonly [id: T]: V` (index signature with readonly modifier) - we
-	// already ate `readonly` above. Hand the rest off to
-	// parse_ts_object_member but with the readonly flag preserved by
-	// faking out a `.Readonly` arm. Easiest path: fall through to the
-	// regular object loop, but seed `members` with this one index
-	// signature parsed inline and reset the modifier so subsequent
-	// members don't inherit it.
-	if is_index_sig_after_readonly {
-		return parse_ts_readonly_index_sig(p, start, modifier_start, readonly_mod)
-	}
-
-	// If we ate readonly but it's not actually mapped, we need to treat
-	// `readonly` as the first property key of a regular object type.
-	// This can't easily be recovered (we consumed readonly), so report error.
-	if readonly_mod != .None && !is_mapped {
-		readonly_mod = .None
-	}
-
-	if is_mapped && is_token(p, .LBracket) {
-		return parse_ts_mapped_or_bracket(p, start, modifier_start, readonly_mod)
 	}
 
 	// Regular object type literal.
@@ -2483,93 +2443,27 @@ parse_ts_type_object :: proc(p: ^Parser) -> ^TSType {
 	r := new_node(p, TSType); r^ = lit; return r
 }
 
-// parse_ts_object_members_rest appends the remaining TSSignature members of an
-// object type literal up to the closing `}`, advancing on a stuck member so the
-// loop is bounded (TigerStyle).
-parse_ts_object_members_rest :: proc(p: ^Parser, members: ^[dynamic]^TSSignature) {
-	for !is_token(p, .RBrace) && !is_token(p, .EOF) {
-		prev_off := int(cur_offset(p))
-		sig := parse_ts_object_member(p); if sig != nil { bump_append(members, sig) }
-		match_token(p, .Semi); match_token(p, .Comma)
-		if int(cur_offset(p)) == prev_off { eat(p) }
+// A bounded lookahead distinguishes `[K in T]` from a computed property or
+// index signature. Its lexer owns no live parser state or comment storage.
+ts_mapped_parameter_ahead :: proc(p: ^Parser, opening: FastToken) -> bool {
+	assert(opening.kind == .LBracket)
+	assert(opening.end <= u32(len(p.lexer.source)))
+	probe := Lexer{
+		source = p.lexer.source, source_bytes = p.lexer.source_bytes,
+		offset = int(opening.end), allocator = p.allocator, is_module_mode = p.lexer.is_module_mode,
 	}
+	probe.lexer_errors.allocator = p.allocator
+	probe.template_stack.allocator = p.allocator
+	name := lex_token(&probe)
+	if name.kind != .Identifier && name.kind != .Let && name.kind != .As { return false }
+	return lex_token(&probe).kind == .In
 }
 
-// parse_ts_readonly_index_sig builds a TSTypeLiteral whose first member is a
-// `readonly [id: T]: V` index signature (readonly already consumed), then parses
-// the remaining object members.
-parse_ts_readonly_index_sig :: proc(p: ^Parser, start: Loc, modifier_start: u32, readonly_mod: TSMappedTypeModifier) -> ^TSType {
-	members := make([dynamic]^TSSignature, 0, 4, p.allocator)
-	lb_start := cur_loc(p)
-	eat(p) // `[`
-	param_start := cur_loc(p)
-	param_name_tok := snap_current(p)
-	eat(p) // identifier
-	colon_start := cur_loc(p)
-	eat(p) // `:`
-	idx_ann := parse_ts_type(p)
-	key_type_end := prev_end_offset(p)
-	expect_token(p, .RBracket)
-	val_ann: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) {
-		val_ann = parse_ts_type_annotation(p)
-	} else {
-		report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-	}
-	param_name_ident := new_node(p, Identifier)
-	param_name_ident.loc = loc_from_token(&param_name_tok)
-	param_name_ident.name = param_name_tok.value
-	key_ann := new_node(p, TSTypeAnnotation)
-	key_ann.loc.start = colon_start.start
-	key_ann.loc.end   = key_type_end
-	key_ann.type_annotation = idx_ann
-	sig_loc_start := modifier_start
-	idx_sig := TSIndexSignature{
-		loc = Loc{start = sig_loc_start, end = lb_start.end},
-		parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
-		type_annotation = val_ann,
-		readonly = readonly_mod == .True,
-	}
-	fp := TSFunctionParam{
-		loc = param_start,
-		pattern = param_name_ident,
-		type_annotation = key_ann,
-	}
-	fp.loc.end = key_type_end
-	bump_append(&idx_sig.parameters, fp)
-	match_token(p, .Semi); match_token(p, .Comma)
-	idx_sig.loc.end = prev_end_offset(p)
-	first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
-	bump_append(&members, first_sig)
-	parse_ts_object_members_rest(p, &members)
-	expect_token(p, .RBrace)
-	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members
-	lit.loc.end = prev_end_offset(p)
-	r := new_node(p, TSType); r^ = lit; return r
-}
-
-// parse_ts_mapped_or_bracket parses the `{ [K ...] ... }` form after a leading `[`
-// has been confirmed: a computed-key property, a `[id: T]: V` index signature, or
-// a true `{ [K in T]: V }` mapped type.
-parse_ts_mapped_or_bracket :: proc(p: ^Parser, start: Loc, modifier_start: u32, readonly_mod: TSMappedTypeModifier) -> ^TSType {
-	lb_start := cur_loc(p)
-	eat(p) // consume `[`
-	// Parse type parameter: `K in T`
+parse_ts_mapped_type :: proc(p: ^Parser, start: Loc, readonly_mod: TSMappedTypeModifier) -> ^TSType {
+	expect_token(p, .LBracket)
 	param_start := cur_loc(p)
 	param_name := parse_identifier(p)
-	// Computed-property name disambiguation: `{ [x]: T }` parses the
-	// identifier `x` here too, but it's a computed key, not a mapped-
-	// type or index-signature parameter. Detect via current `]`. We
-	// already ate `[`; build the rest of a TSPropertySignature inline,
-	// then continue the regular object-member loop for siblings. Closes
-	// ~21 OXC corpus rejects in the "Expected :, got ]" cluster.
-	if is_token(p, .RBracket) {
-		return parse_ts_computed_key_member(p, start, lb_start, param_name, readonly_mod)
-	}
-	if !is_token(p, .In) {
-		return parse_ts_bracket_index_sig(p, start, lb_start, modifier_start, param_start, param_name, readonly_mod)
-	}
-	eat(p) // consume `in`
+	expect_token(p, .In)
 	constraint := parse_ts_type(p)
 	name_type: Maybe(^TSType)
 	if is_token(p, .As) {
@@ -2603,96 +2497,6 @@ parse_ts_mapped_or_bracket :: proc(p: ^Parser, start: Loc, modifier_start: u32, 
 	mt.optional = optional_mod; mt.readonly = readonly_mod
 	mt.loc.end = prev_end_offset(p)
 	r := new_node(p, TSType); r^ = mt; return r
-}
-
-// parse_ts_computed_key_member builds a TSTypeLiteral whose first member is a
-// computed-key `[expr]?: T` property (the `[ident]` disambiguation), then parses
-// the remaining object members.
-parse_ts_computed_key_member :: proc(p: ^Parser, start: Loc, lb_start: Loc, param_name: Identifier, readonly_mod: TSMappedTypeModifier) -> ^TSType {
-	eat(p) // consume `]`
-	key_ident, key_ident_e := new_expr(p, Identifier)
-	key_ident.loc = param_name.loc
-	key_ident.name = param_name.name
-	optional := match_token(p, .Question)
-	prop := TSPropertySignature{
-		loc = Loc{start = lb_start.start},
-		key = key_ident_e,
-		computed = true, optional = optional,
-		readonly = readonly_mod == .True,
-	}
-	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
-	prop.loc.end = prev_end_offset(p)
-	members := make([dynamic]^TSSignature, 0, 4, p.allocator)
-	first_sig := new_node(p, TSSignature); first_sig^ = prop
-	bump_append(&members, first_sig)
-	match_token(p, .Semi); match_token(p, .Comma)
-	parse_ts_object_members_rest(p, &members)
-	expect_token(p, .RBrace)
-	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members
-	lit.loc.end = prev_end_offset(p)
-	r := new_node(p, TSType); r^ = lit; return r
-}
-
-// parse_ts_bracket_index_sig builds a TSTypeLiteral whose first member is a
-// `[ident: T]: V` index signature (the not-a-mapped-type branch), then parses the
-// remaining object members.
-parse_ts_bracket_index_sig :: proc(p: ^Parser, start: Loc, lb_start: Loc, modifier_start: u32, param_start: Loc, param_name: Identifier, readonly_mod: TSMappedTypeModifier) -> ^TSType {
-	// Not a mapped type after all - it's an index signature
-	// `[ident : type]: value`. We've already eaten `[` and the
-	// identifier, plus an optional leading `readonly`. Build an
-	// index signature as the first member, then continue into the
-	// regular object-member loop (which appends siblings).
-	members := make([dynamic]^TSSignature, 0, 4, p.allocator)
-	// key_type_start: position of `:` before the key type annotation.
-	key_type_start := cur_loc(p)  // points to `:`
-	expect_token(p, .Colon)
-	idx_ann := parse_ts_type(p)
-	// Capture end of key type BEFORE eating `]` and parsing value type.
-	key_type_end := prev_end_offset(p)
-	expect_token(p, .RBracket)
-	val_ann: Maybe(^TSTypeAnnotation)
-	if is_token(p, .Colon) {
-		val_ann = parse_ts_type_annotation(p)
-	} else {
-		report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-	}
-	param_name_ident := new_node(p, Identifier)
-	param_name_ident.loc = param_name.loc
-	param_name_ident.name = param_name.name
-	// TSTypeAnnotation for the key: spans [colon, end-of-key-type].
-	key_ann := new_node(p, TSTypeAnnotation)
-	key_ann.loc.start = key_type_start.start
-	key_ann.loc.end   = key_type_end
-	key_ann.type_annotation = idx_ann
-	// Parameter: spans [start-of-name, end-of-key-type].
-	// OXC ends the parameter at the end of the key type annotation,
-	// NOT at the `]` or the value type.
-	// Use modifier_start as the index signature loc start when a
-	// readonly/+/-readonly modifier preceded the `[`; otherwise use lb_start.
-	sig_loc_start := modifier_start if readonly_mod != .None else lb_start.start
-	idx_sig := TSIndexSignature{
-		loc = Loc{start = sig_loc_start, end = lb_start.end},
-		parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
-		type_annotation = val_ann,
-		readonly = readonly_mod == .True,
-	}
-	fp := TSFunctionParam{
-		loc = param_start,
-		pattern = param_name_ident,
-		type_annotation = key_ann,
-	}
-	fp.loc.end = key_type_end
-	bump_append(&idx_sig.parameters, fp)
-	// Consume optional semi/comma BEFORE setting the end span so the
-	// index signature span includes the terminator (matching OXC).
-	match_token(p, .Semi); match_token(p, .Comma)
-	idx_sig.loc.end = prev_end_offset(p)
-	first_sig := new_node(p, TSSignature); first_sig^ = idx_sig
-	bump_append(&members, first_sig)
-	parse_ts_object_members_rest(p, &members)
-	expect_token(p, .RBrace)
-	lit := new_node(p, TSTypeLiteral); lit.loc = start; lit.members = members; lit.loc.end = prev_end_offset(p)
-	r := new_node(p, TSType); r^ = lit; return r
 }
 
 // parse_ts_sig_params parses parameter list for method/call/construct signatures.
@@ -2837,6 +2641,17 @@ set_ts_sig_end :: proc(sig: ^TSSignature, end: u32) {
 	}
 }
 
+// Words such as `get` and `readonly` can also name a property or a generic method.
+ts_member_modifier_ahead :: proc(p: ^Parser) -> bool {
+	ensure_nxt(p)
+	if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 { return false }
+	#partial switch p.lexer.nxt.kind {
+	case .LParen, .LAngle, .Question, .Colon, .Semi, .Comma, .RBrace:
+		return false
+	}
+	return true
+}
+
 // parse_ts_object_member_reject_modifiers consumes any invalid leading
 // class / parameter modifier prefix (static / override / const / default /
 // export / async / abstract / accessor / accessibility) on a TS type member.
@@ -2868,17 +2683,8 @@ parse_ts_object_member_reject_modifiers :: proc(p: ^Parser) {
 				modifier_name = cur_value(p)
 			}
 		}
-		if modifier_name == "" { break }
-  ensure_nxt(p)
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) != 0 { break }
-  ensure_nxt(p)
-		nxt := p.lexer.nxt.kind
-		if nxt == .Colon || nxt == .Question || nxt == .LParen || nxt == .Semi ||
-		   nxt == .Comma || nxt == .RBrace {
-			break
-		}
-		// Differentiate index signature messages
-		is_idx_sig := nxt == .LBracket
+		if modifier_name == "" || !ts_member_modifier_ahead(p) { break }
+		is_idx_sig := p.lexer.nxt.kind == .LBracket
 		if is_idx_sig {
 			report_error_coded(p, .K4032_ModifierMisplaced, fmt.tprintf("'%s' modifier cannot appear on an index signature", modifier_name))
 		} else {
@@ -2956,7 +2762,7 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 		return sig
 	}
  ensure_nxt(p)
-	if is_token(p, .LBracket) && p.lexer.nxt.kind == .Identifier {
+	if is_token(p, .LBracket) && ts_index_parameter_name(p.lexer.nxt.kind) {
 		return parse_ts_index_or_computed_member(p, start, readonly, idx_readonly)
 	}
 
@@ -2968,19 +2774,9 @@ parse_ts_object_member :: proc(p: ^Parser) -> ^TSSignature {
 	// Parse contextual get/set accessor signatures. `get` / `set` are also
 	// valid property names, so only treat them as accessors when another
 	// property key follows on the same member.
-	nxt_allows_accessor := false
- ensure_nxt(p)
-	if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-		#partial switch p.lexer.nxt.kind {
-		case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
-			// `get()`, `get?: T`, `set;` are members named get/set.
-		case:
-			nxt_allows_accessor = true
-		}
-	}
 	if ((is_token(p, .Get) || is_token(p, .Set)) ||
 	    (is_token(p, .Identifier) && (cur_value_eq(p, "get") || cur_value_eq(p, "set")))) &&
-	   nxt_allows_accessor {
+	   ts_member_modifier_ahead(p) {
 		return parse_ts_accessor_signature(p, start)
 	}
 
@@ -3030,27 +2826,11 @@ parse_ts_construct_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
 // when it is a modifier (not a member literally named `readonly`), reporting
 // whether it applies to an index signature.
 parse_ts_member_readonly_modifier :: proc(p: ^Parser) -> (readonly: bool, idx_readonly: bool) {
-	if p.cur_type == .Identifier && cur_value_eq(p, "readonly") {
-		readonly_is_modifier := false
-  ensure_nxt(p)
-		if (p.lexer.nxt.flags & FLAG_NEW_LINE) == 0 {
-			#partial switch p.lexer.nxt.kind {
-			case .LParen, .Question, .Colon, .Semi, .Comma, .RBrace:
-				// `readonly` IS the member name — leave it alone.
-			case:
-				readonly_is_modifier = true
-			}
-		}
-		if readonly_is_modifier {
-   ensure_nxt(p)
-			if p.lexer.nxt.kind == .LBracket {
-				idx_readonly = true   // signal to the index-sig branch below
-			} else {
-				readonly = true
-			}
-			eat(p) // consume `readonly`
-		}
-	}
+	if p.cur_type != .Identifier || !cur_value_eq(p, "readonly") { return }
+	if !ts_member_modifier_ahead(p) { return }
+	idx_readonly = p.lexer.nxt.kind == .LBracket
+	readonly = !idx_readonly
+	eat(p)
 	return
 }
 
@@ -3103,6 +2883,59 @@ parse_ts_method_or_property :: proc(p: ^Parser, start: Loc, readonly: bool) -> ^
 	sig^ = prop; return sig
 }
 
+// Contextual keywords can name an index parameter. Await, yield and enum
+// are reserved tokens in this lookahead.
+ts_index_parameter_name :: #force_inline proc(kind: TokenType) -> bool {
+	if kind == .Await || kind == .Yield || kind == .Enum { return false }
+	return can_be_binding_identifier(kind)
+}
+
+ts_index_parameter_ahead :: proc(p: ^Parser) -> bool {
+	if !ts_index_parameter_name(p.cur_type) { return false }
+	ensure_nxt(p)
+	if p.lexer.nxt.kind == .Colon { return true }
+	if p.lexer.nxt.kind != .Question { return false }
+	saved := lexer_snapshot(p)
+	eat(p)
+	eat(p)
+	result := is_token(p, .Colon)
+	lexer_restore(p, saved)
+	return result
+}
+
+// The opening bracket has been consumed and the current token names the parameter.
+parse_ts_index_signature :: proc(p: ^Parser, start: Loc, readonly, static_, in_class: bool) -> ^TSSignature {
+	assert(ts_index_parameter_name(p.cur_type))
+	token := snap_current(p)
+	name := new_node(p, Identifier)
+	name.loc = loc_from_token(&token)
+	name.name = token.value
+	eat(p)
+	if match_token(p, .Question) {
+		report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
+	}
+	key_type := parse_ts_type_annotation(p)
+	expect_token(p, .RBracket)
+	value_type: Maybe(^TSTypeAnnotation)
+	if is_token(p, .Colon) {
+		value_type = parse_ts_type_annotation(p)
+	} else {
+		report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
+	}
+	if in_class {
+		match_semicolon_or_asi(p)
+	} else {
+		match_token(p, .Semi)
+		match_token(p, .Comma)
+	}
+	parameters := make([dynamic]TSFunctionParam, 1, p.allocator)
+	parameters[0] = {loc = {name.loc.start, key_type.loc.end}, pattern = name, type_annotation = key_type}
+	sig := new_node(p, TSSignature)
+	sig^ = TSIndexSignature{loc = {start.start, prev_end_offset(p)}, parameters = parameters,
+		type_annotation = value_type, readonly = readonly, static_ = static_}
+	return sig
+}
+
 // parse_ts_index_or_computed_member parses an index signature `[k: K]: V`,
 // or — when the `[...]` turns out to be a computed key — a computed method /
 // property signature. The `[` is consumed here; the caller routes via the
@@ -3110,69 +2943,8 @@ parse_ts_method_or_property :: proc(p: ^Parser, start: Loc, readonly: bool) -> ^
 parse_ts_index_or_computed_member :: proc(p: ^Parser, start: Loc, readonly: bool, idx_readonly: bool) -> ^TSSignature {
 	// Check if this is an index signature by peeking for `:` after the identifier.
 	eat(p) // consume `[`.
-	is_index_sig := false
-	if is_token(p, .Identifier) {
-		ensure_nxt(p)
-		if p.lexer.nxt.kind == .Colon {
-			is_index_sig = true
-		} else if p.lexer.nxt.kind == .Question {
-			snap := lexer_snapshot(p)
-			eat(p) // identifier.
-			eat(p) // question mark.
-			is_index_sig = is_token(p, .Colon)
-			lexer_restore(p, snap)
-		}
-	}
-	if is_index_sig {
-		// Confirmed: index signature.
-		param_start := cur_loc(p)
-		param_name_tok := snap_current(p)
-		param_name_ident := new_node(p, Identifier)
-		param_name_ident.loc = loc_from_token(&param_name_tok)
-		param_name_ident.name = param_name_tok.value
-		eat(p) // consume identifier
-		if match_token(p, .Question) {
-			report_error_coded(p, .K4063_OptionalAndInit, "An index signature parameter cannot have a question mark")
-		}
-		colon_start := cur_loc(p)  // position of `:` before key type.
-		expect_token(p, .Colon)
-		idx_ann := parse_ts_type(p)
-		key_type_end := prev_end_offset(p)  // end of key type, before `]`.
-		expect_token(p, .RBracket)
-		val_ann: Maybe(^TSTypeAnnotation)
-		if is_token(p, .Colon) {
-			val_ann = parse_ts_type_annotation(p)
-		} else {
-			report_error_coded(p, .K4055_IndexSignatureForm, "An index signature must have a type annotation")
-		}
-
-		idx_sig := TSIndexSignature{
-			loc = start,
-			parameters = make([dynamic]TSFunctionParam, 0, 1, p.allocator),
-			type_annotation = val_ann,
-			readonly = idx_readonly,
-		}
-		// Build the sole parameter with correct span: ends at key-type end.
-		key_ann := new_node(p, TSTypeAnnotation)
-		key_ann.loc.start = colon_start.start
-		key_ann.loc.end   = key_type_end
-		key_ann.type_annotation = idx_ann
-		fp := TSFunctionParam{
-			loc = param_start,
-			pattern = param_name_ident,
-			type_annotation = key_ann,
-		}
-		fp.loc.end = key_type_end
-		bump_append(&idx_sig.parameters, fp)
-		// Consume optional semi/comma inside the function so the span includes
-		// the terminator (matching OXC). The caller also tries to match them
-		// but match_token is idempotent when the token is already consumed.
-		match_token(p, .Semi); match_token(p, .Comma)
-		idx_sig.loc.end = prev_end_offset(p)
-
-		sig := new_node(p, TSSignature)
-		sig^ = idx_sig
-		return sig
+	if ts_index_parameter_ahead(p) {
+		return parse_ts_index_signature(p, start, readonly = idx_readonly, static_ = false, in_class = false)
 	}
 	// Not an index signature - fall through as computed property.
 	// We already consumed `[`, so set computed = true and parse the rest.
@@ -3197,7 +2969,7 @@ parse_ts_index_or_computed_member :: proc(p: ^Parser, start: Loc, readonly: bool
 
 	// Property signature with computed property.
 	sig := new_node(p, TSSignature)
-	prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly}
+	prop := TSPropertySignature{loc = start, key = key, computed = true, optional = optional, readonly = readonly || idx_readonly}
 	if is_token(p, .Colon) { prop.type_annotation = parse_ts_type_annotation(p) }
 	prop.loc.end = prev_end_offset(p)
 	sig^ = prop; return sig
@@ -3288,7 +3060,7 @@ parse_ts_accessor_signature :: proc(p: ^Parser, start: Loc) -> ^TSSignature {
 
 get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	if t == nil { return nil }
-	#partial switch v in t^ {
+	switch v in t^ {
 	case ^TSKeywordType: return &v.loc
 	case ^TSTypeReference: return &v.loc
 	case ^TSUnionType: return &v.loc
@@ -3306,6 +3078,12 @@ get_ts_type_loc :: proc(t: ^TSType) -> ^Loc {
 	case ^TSInferType: return &v.loc
 	case ^TSTypeQuery: return &v.loc
 	case ^TSTypePredicate: return &v.loc
+	case ^TSConstructorType: return &v.loc
+	case ^TSTemplateLiteralType: return &v.loc
+	case ^TSRestType: return &v.loc
+	case ^TSOptionalType: return &v.loc
+	case ^TSNamedTupleMember: return &v.loc
+	case ^TSImportType: return &v.loc
 	}
 	return nil
 }
@@ -3427,7 +3205,7 @@ parse_ts_declare_dispatch :: proc(p: ^Parser) -> ^Statement {
 	stmt: ^Statement
 	#partial switch p.cur_type {
 	case .Function:
-		stmt = parse_function_declaration(p, false, true) // allow_no_body=true for declare
+		stmt = parse_function_declaration(p, allow_no_body = true) // allow_no_body=true for declare
 		if stmt != nil {
 			if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
 		}
@@ -3438,7 +3216,7 @@ parse_ts_declare_dispatch :: proc(p: ^Parser) -> ^Statement {
 		// no-body ambient form. allow_no_body=true.
   ensure_nxt(p)
 		if p.lexer.nxt.kind == .Function && !cur_has_newline(p) {
-			stmt = parse_function_declaration(p, false, true)
+			stmt = parse_function_declaration(p, allow_no_body = true)
 			if stmt != nil {
 				if fn, ok := stmt^.(^FunctionDeclaration); ok { fn.declare = true }
 			}
@@ -3558,6 +3336,9 @@ parse_ts_heritage_list :: proc(p: ^Parser) -> [dynamic]TSInterfaceHeritage {
 		id, id_e := new_expr(p, Identifier); id.loc = loc_from_token(&tok); id.name = tok.value; eat(p)
 		expr := id_e
 		for is_token(p, .Dot) {
+			// Dotted names are built in a loop but walked by recursion,
+			// so each segment takes a nesting level.
+			if !parser_depth_charge(p) { break }
 			eat(p)
 			prop := parse_identifier_name(p)
 			mem := new_node(p, MemberExpression); mem.loc = entry_start; mem.object = expr
@@ -3899,7 +3680,7 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 	// without `declare` is deprecated. Must use `namespace M {}` instead.
 	// `declare module M {}` is valid (standard ambient namespace syntax).
 	// Also exempt .d.ts files where everything is implicitly ambient.
-	if kind == .Module && !is_string_named && !p.ctx.in_ambient && !p.source_is_dts {
+	if kind == .Module && !is_string_named && !p.ctx.in_ambient && !p.source_is_dts && !p.allow_legacy_module_names {
 		report_error_coded_span(p, .K4051_TSDeclarationStructure, u32(start.start), u32(start.start), "`module` declarations must have a string name. Use `namespace` instead")
 	}
 	id_expr: ^Expression
@@ -3989,6 +3770,10 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 		body_union := new_node(p, TSModuleBody)
 		body_union^ = blk
 		decl.body = body_union
+	} else if is_string_named && p.ctx.in_ambient {
+		// In an ambient module shorthand, the semicolon belongs to the
+		// declaration. Leave any following semicolon as an empty statement.
+		match_token(p, .Semi)
 	}
 	decl.loc.end = prev_end_offset(p)
 	stmt := new_node(p, Statement); stmt^ = decl; return stmt
@@ -3997,6 +3782,10 @@ parse_ts_module_declaration :: proc(p: ^Parser, kind: TSModuleKind) -> ^Statemen
 // Parse the name + body portion of a nested namespace declaration.
 // Called AFTER the outer `.` is consumed, so current token is the next name.
 parse_ts_module_tail :: proc(p: ^Parser, start: Loc, kind: TSModuleKind) -> ^TSModuleDeclaration {
+	// `namespace A.B.C.D` recurses here once per dotted name.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	cur := snap_current(p)
 	id_ident, id_ident_e := new_expr(p, Identifier); id_ident.loc = loc_from_token(&cur); id_ident.name = cur.value
 	check_strict_ts_decl_name(p, id_ident.name, id_ident.loc)

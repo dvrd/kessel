@@ -53,13 +53,13 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 69,
+      "end": 67,
       "value": " Optional-chain continuation followed by a statement terminator —"
     },
     {
       "type": "Line",
-      "start": 70,
-      "end": 128,
+      "start": 68,
+      "end": 126,
       "value": " the `?.` has no property / bracket / call continuation."
     }
   ],

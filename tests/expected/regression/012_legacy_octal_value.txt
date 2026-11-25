@@ -1,0 +1,253 @@
+{
+  "type": "Program",
+  "start": 0,
+  "end": 890,
+  "sourceType": "script",
+  "hashbang": null,
+  "body": [
+    {
+      "type": "ExpressionStatement",
+      "start": 747,
+      "end": 751,
+      "expression": {
+        "type": "Literal",
+        "start": 747,
+        "end": 750,
+        "value": 8,
+        "raw": "010"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 752,
+      "end": 756,
+      "expression": {
+        "type": "Literal",
+        "start": 752,
+        "end": 755,
+        "value": 10,
+        "raw": "012"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 757,
+      "end": 762,
+      "expression": {
+        "type": "Literal",
+        "start": 757,
+        "end": 761,
+        "value": 511,
+        "raw": "0777"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 763,
+      "end": 766,
+      "expression": {
+        "type": "Literal",
+        "start": 763,
+        "end": 765,
+        "value": 0,
+        "raw": "00"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 767,
+      "end": 770,
+      "expression": {
+        "type": "Literal",
+        "start": 767,
+        "end": 769,
+        "value": 7,
+        "raw": "07"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 771,
+      "end": 776,
+      "expression": {
+        "type": "Literal",
+        "start": 771,
+        "end": 775,
+        "value": 7,
+        "raw": "0007"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 777,
+      "end": 780,
+      "expression": {
+        "type": "Literal",
+        "start": 777,
+        "end": 779,
+        "value": 8,
+        "raw": "08"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 781,
+      "end": 784,
+      "expression": {
+        "type": "Literal",
+        "start": 781,
+        "end": 783,
+        "value": 9,
+        "raw": "09"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 785,
+      "end": 789,
+      "expression": {
+        "type": "Literal",
+        "start": 785,
+        "end": 788,
+        "value": 89,
+        "raw": "089"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 790,
+      "end": 795,
+      "expression": {
+        "type": "Literal",
+        "start": 790,
+        "end": 794,
+        "value": 8.5,
+        "raw": "08.5"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 796,
+      "end": 801,
+      "expression": {
+        "type": "Literal",
+        "start": 796,
+        "end": 800,
+        "value": 90,
+        "raw": "09e1"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 802,
+      "end": 807,
+      "expression": {
+        "type": "Literal",
+        "start": 802,
+        "end": 806,
+        "value": 8,
+        "raw": "0o10"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 808,
+      "end": 813,
+      "expression": {
+        "type": "Literal",
+        "start": 808,
+        "end": 812,
+        "value": 8,
+        "raw": "0O10"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 814,
+      "end": 837,
+      "expression": {
+        "type": "Literal",
+        "start": 814,
+        "end": 836,
+        "value": 9.223372036854776e+18,
+        "raw": "0777777777777777777777"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 838,
+      "end": 863,
+      "expression": {
+        "type": "Literal",
+        "start": 838,
+        "end": 862,
+        "value": 7.378697629483821e+19,
+        "raw": "010000000000000000000001"      }    },
+    {
+      "type": "ExpressionStatement",
+      "start": 864,
+      "end": 889,
+      "expression": {
+        "type": "Literal",
+        "start": 864,
+        "end": 888,
+        "value": 7.378697629483822e+19,
+        "raw": "010000000000000000020001"      }    }
+  ],
+  "comments": [
+    {
+      "type": "Line",
+      "start": 0,
+      "end": 78,
+      "value": " Regression: a LegacyOctalIntegerLiteral (Annex B.1.1) was given its decimal"
+    },
+    {
+      "type": "Line",
+      "start": 79,
+      "end": 158,
+      "value": " reading, so `010` had the value 10 in the AST instead of 8. This golden pins"
+    },
+    {
+      "type": "Line",
+      "start": 159,
+      "end": 229,
+      "value": " the `value` of every zero-prefixed spelling against what the engine"
+    },
+    {
+      "type": "Line",
+      "start": 230,
+      "end": 243,
+      "value": " evaluates:"
+    },
+    {
+      "type": "Line",
+      "start": 244,
+      "end": 246,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 247,
+      "end": 313,
+      "value": "   010 -> 8, 012 -> 10, 0777 -> 511, 00 -> 0, 07 -> 7, 0007 -> 7"
+    },
+    {
+      "type": "Line",
+      "start": 314,
+      "end": 391,
+      "value": "   08 -> 8, 09 -> 9, 089 -> 89     (NonOctalDecimalIntegerLiteral: decimal)"
+    },
+    {
+      "type": "Line",
+      "start": 392,
+      "end": 472,
+      "value": "   08.5 -> 8.5, 09e1 -> 90         (decimal, so a fraction and exponent apply)"
+    },
+    {
+      "type": "Line",
+      "start": 473,
+      "end": 535,
+      "value": "   0o10 -> 8, 0O10 -> 8            (modern octal, unchanged)"
+    },
+    {
+      "type": "Line",
+      "start": 536,
+      "end": 538,
+      "value": ""
+    },
+    {
+      "type": "Line",
+      "start": 539,
+      "end": 610,
+      "value": " The last three need more than 64 bits and check the rounding to f64:"
+    },
+    {
+      "type": "Line",
+      "start": 611,
+      "end": 675,
+      "value": " 2^63 - 1 rounds up to 2^63, 2^66 + 1 rounds down to 2^66, and"
+    },
+    {
+      "type": "Line",
+      "start": 676,
+      "end": 746,
+      "value": " 2^66 + 2^13 + 1 lies just above a tie and rounds up to 2^66 + 2^14."
+    }
+  ]
+}
+
+--- Statistics ---
+Arena: used=0B reserved=16777216B ratio=0%
+Parse errors: 0

@@ -70,7 +70,7 @@ cfg_build :: proc(body: []^Statement, alloc: mem.Allocator) -> CFG {
 		s := body[i]
 		if s == nil { continue }
 		append(&g.blocks[cur].stmts, u32(i))
-		if cfg_is_terminator(s) {
+		if cfg_is_terminator(s, alloc) {
 			// This statement terminates the block. Create a new block for
 			// any subsequent statements (which are unreachable).
 			if i + 1 < len(body) {
@@ -93,7 +93,7 @@ cfg_build :: proc(body: []^Statement, alloc: mem.Allocator) -> CFG {
 		if len(g.blocks[cur].stmts) > 0 {
 			last_idx := g.blocks[cur].stmts[len(g.blocks[cur].stmts) - 1]
 			if int(last_idx) < len(body) && body[last_idx] != nil {
-				last_terminated = cfg_is_terminator(body[last_idx])
+				last_terminated = cfg_is_terminator(body[last_idx], alloc)
 			}
 		}
 		if !last_terminated {
@@ -120,15 +120,34 @@ cfg_add_edge :: proc(g: ^CFG, from, to: BlockId, kind: EdgeKind) {
 	append(&g.edges, Edge{from = from, to = to, kind = kind})
 }
 
-// cfg_is_terminator reports whether a statement unconditionally exits the
-// current block (return, throw, break, continue).
-cfg_is_terminator :: proc(s: ^Statement) -> bool {
-	if s == nil { return false }
-	#partial switch _ in s^ {
-	case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement:
-		return true
+// cfg_first_terminator lets statement-list consumers query reachability
+// without allocating a graph when they only need its first abrupt exit.
+cfg_first_terminator :: proc(body: []^Statement, alloc: mem.Allocator) -> (index: int, found: bool) {
+	for statement, statement_index in body {
+		if cfg_is_terminator(statement, alloc) { return statement_index, true }
 	}
-	return false
+	return 0, false
+}
+
+// Ordinary statements keep their fast path. Compound statements need to resolve
+// transfers to nested loops, switches, labels and exception handlers.
+cfg_is_terminator :: proc(s: ^Statement, alloc: mem.Allocator) -> bool {
+	if statement_inner_nil(s) { return false }
+	#partial switch node in s^ {
+	case ^ReturnStatement, ^ThrowStatement, ^BreakStatement, ^ContinueStatement: return true
+	case ^IfStatement: if node.alternate == nil { return false }
+	case ^WhileStatement: if cfg_loop_test(node.test) != .Always { return false }
+	case ^ForStatement:
+		if test, present := node.test.?; present && cfg_loop_test(test) != .Always { return false }
+	case ^BlockStatement: if len(node.body) == 0 { return false }
+	case ^SwitchStatement:
+		has_default := false
+		for clause in node.cases { if clause.test == nil { has_default = true; break } }
+		if !has_default { return false }
+	case ^DoWhileStatement, ^TryStatement, ^LabeledStatement, ^WithStatement:
+	case: return false
+	}
+	return .Next not_in cfg_completion({statement = s}, alloc)
 }
 
 // cfg_compute_reachability marks all blocks reachable from BLOCK_ENTRY via BFS.

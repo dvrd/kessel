@@ -19,8 +19,8 @@
 //   cfg := emit_config_from_globals(job.lang)   // snapshot CLI flags
 //   e: Emitter
 //   emitter_init(&e, cfg, len(source), context.allocator)
-//   defer emitter_destroy(&e, context.allocator)
-//   emitter_build_utf16(&e, source, context.allocator)  // optional
+//   defer emitter_destroy(&e)
+//   emitter_build_utf16(&e, source)                      // optional
 //   emitter_adopt_lines(&e, lex.line_offsets)            // optional
 //   emit_program(&e, program, 1, lex.comments[:], hashbang)
 //   if cfg.module_record { emit_module_record(&e, &p, 1) }
@@ -53,7 +53,6 @@ import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:strconv"
-import "core:strings"
 
 // ============================================================================
 // EmitConfig — snapshot of CLI flags that affect emission
@@ -138,6 +137,7 @@ Emitter :: struct {
 	// lexer (which built it lazily during parse); the emitter does not
 	// own this slice and does not free it.
 	line_offsets: []u32,
+	allocator: mem.Allocator,
 }
 
 // ============================================================================
@@ -155,28 +155,58 @@ Emitter :: struct {
 emitter_init :: proc(e: ^Emitter, cfg: EmitConfig, source_len_hint: int, alloc: mem.Allocator) {
 	est_size := max(source_len_hint * 20, 4096)
 	e.cfg           = cfg
+	e.allocator     = alloc
 	e.buf           = make([]byte, est_size, alloc)
 	e.pos           = 0
 	e.utf16_offsets = nil
 	e.line_offsets  = nil
 }
 
-// Release the emitter's output buffer. Idempotent on a zero-value emitter.
-emitter_destroy :: proc(e: ^Emitter, alloc: mem.Allocator) {
-	if e.buf != nil { delete(e.buf, alloc) }
-	e.buf = nil
-	e.pos = 0
+// The writer and its UTF-16 table use the same allocator throughout emission.
+// The line table belongs to the lexer and remains available to diagnostics.
+emitter_destroy :: proc(e: ^Emitter) {
+	if e.buf != nil { delete(e.buf, e.allocator) }
+	if e.utf16_offsets != nil { delete(e.utf16_offsets, e.allocator) }
+	e^ = {}
+}
+
+// CLI and WebAssembly use the same ESTree fields, coordinates and diagnostics.
+emit_job_json :: proc(e: ^Emitter, job: ^ParseJob) {
+	assert(job.opened)
+	assert(job.program != nil)
+	emitter_build_utf16(e, job.source.data)
+	if e.cfg.loc {
+		build_line_table(&job.lexer)
+		emitter_adopt_lines(e, job.lexer.line_offsets)
+	}
+
+	emit_raw(e, "{\n")
+	hb_info: Maybe(HashbangInfo)
+	if job.lexer.has_hashbang {
+		hb_info = HashbangInfo{job.lexer.hashbang_value, job.lexer.hashbang_start, job.lexer.hashbang_end}
+	}
+	emit_program(e, job.program, 1, job.lexer.comments[:], hb_info)
+
+	if e.cfg.module_record {
+		emit_module_record(e, &job.parser, 1)
+	}
+
+	emit_errors(e, &job.parser, 1)
+
+	emit_raw(e, "\n}\n")
 }
 
 // Build the byte->UTF-16 offset table for `source`. Only allocates if the
 // source contains non-ASCII bytes; for pure-ASCII files utf16_offsets
 // stays nil and to_utf16 returns the byte offset directly.
-emitter_build_utf16 :: proc(e: ^Emitter, source: []byte, alloc: mem.Allocator) {
-	if !simd_has_multibyte(source) {
+emitter_build_utf16 :: proc(e: ^Emitter, source: []byte) {
+	if e.utf16_offsets != nil {
+		delete(e.utf16_offsets, e.allocator)
 		e.utf16_offsets = nil
-		return
 	}
-	e.utf16_offsets = simd_build_utf16_offsets(source, alloc)
+	if simd_has_multibyte(source) {
+		e.utf16_offsets = simd_build_utf16_offsets(source, e.allocator)
+	}
 }
 
 // Adopt the lexer's line_offsets table for `loc` emission. Borrowed -
@@ -209,23 +239,92 @@ to_utf16 :: #force_inline proc(e: ^Emitter, byte_off: u32) -> u32 {
 // `use_direct_buf` global; that routing is gone - emitter procs always
 // write to e.buf and CLI procs always write to stdout.
 
+// ============================================================================
+// Writer helper inlining
+// ============================================================================
+//
+// The writer helpers are force-inlined for speed: the printer calls them
+// thousands of times per file. A force-inlined body leaves its locals in
+// the CALLER's frame, and only an optimising build merges those slots.
+// Without optimisation every call site keeps its own copy, which made the
+// recursive printers enormous (print_statement_ast: 16 KB per frame with
+// -debug, 242 KB with -o:minimal) and overflowed an 8 MB stack on 40
+// nested blocks. So the helpers are inlined only where the optimiser can
+// clean up; elsewhere each is one ordinary procedure. Optimised builds
+// generate the same code as before.
+EMIT_HELPERS_INLINE :: ODIN_OPTIMIZATION_MODE == .Speed ||
+                       ODIN_OPTIMIZATION_MODE == .Aggressive ||
+                       ODIN_OPTIMIZATION_MODE == .Size
+
+when EMIT_HELPERS_INLINE {
+	emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
+		#force_inline emit_reserve_body(e, need)
+	}
+	emit_raw :: #force_inline proc(e: ^Emitter, s: string) {
+		#force_inline emit_raw_body(e, s)
+	}
+	emit_bool :: #force_inline proc(e: ^Emitter, b: bool) {
+		#force_inline emit_bool_body(e, b)
+	}
+	emit_u32 :: #force_inline proc(e: ^Emitter, n: u32) {
+		#force_inline emit_u32_body(e, n)
+	}
+	emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
+		#force_inline emit_indent_body(e, depth)
+	}
+	emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_core_body(e, loc, indent)
+	}
+	emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_fields_body(e, loc, indent)
+	}
+	emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_leading_body(e, loc, indent)
+	}
+} else {
+	emit_reserve :: #force_no_inline proc(e: ^Emitter, need: int) {
+		#force_inline emit_reserve_body(e, need)
+	}
+	emit_raw :: #force_no_inline proc(e: ^Emitter, s: string) {
+		#force_inline emit_raw_body(e, s)
+	}
+	emit_bool :: #force_no_inline proc(e: ^Emitter, b: bool) {
+		#force_inline emit_bool_body(e, b)
+	}
+	emit_u32 :: #force_no_inline proc(e: ^Emitter, n: u32) {
+		#force_inline emit_u32_body(e, n)
+	}
+	emit_indent :: #force_no_inline proc(e: ^Emitter, depth: int) {
+		#force_inline emit_indent_body(e, depth)
+	}
+	emit_span_core :: #force_no_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_core_body(e, loc, indent)
+	}
+	emit_span_fields :: #force_no_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_fields_body(e, loc, indent)
+	}
+	emit_span_leading :: #force_no_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+		#force_inline emit_span_leading_body(e, loc, indent)
+	}
+}
+
 // Ensure e.buf has at least `need` unused bytes from e.pos. Grows by
 // doubling when the current allocation would overflow. Doubling
 // amortises to O(1) per byte. Callers MUST reserve BEFORE indexing
 // e.buf so indexed writes never touch freed memory.
-emit_reserve :: #force_inline proc(e: ^Emitter, need: int) {
+emit_reserve_body :: #force_inline proc(e: ^Emitter, need: int) {
 	if e.pos + need <= len(e.buf) { return }
 	new_cap := max(len(e.buf) * 2, e.pos + need)
-	new_buf := make([]byte, new_cap, context.allocator)
+	new_buf := make([]byte, new_cap, e.allocator)
 	mem.copy(raw_data(new_buf), raw_data(e.buf), e.pos)
-	delete(e.buf, context.allocator)
+	delete(e.buf, e.allocator)
 	e.buf = new_buf
 }
 
 // Raw write. Strips '\n' in compact mode (matches the pre-refactor
 // `out_s` semantics for direct-buffer mode). Most static strings on
 // the hot path do not contain '\n' so the strip branch is rarely taken.
-emit_raw :: #force_inline proc(e: ^Emitter, s: string) {
+emit_raw_body :: #force_inline proc(e: ^Emitter, s: string) {
 	emit_reserve(e, len(s))
 	if e.cfg.compact {
 		// Copy the runs between newlines in bulk; the common case (no
@@ -354,7 +453,7 @@ emit_str :: proc(e: ^Emitter, s: string) {
 }
 
 // Write a bool as 'true' or 'false'.
-emit_bool :: #force_inline proc(e: ^Emitter, b: bool) {
+emit_bool_body :: #force_inline proc(e: ^Emitter, b: bool) {
 	emit_reserve(e, 5)
 	if b {
 		e.buf[e.pos] = 't'; e.buf[e.pos+1] = 'r'; e.buf[e.pos+2] = 'u'; e.buf[e.pos+3] = 'e'
@@ -366,7 +465,7 @@ emit_bool :: #force_inline proc(e: ^Emitter, b: bool) {
 }
 
 // Write a u32 as decimal.
-emit_u32 :: #force_inline proc(e: ^Emitter, n: u32) {
+emit_u32_body :: #force_inline proc(e: ^Emitter, n: u32) {
 	// u32 max is 10 digits.
 	tmp: [12]byte
 	s := strconv.write_uint(tmp[:], u64(n), 10)
@@ -446,9 +545,13 @@ emit_printf :: proc(e: ^Emitter, format: string, args: ..any) {
 // Indent N levels (skipped in compact mode). Two-space indent matches
 // the existing pretty-print format. Copied from a static blank table in
 // one mem.copy per call rather than a two-byte-at-a-time loop.
-emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
+emit_indent_body :: #force_inline proc(e: ^Emitter, depth: int) {
 	if e.cfg.compact { return }
-	n := depth * 2
+	// Indentation stops growing at EMIT_INDENT_DEPTH_MAX. A chain of N
+	// binary operators is N objects deep, so unclamped indentation makes
+	// the pretty document O(N^2) bytes (tens of gigabytes for a 60,000-
+	// term concatenation). Clamping keeps it linear and still valid JSON.
+	n := min(depth, EMIT_INDENT_DEPTH_MAX) * 2
 	emit_reserve(e, n)
 	for n > 0 {
 		chunk := min(n, len(EMIT_SPACES))
@@ -457,6 +560,11 @@ emit_indent :: #force_inline proc(e: ^Emitter, depth: int) {
 		n -= chunk
 	}
 }
+
+// Deepest indentation level the pretty printer renders; deeper nodes
+// share this level. Far beyond anything readable (512 columns), and well
+// above the 30 levels the golden fixtures reach.
+EMIT_INDENT_DEPTH_MAX :: 256
 
 // Static blank run for emit_indent bulk copies. 64 spaces covers depth
 // 32 in a single mem.copy; deeper nesting loops in 64-byte chunks.
@@ -900,9 +1008,9 @@ emit_program :: proc(e: ^Emitter, program: ^Program, indent: int, comments: []Co
 				emit_raw(e, "\"type\": \"Block\",\n")
 			}
 			emit_indent(e, indent + 2)
-			emit_printf(e, "\"start\": %d,\n", c.start)
+			emit_printf(e, "\"start\": %d,\n", to_utf16(e, c.start))
 			emit_indent(e, indent + 2)
-			emit_printf(e, "\"end\": %d,\n", c.end)
+			emit_printf(e, "\"end\": %d,\n", to_utf16(e, c.end))
 			emit_indent(e, indent + 2)
 			emit_raw(e, "\"value\": ")
 			emit_str(e, c.value)
@@ -1016,7 +1124,7 @@ emit_string_literal_object :: proc(e: ^Emitter, s: StringLiteral, indent: int) {
 //
 // Accepts loc by value (16B) rather than by pointer so there's no risk of
 // accidental mutation. Hot path: inlined.
-emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+emit_span_core_body :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	// Tolerate inverted spans (end < start) that can arise from deeply-nested
 	// JSX children or error-recovery paths - clamp `end := max(start, end)` so
 	// invalid input is still emitted as well-formed JSON instead of SIGTRAPping.
@@ -1078,7 +1186,7 @@ emit_span_core :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 // line and whatever the case emits next (which still starts with its own
 // `,\n<indent>"field": ...`). This is the one-call-per-node invariant that
 // closes the ESTree position-info drift uniformly.
-emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+emit_span_fields_body :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	emit_raw(e, ",\n")
 	emit_indent(e, indent)
 	emit_span_core(e, loc, indent)
@@ -1089,7 +1197,7 @@ emit_span_fields :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 // emit_indent(e, indent). Convenient for inline emitters (SwitchCase, Property,
 // ImportSpecifier, CatchClause, Directive, etc.) that don't use `emit_span_fields`'s
 // leading-comma pattern.
-emit_span_leading :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
+emit_span_leading_body :: #force_inline proc(e: ^Emitter, loc: Loc, indent: int) {
 	emit_span_core(e, loc, indent)
 	emit_raw(e, ",\n")
 	emit_indent(e, indent)
@@ -1237,55 +1345,8 @@ expression_inner_nil :: proc(expr: ^Expression) -> bool {
 }
 
 get_expression_loc :: proc(expr: ^Expression) -> Loc {
-	if expression_inner_nil(expr) { return Loc{} }
-	#partial switch e in expr^ {
-	case ^NullLiteral:              return e.loc
-	case ^BooleanLiteral:           return e.loc
-	case ^NumericLiteral:           return e.loc
-	case ^StringLiteral:            return e.loc
-	case ^BigIntLiteral:            return e.loc
-	case ^RegExpLiteral:            return e.loc
-	case ^TemplateLiteral:          return e.loc
-	case ^TaggedTemplateExpression: return e.loc
-	case ^Identifier:                return e.loc
-	case ^ThisExpression:            return e.loc
-	case ^Super:                     return e.loc
-	case ^ArrayExpression:           return e.loc
-	case ^ObjectExpression:          return e.loc
-	case ^FunctionExpression:        return e.loc
-	case ^ArrowFunctionExpression:   return e.loc
-	case ^ClassExpression:           return e.loc
-	case ^MemberExpression:          return e.loc
-	case ^CallExpression:            return e.loc
-	case ^ChainExpression:           return e.loc
-	case ^NewExpression:             return e.loc
-	case ^ConditionalExpression:     return e.loc
-	case ^UpdateExpression:          return e.loc
-	case ^UnaryExpression:           return e.loc
-	case ^BinaryExpression:          return e.loc
-	case ^LogicalExpression:         return e.loc
-	case ^AssignmentExpression:      return e.loc
-	case ^SequenceExpression:        return e.loc
-	case ^SpreadElement:             return e.loc
-	case ^YieldExpression:           return e.loc
-	case ^AwaitExpression:           return e.loc
-	case ^ImportExpression:          return e.loc
-	case ^MetaProperty:              return e.loc
-	case ^PrivateIdentifier:         return e.loc
-	case ^JSXElement:               return e.loc
-	case ^JSXFragment:              return e.loc
-	case ^JSXText:                  return e.loc
-	case ^JSXExpressionContainer:   return e.loc
-	case ^JSXEmptyExpression:       return e.loc
-	case ^JSXSpreadChild:           return e.loc
-	case ^TSAsExpression:           return e.loc
-	case ^TSSatisfiesExpression:    return e.loc
-	case ^TSNonNullExpression:      return e.loc
-	case ^TSTypeAssertion:          return e.loc
-	case ^TSInstantiationExpression: return e.loc
-	case ^ParenthesizedExpression:  return e.loc
-	}
-	return Loc{}
+	if expression_inner_nil(expr) { return {} }
+	return loc_from_expr(expr)
 }
 
 get_declaration_loc :: proc(decl: ^Declaration) -> Loc {
@@ -1342,98 +1403,73 @@ print_block_statement_inline :: proc(e: ^Emitter, block: ^BlockStatement, indent
 	emit_raw(e, "]")
 }
 
+// A default wraps even a missing binding so consumers can inspect the initializer.
+emit_parameter_binding :: proc(e: ^Emitter, param: FunctionParameter, indent: int) {
+	def, has_default := param.default_val.(^Expression)
+	if !has_default || def == nil {
+		emit_pattern_value(e, param.pattern, indent)
+		return
+	}
+	emit_raw(e, "{\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"type\": \"AssignmentPattern\",\n")
+	emit_indent(e, indent + 1)
+	emit_span_leading(e, param.loc, indent + 1)
+	emit_raw(e, "\"left\": ")
+	emit_pattern_value(e, param.pattern, indent + 1)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"right\": {\n")
+	print_expression_ast(e, def, indent + 2)
+	emit_raw(e, "\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "}\n")
+	emit_indent(e, indent)
+	emit_raw(e, "}")
+}
+
+emit_function_parameter :: proc(e: ^Emitter, param: FunctionParameter, indent: int) {
+	has_modifiers := param.accessibility != .None || param.readonly || param.override_
+	if !has_modifiers || !e.cfg.ts_shape { emit_parameter_binding(e, param, indent); return }
+	emit_raw(e, "{\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"type\": \"TSParameterProperty\",\n")
+	emit_indent(e, indent + 1)
+	// Outer span covers the modifier keyword through the param end.
+	outer_start := param.modifier_start
+	outer_end   := param.loc.end
+	emit_printf(e, "\"start\": %d,\n", outer_start)
+	emit_indent(e, indent + 1)
+	emit_printf(e, "\"end\": %d,\n", outer_end)
+	emit_indent(e, indent + 1)
+	switch param.accessibility {
+	case .None:      emit_raw(e, "\"accessibility\": null,\n")
+	case .Public:    emit_raw(e, "\"accessibility\": \"public\",\n")
+	case .Private:   emit_raw(e, "\"accessibility\": \"private\",\n")
+	case .Protected: emit_raw(e, "\"accessibility\": \"protected\",\n")
+	}
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"readonly\": ")
+	emit_bool(e, param.readonly)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"override\": ")
+	emit_bool(e, param.override_)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"static\": false,\n")
+	emit_indent(e, indent + 1)
+	emit_raw(e, "\"parameter\": ")
+	emit_parameter_binding(e, param, indent + 1)
+	emit_raw(e, "\n")
+	emit_indent(e, indent)
+	emit_raw(e, "}")
+}
+
 // Emit a FunctionBody as inline BlockStatement. FunctionBody differs from
 // BlockStatement by carrying directives; we flatten the directives into the
 // body array as expression statements the same way OXC does, which keeps
 // the ESTree shape uniform for consumers.
-// print_function_parameter emits a single FunctionParameter as an ESTree
-// pattern node. When `default_val` is present (e.g. `x = 1`), ESTree wraps
-// the pattern in an AssignmentPattern { left: pattern, right: expression }.
-// Previously the emit ignored default_val entirely, silently dropping every
-// default-argument string literal (e.g. `constructor(msg = "Unspecified")`
-// in assertion-error.js, and all the RHS expressions in chance.js /
-// prettier.js / chartjs.js defaults).
-print_function_parameter :: proc(e: ^Emitter, param: FunctionParameter, indent: int) {
-	// TSParameterProperty: when a constructor param has TS modifiers
-	// (accessibility/readonly/override), wrap in a TSParameterProperty node.
-	// Only in TS-shape mode (TS/TSX lang). Additive - plain params are
-	// emitted as before.
-	has_modifiers := param.accessibility != .None || param.readonly || param.override_
-	if has_modifiers && e.cfg.ts_shape {
-		emit_indent(e, indent)
-		emit_raw(e, "\"type\": \"TSParameterProperty\",\n")
-		emit_indent(e, indent)
-		// Outer span covers the modifier keyword through the param end.
-		outer_start := param.modifier_start
-		outer_end   := param.loc.end
-		emit_printf(e, "\"start\": %d,\n", outer_start)
-		emit_indent(e, indent)
-		emit_printf(e, "\"end\": %d,\n", outer_end)
-		emit_indent(e, indent)
-		switch param.accessibility {
-		case .None:      emit_raw(e, "\"accessibility\": null,\n")
-		case .Public:    emit_raw(e, "\"accessibility\": \"public\",\n")
-		case .Private:   emit_raw(e, "\"accessibility\": \"private\",\n")
-		case .Protected: emit_raw(e, "\"accessibility\": \"protected\",\n")
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "\"readonly\": ")
-		emit_bool(e, param.readonly)
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"override\": ")
-		emit_bool(e, param.override_)
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"static\": false,\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"parameter\": {\n")
-		// Inner parameter is the binding without the modifiers.
-		if def, ok := param.default_val.(^Expression); ok && def != nil {
-			emit_indent(e, indent + 1)
-			emit_raw(e, "\"type\": \"AssignmentPattern\",\n")
-			emit_indent(e, indent + 1)
-			emit_span_leading(e, param.loc, indent + 1)
-			emit_raw(e, "\"left\": {\n")
-			print_pattern_ast(e, param.pattern, indent + 2)
-			emit_raw(e, "\n")
-			emit_indent(e, indent + 1)
-			emit_raw(e, "},\n")
-			emit_indent(e, indent + 1)
-			emit_raw(e, "\"right\": {\n")
-			print_expression_ast(e, def, indent + 2)
-			emit_raw(e, "\n")
-			emit_indent(e, indent + 1)
-			emit_raw(e, "}")
-		} else {
-			print_pattern_ast(e, param.pattern, indent + 1)
-		}
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "}")
-		return
-	}
-	if def, ok := param.default_val.(^Expression); ok && def != nil {
-		emit_indent(e, indent)
-		emit_raw(e, "\"type\": \"AssignmentPattern\",\n")
-		emit_indent(e, indent)
-		emit_span_leading(e, param.loc, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_pattern_ast(e, param.pattern, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"right\": {\n")
-		print_expression_ast(e, def, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "}")
-	} else {
-		print_pattern_ast(e, param.pattern, indent)
-	}
-}
-
 print_function_body_inline :: proc(e: ^Emitter, body: ^FunctionBody, indent: int) {
 	emit_indent(e, indent)
 	emit_raw(e, "\"type\": \"BlockStatement\",\n")
@@ -1630,38 +1666,21 @@ print_class_body_inline :: proc(e: ^Emitter, body: ^ClassBody, indent: int) {
 	for i in 0 ..< len(body.body) {
 		elem := &body.body[i]
 		emit_indent(e, indent + 1)
-		emit_raw(e, "{\n")
-		print_class_element_fields(e, elem, indent + 2)
-		emit_indent(e, indent + 1)
-		if i < len(body.body) - 1 {
-			emit_raw(e, "},\n")
+		if elem.kind == .IndexSignature {
+			emit_ts_signature(e, elem.typing.index_signature, indent + 1)
 		} else {
-			emit_raw(e, "}\n")
+			emit_raw(e, "{\n")
+			print_class_element_fields(e, elem, indent + 2)
+			emit_indent(e, indent + 1)
+			emit_raw(e, "}")
 		}
+		if i + 1 < len(body.body) { emit_raw(e, ",") }
+		emit_raw(e, "\n")
 	}
 	emit_indent(e, indent)
 	emit_raw(e, "]\n")
 }
 
-// print_class_element_fields emits the fields of a single class element
-// inside an already-opened `{`. The ESTree node type depends on the
-// element's kind and the shape of its value:
-//
-//   * .StaticBlock                                 → "StaticBlock" (body only)
-//   * .Constructor / .Get / .Set                   → "MethodDefinition"
-//   * .Method with a FunctionExpression value      → "MethodDefinition"
-//   * .Method with a non-function (or nil) value   → "PropertyDefinition"
-//     (class field; `value` may be null)
-//
-// Disambiguation for `field = function name() {}` (a class field whose
-// initializer is a non-arrow function expression): if the FunctionExpression
-// carries an `id`, it cannot be a class method (methods are anonymous),
-// so it must be a PropertyDefinition with an initializer. Anonymous
-// `field = function() {}` is still indistinguishable from a method by
-// AST shape alone — we accept that rare misclassification rather than
-// bolt a parser-side kind flag on in this pass. Arrow-valued fields
-// (`field = () => ...`) are ArrowFunctionExpression, not
-// FunctionExpression, so they take the PropertyDefinition path correctly.
 // print_class_element_decorators emits the `"decorators": [...]` array for a
 // class element, omitting the field entirely when there are no decorators
 // (OXC parity).
@@ -1744,6 +1763,11 @@ print_class_element_kind :: proc(e: ^Emitter, elem: ^ClassElement, is_method: bo
 // byte-identical. Every field prepends `,\n` because it follows the always-
 // emitted `static` field in the caller.
 print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_method: bool, indent: int) {
+	if elem.declare {
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"declare\": true")
+	}
 	// class-element abstract: emit only when true (OXC parity).
 	if elem.abstract {
 		emit_raw(e, ",\n")
@@ -1792,7 +1816,7 @@ print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_me
 	}
 	// typeAnnotation is a PropertyDefinition field only (not MethodDefinition).
 	if !is_method {
-		if ann, ok := elem.type_annotation.(^TSTypeAnnotation); ok {
+		if ann, ok := elem.typing.annotation.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
 			emit_raw(e, "\"typeAnnotation\": ")
@@ -1808,17 +1832,7 @@ print_class_element_ts_modifiers :: proc(e: ^Emitter, elem: ^ClassElement, is_me
 print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int) {
 	// Unwrap Maybe(^Expression) once. value_expr is nil if the element has
 	// no initializer (bare `x;` field) or if disambiguation failed.
-	value_expr: ^Expression = nil
-	value_is_function := false
-	value_fn_has_id := false
-	if v, ok := elem.value.(^Expression); ok && v != nil {
-		value_expr = v
-		#partial switch fn in v^ {
-		case ^FunctionExpression:
-			value_is_function = true
-			if _, has := fn.id.?; has { value_fn_has_id = true }
-		}
-	}
+	value_expr, _ := elem.value.?
 
 	// StaticBlock has a dedicated shape: only `body: [Statement]`. The
 	// parser stashes its statements inside a FunctionExpression.body.body
@@ -1828,19 +1842,13 @@ print_class_element_fields :: proc(e: ^Emitter, elem: ^ClassElement, indent: int
 		return
 	}
 
-	// A class method's FunctionExpression value cannot carry an `id`
-	// (methods are anonymous). A non-nil `id` therefore proves the source
-	// wrote `name = function id() {}` — a PropertyDefinition, not a
-	// MethodDefinition.
-	is_method := value_is_function && !value_fn_has_id
-	#partial switch elem.kind {
-	case .Constructor, .Get, .Set:
-		is_method = true
-	}
-
+	is_method := elem.kind != .Field
 	type_name := is_method ? "MethodDefinition" : "PropertyDefinition"
 	if elem.is_accessor {
 		type_name = "AccessorProperty"
+	}
+	if elem.abstract && e.cfg.ts_shape {
+		type_name = "TSAbstractMethodDefinition" if is_method else ("TSAbstractAccessorProperty" if elem.is_accessor else "TSAbstractPropertyDefinition")
 	}
 	emit_indent(e, indent)
 	emit_raw(e, "\"type\": \"")
@@ -1926,10 +1934,34 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 	emit_raw(e, "\"")
 	emit_span_fields(e, get_statement_loc(stmt), indent)
 
-	// Complete switch (no #partial): every Statement variant must have an explicit
-	// case so a newly-added AST node fails the build instead of being silently
-	// dropped from the ESTree JSON output.
-	switch s in stmt^ {
+	// The arms live in several part procedures (print_statement_ast_a, _b, ...) rather
+	// than one switch. An unoptimised build gives every call in a procedure
+	// its own stack slots, so a single thousand-line switch cost 16 KB per
+	// recursion level and a few hundred nested nodes overflowed an 8 MB
+	// stack. This switch stays complete (no #partial, no default): a new AST
+	// variant fails the build here until it is routed to a part.
+	switch _ in stmt^ {
+	case ^ExpressionStatement, ^VariableDeclaration, ^FunctionDeclaration, ^BlockStatement,
+	     ^ReturnStatement, ^IfStatement, ^WhileStatement, ^ForStatement:
+		print_statement_ast_a(e, stmt, indent)
+	case ^ClassDeclaration, ^TryStatement:
+		print_statement_ast_b(e, stmt, indent)
+	case ^ExportNamedDeclaration, ^ExportDefaultDeclaration, ^ExportAllDeclaration,
+	     ^DoWhileStatement, ^SwitchStatement:
+		print_statement_ast_c(e, stmt, indent)
+	case ^ForInStatement, ^ForOfStatement, ^ThrowStatement, ^ImportDeclaration:
+		print_statement_ast_d(e, stmt, indent)
+	case ^BreakStatement, ^ContinueStatement, ^LabeledStatement, ^WithStatement, ^EmptyStatement,
+	     ^DebuggerStatement, ^TSInterfaceDeclaration, ^TSTypeAliasDeclaration, ^TSEnumDeclaration,
+	     ^TSModuleDeclaration, ^TSImportEqualsDeclaration, ^TSExportAssignment,
+	     ^TSNamespaceExportDeclaration:
+		print_statement_ast_e(e, stmt, indent)
+	}
+}
+
+// Statement arms, part a. Routed from print_statement_ast.
+print_statement_ast_a :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ExpressionStatement:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -2009,11 +2041,8 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "\n")
 			for param, i in s.expr.params {
 				emit_indent(e, indent + 1)
-				emit_raw(e, "{\n")
-				print_function_parameter(e, param, indent + 2)
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 1)
-				if i < len(s.expr.params) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
+				emit_function_parameter(e, param, indent + 1)
+				if i < len(s.expr.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
 			}
 			emit_indent(e, indent)
 			emit_raw(e, "]")
@@ -2179,6 +2208,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 		emit_indent(e, indent)
 		emit_print(e, "}")
 
+	}
+}
+
+print_statement_ast_b :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ClassDeclaration:
 		emit_println(e, ",")
 		// Emit decorators only when non-empty (OXC omits empty arrays).
@@ -2333,6 +2367,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_print(e, "null")
 		}
 
+	}
+}
+
+print_statement_ast_c :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ExportNamedDeclaration:
 		emit_println(e, ",")
 		emit_indent(e, indent)
@@ -2351,7 +2390,7 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "],\n")
 		} else {
 			emit_raw(e, "\n")
-			for spec, i in s.specifiers {
+			for &spec, i in s.specifiers {
 				emit_indent(e, indent + 1)
 				emit_raw(e, "{\n")
 				emit_indent(e, indent + 2)
@@ -2364,6 +2403,12 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 				emit_indent(e, indent + 2)
 				emit_raw(e, "\"exported\": ")
 				emit_export_specifier_name(e, spec.exported, indent + 2)
+				if e.cfg.ts_shape {
+					emit_raw(e, ",\n")
+					emit_indent(e, indent + 2)
+					emit_raw(e, "\"exportKind\": ")
+					emit_str(e, "type" if export_specifier_is_type(&spec) else "value")
+				}
 				emit_raw(e, "\n")
 				emit_indent(e, indent + 1)
 				if i < len(s.specifiers) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
@@ -2435,6 +2480,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "}")
 		} else {
 			emit_raw(e, "null")
+		}
+		if e.cfg.ts_shape {
+			emit_println(e, ",")
+			emit_indent(e, indent)
+			emit_raw(e, "\"exportKind\": \"value\"")
 		}
 
 	case ^ExportAllDeclaration:
@@ -2553,6 +2603,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_raw(e, "]")
 		}
 
+	}
+}
+
+print_statement_ast_d :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^ForInStatement:
 		emit_println(e, ",")
 		emit_indent(e, indent)
@@ -2672,7 +2727,8 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 							// "type" for `import { type X }`, "value" otherwise.
 							emit_raw(e, ",\n")
 							emit_indent(e, indent + 2)
-							emit_raw(e, "\"importKind\": \"value\"")
+							emit_raw(e, "\"importKind\": ")
+							emit_str(e, "type" if v.loc.start < v.imported.loc.start else "value")
 						}
 						emit_raw(e, "\n")
 					case ImportDefaultSpecifier:
@@ -2702,10 +2758,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "\"source\": ")
 		emit_string_literal_object(e, s.source, indent)
-		if s.import_kind == .Type {
+		if e.cfg.ts_shape || s.import_kind == .Type {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
-			emit_raw(e, "\"importKind\": \"type\"")
+			emit_raw(e, "\"importKind\": ")
+			emit_str(e, "type" if s.import_kind == .Type else "value")
 		}
 		// Always emit `attributes` on ImportDeclaration (even when empty) to
 		// match OXC's shape — OXC writes `attributes: []` on every import,
@@ -2754,6 +2811,11 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 			emit_str(e, s.phase)
 		}
 
+	}
+}
+
+print_statement_ast_e :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
+	#partial switch s in stmt^ {
 	case ^BreakStatement:
 		emit_println(e, ",")
 		emit_indent(e, indent)
@@ -3053,6 +3115,7 @@ print_statement_ast :: proc(e: ^Emitter, stmt: ^Statement, indent: int) {
 //     reusing emit_ts_module_qualified_id (the same helper that backs
 //     TSModuleDeclaration's `namespace A.B.C { ... }` id emission).
 emit_ts_module_reference :: proc(e: ^Emitter, ref: TSModuleReference, indent: int) {
+	if ref == nil { emit_raw(e, "null"); return }
 	switch r in ref {
 	case ^TSExternalModuleReference:
 		emit_raw(e, "{\n")
@@ -3069,6 +3132,7 @@ emit_ts_module_reference :: proc(e: ^Emitter, ref: TSModuleReference, indent: in
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 	case ^Expression:
+		if r == nil { emit_raw(e, "null"); return }
 		// Walk the MemberExpression chain to a flat []^Expression, then reuse
 		// emit_ts_module_qualified_id which handles both 1-element (bare
 		// identifier) and N-element (left-deep TSQualifiedName fold).
@@ -3224,21 +3288,55 @@ emit_ts_module_decl_fields :: proc(e: ^Emitter, m: ^TSModuleDeclaration, indent:
 	emit_bool(e, m.declare)
 }
 
-print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
+emit_pattern_value :: proc(e: ^Emitter, pattern: Pattern, indent: int, param: ^TSFunctionParam = nil) {
+	if pattern == nil { emit_raw(e, "null"); return }
+	emit_raw(e, "{\n")
+	print_pattern_ast(e, pattern, indent + 1, param)
+	emit_raw(e, "\n")
+	emit_indent(e, indent)
+	emit_raw(e, "}")
+}
+
+emit_rest_fields :: proc(e: ^Emitter, rest: ^RestElement, loc: Loc, annotation: Maybe(^TSTypeAnnotation), indent: int) {
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"RestElement\",\n")
+	emit_indent(e, indent)
+	emit_span_leading(e, loc, indent)
+	emit_raw(e, "\"argument\": ")
+	ann := annotation
+	pattern := rest.argument
+	binding: Identifier
+	if id, named := pattern.(^Identifier); named {
+		binding = id^
+		if ann == nil { ann = id.type_annotation }
+		binding.type_annotation = nil
+		pattern = &binding
+	}
+	emit_pattern_value(e, pattern, indent)
+	if ty, typed := ann.?; typed {
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"typeAnnotation\": ")
+		emit_ts_type_annotation_node(e, ty, indent)
+	}
+}
+
+print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int, param: ^TSFunctionParam = nil) {
 	// MemberExpression delegates to print_expression_ast which has its own
 	// span emission; every other pattern variant emits type + span here.
 	#partial switch p in pattern {
 	case ^Identifier:
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, p.optional, param)
 		emit_indent(e, indent)
 		emit_raw(e, "\"type\": \"Identifier\",\n")
 		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
+		emit_span_leading(e, loc, indent)
 		emit_raw(e, "\"name\": ")
 		emit_str(e, p.name)
 		// TypeScript type annotation on binding identifier. In TS-shape mode
 		// always emit the field (null when absent) so the AST matches OXC's
 		// TS-ESTree shape; in JS mode omit the field when null.
-		if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
+		if ann, ok := annotation.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
 			emit_raw(e, "\"typeAnnotation\": ")
@@ -3248,31 +3346,15 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 			emit_indent(e, indent)
 			emit_raw(e, "\"typeAnnotation\": null")
 		}
-		// S26 W4: TS-ESTree always emits `optional: false` on every binding
-		// Identifier, even ones with no `?` marker (parameters and class
-		// fields are the obvious carriers, but OXC emits it on plain `let x`
-		// declarators too). The Identifier struct doesn't carry an
-		// `optional` flag yet — every binding-position Identifier in source
-		// today is non-optional, so emit a hard-coded `false`.
-		if e.cfg.ts_shape {
+		if e.cfg.ts_shape || optional {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": false")
+			emit_raw(e, "\"optional\": ")
+			emit_bool(e, optional)
 		}
 	case ^RestElement:
-		// ESTree `RestElement { argument: Pattern }` - the `...x` inside
-		// `[a, ...x]` or `{ a, ...x }`. Prior to this case the fallthrough
-		// `case:` produced bare `null`, which the ArrayPattern.elements loop
-		// wrapped in `{...}` - emitting invalid `{null}` JSON.
-		emit_indent(e, indent)
-		emit_raw(e, "\"type\": \"RestElement\",\n")
-		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
-		emit_raw(e, "\"argument\": {\n")
-		print_pattern_ast(e, p.argument, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "}")
+		loc, annotation, _ := ts_param_binding_fields(p.loc, nil, false, param)
+		emit_rest_fields(e, p, loc, annotation, indent)
 	case ^AssignmentPattern:
 		// ESTree `AssignmentPattern { left: Pattern, right: Expression }` -
 		// the `x = 1` inside `{ x = 1 }` or `[x = 1]`. Same JSON-validity
@@ -3281,11 +3363,9 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 		emit_raw(e, "\"type\": \"AssignmentPattern\",\n")
 		emit_indent(e, indent)
 		emit_span_leading(e, p.loc, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_pattern_ast(e, p.left, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
+		emit_raw(e, "\"left\": ")
+		emit_pattern_value(e, p.left, indent, param)
+		emit_raw(e, ",\n")
 		emit_indent(e, indent)
 		emit_raw(e, "\"right\": {\n")
 		print_expression_ast(e, p.right, indent + 1)
@@ -3312,56 +3392,31 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 		expr: Expression = p
 		print_expression_ast(e, &expr, indent)
 	case ^ArrayPattern:
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
 		emit_indent(e, indent)
 		emit_raw(e, "\"type\": \"ArrayPattern\",\n")
 		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
+		emit_span_leading(e, loc, indent)
 		emit_raw(e, "\"elements\": [")
 		if len(p.elements) == 0 {
 			emit_raw(e, "]")
 		} else {
 			emit_raw(e, "\n")
 			for elem, i in p.elements {
-				if pat, ok := elem.(Pattern); ok {
-					emit_indent(e, indent + 1)
-					emit_raw(e, "{\n")
-					print_pattern_ast(e, pat, indent + 2)
-					emit_raw(e, "\n")
-					emit_indent(e, indent + 1)
-					if i < len(p.elements) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-				} else {
-					// Hole in destructuring (e.g. `[,,x]`) - ESTree emits `null`.
-					emit_indent(e, indent + 1)
-					if i < len(p.elements) - 1 { emit_raw(e, "null,\n") } else { emit_raw(e, "null\n") }
-				}
+				emit_indent(e, indent + 1)
+				emit_pattern_value(e, elem.(Pattern) or_else nil, indent + 1)
+				if i < len(p.elements) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
 			}
 			emit_indent(e, indent)
 			emit_raw(e, "]")
 		}
-		// S26 W4: TS-ESTree always emits `optional: false` and a
-		// `typeAnnotation` field on every Pattern node, regardless of
-		// whether the source has a `?` marker or `:T` annotation.
-		// S26 W4b: ArrayPattern.type_annotation is now a real AST slot
-		// populated by parse_function_param when the source has
-		// `function f([a, b]: T)`; emit the actual annotation when set,
-		// `null` otherwise.
-		if e.cfg.ts_shape {
-			emit_raw(e, ",\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": false,\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"typeAnnotation\": ")
-			if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
-				emit_ts_type_annotation_node(e, ann, indent)
-			} else {
-				emit_raw(e, "null")
-			}
-		}
+		if e.cfg.ts_shape { emit_pattern_typing(e, annotation, optional, indent) }
 	case ^ObjectPattern:
+		loc, annotation, optional := ts_param_binding_fields(p.loc, p.type_annotation, false, param)
 		emit_indent(e, indent)
 		emit_raw(e, "\"type\": \"ObjectPattern\",\n")
 		emit_indent(e, indent)
-		emit_span_leading(e, p.loc, indent)
+		emit_span_leading(e, loc, indent)
 		emit_raw(e, "\"properties\": [")
 		if len(p.properties) == 0 {
 			emit_raw(e, "]")
@@ -3471,41 +3526,31 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 				}
 				emit_raw(e, ",\n")
 				emit_indent(e, indent + 2)
-				// Every remaining Pattern variant has a real emit case in
-				// print_pattern_ast now (Identifier / ArrayPattern / ObjectPattern
-				// / AssignmentPattern / MemberExpression), so wrapping in `{...}`
-				// is always safe.
-				emit_raw(e, "\"value\": {\n")
-				print_pattern_ast(e, prop.value, indent + 3)
+				emit_raw(e, "\"value\": ")
+				emit_pattern_value(e, prop.value, indent + 2)
 				emit_raw(e, "\n")
-				emit_indent(e, indent + 2)
-				emit_raw(e, "}\n")
 				emit_indent(e, indent + 1)
 				if i < len(p.properties) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
 			}
 			emit_indent(e, indent)
 			emit_raw(e, "]")
 		}
-		// S26 W4 / W4b: same TS-shape footer as ArrayPattern — OXC always
-		// emits `optional: false` and a `typeAnnotation` field, with the
-		// real annotation when `function f({a, b}: T)` puts one on the
-		// ObjectPattern.
-		if e.cfg.ts_shape {
-			emit_raw(e, ",\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": false,\n")
-			emit_indent(e, indent)
-			emit_raw(e, "\"typeAnnotation\": ")
-			if ann, ok := p.type_annotation.(^TSTypeAnnotation); ok {
-				emit_ts_type_annotation_node(e, ann, indent)
-			} else {
-				emit_raw(e, "null")
-			}
-		}
+		if e.cfg.ts_shape { emit_pattern_typing(e, annotation, optional, indent) }
 	case:
 		emit_indent(e, indent)
 		emit_raw(e, "null")
 	}
+}
+
+emit_pattern_typing :: proc(e: ^Emitter, annotation: Maybe(^TSTypeAnnotation), optional: bool, indent: int) {
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"optional\": ")
+	emit_bool(e, optional)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"typeAnnotation\": ")
+	if ann, typed := annotation.?; typed { emit_ts_type_annotation_node(e, ann, indent) } else { emit_raw(e, "null") }
 }
 
 // print_expression_as_pattern emits an ^Expression as ESTree pattern JSON.
@@ -3528,12 +3573,17 @@ print_pattern_ast :: proc(e: ^Emitter, pattern: Pattern, indent: int) {
 // divergences against OXC in antd.js plus ~19 cascading false-positives.
 // Centralising the conversion here makes all pattern positions go through a
 // single recursive emitter that mirrors OXC's shape exactly.
+emit_expression_pattern_value :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	if expression_inner_nil(expr) { emit_raw(e, "null"); return }
+	emit_raw(e, "{\n")
+	print_expression_as_pattern(e, expr, indent + 1)
+	emit_raw(e, "\n")
+	emit_indent(e, indent)
+	emit_raw(e, "}")
+}
+
 print_expression_as_pattern :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
-	if expr == nil {
-		emit_indent(e, indent)
-		emit_raw(e, "null")
-		return
-	}
+	if expression_inner_nil(expr) { print_expression_ast(e, expr, indent); return }
 	#partial switch n in expr^ {
 	case ^ArrayExpression:
 		emit_indent(e, indent)
@@ -3592,11 +3642,9 @@ print_expression_as_pattern :: proc(e: ^Emitter, expr: ^Expression, indent: int)
 						emit_raw(e, "\"type\": \"RestElement\",\n")
 						emit_indent(e, indent + 2)
 						emit_span_leading(e, se.loc, indent + 2)
-						emit_raw(e, "\"argument\": {\n")
-						print_expression_as_pattern(e, se.argument, indent + 3)
+						emit_raw(e, "\"argument\": ")
+						emit_expression_pattern_value(e, se.argument, indent + 2)
 						emit_raw(e, "\n")
-						emit_indent(e, indent + 2)
-						emit_raw(e, "}\n")
 						emit_indent(e, indent + 1)
 						if i < len(n.properties) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
 						continue
@@ -3637,11 +3685,9 @@ print_expression_as_pattern :: proc(e: ^Emitter, expr: ^Expression, indent: int)
 				}
 				emit_raw(e, ",\n")
 				emit_indent(e, indent + 2)
-				emit_raw(e, "\"value\": {\n")
-				print_expression_as_pattern(e, prop.value, indent + 3)
+				emit_raw(e, "\"value\": ")
+				emit_expression_pattern_value(e, prop.value, indent + 2)
 				emit_raw(e, "\n")
-				emit_indent(e, indent + 2)
-				emit_raw(e, "}\n")
 				emit_indent(e, indent + 1)
 				if i < len(n.properties) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
 			}
@@ -3669,11 +3715,9 @@ print_expression_as_pattern :: proc(e: ^Emitter, expr: ^Expression, indent: int)
 		emit_raw(e, "\"type\": \"AssignmentPattern\",\n")
 		emit_indent(e, indent)
 		emit_span_leading(e, n.loc, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_expression_as_pattern(e, n.left, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
+		emit_raw(e, "\"left\": ")
+		emit_expression_pattern_value(e, n.left, indent)
+		emit_raw(e, ",\n")
 		emit_indent(e, indent)
 		emit_raw(e, "\"right\": {\n")
 		print_expression_ast(e, n.right, indent + 1)
@@ -3686,11 +3730,8 @@ print_expression_as_pattern :: proc(e: ^Emitter, expr: ^Expression, indent: int)
 		emit_raw(e, "\"type\": \"RestElement\",\n")
 		emit_indent(e, indent)
 		emit_span_leading(e, n.loc, indent)
-		emit_raw(e, "\"argument\": {\n")
-		print_expression_as_pattern(e, n.argument, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_raw(e, "}")
+		emit_raw(e, "\"argument\": ")
+		emit_expression_pattern_value(e, n.argument, indent)
 	case:
 		// Identifier, MemberExpression, ParenthesizedExpression, etc. — all
 		// valid pattern targets that share their expression emit shape.
@@ -4122,48 +4163,8 @@ emit_ts_signature :: proc(e: ^Emitter, sig: ^TSSignature, indent: int) {
 		emit_bool(e, v.optional)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_raw(e, "{\n")
-				emit_indent(e, indent + 3)
-				emit_raw(e, "\"type\": \"Identifier\",\n")
-				emit_indent(e, indent + 3)
-				emit_span_leading(e, fp.loc, indent + 3)
-				emit_raw(e, "\"name\": ")
-				if ident, ok := fp.pattern.(^Identifier); ok {
-					emit_str(e, ident.name)
-				} else {
-					emit_raw(e, "\"\"")
-				}
-				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"typeAnnotation\": ")
-					emit_ts_type_annotation_node(e, ann, indent + 3)
-				} else if e.cfg.ts_shape {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"typeAnnotation\": null")
-				}
-				// S26 W4: TSMethodSignature param Identifiers also need the
-				// TS-shape `optional: false` placeholder for parity with OXC.
-				if e.cfg.ts_shape {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"optional\": false")
-				}
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		if ann, ok := v.return_type.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 1)
@@ -4176,48 +4177,8 @@ emit_ts_signature :: proc(e: ^Emitter, sig: ^TSSignature, indent: int) {
 		emit_raw(e, "\"type\": \"TSIndexSignature\",\n")
 		emit_indent(e, indent + 1)
 		emit_span_leading(e, v.loc, indent + 1)
-		emit_raw(e, "\"parameters\": [")
-		if len(v.parameters) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.parameters {
-				emit_indent(e, indent + 2)
-				emit_raw(e, "{\n")
-				emit_indent(e, indent + 3)
-				emit_raw(e, "\"type\": \"Identifier\",\n")
-				emit_indent(e, indent + 3)
-				emit_span_leading(e, fp.loc, indent + 3)
-				emit_raw(e, "\"name\": ")
-				if ident, ok := fp.pattern.(^Identifier); ok {
-					emit_str(e, ident.name)
-				} else {
-					emit_raw(e, "\"\"")
-				}
-				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"typeAnnotation\": ")
-					emit_ts_type_annotation_node(e, ann, indent + 3)
-				} else if e.cfg.ts_shape {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"typeAnnotation\": null")
-				}
-				// S26 W4: same TS-shape `optional: false` placeholder as the
-				// TSMethodSignature params above.
-				if e.cfg.ts_shape {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"optional\": false")
-				}
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 2)
-				if i < len(v.parameters) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"parameters\": ")
+		emit_ts_parameters(e, v.parameters[:], indent + 1)
 		if ann, ok := v.type_annotation.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 1)
@@ -4244,37 +4205,12 @@ emit_ts_signature :: proc(e: ^Emitter, sig: ^TSSignature, indent: int) {
 		emit_raw(e, "\"type\": \"TSCallSignatureDeclaration\",\n")
 		emit_indent(e, indent + 1)
 		emit_span_leading(e, v.loc, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_raw(e, "{\n")
-				emit_indent(e, indent + 3)
-				emit_raw(e, "\"type\": \"Identifier\",\n")
-				emit_indent(e, indent + 3)
-				emit_span_leading(e, fp.loc, indent + 3)
-				emit_raw(e, "\"name\": ")
-				if ident, ok := fp.pattern.(^Identifier); ok {
-					emit_str(e, ident.name)
-				} else {
-					emit_raw(e, "\"\"")
-				}
-				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"typeAnnotation\": ")
-					emit_ts_type_annotation_node(e, ann, indent + 3)
-				}
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(e, v.type_parameters, indent + 1)
+		emit_raw(e, ",\n")
+		emit_indent(e, indent + 1)
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		if ann, ok := v.return_type.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 1)
@@ -4287,37 +4223,12 @@ emit_ts_signature :: proc(e: ^Emitter, sig: ^TSSignature, indent: int) {
 		emit_raw(e, "\"type\": \"TSConstructSignatureDeclaration\",\n")
 		emit_indent(e, indent + 1)
 		emit_span_leading(e, v.loc, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_raw(e, "{\n")
-				emit_indent(e, indent + 3)
-				emit_raw(e, "\"type\": \"Identifier\",\n")
-				emit_indent(e, indent + 3)
-				emit_span_leading(e, fp.loc, indent + 3)
-				emit_raw(e, "\"name\": ")
-				if ident, ok := fp.pattern.(^Identifier); ok {
-					emit_str(e, ident.name)
-				} else {
-					emit_raw(e, "\"\"")
-				}
-				if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok {
-					emit_raw(e, ",\n")
-					emit_indent(e, indent + 3)
-					emit_raw(e, "\"typeAnnotation\": ")
-					emit_ts_type_annotation_node(e, ann, indent + 3)
-				}
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"typeParameters\": ")
+		emit_ts_type_parameter_declaration(e, v.type_parameters, indent + 1)
+		emit_raw(e, ",\n")
+		emit_indent(e, indent + 1)
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		if ann, ok := v.return_type.(^TSTypeAnnotation); ok {
 			emit_raw(e, ",\n")
 			emit_indent(e, indent + 1)
@@ -4392,30 +4303,15 @@ emit_ts_type_argument_list :: proc(e: ^Emitter, targs_opt: Maybe(^TSTypeParamete
 	emit_raw(e, "}")
 }
 
-// emit_ts_function_param writes one TSFunctionParam (as an Identifier with
-// optional typeAnnotation) — the shape OXC uses for entries in a
-// TSFunctionType's `params` list. The underlying pattern is typically an
-// Identifier, so we reuse print_pattern_ast to stamp type + span + name, then
-// glue on `optional` + `typeAnnotation` from the TS wrapper.
-emit_ts_function_param :: proc(e: ^Emitter, fp: TSFunctionParam, indent: int) {
-	emit_raw(e, "{\n")
-	print_pattern_ast(e, fp.pattern, indent + 1)
-	if fp.optional {
-		emit_raw(e, ",\n")
+emit_ts_parameters :: proc(e: ^Emitter, params: []TSFunctionParam, indent: int) {
+	emit_raw(e, "[")
+	for &param, i in params {
+		emit_raw(e, "\n" if i == 0 else ",\n")
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"optional\": true")
+		emit_pattern_value(e, param.pattern, indent + 1, &param)
 	}
-	emit_raw(e, ",\n")
-	emit_indent(e, indent + 1)
-	emit_raw(e, "\"typeAnnotation\": ")
-	if ann, ok := fp.type_annotation.(^TSTypeAnnotation); ok && ann != nil {
-		emit_ts_type_annotation_node(e, ann, indent + 1)
-	} else {
-		emit_raw(e, "null")
-	}
-	emit_raw(e, "\n")
-	emit_indent(e, indent)
-	emit_raw(e, "}")
+	if len(params) > 0 { emit_raw(e, "\n"); emit_indent(e, indent) }
+	emit_raw(e, "]")
 }
 
 // emit_ts_type_parameter_declaration writes a TSTypeParameterDeclaration or null.
@@ -4542,6 +4438,79 @@ emit_ts_type_annotation_node :: proc(e: ^Emitter, ann: ^TSTypeAnnotation, indent
 	emit_raw(e, "}")
 }
 
+emit_template_quasis :: proc(e: ^Emitter, quasis: []TemplateElement, indent: int) {
+	emit_indent(e, indent)
+	emit_raw(e, "\"quasis\": [")
+	if len(quasis) == 0 {
+		emit_raw(e, "],\n")
+	} else {
+		emit_raw(e, "\n")
+		for q, i in quasis {
+			emit_indent(e, indent + 1)
+			emit_raw(e, "{\n")
+			emit_indent(e, indent + 2)
+			emit_raw(e, "\"type\": \"TemplateElement\",\n")
+			emit_indent(e, indent + 2)
+			emit_span_leading(e, q.loc, indent + 2)
+			emit_raw(e, "\"tail\": ")
+			emit_bool(e, q.tail)
+			emit_raw(e, ",\n")
+			emit_indent(e, indent + 2)
+			emit_raw(e, "\"value\": { \"raw\": ")
+			emit_str(e, q.raw)
+			emit_raw(e, ", \"cooked\": ")
+			if cooked, ok := q.cooked.(string); ok {
+				emit_str(e, cooked)
+			} else {
+				emit_raw(e, "null")
+			}
+			emit_raw(e, " }\n")
+			emit_indent(e, indent + 1)
+			if i < len(quasis) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
+		}
+		emit_indent(e, indent)
+		emit_raw(e, "],\n")
+	}
+}
+
+emit_ts_import_fields :: proc(e: ^Emitter, v: ^TSImportType, indent: int) {
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"TSImportType\"")
+	emit_span_fields(e, ts_import_type_loc(v), indent)
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"source\": ")
+	if v.argument == nil {
+		emit_raw(e, "null")
+	} else if literal, ok := v.argument^.(^TSLiteralType); ok {
+		emit_raw(e, "{\n")
+		print_expression_ast(e, literal.literal, indent + 1)
+		emit_raw(e, "\n")
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	} else {
+		emit_ts_type(e, v.argument, indent)
+	}
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"options\": ")
+	if options := ts_import_type_options(v); options != nil {
+		emit_raw(e, "{\n")
+		print_expression_ast(e, options, indent + 1)
+		emit_raw(e, "\n")
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	} else { emit_raw(e, "null") }
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"qualifier\": ")
+	if qualifier, ok := v.qualifier.?; ok { emit_ts_type_name(e, qualifier, indent) } else { emit_raw(e, "null") }
+	emit_raw(e, ",\n")
+	emit_indent(e, indent)
+	emit_raw(e, "\"typeArguments\": ")
+	emit_ts_type_argument_list(e, v.type_parameters, indent)
+}
+
 // emit_ts_type emits a TSType union variant as JSON.
 emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 	if t == nil {
@@ -4549,7 +4518,7 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		return
 	}
 	emit_raw(e, "{\n")
-	#partial switch v in t^ {
+	switch v in t^ {
 	case ^TSKeywordType:
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"type\": \"")
@@ -4628,19 +4597,8 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_ts_type_parameter_declaration(e, v.type_parameters, indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_ts_function_param(e, fp, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"returnType\": ")
@@ -4668,19 +4626,8 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_ts_type_parameter_declaration(e, v.type_parameters, indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
-		emit_raw(e, "\"params\": [")
-		if len(v.params) == 0 {
-			emit_raw(e, "]")
-		} else {
-			emit_raw(e, "\n")
-			for fp, i in v.params {
-				emit_indent(e, indent + 2)
-				emit_ts_function_param(e, fp, indent + 2)
-				if i < len(v.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
-			}
-			emit_indent(e, indent + 1)
-			emit_raw(e, "]")
-		}
+		emit_raw(e, "\"params\": ")
+		emit_ts_parameters(e, v.params[:], indent + 1)
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"returnType\": ")
@@ -4967,6 +4914,38 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_raw(e, "\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "}")
+	case ^TSTemplateLiteralType:
+		emit_indent(e, indent + 1)
+		emit_raw(e, "\"type\": \"TSTemplateLiteralType\"")
+		emit_span_fields(e, v.loc, indent + 1)
+		emit_raw(e, ",\n")
+		emit_template_quasis(e, v.quasis[:], indent + 1)
+		emit_indent(e, indent + 1)
+		emit_raw(e, "\"types\": [")
+		for ty, i in v.types {
+			emit_raw(e, "\n" if i == 0 else ",\n")
+			emit_indent(e, indent + 2)
+			emit_ts_type(e, ty, indent + 2)
+		}
+		if len(v.types) > 0 { emit_raw(e, "\n"); emit_indent(e, indent + 1) }
+		emit_raw(e, "]")
+	case ^TSImportType:
+		if v.is_typeof {
+			emit_indent(e, indent + 1)
+			emit_raw(e, "\"type\": \"TSTypeQuery\"")
+			emit_span_fields(e, v.loc, indent + 1)
+			emit_raw(e, ",\n")
+			emit_indent(e, indent + 1)
+			emit_raw(e, "\"exprName\": {\n")
+			emit_ts_import_fields(e, v, indent + 2)
+			emit_raw(e, "\n")
+			emit_indent(e, indent + 1)
+			emit_raw(e, "},\n")
+			emit_indent(e, indent + 1)
+			emit_raw(e, "\"typeArguments\": null")
+		} else {
+			emit_ts_import_fields(e, v, indent + 1)
+		}
 	case ^TSTypePredicate:
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"type\": \"TSTypePredicate\"")
@@ -4978,7 +4957,13 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		emit_raw(e, ",\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "\"parameterName\": {\n")
-		print_expression_ast(e, v.parameter_name, indent + 2)
+		if id, named := v.parameter_name^.(^Identifier); named && id.name == "this" {
+			emit_indent(e, indent + 2)
+			emit_raw(e, "\"type\": \"TSThisType\"")
+			emit_span_fields(e, id.loc, indent + 2)
+		} else {
+			print_expression_ast(e, v.parameter_name, indent + 2)
+		}
 		emit_raw(e, "\n")
 		emit_indent(e, indent + 1)
 		emit_raw(e, "},\n")
@@ -4989,14 +4974,160 @@ emit_ts_type :: proc(e: ^Emitter, t: ^TSType, indent: int) {
 		} else {
 			emit_raw(e, "null")
 		}
-	case:
-		// Fallback for types not yet handled in emitter
-		emit_indent(e, indent + 1)
-		emit_raw(e, "\"type\": \"TSUnknownType\"")
 	}
 	emit_raw(e, "\n")
 	emit_indent(e, indent)
 	emit_raw(e, "}")
+}
+
+// print_expression_chain emits a binary / logical / call / member chain.
+// The parser builds these in a loop and does not limit their length, so
+// recursing once per link (as every other expression does) would overflow
+// the stack on generated code such as a million-term concatenation. The
+// bytes written are identical to the recursive form: each link's fields
+// up to its chain operand on the way down, the rest on the way back up.
+print_expression_chain :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	if !expr_spine_open(&spine, expr, e.allocator) {
+		// Out of memory for the chain table: emit a well-formed
+		// placeholder rather than recursing or truncating the document.
+		emit_indent(e, indent)
+		emit_raw(e, "\"type\": \"Unknown\"")
+		emit_span_fields(e, Loc{}, indent)
+		return
+	}
+	defer expr_spine_close(&spine)
+
+	for node, depth in spine.nodes {
+		print_expression_chain_enter(e, node, indent + depth)
+	}
+	print_expression_ast(e, spine.leaf, indent + len(spine.nodes))
+	#reverse for node, depth in spine.nodes {
+		print_expression_chain_leave(e, node, indent + depth)
+	}
+}
+
+// print_expression_chain_enter writes a chain link's header and every
+// field that precedes its chain operand, ending with that operand's
+// opening brace.
+print_expression_chain_enter :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"")
+	emit_raw(e, get_expression_type_name(e, expr))
+	emit_raw(e, "\"")
+	emit_span_fields(e, get_expression_loc(expr), indent)
+
+	#partial switch n in expr^ {
+	case ^BinaryExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		op_str := binary_op_to_string(n.operator)
+		emit_raw(e, "\"operator\": \"")
+		emit_raw(e, op_str)
+		emit_raw(e, "\",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"left\": {\n")
+	case ^LogicalExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		op_str := ""
+		#partial switch n.operator {
+		case .And: op_str = "&&"
+		case .Or:  op_str = "||"
+		case .NullishCoalescing: op_str = "??"
+		}
+		emit_raw(e, "\"operator\": \"")
+		emit_raw(e, op_str)
+		emit_raw(e, "\",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"left\": {\n")
+	case ^CallExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"callee\": {\n")
+	case ^MemberExpression:
+		emit_raw(e, ",\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"computed\": ")
+		emit_bool(e, n.computed)
+		emit_raw(e, ",\n")
+		if n.optional {
+			emit_indent(e, indent)
+			emit_raw(e, "\"optional\": true,\n")
+		}
+		emit_indent(e, indent)
+		emit_raw(e, "\"object\": {\n")
+	case:
+		unreachable()
+	}
+}
+
+// print_expression_chain_leave closes a chain link's chain operand and
+// writes the remaining fields. The operands emitted here (right operand,
+// arguments, property) are ordinary nested expressions.
+print_expression_chain_leave :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
+	case ^BinaryExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"right\": {\n")
+		print_expression_ast(e, n.right, indent + 1)
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	case ^LogicalExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"right\": {\n")
+		print_expression_ast(e, n.right, indent + 1)
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	case ^CallExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		if n.optional {
+			emit_indent(e, indent)
+			emit_raw(e, "\"optional\": true,\n")
+		}
+		emit_indent(e, indent)
+		// typeArguments: emit when present (generic call `foo<T>(args)`); emit null
+		// placeholder in TS-shape mode for structural uniformity (OXC always emits it).
+		if targs, ok := n.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
+			emit_raw(e, "\"typeArguments\": ")
+			emit_ts_type_argument_list(e, n.type_parameters, indent)
+			emit_raw(e, ",\n")
+			emit_indent(e, indent)
+		} else if e.cfg.ts_shape {
+			emit_raw(e, "\"typeArguments\": null,\n")
+			emit_indent(e, indent)
+		}
+		emit_raw(e, "\"arguments\": [\n")
+		for arg, i in n.arguments {
+			emit_indent(e, indent + 1)
+			emit_raw(e, "{\n")
+			print_expression_ast(e, arg, indent + 2)
+			emit_indent(e, indent + 1)
+			if i < len(n.arguments) - 1 {
+				emit_raw(e, "},\n")
+			} else {
+				emit_raw(e, "}\n")
+			}
+		}
+		emit_indent(e, indent)
+		emit_raw(e, "]")
+	case ^MemberExpression:
+		emit_indent(e, indent)
+		emit_raw(e, "},\n")
+		emit_indent(e, indent)
+		emit_raw(e, "\"property\": {\n")
+		print_expression_ast(e, n.property, indent + 1)
+		emit_indent(e, indent)
+		emit_raw(e, "}")
+	case:
+		unreachable()
+	}
 }
 
 print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
@@ -5010,6 +5141,53 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_span_fields(e, Loc{}, indent)
 		return
 	}
+	// Literals are self-contained nodes; binary / logical / call / member
+	// chains can be arbitrarily long, so a loop emits them instead of one
+	// recursion per link.
+	#partial switch _ in expr^ {
+	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral,
+	     ^BigIntLiteral, ^RegExpLiteral:
+		print_expression_literal(e, expr, indent)
+		return
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		print_expression_chain(e, expr, indent)
+		return
+	}
+
+	emit_indent(e, indent)
+	emit_raw(e, "\"type\": \"")
+	emit_raw(e, get_expression_type_name(e, expr))
+	emit_raw(e, "\"")
+	emit_span_fields(e, get_expression_loc(expr), indent)
+
+	// The arms live in several part procedures (print_expression_ast_a, _b, ...) rather
+	// than one switch. An unoptimised build gives every call in a procedure
+	// its own stack slots, so a single thousand-line switch cost 16 KB per
+	// recursion level and a few hundred nested nodes overflowed an 8 MB
+	// stack. This switch stays complete (no #partial, no default): a new AST
+	// variant fails the build here until it is routed to a part.
+	switch _ in expr^ {
+	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral,
+	     ^BigIntLiteral, ^RegExpLiteral,
+	     ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		unreachable() // returned above
+	case ^Identifier, ^ThisExpression, ^Super, ^ChainExpression, ^ArrayExpression,
+	     ^ObjectExpression, ^UnaryExpression, ^AssignmentExpression, ^ConditionalExpression:
+		print_expression_ast_a(e, expr, indent)
+	case ^FunctionExpression, ^ArrowFunctionExpression, ^NewExpression, ^TemplateLiteral,
+	     ^TaggedTemplateExpression:
+		print_expression_ast_b(e, expr, indent)
+	case ^SpreadElement, ^UpdateExpression, ^SequenceExpression, ^YieldExpression,
+	     ^AwaitExpression, ^ImportExpression, ^MetaProperty, ^PrivateIdentifier, ^ClassExpression:
+		print_expression_ast_c(e, expr, indent)
+	case ^JSXElement, ^JSXFragment, ^JSXText, ^JSXExpressionContainer, ^JSXEmptyExpression,
+	     ^JSXSpreadChild, ^TSAsExpression, ^TSSatisfiesExpression, ^TSNonNullExpression,
+	     ^TSInstantiationExpression, ^TSTypeAssertion, ^ParenthesizedExpression:
+		print_expression_ast_d(e, expr, indent)
+	}
+}
+
+print_expression_literal :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	// ESTree Literal short-circuit: collapse six OXC-style literal types into one.
 	// ESTree spec uses a single "Literal" node for Numeric/String/Boolean/Null/BigInt/RegExp.
 	// Every branch emits start/end via emit_span_fields or emit_span_leading so
@@ -5143,20 +5321,17 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		return
 	case:
 	}
+}
 
-	emit_indent(e, indent)
-	emit_raw(e, "\"type\": \"")
-	emit_raw(e, get_expression_type_name(e, expr))
-	emit_raw(e, "\"")
-	emit_span_fields(e, get_expression_loc(expr), indent)
-
+// Expression arms, part a. Routed from print_expression_ast.
+print_expression_ast_a :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 	// Complete switch (no #partial, no default): the Odin compiler enforces that
 	// every variant of `Expression :: union { ... }` in src/ast.odin has an explicit
 	// case here. A newly-added AST variant fails the build instead of silently
 	// emitting an "[UNIMPLEMENTED]" node. The six literal variants are handled (and
 	// returned) by the #partial fast-path switch above, so their cases here are
 	// unreachable and intentionally empty.
-	switch n in expr^ {
+	#partial switch n in expr^ {
 	case ^NumericLiteral, ^StringLiteral, ^BooleanLiteral, ^NullLiteral, ^BigIntLiteral, ^RegExpLiteral:
 		// Unreachable: handled with an early return in the literal fast-path above.
 	case ^Identifier:
@@ -5342,23 +5517,8 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "]")
 
-	case ^BinaryExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		op_str := binary_op_to_string(n.operator)
-		emit_raw(e, "\"operator\": \"")
-		emit_raw(e, op_str)
-		emit_raw(e, "\",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_expression_ast(e, n.left, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"right\": {\n")
-		print_expression_ast(e, n.right, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "}")
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		// Unreachable: chains are emitted by print_expression_chain above.
 
 	case ^UnaryExpression:
 		emit_raw(e, ",\n")
@@ -5410,65 +5570,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
-	case ^CallExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"callee\": {\n")
-		print_expression_ast(e, n.callee, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		if n.optional {
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": true,\n")
-		}
-		emit_indent(e, indent)
-		// typeArguments: emit when present (generic call `foo<T>(args)`); emit null
-		// placeholder in TS-shape mode for structural uniformity (OXC always emits it).
-		if targs, ok := n.type_parameters.(^TSTypeParameterInstantiation); ok && targs != nil {
-			emit_raw(e, "\"typeArguments\": ")
-			emit_ts_type_argument_list(e, n.type_parameters, indent)
-			emit_raw(e, ",\n")
-			emit_indent(e, indent)
-		} else if e.cfg.ts_shape {
-			emit_raw(e, "\"typeArguments\": null,\n")
-			emit_indent(e, indent)
-		}
-		emit_raw(e, "\"arguments\": [\n")
-		for arg, i in n.arguments {
-			emit_indent(e, indent + 1)
-			emit_raw(e, "{\n")
-			print_expression_ast(e, arg, indent + 2)
-			emit_indent(e, indent + 1)
-			if i < len(n.arguments) - 1 {
-				emit_raw(e, "},\n")
-			} else {
-				emit_raw(e, "}\n")
-			}
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "]")
-
-	case ^MemberExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"computed\": ")
-		emit_bool(e, n.computed)
-		emit_raw(e, ",\n")
-		if n.optional {
-			emit_indent(e, indent)
-			emit_raw(e, "\"optional\": true,\n")
-		}
-		emit_indent(e, indent)
-		emit_raw(e, "\"object\": {\n")
-		print_expression_ast(e, n.object, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"property\": {\n")
-		print_expression_ast(e, n.property, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "}")
-
 	case ^ConditionalExpression:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -5487,6 +5588,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
+	}
+}
+
+print_expression_ast_b :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
 	case ^FunctionExpression:
 		// ESTree FunctionExpression.id is `Identifier | null` - for anonymous
 		// functions (the common IIFE case) it's null. OXC always emits it, so
@@ -5537,11 +5643,8 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 			emit_raw(e, "\n")
 			for param, i in n.params {
 				emit_indent(e, indent + 1)
-				emit_raw(e, "{\n")
-				print_function_parameter(e, param, indent + 2)
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 1)
-				if i < len(n.params) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
+				emit_function_parameter(e, param, indent + 1)
+				if i < len(n.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
 			}
 			emit_indent(e, indent)
 			emit_raw(e, "]")
@@ -5558,12 +5661,15 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		}
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
-		emit_println(e, "\"body\": {")
-		fn_body := &n.body
-		print_function_body_inline(e, fn_body, indent + 1)
-		emit_raw(e, "\n")
-		emit_indent(e, indent)
-		emit_print(e, "}")
+		if e.cfg.ts_shape && n.no_body {
+			emit_raw(e, "\"body\": null")
+		} else {
+			emit_println(e, "\"body\": {")
+			print_function_body_inline(e, &n.body, indent + 1)
+			emit_raw(e, "\n")
+			emit_indent(e, indent)
+			emit_print(e, "}")
+		}
 
 	case ^ArrowFunctionExpression:
 		// OXC emits `id: null` and `generator: false` on ArrowFunctionExpression
@@ -5602,11 +5708,8 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 			emit_raw(e, "\n")
 			for param, i in n.params {
 				emit_indent(e, indent + 1)
-				emit_raw(e, "{\n")
-				print_function_parameter(e, param, indent + 2)
-				emit_raw(e, "\n")
-				emit_indent(e, indent + 1)
-				if i < len(n.params) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
+				emit_function_parameter(e, param, indent + 1)
+				if i < len(n.params) - 1 { emit_raw(e, ",\n") } else { emit_raw(e, "\n") }
 			}
 			emit_indent(e, indent)
 			emit_raw(e, "]")
@@ -5682,38 +5785,7 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 
 	case ^TemplateLiteral:
 		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"quasis\": [")
-		if len(n.quasis) == 0 {
-			emit_raw(e, "],\n")
-		} else {
-			emit_raw(e, "\n")
-			for q, i in n.quasis {
-				emit_indent(e, indent + 1)
-				emit_raw(e, "{\n")
-				emit_indent(e, indent + 2)
-				emit_raw(e, "\"type\": \"TemplateElement\",\n")
-				emit_indent(e, indent + 2)
-				emit_span_leading(e, q.loc, indent + 2)
-				emit_raw(e, "\"tail\": ")
-				emit_bool(e, q.tail)
-				emit_raw(e, ",\n")
-				emit_indent(e, indent + 2)
-				emit_raw(e, "\"value\": { \"raw\": ")
-				emit_str(e, q.raw)
-				emit_raw(e, ", \"cooked\": ")
-				if cooked, ok := q.cooked.(string); ok {
-					emit_str(e, cooked)
-				} else {
-					emit_raw(e, "null")
-				}
-				emit_raw(e, " }\n")
-				emit_indent(e, indent + 1)
-				if i < len(n.quasis) - 1 { emit_raw(e, "},\n") } else { emit_raw(e, "}\n") }
-			}
-			emit_indent(e, indent)
-			emit_raw(e, "],\n")
-		}
+		emit_template_quasis(e, n.quasis[:], indent)
 		emit_indent(e, indent)
 		emit_raw(e, "\"expressions\": [")
 		if len(n.expressions) == 0 {
@@ -5744,6 +5816,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
+	}
+}
+
+print_expression_ast_c :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
 	case ^SpreadElement:
 		emit_raw(e, ",\n")
 		emit_indent(e, indent)
@@ -5770,29 +5847,6 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "\"argument\": {\n")
 		print_expression_ast(e, n.argument, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "}")
-
-	case ^LogicalExpression:
-		emit_raw(e, ",\n")
-		emit_indent(e, indent)
-		op_str := ""
-		#partial switch n.operator {
-		case .And: op_str = "&&"
-		case .Or:  op_str = "||"
-		case .NullishCoalescing: op_str = "??"
-		}
-		emit_raw(e, "\"operator\": \"")
-		emit_raw(e, op_str)
-		emit_raw(e, "\",\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"left\": {\n")
-		print_expression_ast(e, n.left, indent + 1)
-		emit_indent(e, indent)
-		emit_raw(e, "},\n")
-		emit_indent(e, indent)
-		emit_raw(e, "\"right\": {\n")
-		print_expression_ast(e, n.right, indent + 1)
 		emit_indent(e, indent)
 		emit_raw(e, "}")
 
@@ -5961,6 +6015,11 @@ print_expression_ast :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
 		emit_indent(e, indent)
 		emit_raw(e, "}\n")
 
+	}
+}
+
+print_expression_ast_d :: proc(e: ^Emitter, expr: ^Expression, indent: int) {
+	#partial switch n in expr^ {
 	case ^JSXElement:
 		emit_jsx_element_body(e, n, indent)
 
@@ -6130,7 +6189,7 @@ get_statement_type_name :: proc(e: ^Emitter, stmt: ^Statement) -> string {
 }
 
 get_expression_type_name :: proc(e: ^Emitter, expr: ^Expression) -> string {
-	#partial switch e in expr^ {
+	#partial switch n in expr^ {
 	case ^NullLiteral:           return "NullLiteral"
 	case ^BooleanLiteral:        return "BooleanLiteral"
 	case ^NumericLiteral:        return "NumericLiteral"
@@ -6145,7 +6204,7 @@ get_expression_type_name :: proc(e: ^Emitter, expr: ^Expression) -> string {
 	case ^ChainExpression:       return "ChainExpression"
 	case ^ArrayExpression:       return "ArrayExpression"
 	case ^ObjectExpression:      return "ObjectExpression"
-	case ^FunctionExpression:    return "FunctionExpression"
+	case ^FunctionExpression:    return "TSEmptyBodyFunctionExpression" if e.cfg.ts_shape && n.no_body else "FunctionExpression"
 	case ^ArrowFunctionExpression: return "ArrowFunctionExpression"
 	case ^ClassExpression:       return "ClassExpression"
 	case ^MemberExpression:      return "MemberExpression"

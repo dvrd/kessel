@@ -1,0 +1,4 @@
+{
+  "extends": "./extends-base.json",
+  "rules": { "eqeqeq": "error" }
+}

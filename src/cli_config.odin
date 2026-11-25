@@ -37,6 +37,7 @@ package kessel
 
 import "core:fmt"
 import "core:os"
+import "core:strconv"
 import "core:strings"
 
 // ============================================================================
@@ -73,6 +74,7 @@ CliConfig :: struct {
 	// migration). Kept here as a documented field so the CLI flag
 	// continues to be accepted and the migration path is visible.
 	show_semantic_errors: bool,         // --show-semantic-errors
+	max_depth:            int,          // --max-depth=N (0 = parser default)
 
 	// Output / diagnostic surfaces.
 	//
@@ -223,6 +225,17 @@ cli_try_parse_flag :: proc(cfg: ^CliConfig, args: []string, i: ^int) -> bool {
 		// Today the checker enforces break / continue + label
 		// scoping; more checks migrate slice-by-slice (#3).
 		cfg.show_semantic_errors = true
+		i^ += 1
+		return true
+	case strings.has_prefix(arg, "--max-depth="):
+		val := arg[len("--max-depth="):]
+		depth, ok := strconv.parse_int(val, 10)
+		if !ok || depth < 1 || depth > PARSE_DEPTH_MAX_CEILING {
+			fmt.eprintf("Error: --max-depth=%s is not valid (expected 1..%d)\n",
+				val, PARSE_DEPTH_MAX_CEILING)
+			os.exit(2)
+		}
+		cfg.max_depth = depth
 		i^ += 1
 		return true
 	case strings.has_prefix(arg, "--errors="):

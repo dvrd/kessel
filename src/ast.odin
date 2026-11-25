@@ -351,6 +351,22 @@ TSFunctionParam :: struct {
 	optional:        bool,
 }
 
+// Signature parameters keep their annotation separately from the binding pattern.
+// A default value belongs to the assignment wrapper, after the typed binding.
+ts_param_binding_fields :: proc(
+	loc: Loc, annotation: Maybe(^TSTypeAnnotation), optional: bool, param: ^TSFunctionParam,
+) -> (Loc, Maybe(^TSTypeAnnotation), bool) {
+	if param == nil { return loc, annotation, optional }
+	binding := loc
+	if _, assignment := param.pattern.(^AssignmentPattern); !assignment {
+		binding = param.loc
+	} else if ann, typed := param.type_annotation.?; typed {
+		binding.end = ann.loc.end
+	}
+	ann := param.type_annotation if param.type_annotation != nil else annotation
+	return binding, ann, optional || param.optional
+}
+
 // Type literal / object type: `{ x: number; y: string }`
 TSTypeLiteral :: struct {
 	loc:     Loc,
@@ -464,6 +480,27 @@ TSImportType :: struct {
 	qualifier:       Maybe(^Expression),
 	type_parameters: Maybe(^TSTypeParameterInstantiation),
 	is_typeof:       bool,
+	has_options:     bool,
+	import_start:    u32,
+}
+
+// The raw v1 prefix retains the existing offsets. Only imports with an options
+// object allocate the additional pointer.
+TSImportTypeWithOptions :: struct {
+	base:    TSImportType,
+	options: ^Expression,
+}
+
+#assert(offset_of(TSImportType, import_start) == offset_of(TSImportType, is_typeof) + 4)
+#assert(offset_of(TSImportTypeWithOptions, options) == size_of(TSImportType))
+
+ts_import_type_options :: proc(node: ^TSImportType) -> ^Expression {
+	if !node.has_options { return nil }
+	return (cast(^TSImportTypeWithOptions)node).options
+}
+
+ts_import_type_loc :: proc(node: ^TSImportType) -> Loc {
+	return {max(node.loc.start, node.import_start), node.loc.end}
 }
 
 // `as` expression: `expr as Type`
@@ -744,7 +781,26 @@ NumericLiteral :: struct {
 
 StringLiteral :: struct {
 	loc:   Loc,
+	// The literal's string value with escapes decoded.
+	//
+	// Encoding: UTF-8, with one exception that makes it WTF-8 (generalized
+	// UTF-8). A JavaScript string is a sequence of UTF-16 code units and may
+	// hold a surrogate that is not part of a pair, which UTF-8 cannot
+	// represent. A lone surrogate written as an escape (`"\uD800"`,
+	// `"\u{DFFF}"`) is stored as the 3-byte sequence its code point would
+	// have (ED A0 80 .. ED BF BF). An escaped high + low PAIR
+	// (`"\uD83D\uDE00"`, also spelled `"\u{D83D}\u{DE00}"`) is combined into
+	// the single 4-byte sequence of the code point it denotes.
+	//
+	// Consequence for Odin consumers: `value` is not guaranteed to pass
+	// `utf8.valid_string`, and a strict UTF-8 decoder reports the bytes of
+	// a lone surrogate as invalid. Compare and hash it as bytes; decode it
+	// as WTF-8 if the surrogates matter. Raw source bytes that are not valid
+	// UTF-8 are a separate matter: see ParseConfig.reject_invalid_utf8.
+	//
+	// Pinned by test_string_value_lone_surrogates_are_wtf8.
 	value: string,
+	// The source text of the literal, quotes included.
 	raw:   string,
 }
 
@@ -763,6 +819,12 @@ RegExpLiteral :: struct {
 TemplateElement :: struct {
 	loc:               Loc,
 	tail:              bool,
+	// The text with escapes decoded, in the same WTF-8 encoding as
+	// StringLiteral.value: a lone escaped surrogate is a 3-byte sequence and
+	// an escaped high + low pair (`\uD83D\uDE00`) is the single 4-byte
+	// sequence of its code point. Pinned by
+	// test_template_cooked_lone_surrogates_are_wtf8 and
+	// test_cooked_surrogate_pairs_are_joined.
 	cooked:            Maybe(string),
 	raw:               string,
 }
@@ -1142,6 +1204,8 @@ ClassElementKind :: enum {
 	Set,
 	Constructor,
 	StaticBlock,  // ES2022 static { ... }
+	Field,
+	IndexSignature,
 }
 
 // TS class-member visibility modifier. .None means no modifier was written
@@ -1155,6 +1219,15 @@ ClassAccessibility :: enum u8 {
 	Protected,
 }
 
+// The element kind selects the active type pointer. Both alternatives occupy the
+// existing field annotation slot in the raw arena format.
+ClassElementType :: struct #raw_union {
+	annotation:      Maybe(^TSTypeAnnotation),
+	index_signature: ^TSSignature,
+}
+#assert(size_of(ClassElementType) == size_of(Maybe(^TSTypeAnnotation)))
+#assert(align_of(ClassElementType) == align_of(Maybe(^TSTypeAnnotation)))
+
 ClassElement :: struct {
 	loc:             Loc,
 	key:             ^Expression,
@@ -1165,12 +1238,13 @@ ClassElement :: struct {
 	is_accessor:     bool, // `accessor` keyword — emits as "AccessorProperty"
 	decorators:      [dynamic]Decorator,
 	abstract:        bool,
-	type_annotation: Maybe(^TSTypeAnnotation),  // TS: `foo: T`
+	typing:          ClassElementType,
 	optional:        bool,                        // TS: `foo?:`
 	definite:        bool,                        // TS: `foo!:` (definite assignment)
 	accessibility:   ClassAccessibility,          // TS: public/private/protected
 	readonly:        bool,                        // TS: readonly
 	override_:       bool,                        // TS: override
+	declare:         bool,                        // TS: type-only field. Fits in raw transfer v1 tail padding.
 }
 
 ClassExpression :: struct {
@@ -1425,6 +1499,15 @@ ExportSpecifier :: struct {
 	exported:  ExportSpecifierName,
 }
 
+// An inline type modifier precedes the local name in the source span.
+export_specifier_is_type :: proc(spec: ^ExportSpecifier) -> bool {
+	switch local in spec.local {
+	case IdentifierName: return spec.loc.start < local.loc.start
+	case ^StringLiteral: return local != nil && spec.loc.start < local.loc.start
+	}
+	return false
+}
+
 ExportNamedDeclaration :: struct {
 	loc:        Loc,
 	declaration: Maybe(^Declaration),
@@ -1473,11 +1556,22 @@ SourceType :: enum {
 	Module,
 }
 
+// The `#!...` line a script can start with (ES2023 HashbangComment).
+// `value` is the text after `#!` up to the line terminator; `loc` covers
+// `#!` and that text. Same shape as the `hashbang` field of emitted ESTree.
+Hashbang :: struct {
+	loc:   Loc,
+	value: string,
+}
+
 Program :: struct {
 	loc:        Loc,
 	type:       SourceType,
 	body:       [dynamic]^Statement,
 	directives: [dynamic]Directive,
+	// nil when the source does not start with `#!`. Appended last: the raw
+	// transfer layout addresses the fields above by offset.
+	hashbang:   Maybe(Hashbang),
 }
 
 Expression :: union {

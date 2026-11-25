@@ -6,7 +6,14 @@ docs/
 src.bin
 src.bin.dSYM/
 _archive/
-bench/
+bench/*
+!bench/package.json
+!bench/package-lock.json
+!bench/oxc_compare/
+bench/oxc_compare/*
+!bench/oxc_compare/cli/
+!bench/oxc_compare/Cargo.lock
+!bench/oxc_compare/codegen_microbench/
 tests/vendor/
 
 *.dSYM/
@@ -14,9 +21,13 @@ tests/vendor/
 AGENTS.md
 HANDOFF.md
 
+.cruft/
 .task/
 .firecrawl/
 .mel/
 .profile_runs/
 .research/
 node_modules
+
+# Editor logs
+nvim.log

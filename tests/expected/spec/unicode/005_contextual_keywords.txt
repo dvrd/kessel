@@ -274,55 +274,55 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 73,
+      "end": 71,
       "value": " Contextual keywords — `async`, `await`, `yield`, `of`, `from`, `as`,"
     },
     {
       "type": "Line",
-      "start": 74,
-      "end": 142,
+      "start": 72,
+      "end": 138,
       "value": " `get`, `set`, `target`, `meta`, `static`, `let` — may appear as"
     },
     {
       "type": "Line",
-      "start": 143,
-      "end": 184,
+      "start": 139,
+      "end": 180,
       "value": " identifiers in non-reserved positions."
     },
     {
       "type": "Line",
-      "start": 185,
-      "end": 187,
+      "start": 181,
+      "end": 183,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 188,
-      "end": 255,
+      "start": 184,
+      "end": 251,
       "value": " Note: `let` is intentionally NOT tested in a `const` BindingList"
     },
     {
       "type": "Line",
-      "start": 256,
-      "end": 325,
+      "start": 252,
+      "end": 320,
       "value": " because ECMA-262 §14.3.1.1 explicitly forbids the BoundNames of a"
     },
     {
       "type": "Line",
-      "start": 326,
-      "end": 392,
+      "start": 321,
+      "end": 387,
       "value": " LexicalDeclaration from containing \"let\". `var let = 12;` stays"
     },
     {
       "type": "Line",
-      "start": 393,
-      "end": 455,
+      "start": 388,
+      "end": 450,
       "value": " legal (B.3.4.4 / sloppy-mode allowance) and is exercised by"
     },
     {
       "type": "Line",
-      "start": 456,
-      "end": 493,
+      "start": 451,
+      "end": 488,
       "value": " spec/lexical/ fixtures separately."
     }
   ]

@@ -1,0 +1,14 @@
+{
+  "entries": [
+    "web.ts",
+    "worker.ts"
+  ],
+  "args": [
+    "--splitting"
+  ],
+  "sourcemap": 4,
+  "once": [
+    "'MARK_SHARED evaluated'",
+    "'MARK_FORMAT['"
+  ]
+}

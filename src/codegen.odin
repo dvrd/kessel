@@ -27,13 +27,14 @@ package kessel
 
 import "core:fmt"
 import "core:mem"
-import "core:strings"
 
 // ----------------------------------------------------------------------------
 // Codegen state
 // ----------------------------------------------------------------------------
 
 CodegenConfig :: struct {
+	fold_constants, join_declarations: bool,
+	compact_syntax: bool, // Minifier spellings: `return!0`, `a=>a`, no `;` before `}`.
 	minified: bool,  // true: no indentation / newlines; false: pretty form
 	indent:   string, // indent unit; default "\t" or "  "
 	// Type-stripping mode (`kessel strip-types`). When set, TS-only syntax
@@ -41,21 +42,48 @@ CodegenConfig :: struct {
 	// erased so the output is plain JavaScript. Default false — every
 	// existing call site emits TS unchanged.
 	strip_types: bool,
+	optimize_const_enums, lower_using: bool,
+	// Preserve the input's module scope when type erasure removes its imports and exports.
+	strip_module: StripModuleKind,
+	jsx: JSXOptions,
 }
 
-// A non-erasable TypeScript construct encountered while type-stripping.
-// enum / namespace-with-body / import= / export= / parameter properties /
-// abstract members carry runtime meaning that a pure erasure cannot remove
-// without a real lowering pass. We record the first one and let the caller
-// fail loudly rather than emit invalid JavaScript — matching Node's
-// `--experimental-strip-types` erasable-only contract.
+StripModuleKind :: enum { Script, ESM, ESM_With_Require }
+
+// The first TypeScript construct whose runtime behavior the stripper cannot
+// reproduce. The CLI reports it before writing any output.
 StripDiagnostic :: struct {
 	loc:  Loc,
 	what: string,
 }
 
+// Pending operands and delimiters keep infix tree depth off the native stack.
+CodegenInfixTask :: struct {
+	kind: enum { Operand, Operator, Open, Close },
+	expr: ^Expression,
+	operator: string,
+	precedence: int,
+	ctx: CodegenExpressionContext,
+}
+
+// One suspended member / call link while its receiver is being printed.
+// Kept on a worklist (like CodegenInfixTask) because `a.b.c...` and
+// `a()()...` chains are not limited by the parser's nesting depth.
+CodegenAccessFrame :: struct {
+	expr:        ^Expression, // the MemberExpression or CallExpression
+	output_mark: int,         // cg.pos before the receiver was printed
+	close_paren: bool,        // this link was opened with '(' by its parent
+	super_props: []string,    // parameter properties to assign after super()
+}
+
 Codegen :: struct {
+	infix_work: [dynamic]CodegenInfixTask,
+	access_work: [dynamic]CodegenAccessFrame,
+	renamed: map[u32]string, // Original binding and reference offsets to shorter local names.
+	bare_new: ^NewExpression, // The `new` about to be printed needs no empty argument list.
+	declaration_emit: ^DeclarationEmit, // Tracks references in public type signatures.
 	cfg: CodegenConfig,
+	source: string, // Borrowed source for syntax spelling omitted by the AST.
 
 	// Output buffer. Grown by cg_reserve via doubling. Owned by Codegen;
 	// codegen_destroy frees it.
@@ -68,6 +96,16 @@ Codegen :: struct {
 	// True at the start of a line; controls whether the next textual
 	// write prefixes itself with indentation in pretty mode.
 	at_line_start: bool,
+	comments: []Comment, // Borrowed for normal comments in pretty output.
+	// First comment that no printer site has claimed, and its source start
+	// (CODEGEN_COMMENT_NONE when none is waiting) for a one-compare fast path.
+	comment_cursor: int,
+	comment_next: u32,
+	// Output offset just after comments that began a line; -1 when unset.
+	comment_line_pos: int,
+	// Output offset just after a continuation indent; -1 when unset.
+	comment_continuation_pos: int,
+	annotations: map[u32]CodegenAnnotations,
 
 	// Source-map state. nil unless the caller opted in via
 	// codegen_enable_sourcemap(). Borrowed; the caller owns the lifetime.
@@ -79,7 +117,17 @@ Codegen :: struct {
 	// First non-erasable TS construct hit during type-stripping (cfg.strip_types).
 	// nil on success. See StripDiagnostic.
 	strip_diag: Maybe(StripDiagnostic),
+	param_properties_after_super: []string,
+	jsx_omit_self: bool,
+	runtime_scope: ^CodegenRuntimeScope,
+	resource_helper: string,
+	resource_proto_class: Maybe(u32),
+	resource_scope: ResourceScope,
+	module_resources: ModuleResources,
+	transform: ^TransformState, // Decorator, target and refresh lowering; nil when unused.
 }
+
+ConstructorKind :: enum { None, Base, Derived }
 
 // Record the first non-erasable TS construct hit while type-stripping. Only
 // the first is kept: the caller reports it and exits non-zero, so later hits
@@ -119,15 +167,66 @@ PREC_PRIMARY  :: 19  // literals, identifiers, (expr), [], {}
 // Lifecycle
 // ----------------------------------------------------------------------------
 
-codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source_len_hint: int, alloc: mem.Allocator) {
-	est := max(source_len_hint, 4096)
+PrintOptions :: struct {
+	minified, compress, mangle: bool,
+	mangle_names: bool, // Also shorten function and class names, changing their `name` property.
+	pragma, pragma_frag: string,
+}
+
+// CLI and SDK use the same source spelling, binding decisions and source-map offsets.
+codegen_print_job :: proc(job: ^ParseJob, cg: ^Codegen, options: PrintOptions, sm: ^SourceMap) {
+	// Folding 1+2 to 3 in TypeScript changes the inferred declaration from number to 3.
+	js_expressions := job.lang == .JS || job.lang == .JSX
+	cfg := CodegenConfig{
+		minified = options.minified, indent = "  ", join_declarations = options.compress,
+		fold_constants = options.compress && js_expressions,
+		compact_syntax = options.compress && js_expressions,
+	}
+	source := string(job.source.data)
+	codegen_init(cg, cfg, source, context.allocator)
+	if (options.mangle || options.compress) && js_expressions { cg.renamed = minify_prepare(job, options) }
+	if sm != nil {
+		sourcemap_init(sm, source)
+		codegen_enable_sourcemap(cg, sm)
+	}
+	if job.lexer.has_hashbang {
+		cg_str(cg, "#!")
+		cg_str(cg, job.lexer.hashbang_value)
+		// A hashbang is a line comment, even when the rest of the output is compact.
+		cg_byte(cg, '\n')
+	}
+	codegen_program(cg, job.program, job.lexer.comments[:], preserve_jsx = job.lang == .JSX || job.lang == .TSX)
+	if !options.minified && (cg.pos == 0 || cg.buf[cg.pos-1] != '\n') { cg_byte(cg, '\n') }
+}
+
+codegen_init :: proc(cg: ^Codegen, cfg: CodegenConfig, source: string, alloc: mem.Allocator) {
+	est := max(len(source), 4096)
+	cg.infix_work    = make([dynamic]CodegenInfixTask, 0, 0, alloc)
+	cg.access_work   = make([dynamic]CodegenAccessFrame, 0, 0, alloc)
+	cg.renamed       = nil
+	cg.declaration_emit = nil
 	cg.cfg           = cfg
+	cg.source        = source
 	cg.buf           = make([]byte, est, alloc)
 	cg.pos           = 0
 	cg.depth         = 0
 	cg.at_line_start = true
+	cg.comments      = nil
+	cg.comment_cursor = 0
+	cg.comment_next  = CODEGEN_COMMENT_NONE
+	cg.comment_line_pos = -1
+	cg.comment_continuation_pos = -1
+	cg.annotations   = nil
 	cg.sm            = nil
 	cg.strip_diag    = nil
+	cg.param_properties_after_super = nil
+	cg.jsx_omit_self = false
+	cg.resource_helper = ""
+	cg.resource_proto_class = nil
+	cg.resource_scope = {}
+	cg.module_resources = {}
+	cg.runtime_scope    = nil
+	cg.transform        = nil
 }
 
 // Opt the codegen into source-map recording. After codegen_program
@@ -139,6 +238,11 @@ codegen_enable_sourcemap :: proc(cg: ^Codegen, sm: ^SourceMap) {
 }
 
 codegen_destroy :: proc(cg: ^Codegen, alloc: mem.Allocator) {
+	delete(cg.infix_work)
+	cg.infix_work = nil
+	delete(cg.access_work)
+	cg.access_work = nil
+	if cg.annotations != nil { delete(cg.annotations) }
 	if cg.buf != nil { delete(cg.buf, alloc) }
 	cg.buf = nil
 	cg.pos = 0
@@ -220,23 +324,96 @@ cg_break_or_space :: #force_inline proc(cg: ^Codegen) {
 	if cg.cfg.minified { cg_hard_space(cg) } else { cg_newline(cg) }
 }
 
+// Before a closing delimiter: print the comments that remain inside the group.
+cg_close_comments :: #force_inline proc(cg: ^Codegen, upto: u32) {
+	if cg.comment_next < upto { codegen_flush_comments(cg, upto, true) }
+}
+
+// Before the bracket that closes a computed key.
+cg_close_key :: proc(cg: ^Codegen, key: ^Expression) {
+	if cg.comment_next == CODEGEN_COMMENT_NONE { return }
+	cg_close_comments(cg, codegen_skip_trivia(cg.source, loc_from_expr(key).end, groups = true))
+}
+
 // ----------------------------------------------------------------------------
 // Top-level entry point
 // ----------------------------------------------------------------------------
 
-codegen_program :: proc(cg: ^Codegen, program: ^Program) {
+codegen_program :: proc(cg: ^Codegen, program: ^Program, comments: []Comment = nil, lowering_allocator: mem.Allocator = {}, preserve_jsx := false) {
 	if program == nil { return }
+	if cg.cfg.strip_types {
+		allocator := lowering_allocator if lowering_allocator.procedure != nil else context.temp_allocator
+		cg.runtime_scope = new(CodegenRuntimeScope, allocator)
+		cg.runtime_scope^ = {
+			program = program, allocator = allocator, needs_module_marker = cg.cfg.strip_module != .Script,
+		}
+		if cg.cfg.optimize_const_enums {
+			cg.runtime_scope.enum_constants = new(EnumConstants, allocator)
+			codegen_resolve_runtime_scopes(cg, cg.runtime_scope)
+		}
+	}
+	// A minified program is the last build step: no later tool reads purity markers.
+	if !cg.cfg.compact_syntax { codegen_index_annotations(cg, comments, context.allocator) }
+	// Late license comments may contain @jsx. Hoisting them would change the JSX factory.
+	compact_jsx := preserve_jsx && cg.cfg.minified
+	header_end := len(comments)
+	if compact_jsx && len(program.body) != 0 {
+		header_end = codegen_comment_lower_bound(comments, codegen_list_item_loc(program.body[0]).start)
+	}
+	codegen_emit_legal_comments(cg, comments[:header_end], compact_jsx)
+	defer codegen_emit_legal_comments(cg, comments[header_end:])
+	source_end := u32(len(cg.source))
+	codegen_comments_begin(cg, comments)
+	jsx_boundary, jsx_offset := -1, -1
+	directives := 0
+	jsx_prelude := cg.cfg.jsx.runtime == .Automatic || cg.cfg.jsx.development
+	if jsx_prelude || cg.cfg.strip_module == .ESM_With_Require {
+		directives = codegen_directive_count(program.body[:])
+	}
+	if jsx_prelude {
+		jsx_boundary = directives
+		for jsx_boundary < len(program.body) {
+			item := program.body[jsx_boundary]^
+			if _, imported := item.(^ImportDeclaration); !imported && strip_statement_has_runtime(item) { break }
+			jsx_boundary += 1
+		}
+		if jsx_boundary == 0 {
+			if !cg.cfg.minified && len(program.body) > 0 {
+				header := jsx_file_header(comments, codegen_list_item_loc(program.body[0]).start)
+				if len(header) > 0 {
+					position := cg.pos
+					codegen_emit_comment_gap(cg, 0, header[len(header) - 1].end, false)
+					if cg.pos != position && !cg.at_line_start { cg_newline(cg) }
+				}
+			}
+			jsx_offset = cg.pos
+		}
+	}
+	if !cg.cfg.minified {
+		codegen_emit_leading_comments(cg, program.body[:], 0, source_end)
+	}
 	// Directive prologue (e.g. "use strict") lives in BOTH `program.directives`
 	// and as the leading ExpressionStatement of `program.body`. We emit only
 	// from body[] to avoid duplicate output.
+	module_kind := resource_list_kind(cg, program.body[:])
 	for i in 0..<len(program.body) {
+		if i == jsx_boundary && jsx_offset < 0 { jsx_offset = cg.pos }
+		if cg.cfg.strip_module == .ESM_With_Require && i == directives {
+			gen_strip_require_binding(cg)
+		}
 		need_asi_guard := false
 		if cg.cfg.minified && i + 1 < len(program.body) {
 			need_asi_guard = prev_stmt_can_continue_into_next(program.body[i]^, program.body[i+1]^)
 		}
-		gen_statement(cg, program.body[i]^)
+		if module_kind == .None {
+			gen_statement_list_entry(cg, program.body[:], i)
+		} else {
+			gen_module_resource_item(cg, program.body[i], module_kind)
+		}
 		if !cg.cfg.minified {
-			cg_newline(cg)
+			// Keep standalone comments attached to the next user statement.
+			offset := &jsx_offset if i + 1 == jsx_boundary else nil
+			codegen_end_item_line(cg, program.body[:], i, source_end, insert_offset = offset)
 		} else if need_asi_guard {
 			// Use a newline instead of `;` here — a `;` would reparse as
 			// an additional EmptyStatement, lengthening the body by one
@@ -245,6 +422,32 @@ codegen_program :: proc(cg: ^Codegen, program: ^Program) {
 			if cg.pos > 0 && cg.buf[cg.pos-1] != '\n' { cg_byte(cg, '\n') }
 		}
 	}
+	if jsx_offset >= 0 { gen_jsx_runtime_imports(cg, jsx_offset) }
+	if module_kind != .None { codegen_resource_dispose(cg, cg.resource_scope, cg.module_resources.completion) }
+	gen_module_resource_unwind(cg)
+	codegen_resource_helper(cg)
+	gen_module_pattern_helper(cg)
+	transform_finish_program(cg)
+	if cg.runtime_scope != nil && cg.runtime_scope.needs_module_marker {
+		cg_str(cg, "export {};")
+		cg_newline(cg)
+	}
+}
+
+codegen_directive_count :: proc(statements: []^Statement) -> int {
+	for statement, index in statements {
+		expr, ok := statement^.(^ExpressionStatement)
+		if !ok || expr.expression == nil { return index }
+		literal, bare := expr.expression^.(^StringLiteral)
+		if !bare || literal.loc.start != expr.loc.start { return index }
+	}
+	return len(statements)
+}
+
+// Record actual ESM syntax, including exports generated by namespace and enum lowering.
+cg_module_keyword :: proc(cg: ^Codegen, keyword: string) {
+	if cg.runtime_scope != nil { cg.runtime_scope.needs_module_marker = false }
+	cg_str(cg, keyword)
 }
 
 // prev_stmt_can_continue_into_next reports whether the codegen output
@@ -299,13 +502,32 @@ stmt_starts_with_asi_hazard :: proc(stmt: Statement) -> bool {
 // Statement dispatch
 // ============================================================================
 
+// Type erasure prints nothing for a declaration without runtime behavior. Its
+// comments describe syntax that is gone, so they go with it.
+gen_statement_list_entry :: proc(cg: ^Codegen, statements: []^Statement, index: int) {
+	gen_statement_list_item(cg, statements, index)
+	if cg.comment_next == CODEGEN_COMMENT_NONE || !cg.cfg.strip_types { return }
+	if strip_statement_has_runtime(statements[index]^) { return }
+	codegen_skip_comments(cg, get_statement_loc(statements[index]).end)
+}
+
 gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		stmt_local := stmt
+		codegen_flush_comments(cg, get_statement_loc(&stmt_local).start)
+	}
 	if cg.sm != nil {
 		// Force indent before recording so the mapping points at the
 		// statement keyword, not at the leading whitespace.
 		cg_indent(cg)
 		stmt_local := stmt
 		cg_record_stmt_mapping(cg, &stmt_local)
+	}
+	transform_lower_statement(cg, stmt)
+	if cg.cfg.lower_using {
+		#partial switch _ in stmt {
+		case ^LabeledStatement, ^ForStatement: if codegen_resource_for(cg, stmt) { return }
+		}
 	}
 	switch s in stmt {
 	case ^ExpressionStatement:        gen_expression_statement(cg, s)
@@ -326,7 +548,7 @@ gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
 	case ^WithStatement:              gen_with_statement(cg, s)
 	case ^ThrowStatement:             gen_throw_statement(cg, s)
 	case ^TryStatement:               gen_try_statement(cg, s)
-	case ^FunctionDeclaration:        if !(cg.cfg.strip_types && s.declare) { gen_function_declaration(cg, s) }
+	case ^FunctionDeclaration:        if !(cg.cfg.strip_types && (s.declare || s.no_body)) { gen_function_declaration(cg, s) }
 	case ^VariableDeclaration:        if !(cg.cfg.strip_types && s.declare) { gen_variable_declaration(cg, s, true) }
 	case ^ClassDeclaration:           if !(cg.cfg.strip_types && s.declare) { gen_class_declaration(cg, s) }
 	case ^ImportDeclaration:          gen_import_declaration(cg, s)
@@ -347,16 +569,83 @@ gen_statement :: proc(cg: ^Codegen, stmt: Statement) {
 // Expression dispatch
 // ============================================================================
 
-gen_expression :: proc(cg: ^Codegen, expr: ^Expression, parent_prec: int = PREC_LOWEST) {
-	if expr == nil { return }
-	prec := expression_precedence(expr)
-	need_paren := prec < parent_prec
-	if need_paren { cg_byte(cg, '(') }
-	gen_expression_raw(cg, expr)
-	if need_paren { cg_byte(cg, ')') }
+CodegenExpressionContext :: bit_set[enum { Forbid_In, Nullish_Operand }; u8]
+
+gen_expression :: proc(
+	cg: ^Codegen, expr: ^Expression, parent_prec: int = PREC_LOWEST, ctx: CodegenExpressionContext = {},
+) {
+	value, child_ctx, close_paren := gen_expression_begin(cg, expr, parent_prec, ctx)
+	if value == nil { return }
+	gen_expression_raw(cg, value, child_ctx)
+	if close_paren { cg_byte(cg, ')') }
 }
 
-gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression) {
+// Both ordinary expressions and pending infix operands enter through this path
+// so folding, grouping, source maps and TypeScript erasure stay in sync.
+gen_expression_begin :: proc(
+	cg: ^Codegen, expr: ^Expression, parent_prec: int, ctx: CodegenExpressionContext,
+) -> (^Expression, CodegenExpressionContext, bool) {
+	if expr == nil { return nil, {}, false }
+	value := codegen_runtime_expression(cg, expr)
+	if value == nil { return nil, {}, false }
+	if cg.cfg.fold_constants && minify_expression(cg, value, parent_prec) { return nil, {}, false }
+	if cg.transform != nil { value = transform_lower_expression(cg, value) }
+	prec := expression_precedence(value)
+	need_paren := prec < parent_prec
+	if cg.cfg.compact_syntax { cg.bare_new = minify_bare_new(value, parent_prec) }
+	// The grammar forbids bare && and || operands of ?? regardless of precedence.
+	if .Nullish_Operand in ctx && (prec == PREC_LOR || prec == PREC_LAND) { need_paren = true }
+	if .Forbid_In in ctx && prec == PREC_REL {
+		if binary, ok := value^.(^BinaryExpression); ok && binary.operator == .In { need_paren = true }
+	}
+	if cg.cfg.jsx.runtime != .Preserve && parent_prec >= PREC_CALL {
+		// A lowered JSX receiver is a call, including in the callee of new.
+		#partial switch _ in value^ { case ^JSXElement, ^JSXFragment: need_paren = true }
+	}
+	// Comments go in front of grouping that the printer adds. Grouping is not
+	// part of the AST, so the output is read back with the comment before it.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		if need_paren {
+			codegen_flush_head(cg, loc_from_expr(expr).start)
+		} else {
+			codegen_flush_comments(cg, loc_from_expr(expr).start)
+		}
+	}
+	if need_paren { cg_byte(cg, '(') }
+	// A comparison followed by a type assertion or JSX must lex as two '<' tokens.
+	if cg.pos > 0 && cg.buf[cg.pos - 1] == '<' {
+		#partial switch _ in value^ {
+		case ^TSTypeAssertion, ^JSXElement, ^JSXFragment: cg_hard_space(cg)
+		}
+	}
+	if cg.sm != nil {
+		cg_indent(cg)
+		sourcemap_record(cg.sm, u32(cg.pos), loc_from_expr(expr).start)
+	}
+	// Parentheses restore the full expression grammar inside a for initializer.
+	child_ctx: CodegenExpressionContext
+	if !need_paren && .Forbid_In in ctx { child_ctx = {.Forbid_In} }
+	return value, child_ctx, need_paren
+}
+
+codegen_runtime_expression :: proc(cg: ^Codegen, expr: ^Expression) -> ^Expression {
+	value := expr
+	if !cg.cfg.strip_types { return value }
+	for value != nil {
+		#partial switch e in value^ {
+		case ^TSAsExpression:            value = e.expression
+		case ^TSSatisfiesExpression:     value = e.expression
+		case ^TSNonNullExpression:       value = e.expression
+		case ^TSTypeAssertion:           value = e.expression
+		case ^TSInstantiationExpression: value = e.expression
+		case: return value
+		}
+	}
+	return value
+}
+
+gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressionContext = {}) {
+	if len(cg.annotations) != 0 { codegen_emit_expression_annotation(cg, expr) }
 	switch e in expr^ {
 	case ^NullLiteral:                cg_str(cg, "null")
 	case ^BooleanLiteral:             cg_str(cg, e.value ? "true" : "false")
@@ -366,7 +655,7 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression) {
 	case ^RegExpLiteral:              gen_regexp_literal(cg, e)
 	case ^TemplateLiteral:            gen_template_literal(cg, e)
 	case ^TaggedTemplateExpression:   gen_tagged_template(cg, e)
-	case ^Identifier:                 gen_pattern_identifier(cg, e)
+	case ^Identifier:                 gen_expression_identifier(cg, e)
 	case ^PrivateIdentifier:          cg_byte(cg, '#'); cg_str(cg, e.name)
 	case ^ThisExpression:             cg_str(cg, "this")
 	case ^Super:                      cg_str(cg, "super")
@@ -374,35 +663,43 @@ gen_expression_raw :: proc(cg: ^Codegen, expr: ^Expression) {
 	case ^ArrayExpression:            gen_array_expression(cg, e)
 	case ^ObjectExpression:           gen_object_expression(cg, e)
 	case ^FunctionExpression:         gen_function_expression(cg, e)
-	case ^ArrowFunctionExpression:    gen_arrow_function(cg, e)
+	case ^ArrowFunctionExpression:    gen_arrow_function(cg, e, ctx)
 	case ^ClassExpression:            gen_class_expression(cg, e)
-	case ^MemberExpression:           gen_member_expression(cg, e)
-	case ^CallExpression:             gen_call_expression(cg, e)
+	case ^MemberExpression, ^CallExpression: gen_access_chain(cg, expr)
 	case ^NewExpression:              gen_new_expression(cg, e)
-	case ^ConditionalExpression:      gen_conditional_expression(cg, e)
+	case ^ConditionalExpression:      gen_conditional_expression(cg, e, ctx)
 	case ^UpdateExpression:           gen_update_expression(cg, e)
 	case ^UnaryExpression:            gen_unary_expression(cg, e)
-	case ^BinaryExpression:           gen_binary_expression(cg, e)
-	case ^LogicalExpression:          gen_logical_expression(cg, e)
-	case ^AssignmentExpression:       gen_assignment_expression(cg, e)
-	case ^SequenceExpression:         gen_sequence_expression(cg, e)
+	case ^BinaryExpression, ^LogicalExpression: gen_infix_expression(cg, expr, ctx)
+	case ^AssignmentExpression:       gen_assignment_expression(cg, e, ctx)
+	case ^SequenceExpression:         gen_sequence_expression(cg, e, ctx)
 	case ^SpreadElement:              cg_str(cg, "..."); gen_expression(cg, e.argument, PREC_ASSIGN)
-	case ^YieldExpression:            gen_yield_expression(cg, e)
+	case ^YieldExpression:            gen_yield_expression(cg, e, ctx)
 	case ^AwaitExpression:            cg_str(cg, "await "); gen_expression(cg, e.argument, PREC_UNARY)
 	case ^ImportExpression:           gen_import_expression(cg, e)
 	case ^MetaProperty:               gen_meta_property(cg, e)
 	case ^JSXElement:                 gen_jsx_element(cg, e)
 	case ^JSXFragment:                gen_jsx_fragment(cg, e)
-	case ^JSXText:                    cg_str(cg, e.value)
+	case ^JSXText:                    cg_str(cg, e.raw)
 	case ^JSXExpressionContainer:     gen_jsx_expression_container(cg, e)
 	case ^JSXEmptyExpression:         // empty
 	case ^JSXSpreadChild:             cg_byte(cg, '{'); cg_str(cg, "..."); gen_expression(cg, e.expression, PREC_ASSIGN); cg_byte(cg, '}')
-	case ^TSAsExpression:             if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_as_expression(cg, e) }
-	case ^TSSatisfiesExpression:      if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_satisfies_expression(cg, e) }
+	case ^TSAsExpression:
+		if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else {
+			gen_ts_type_postfix(cg, e.expression, " as ", e.type_annotation, ctx)
+		}
+	case ^TSSatisfiesExpression:
+		if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else {
+			gen_ts_type_postfix(cg, e.expression, " satisfies ", e.type_annotation, ctx)
+		}
 	case ^TSNonNullExpression:        gen_expression(cg, e.expression, PREC_CALL); if !cg.cfg.strip_types { cg_byte(cg, '!') }
 	case ^TSTypeAssertion:            if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_type_assertion(cg, e) }
 	case ^TSInstantiationExpression:  if cg.cfg.strip_types { gen_expression_raw(cg, e.expression) } else { gen_ts_instantiation(cg, e) }
-	case ^ParenthesizedExpression:    cg_byte(cg, '('); gen_expression(cg, e.expression, PREC_LOWEST); cg_byte(cg, ')')
+	case ^ParenthesizedExpression:
+		cg_byte(cg, '(')
+		gen_expression(cg, e.expression, PREC_LOWEST)
+		cg_close_comments(cg, e.loc.end)
+		cg_byte(cg, ')')
 	}
 }
 
@@ -447,14 +744,13 @@ expression_precedence :: proc(expr: ^Expression) -> int {
 		return PREC_COMMA
 	case ^SpreadElement:
 		return PREC_ASSIGN
-	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSTypeAssertion:
-		// kessel's parser binds `as` / `satisfies` / `<Type>x` tighter
-		// than relational and binary operators (verified empirically:
-		// `x < y as boolean` parses as `x < (y as boolean)`). Treat them
-		// at unary level so the right operand of `<`, `+`, etc. does not
-		// pick up spurious parens, while `(x as T).y` and `(x as T)(args)`
-		// still get them because MemberExpression / CallExpression are
-		// at PREC_CALL (higher than PREC_UNARY).
+	case ^TSAsExpression, ^TSSatisfiesExpression:
+		// `as` and `satisfies` are relational operators that associate to
+		// the left: `1 + x as T` is `(1 + x) as T`, `a < b as T` is
+		// `(a < b) as T`, and `a < (b as T)` needs its grouping.
+		return PREC_REL
+	case ^TSTypeAssertion:
+		// `<Type>x` is a prefix operator: it binds like a unary operator.
 		return PREC_UNARY
 	case ^TSInstantiationExpression:
 		return PREC_CALL
@@ -501,7 +797,8 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 	// or `{` is ambiguous with FunctionDeclaration / ClassDeclaration /
 	// BlockStatement. Wrap in parens so the re-parse picks the
 	// Expression production.
-	if expression_needs_statement_paren(s.expression) {
+	if expression_starts_with_ambiguous_token(cg, s.expression, .Statement) ||
+	   expression_is_grouped_string(s) {
 		cg_byte(cg, '(')
 		gen_expression(cg, s.expression, PREC_LOWEST)
 		cg_byte(cg, ')')
@@ -511,18 +808,25 @@ gen_expression_statement :: proc(cg: ^Codegen, s: ^ExpressionStatement) {
 	cg_byte(cg, ';')
 }
 
-// True when the expression's first emitted token would be parsed as the
-// start of a non-Expression production if it appeared at statement start.
-// Walks leftmost descendants — the ambiguity propagates through call /
-// member / binary / sequence / etc. since those keep `function`/`class`/`{`
-// as the first token of the whole statement.
-expression_needs_statement_paren :: proc(expr: ^Expression) -> bool {
+// `("use strict");` is an ordinary statement. Printed without its grouping
+// it would become a directive and change the mode of the code after it.
+expression_is_grouped_string :: proc(s: ^ExpressionStatement) -> bool {
+	if s.expression == nil { return false }
+	literal, is_string := s.expression^.(^StringLiteral)
+	return is_string && literal.loc.start != s.loc.start
+}
+
+ExpressionStartContext :: enum { Statement, Arrow_Body, Default_Export }
+
+// Statements and concise arrows can interpret a leading brace as a block.
+// A function or class after "export default" is parsed as a declaration.
+expression_starts_with_ambiguous_token :: proc(cg: ^Codegen, expr: ^Expression, position: ExpressionStartContext) -> bool {
 	cur := expr
 	for cur != nil {
 		#partial switch e in cur^ {
-		case ^FunctionExpression:        return true
-		case ^ClassExpression:           return true
-		case ^ObjectExpression:          return true
+		case ^FunctionExpression:        return position != .Arrow_Body
+		case ^ClassExpression:           return position != .Arrow_Body
+		case ^ObjectExpression:          return position != .Default_Export
 		case ^CallExpression:            cur = e.callee
 		case ^MemberExpression:          cur = e.object
 		case ^TaggedTemplateExpression:  cur = e.tag
@@ -539,6 +843,9 @@ expression_needs_statement_paren :: proc(expr: ^Expression) -> bool {
 		case ^TSSatisfiesExpression:     cur = e.expression
 		case ^TSNonNullExpression:       cur = e.expression
 		case ^TSInstantiationExpression: cur = e.expression
+		case ^TSTypeAssertion:
+			if !cg.cfg.strip_types { return false }
+			cur = e.expression
 		case ^ChainExpression:           cur = e.expression
 		case:
 			return false
@@ -548,22 +855,44 @@ expression_needs_statement_paren :: proc(expr: ^Expression) -> bool {
 }
 
 gen_block_statement :: proc(cg: ^Codegen, s: ^BlockStatement) {
+	gen_statement_block(cg, s.body[:], s.loc)
+}
+
+gen_statement_block :: proc(cg: ^Codegen, statements: []^Statement, loc: Loc) {
+	if cg.comment_next < loc.start { codegen_flush_comments(cg, loc.start) }
 	cg_byte(cg, '{')
-	if len(s.body) == 0 { cg_byte(cg, '}'); return }
+	comments := codegen_comments_in_body(cg, loc)
+	if len(statements) == 0 && !codegen_has_ordinary_comments(comments) { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	for i in 0..<len(s.body) {
-		gen_statement(cg, s.body[i]^)
-		cg_newline(cg)
+	codegen_emit_leading_comments(cg, statements, loc.start, loc.end)
+	kind := resource_list_kind(cg, statements)
+	start := 0
+	if kind != .None {
+		start = codegen_directive_count(statements)
+		for i in 0..<start {
+			gen_statement_list_entry(cg, statements, i)
+			codegen_end_item_line(cg, statements, i, loc.end)
+		}
 	}
+	outer := codegen_resource_open(cg, kind)
+	for i in start..<len(statements) {
+		gen_statement_list_entry(cg, statements, i)
+		codegen_end_item_line(cg, statements, i, loc.end)
+	}
+	codegen_resource_close(cg, kind, outer)
 	cg.depth -= 1
+	minify_trim_terminator(cg, statements)
 	cg_byte(cg, '}')
 }
 
 gen_return_statement :: proc(cg: ^Codegen, s: ^ReturnStatement) {
+	if arg, ok := s.argument.?; ok {
+		codegen_hoist_comments(cg, loc_from_expr(arg).start, s.loc.start)
+	}
 	cg_str(cg, "return")
 	if arg, ok := s.argument.?; ok {
-		cg_hard_space(cg)
+		minify_keyword_space(cg, arg)
 		gen_expression(cg, arg, PREC_LOWEST)
 	}
 	cg_byte(cg, ';')
@@ -599,45 +928,93 @@ gen_if_statement :: proc(cg: ^Codegen, s: ^IfStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.test, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.consequent).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.consequent^)
 	if alt, ok := s.alternate.?; ok {
 		cg_space(cg)
 		cg_str(cg, "else")
-		cg_hard_space(cg)
+		if !minify_block_follows(cg, alt) { cg_hard_space(cg) }
 		gen_statement(cg, alt^)
 	}
 }
 
 gen_switch_statement :: proc(cg: ^Codegen, s: ^SwitchStatement) {
+	kind := ResourceKind.None
+	if cg.cfg.lower_using {
+		for arm in s.cases { kind = max(kind, resource_list_kind(cg, arm.consequent[:])) }
+	}
+	if kind != .None { cg_byte(cg, '{'); cg_newline(cg); cg.depth += 1 }
+	outer := codegen_resource_open(cg, kind)
 	cg_str(cg, "switch")
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.discriminant, PREC_LOWEST)
+	cg_close_comments(cg, loc_from_expr(s.discriminant).end)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	cg_byte(cg, '{')
 	cg_newline(cg)
 	cg.depth += 1
-	for c in s.cases {
-		if t, ok := c.test.?; ok {
-			cg_str(cg, "case ")
-			gen_expression(cg, t, PREC_LOWEST)
-			cg_byte(cg, ':')
-		} else {
-			cg_str(cg, "default:")
-		}
-		cg_newline(cg)
-		cg.depth += 1
-		for st in c.consequent {
-			gen_statement(cg, st^)
-			cg_newline(cg)
-		}
-		cg.depth -= 1
+	// The closing brace bounds the comments of the last case.
+	body_end := s.loc.end - 1 if s.loc.end > 0 else 0
+	codegen_emit_leading_comments(cg, s.cases[:], s.loc.start, body_end)
+	for c, index in s.cases {
+		next := body_end
+		if index + 1 < len(s.cases) { next = s.cases[index + 1].loc.start }
+		gen_switch_case(cg, c, next, index + 1 == len(s.cases))
 	}
 	cg.depth -= 1
+	if len(s.cases) != 0 { minify_trim_terminator(cg, s.cases[len(s.cases)-1].consequent[:]) }
 	cg_byte(cg, '}')
+	if kind != .None {
+		cg_newline(cg)
+		codegen_resource_close(cg, kind, outer)
+		cg.depth -= 1
+		cg_byte(cg, '}')
+	}
+}
+
+// `next` is where the following case, or the closing brace, begins.
+gen_switch_case :: proc(cg: ^Codegen, c: SwitchCase, next: u32, last: bool) {
+	header_end := c.loc.start
+	if t, ok := c.test.?; ok {
+		cg_str(cg, "case")
+		minify_keyword_space(cg, t)
+		gen_expression(cg, t, PREC_LOWEST)
+		header_end = loc_from_expr(t).end
+		cg_close_comments(cg, header_end)
+		cg_byte(cg, ':')
+	} else {
+		cg_str(cg, "default:")
+	}
+	// Comments at the indentation of the next case describe that case. Before
+	// the closing brace there is no next case to compare with.
+	split := next
+	if !last && cg.comment_next < next {
+		from := header_end
+		if len(c.consequent) > 0 {
+			from = get_statement_loc(c.consequent[len(c.consequent) - 1]).end
+		}
+		split = codegen_outdented_comment(cg, from, next)
+	}
+	cg.depth += 1
+	if cg.comment_next < split {
+		boundary := split
+		if len(c.consequent) > 0 { boundary = get_statement_loc(c.consequent[0]).start }
+		codegen_emit_comment_gap(cg, header_end, boundary, true)
+	}
+	if !cg.at_line_start { cg_newline(cg) }
+	for _, i in c.consequent {
+		gen_statement_list_entry(cg, c.consequent[:], i)
+		codegen_end_item_line(cg, c.consequent[:], i, split)
+	}
+	cg.depth -= 1
+	if cg.comment_next < next {
+		codegen_emit_comment_gap(cg, split, next, false)
+		if !cg.at_line_start { cg_newline(cg) }
+	}
 }
 
 gen_while_statement :: proc(cg: ^Codegen, s: ^WhileStatement) {
@@ -645,6 +1022,7 @@ gen_while_statement :: proc(cg: ^Codegen, s: ^WhileStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.test, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -656,13 +1034,14 @@ gen_do_while_statement :: proc(cg: ^Codegen, s: ^DoWhileStatement) {
 	// statement form. A bare identifier (e.g. `do keep(); while (true)`)
 	// needs a hard separator from the `do` keyword; cg_space collapses
 	// in minified mode and produces `dokeep()`.
-	cg_hard_space(cg)
+	if !minify_block_follows(cg, s.body) { cg_hard_space(cg) }
 	gen_statement(cg, s.body^)
 	cg_space(cg)
 	cg_str(cg, "while")
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.test, PREC_LOWEST)
+	cg_close_comments(cg, s.loc.end)
 	cg_str(cg, ");")
 }
 
@@ -671,14 +1050,15 @@ gen_for_statement :: proc(cg: ^Codegen, s: ^ForStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	if v, ok := s.init_decl.?; ok {
-		gen_variable_declaration(cg, v, false)
-	} else if v, ok := s.init_expr.?; ok {
-		gen_expression(cg, v, PREC_LOWEST)
+		gen_variable_declaration(cg, v, false, {.Forbid_In})
+	} else if v, found := s.init_expr.?; found {
+		gen_expression(cg, v, PREC_LOWEST, {.Forbid_In})
 	}
 	cg_byte(cg, ';')
 	if t, ok := s.test.?; ok { cg_space(cg); gen_expression(cg, t, PREC_LOWEST) }
 	cg_byte(cg, ';')
 	if u, ok := s.update.?; ok { cg_space(cg); gen_expression(cg, u, PREC_LOWEST) }
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -689,29 +1069,47 @@ gen_for_in_statement :: proc(cg: ^Codegen, s: ^ForInStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	if v, ok := s.left_decl.?; ok {
-		gen_variable_declaration(cg, v, false)
-	} else if v, ok := s.left_expr.?; ok {
+		gen_variable_declaration(cg, v, false, {.Forbid_In})
+	} else if v, found := s.left_expr.?; found {
 		gen_expression(cg, v, PREC_LOWEST)
 	}
-	cg_str(cg, " in ")
+	minify_word_space(cg)
+	cg_str(cg, "in")
+	minify_keyword_space(cg, s.right)
 	gen_expression(cg, s.right, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
 }
 
 gen_for_of_statement :: proc(cg: ^Codegen, s: ^ForOfStatement) {
+	if cg.cfg.lower_using {
+		if decl, ok := s.left_decl.?; ok && resource_kind(decl) != .None {
+			gen_resource_for_of(cg, s, decl)
+			return
+		}
+	}
 	cg_str(cg, "for")
 	if s.await { cg_str(cg, " await") }
 	cg_space(cg)
 	cg_byte(cg, '(')
 	if v, ok := s.left_decl.?; ok {
 		gen_variable_declaration(cg, v, false)
-	} else if v, ok := s.left_expr.?; ok {
-		gen_expression(cg, v, PREC_LOWEST)
+	} else if v, found := s.left_expr.?; found {
+		id, identifier := v^.(^Identifier)
+		if !s.await && identifier && id != nil && id.name == "async" {
+			// Plain for-of excludes the unescaped identifier in this position.
+			cg_str(cg, "\\u0061sync")
+		} else {
+			gen_expression(cg, v, PREC_LOWEST)
+		}
 	}
-	cg_str(cg, " of ")
+	minify_word_space(cg)
+	cg_str(cg, "of")
+	minify_keyword_space(cg, s.right)
 	gen_expression(cg, s.right, PREC_ASSIGN)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
@@ -722,12 +1120,14 @@ gen_with_statement :: proc(cg: ^Codegen, s: ^WithStatement) {
 	cg_space(cg)
 	cg_byte(cg, '(')
 	gen_expression(cg, s.object, PREC_LOWEST)
+	cg_close_comments(cg, get_statement_loc(s.body).start)
 	cg_byte(cg, ')')
 	cg_space(cg)
 	gen_statement(cg, s.body^)
 }
 
 gen_throw_statement :: proc(cg: ^Codegen, s: ^ThrowStatement) {
+	codegen_hoist_comments(cg, loc_from_expr(s.argument).start, s.loc.start)
 	cg_str(cg, "throw ")
 	gen_expression(cg, s.argument, PREC_LOWEST)
 	cg_byte(cg, ';')
@@ -760,45 +1160,76 @@ gen_try_statement :: proc(cg: ^Codegen, s: ^TryStatement) {
 }
 
 gen_function_declaration :: proc(cg: ^Codegen, s: ^FunctionDeclaration) {
+	if len(cg.annotations) != 0 { codegen_emit_annotation(cg, s.loc.start, .No_Side_Effects) }
 	// TS `declare function f(): void;` is a FunctionDeclaration with
 	// declare=true and no body. The keyword must be preserved or the
 	// regen loses its ambient marker (and a body-less function without
 	// `declare` is a parse error).
 	if s.declare && !cg.cfg.strip_types { cg_str(cg, "declare ") }
-	name := ""
-	if id, ok := s.id.?; ok { name = id.name }
-	gen_function_expression_like(cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters, s.return_type, true)
+	name, name_start := "", u32(0)
+	if id, ok := s.id.?; ok { name, name_start = minify_binding_name(cg, id), id.loc.start }
+	gen_function_expression_like(
+		cg, s.async, s.generator, name, s.params[:], s.body, s.no_body, s.type_parameters,
+		s.return_type, true, name_start,
+	)
 }
 
-gen_variable_declaration :: proc(cg: ^Codegen, s: ^VariableDeclaration, with_semicolon: bool) {
+gen_variable_declaration :: proc(
+	cg: ^Codegen, s: ^VariableDeclaration, with_semicolon: bool, ctx: CodegenExpressionContext = {},
+) {
 	// TS `declare const X: T;` reaches codegen as a VariableDeclaration
 	// with `declare = true` and no initializer. Emitting it without the
 	// keyword regenerates `const X: T;`, which is an early error because
 	// `const` requires an initializer outside of ambient context.
 	if s.declare && !cg.cfg.strip_types { cg_str(cg, "declare ") }
+	lower_resource := cg.cfg.lower_using && resource_kind(s) != .None
+	if lower_resource && cg.resource_scope.name == "" {
+		cg_strip_unsupported(cg, s.loc, "resource declaration requires a cleanup scope")
+		return
+	}
+	// `using` ends at a line break. In a loop head no statement boundary has
+	// printed the comments in front of the declaration yet.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		first := s.loc.start
+		// A line break may separate `await` from `using`, but not `using`
+		// from its binding: comments between the keywords go before both.
+		if s.kind == .AwaitUsing { first = codegen_skip_trivia(cg.source, first + len("await")) }
+		codegen_flush_comments(cg, first)
+	}
 	switch s.kind {
 	case .Var:   cg_str(cg, "var")
 	case .Let:   cg_str(cg, "let")
 	case .Const: cg_str(cg, "const")
-	case .Using: cg_str(cg, "using")
-	case .AwaitUsing: cg_str(cg, "await using")
+	case .Using: cg_str(cg, "const" if lower_resource else "using")
+	case .AwaitUsing: cg_str(cg, "const" if lower_resource else "await using")
 	}
-	cg_hard_space(cg)
+	if !minify_pattern_follows(cg, s) { cg_hard_space(cg) }
+	gen_variable_declarators(cg, s, ctx, lower_resource)
+	if with_semicolon { cg_byte(cg, ';') }
+}
+
+gen_variable_declarators :: proc(cg: ^Codegen, s: ^VariableDeclaration, ctx: CodegenExpressionContext, lower_resource: bool) {
 	for i in 0..<len(s.declarations) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		d := s.declarations[i]
 		gen_var_declarator_id(cg, d.id, d.definite)
 		if init, ok := d.init.?; ok {
-			cg_space(cg)
-			cg_byte(cg, '=')
-			cg_space(cg)
-			gen_expression(cg, init, PREC_ASSIGN)
+			cg_infix_operator(cg, "=")
+			if lower_resource {
+				codegen_resource_register(cg, resource_kind(s))
+				name := ""
+				if id, found := d.id.(^Identifier); found { name = id.name }
+				gen_resource_named_value(cg, init, name)
+				cg_byte(cg, ')')
+			} else {
+				gen_expression(cg, init, PREC_ASSIGN, ctx)
+			}
 		}
 	}
-	if with_semicolon { cg_byte(cg, ';') }
 }
 
 gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
+	if transform_class_declaration(cg, &s.expr, .None) { return }
 	for d in s.decorators {
 		gen_decorator(cg, d)
 		cg_break_or_space(cg)
@@ -810,23 +1241,29 @@ gen_class_declaration :: proc(cg: ^Codegen, s: ^ClassDeclaration) {
 	// downstream consumers see.
 	if s.declare  && !cg.cfg.strip_types { cg_str(cg, "declare ") }
 	if s.abstract && !cg.cfg.strip_types { cg_str(cg, "abstract ") }
-	name := ""
-	if id, ok := s.id.?; ok { name = id.name }
-	gen_class_like(cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements)
+	name, name_start := "", u32(0)
+	if id, ok := s.id.?; ok { name, name_start = minify_binding_name(cg, id), id.loc.start }
+	gen_class_like(
+		cg, name, s.super_class, s.body, s.type_parameters, s.super_type_arguments, s.implements,
+		name_start,
+	)
+}
+
+cg_name_is_quoted :: proc(cg: ^Codegen, start: u32) -> bool {
+	if u64(start) >= u64(len(cg.source)) { return false }
+	first := cg.source[start]
+	return first == '\'' || first == '"'
 }
 
 gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 	// Type-only imports (`import type ...`) are always elided under strip.
 	if cg.cfg.strip_types && s.import_kind == .Type { return }
-	cg_str(cg, "import ")
+	cg_module_keyword(cg, "import ")
 	if s.import_kind == .Type { cg_str(cg, "type ") }
-	// Source-phase / defer-phase imports (`import source x from "m"`,
-	// `import defer x from "m"`) need a HARD space between the phase
-	// keyword and the binding identifier — the minified `cg_space`
-	// collapses to nothing and produces `import sourcex` which the
-	// parser then reads as a single identifier.
+	// Minified output still needs a separator after the phase keyword.
 	if len(s.phase) > 0 { cg_str(cg, s.phase); cg_hard_space(cg) }
 	first := true
+	has_named_specifiers := false
 	// Default + namespace specifiers (each appears at most once).
 	for spec in s.specifiers {
 		switch v in spec^ {
@@ -840,33 +1277,46 @@ gen_import_declaration :: proc(cg: ^Codegen, s: ^ImportDeclaration) {
 			cg_str(cg, v.local.name)
 			first = false
 		case ImportSpecifier:
-			// emitted in the `{...}` group below
+			has_named_specifiers = true
 		}
 	}
-	// Named specifiers.
-	any_named := false
+	named_open := false
 	for spec in s.specifiers {
-		if _, ok := spec^.(ImportSpecifier); ok { any_named = true; break }
-	}
-	if any_named {
-		if !first { cg_str(cg, ", ") }
-		cg_byte(cg, '{')
-		first_named := true
-		for spec in s.specifiers {
-			v, ok := spec^.(ImportSpecifier)
-			if !ok { continue }
-			if !first_named { cg_str(cg, ", ") } else { cg_space(cg) }
-			first_named = false
-			if v.imported.name != v.local.name {
-				cg_str(cg, v.imported.name)
-				cg_str(cg, " as ")
-				cg_str(cg, v.local.name)
-			} else {
-				cg_str(cg, v.local.name)
-			}
+		v, ok := spec^.(ImportSpecifier)
+		if !ok { continue }
+		// A per-specifier type modifier precedes the imported name.
+		type_only := v.loc.start < v.imported.loc.start
+		if cg.cfg.strip_types && type_only { continue }
+		if named_open {
+			cg_str(cg, ", ")
+		} else {
+			if !first { cg_str(cg, ", ") }
+			cg_byte(cg, '{')
+			cg_space(cg)
+			named_open = true
 		}
+		if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, v.loc.start) }
+		if type_only { cg_str(cg, "type ") }
+		quoted := cg_name_is_quoted(cg, v.imported.loc.start)
+		if quoted {
+			gen_string_quoted(cg, v.imported.name)
+		} else {
+			cg_str(cg, v.imported.name)
+		}
+		if quoted || v.imported.name != v.local.name {
+			cg_str(cg, " as ")
+			cg_str(cg, v.local.name)
+		}
+	}
+	if named_open {
+		cg_close_comments(cg, s.source.loc.start)
 		cg_space(cg)
 		cg_byte(cg, '}')
+		first = false
+	} else if has_named_specifiers || (first && s.import_kind == .Type) {
+		// Keep the module request when type stripping leaves an empty clause.
+		if !first { cg_str(cg, ", ") }
+		cg_str(cg, "{}")
 		first = false
 	}
 	if !first { cg_str(cg, " from ") }
@@ -884,7 +1334,12 @@ gen_import_attributes :: proc(cg: ^Codegen, attrs: [dynamic]ImportAttribute) {
 	for i in 0..<len(attrs) {
 		if i > 0 { cg_byte(cg, ',') }
 		cg_space(cg)
-		cg_str(cg, attrs[i].key.name)
+		key := attrs[i].key
+		if cg_name_is_quoted(cg, key.loc.start) {
+			gen_string_quoted(cg, key.name)
+		} else {
+			cg_str(cg, key.name)
+		}
 		cg_byte(cg, ':')
 		cg_space(cg)
 		gen_string_quoted(cg, attrs[i].value.value)
@@ -916,7 +1371,8 @@ export_decl_is_erased :: proc(decl: Declaration) -> bool {
 	#partial switch d in decl {
 	case ^TSInterfaceDeclaration: return true
 	case ^TSTypeAliasDeclaration: return true
-	case ^FunctionDeclaration:    return d.declare
+	case ^FunctionDeclaration:    return d.declare || d.no_body
+	case ^TSImportEqualsDeclaration: return d.import_kind == .Type
 	case ^VariableDeclaration:    return d.declare
 	case ^ClassDeclaration:       return d.declare
 	}
@@ -924,25 +1380,33 @@ export_decl_is_erased :: proc(decl: Declaration) -> bool {
 }
 
 gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
-	// Under strip, a type-only export (`export type {...}`) and an export
-	// wrapping an erasable declaration (interface / type alias / `declare`)
-	// disappear whole. enum / namespace inner declarations flow through and
-	// are reported by their own strip handling.
+	// Erase type-only exports before emitting their keyword or annotation.
 	if cg.cfg.strip_types {
 		if s.export_kind == .Type { return }
+		if alias := cg.runtime_scope.active_namespace; alias != "" {
+			gen_runtime_namespace_export(cg, s, alias)
+			return
+		}
 		if decl_ptr, ok := s.declaration.?; ok && decl_ptr != nil {
 			if export_decl_is_erased(decl_ptr^) { return }
+			if enum_decl, is_enum := decl_ptr^.(^TSEnumDeclaration); is_enum {
+				gen_ts_enum_lowered(cg, enum_decl, exported = true)
+				return
+			}
+			if namespace, is_namespace := decl_ptr^.(^TSModuleDeclaration); is_namespace {
+				gen_ts_module_declaration_stripped(cg, namespace, exported = true)
+				return
+			}
 		}
 	}
-	cg_str(cg, "export ")
-	// `export type { A } from "x"`, `export type * from "x"`, and the
-	// inner type-alias / interface / enum / module forms all carry the
-	// `type` modifier on the declaration itself. The `type` keyword on
-	// the export wrapper is only needed when no inner declaration
-	// supplies it — i.e. the specifier-only export form. Emitting it
-	// before TSInterfaceDeclaration / TSTypeAliasDeclaration produces
-	// `export type interface I {}` / `export type type X = ...`, both
-	// of which are SyntaxErrors.
+	if transform_export_named_class(cg, s) { return }
+	if len(cg.annotations) != 0 {
+		if decl_ptr, ok := s.declaration.?; ok {
+			codegen_emit_export_annotation(cg, s.loc.start, decl_ptr)
+		}
+	}
+	cg_module_keyword(cg, "export ")
+	// Declarations such as `export type X = T` print their own keyword.
 	if s.export_kind == .Type {
 		inner_supplies_type := false
 		if decl_ptr, ok := s.declaration.?; ok && decl_ptr != nil {
@@ -963,16 +1427,29 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 		return
 	}
 	cg_byte(cg, '{')
-	for i in 0..<len(s.specifiers) {
-		if i > 0 { cg_str(cg, ", ") } else { cg_space(cg) }
-		sp := s.specifiers[i]
-		if export_name_eq(sp.local, sp.exported) {
+	first := true
+	for &sp in s.specifiers {
+		type_only := export_specifier_is_type(&sp)
+		if cg.cfg.strip_types && type_only { continue }
+		if !first { cg_str(cg, ", ") } else { cg_space(cg) }
+		first = false
+		if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, sp.loc.start) }
+		if type_only { cg_str(cg, "type ") }
+		if alias := minify_export_alias(cg, sp.local); alias != "" {
+			// The module still exports the original name for a shortened binding.
+			cg_str(cg, alias)
+			cg_str(cg, " as ")
+			gen_export_specifier_name(cg, sp.exported)
+		} else if export_name_eq(sp.local, sp.exported) {
 			gen_export_specifier_name(cg, sp.local)
 		} else {
 			gen_export_specifier_name(cg, sp.local)
 			cg_str(cg, " as ")
 			gen_export_specifier_name(cg, sp.exported)
 		}
+	}
+	if count := len(s.specifiers); count > 0 && cg.comment_next != CODEGEN_COMMENT_NONE {
+		cg_close_comments(cg, codegen_skip_trivia(cg.source, s.specifiers[count - 1].loc.end))
 	}
 	cg_space(cg)
 	cg_byte(cg, '}')
@@ -984,36 +1461,59 @@ gen_export_named_declaration :: proc(cg: ^Codegen, s: ^ExportNamedDeclaration) {
 	cg_byte(cg, ';')
 }
 
+strip_default_export_is_erased :: proc(s: ^ExportDefaultDeclaration) -> bool {
+	switch value in s.declaration^ {
+	case ^Declaration:
+		return export_decl_is_erased(value^)
+	case ^Expression:
+		if fn, ok := value^.(^FunctionExpression); ok { return fn.no_body }
+	}
+	return false
+}
+
 gen_export_default_declaration :: proc(cg: ^Codegen, s: ^ExportDefaultDeclaration) {
-	cg_str(cg, "export default ")
+	if cg.cfg.strip_types && strip_default_export_is_erased(s) { return }
+	if transform_export_default_class(cg, s) { return }
+	if len(cg.annotations) != 0 {
+		switch value in s.declaration^ {
+		case ^Declaration:
+			codegen_emit_export_annotation(cg, s.loc.start, value)
+		case ^Expression:
+			#partial switch _ in value^ {
+			case ^FunctionExpression, ^ArrowFunctionExpression:
+				codegen_emit_annotation(cg, s.loc.start, .No_Side_Effects)
+			}
+		}
+	}
+	cg_module_keyword(cg, "export default ")
 	switch v in s.declaration^ {
 	case ^Declaration:
 		gen_statement(cg, decl_to_stmt(v^))
 	case ^Expression:
+		// An expression beginning with "function" or "class" must stay an
+		// expression when reparsed, including when stripping TypeScript.
+		group := expression_starts_with_ambiguous_token(cg, v, .Default_Export)
+		if group { cg_byte(cg, '(') }
 		gen_expression(cg, v, PREC_ASSIGN)
-		// Function and class *expressions* in default-export position are
-		// declaration-shaped at the source level (closing `}` ends the
-		// statement). Emitting `;` after them produces two statements on
-		// re-parse — the declaration plus a stray EmptyStatement — which
-		// breaks AST round-trip. Only assign-expression forms need `;`.
-		needs_semi := true
-		#partial switch _ in v^ {
-		case ^FunctionExpression: needs_semi = false
-		case ^ClassExpression:    needs_semi = false
-		}
-		if needs_semi { cg_byte(cg, ';') }
+		if group { cg_byte(cg, ')') }
+		cg_byte(cg, ';')
 	}
 }
 
 gen_export_all_declaration :: proc(cg: ^Codegen, s: ^ExportAllDeclaration) {
-	cg_str(cg, "export ")
+	if cg.cfg.strip_types && s.export_kind == .Type { return }
+	cg_module_keyword(cg, "export ")
 	// `export type * from "x"` keeps the type-only marker on the
 	// declaration's export_kind. Same drop bug as gen_export_named.
 	if s.export_kind == .Type { cg_str(cg, "type ") }
 	cg_str(cg, "* ")
 	if name, ok := s.exported.?; ok {
 		cg_str(cg, "as ")
-		cg_str(cg, name.name)
+		if cg_name_is_quoted(cg, name.loc.start) {
+			gen_string_quoted(cg, name.name)
+		} else {
+			cg_str(cg, name.name)
+		}
 		cg_byte(cg, ' ')
 	}
 	cg_str(cg, "from ")
@@ -1032,15 +1532,6 @@ gen_ts_type_alias_declaration  :: proc(cg: ^Codegen, s: ^TSTypeAliasDeclaration)
 gen_ts_enum_declaration        :: proc(cg: ^Codegen, s: ^TSEnumDeclaration)        { gen_ts_enum_declaration_full(cg, s) }
 gen_ts_module_declaration      :: proc(cg: ^Codegen, s: ^TSModuleDeclaration)      { gen_ts_module_declaration_full(cg, s) }
 
-// Type-stripping counterpart for TSModuleDeclaration. `declare namespace` and
-// body-less ambient module declarations carry no runtime and are erased. A
-// namespace WITH a runtime body compiles to an IIFE in tsc — pure erasure
-// cannot reproduce it, so we refuse rather than drop the values.
-gen_ts_module_declaration_stripped :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
-	if _, ok := s.body.?; ok && !s.declare {
-		cg_strip_unsupported(cg, s.loc, "namespace with a body")
-	}
-}
 gen_ts_import_equals           :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) { gen_ts_import_equals_full(cg, s) }
 gen_ts_export_assignment       :: proc(cg: ^Codegen, s: ^TSExportAssignment)       { gen_ts_export_assignment_full(cg, s) }
 gen_ts_namespace_export        :: proc(cg: ^Codegen, s: ^TSNamespaceExportDeclaration) { gen_ts_namespace_export_full(cg, s) }
@@ -1060,11 +1551,20 @@ gen_decorator :: proc(cg: ^Codegen, d: Decorator) {
 	cg_byte(cg, '@')
 	if decorator_expr_is_bare(d.expression) {
 		gen_expression(cg, d.expression, PREC_CALL)
-	} else {
-		cg_byte(cg, '(')
-		gen_expression(cg, d.expression, PREC_LOWEST)
-		cg_byte(cg, ')')
+		return
 	}
+	if d.expression != nil {
+		loc := loc_from_expr(d.expression)
+		// The decorator suffix parser does not retain grouping around
+		// a parenthesized head, such as @(this.member)(arg).
+		if loc.end == d.loc.end && u64(loc.start) < u64(len(cg.source)) && cg.source[loc.start] != '(' {
+			gen_expression(cg, d.expression, PREC_LOWEST)
+			return
+		}
+	}
+	cg_byte(cg, '(')
+	gen_expression(cg, d.expression, PREC_LOWEST)
+	cg_byte(cg, ')')
 }
 
 // decorator_expr_is_bare reports whether `expr` is a member-chain or
@@ -1099,18 +1599,33 @@ decorator_expr_is_bare :: proc(expr: ^Expression) -> bool {
 // Patterns (destructuring)
 // ----------------------------------------------------------------------------
 
-gen_pattern :: proc(cg: ^Codegen, p: Pattern) {
+gen_pattern :: proc(cg: ^Codegen, p: Pattern, target := "") {
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		codegen_flush_comments(cg, get_pattern_loc(p).start)
+	}
 	switch v in p {
-	case ^Identifier:         gen_pattern_identifier(cg, v)
-	case ^ObjectPattern:      gen_object_pattern(cg, v)
-	case ^ArrayPattern:       gen_array_pattern(cg, v)
-	case ^AssignmentPattern:  gen_assignment_pattern(cg, v)
-	case ^RestElement:        cg_str(cg, "..."); gen_pattern(cg, v.argument)
+	case ^Identifier:
+		if target != "" { gen_runtime_property(cg, target, v.name) } else { gen_pattern_identifier(cg, v) }
+	case ^ObjectPattern:      gen_object_pattern(cg, v, target)
+	case ^ArrayPattern:       gen_array_pattern(cg, v, target)
+	case ^AssignmentPattern:  gen_assignment_pattern(cg, v, target)
+	case ^RestElement:        cg_str(cg, "..."); gen_pattern(cg, v.argument, target)
 	case ^MemberExpression:   gen_member_expression(cg, v)
 	}
 }
 
 gen_pattern_identifier :: proc(cg: ^Codegen, e: ^Identifier) {
+	if len(cg.renamed) != 0 {
+		if name, ok := cg.renamed[e.loc.start]; ok {
+			if cg.sm != nil { sourcemap_record(cg.sm, u32(cg.pos), e.loc.start) }
+			cg_str(cg, name)
+			return
+		}
+	}
+	if cg.sm != nil {
+		cg_indent(cg)
+		sourcemap_record(cg.sm, u32(cg.pos), e.loc.start)
+	}
 	cg_str(cg, e.name)
 	if cg.cfg.strip_types { return }
 	if e.optional { cg_byte(cg, '?') }
@@ -1144,7 +1659,7 @@ gen_var_declarator_id :: proc(cg: ^Codegen, id: Pattern, definite: bool) {
 	cg_byte(cg, '!')
 }
 
-gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern) {
+gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern, target := "") {
 	cg_byte(cg, '{')
 	if len(e.properties) == 0 {
 		cg_byte(cg, '}')
@@ -1152,8 +1667,9 @@ gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern) {
 		cg_space(cg)
 		for i in 0..<len(e.properties) {
 			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
-			gen_object_pattern_property(cg, e.properties[i])
+			gen_object_pattern_property(cg, e.properties[i], target)
 		}
+		cg_close_comments(cg, codegen_pattern_close(e.loc, e.type_annotation))
 		cg_space(cg)
 		cg_byte(cg, '}')
 	}
@@ -1167,10 +1683,14 @@ gen_object_pattern :: proc(cg: ^Codegen, e: ^ObjectPattern) {
 	}
 }
 
-gen_object_pattern_property :: proc(cg: ^Codegen, p: ObjectPatternProperty) {
-	if p.shorthand {
-		gen_pattern(cg, p.value)
-		return
+gen_object_pattern_property :: proc(cg: ^Codegen, p: ObjectPatternProperty, target := "") {
+	if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, p.loc.start) }
+	if p.shorthand && target == "" {
+		id := mangle_pattern_identifier(p.value) if len(cg.renamed) != 0 else nil
+		if id == nil || cg.renamed[id.loc.start] == "" {
+			gen_pattern(cg, p.value)
+			return
+		}
 	}
 	if key, ok := p.key.?; ok {
 		if p.computed { cg_byte(cg, '[') }
@@ -1179,7 +1699,7 @@ gen_object_pattern_property :: proc(cg: ^Codegen, p: ObjectPatternProperty) {
 		cg_byte(cg, ':')
 		cg_space(cg)
 	}
-	gen_pattern(cg, p.value)
+	gen_pattern(cg, p.value, target)
 }
 
 gen_object_pattern_key :: proc(cg: ^Codegen, k: ObjectPatternPropertyKey) {
@@ -1191,12 +1711,12 @@ gen_object_pattern_key :: proc(cg: ^Codegen, k: ObjectPatternPropertyKey) {
 	}
 }
 
-gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern) {
+gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern, target := "") {
 	cg_byte(cg, '[')
 	for i in 0..<len(e.elements) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		if el, ok := e.elements[i].?; ok {
-			gen_pattern(cg, el)
+			gen_pattern(cg, el, target)
 		}
 	}
 	// Preserve a trailing hole: in `[a, ,]` the last comma is the
@@ -1209,6 +1729,7 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern) {
 			cg_byte(cg, ',')
 		}
 	}
+	cg_close_comments(cg, codegen_pattern_close(e.loc, e.type_annotation))
 	cg_byte(cg, ']')
 	// Same TS-position annotation as ObjectPattern: `function
 	// f([a, b]: number[])` carries `: number[]` on the ArrayPattern.
@@ -1219,11 +1740,17 @@ gen_array_pattern :: proc(cg: ^Codegen, e: ^ArrayPattern) {
 	}
 }
 
-gen_assignment_pattern :: proc(cg: ^Codegen, e: ^AssignmentPattern) {
-	gen_pattern(cg, e.left)
-	cg_space(cg)
-	cg_byte(cg, '=')
-	cg_space(cg)
+// A destructuring pattern's span includes its type annotation. Comments in
+// the annotation stay there; only those before it are inside the brackets.
+codegen_pattern_close :: proc(loc: Loc, annotation: Maybe(^TSTypeAnnotation)) -> u32 {
+	if typed, ok := annotation.?; ok && typed != nil { return typed.loc.start }
+	return loc.end
+}
+
+gen_assignment_pattern :: proc(cg: ^Codegen, e: ^AssignmentPattern, target := "") {
+	gen_pattern(cg, e.left, target)
+	if cg.declaration_emit != nil { return }
+	cg_infix_operator(cg, "=")
 	gen_expression(cg, e.right, PREC_ASSIGN)
 }
 
@@ -1232,6 +1759,11 @@ gen_assignment_pattern :: proc(cg: ^Codegen, e: ^AssignmentPattern) {
 // ----------------------------------------------------------------------------
 
 gen_function_param :: proc(cg: ^Codegen, p: FunctionParameter) {
+	// A parameter-property modifier ends at a line break, so comments
+	// between it and the name go in front of the modifier.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		codegen_flush_comments(cg, get_pattern_loc(p.pattern).start)
+	}
 	// Accessibility / readonly / override / parameter properties — emit
 	// the minimum keywords so the output still parses; full TS shape is a
 	// follow-up.
@@ -1246,16 +1778,18 @@ gen_function_param :: proc(cg: ^Codegen, p: FunctionParameter) {
 		case .Private:   cg_str(cg, "private ")
 		case .Protected: cg_str(cg, "protected ")
 		}
+		if p.override_ { cg_str(cg, "override ") }
 		if p.readonly { cg_str(cg, "readonly ") }
 	}
 	gen_pattern(cg, p.pattern)
 	if d, ok := p.default_val.?; ok {
-		cg_space(cg)
-		cg_byte(cg, '=')
-		cg_space(cg)
+		cg_infix_operator(cg, "=")
 		gen_expression(cg, d, PREC_ASSIGN)
 	}
 }
+
+// A generated name has no source position to map to.
+SOURCE_OFFSET_NONE :: max(u32)
 
 gen_function_expression_like :: proc(
 	cg: ^Codegen,
@@ -1267,12 +1801,14 @@ gen_function_expression_like :: proc(
 	type_parameters: Maybe(^TSTypeParameterDeclaration),
 	return_type: Maybe(^TSTypeAnnotation),
 	is_decl: bool,
+	name_start: u32 = SOURCE_OFFSET_NONE, // source offset of the name, when it has one
 ) {
 	if async { cg_str(cg, "async ") }
 	cg_str(cg, "function")
 	if generator { cg_byte(cg, '*') }
 	if len(name) > 0 {
-		cg_hard_space(cg)
+		if !generator || !cg.cfg.compact_syntax { cg_hard_space(cg) }
+		if name_start != SOURCE_OFFSET_NONE { sourcemap_record(cg.sm, u32(cg.pos), name_start) }
 		cg_str(cg, name)
 	}
 	gen_function_params_and_body(cg, async, generator, params, body, no_body, type_parameters, return_type)
@@ -1286,12 +1822,31 @@ gen_function_params_and_body :: proc(
 	no_body: bool,
 	type_parameters: Maybe(^TSTypeParameterDeclaration),
 	return_type: Maybe(^TSTypeAnnotation),
+	constructor: ConstructorKind = .None,
 ) {
+	outer_properties := cg.param_properties_after_super
+	// An arrow inherits its enclosing constructor's receiver. Ordinary
+	// functions and methods establish their own receiver, including in defaults.
+	outer_omit_self := cg.jsx_omit_self
+	cg.jsx_omit_self = constructor == .Derived
+	defer cg.jsx_omit_self = outer_omit_self
+	cg.param_properties_after_super = nil
+	defer cg.param_properties_after_super = outer_properties
 	gen_ts_type_parameter_declaration(cg, type_parameters)
+	transform_function_check(cg, async, generator, params, body.loc)
 	cg_byte(cg, '(')
-	for i in 0..<len(params) {
-		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
+	first_param := 0
+	if cg.cfg.strip_types && len(params) > 0 {
+		if id, ok := params[0].pattern.(^Identifier); ok && id.name == "this" {
+			first_param = 1
+		}
+	}
+	for i in first_param..<len(params) {
+		if i > first_param { cg_byte(cg, ','); cg_space(cg) }
 		gen_function_param(cg, params[i])
+	}
+	if len(params) > 0 && cg.comment_next != CODEGEN_COMMENT_NONE {
+		cg_close_comments(cg, codegen_skip_trivia(cg.source, params[len(params) - 1].loc.end))
 	}
 	cg_byte(cg, ')')
 	if rt, ok := return_type.?; ok && !cg.cfg.strip_types {
@@ -1299,44 +1854,60 @@ gen_function_params_and_body :: proc(
 		gen_ts_type(cg, rt.type_annotation)
 	}
 	if no_body { cg_byte(cg, ';'); return }
+	cg_close_comments(cg, body.loc.start)
 	cg_space(cg)
 	cg_byte(cg, '{')
-	// In strip-types mode, inject `this.x = x;` for parameter properties.
-	param_prop_names: [dynamic]string
-	if cg.cfg.strip_types {
-		param_prop_names = make([dynamic]string, 0, 4, context.temp_allocator)
-		for p in params {
-			if p.accessibility != .None || p.readonly {
-				if id, ok := p.pattern.(^Identifier); ok && id != nil {
-					append(&param_prop_names, id.name)
-				}
-			}
-		}
-	}
-	has_param_props := len(param_prop_names) > 0
-	if len(body.body) == 0 && !has_param_props { cg_byte(cg, '}'); return }
+	properties := codegen_parameter_properties(cg, params, constructor)
+	if constructor == .Derived { cg.param_properties_after_super = properties[:] }
+	comments := codegen_comments_in_body(cg, body.loc)
+	if len(body.body) == 0 && len(properties) == 0 && !codegen_has_ordinary_comments(comments) { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	// Directive prologue (e.g. "use strict") is already present at the
-	// front of body.body[] as an ExpressionStatement; emitting it from
-	// body.directives too would duplicate output. See codegen_program.
-	if has_param_props {
-		for pname in param_prop_names {
-			cg_indent(cg)
-			cg_str(cg, "this.")
-			cg_str(cg, pname)
-			cg_str(cg, " = ")
-			cg_str(cg, pname)
+	codegen_emit_leading_comments(cg, body.body[:], body.loc.start, body.loc.end)
+	directive_count := min(len(body.directives), len(body.body))
+	for i in 0..<directive_count {
+		gen_statement_list_entry(cg, body.body[:], i)
+		codegen_end_item_line(cg, body.body[:], i, body.loc.end)
+	}
+	if constructor == .Base {
+		for name in properties {
+			gen_parameter_property_assignment(cg, name)
 			cg_byte(cg, ';')
 			cg_newline(cg)
 		}
 	}
-	for i in 0..<len(body.body) {
-		gen_statement(cg, body.body[i]^)
-		cg_newline(cg)
+	kind := resource_list_kind(cg, body.body[directive_count:])
+	outer := codegen_resource_open(cg, kind)
+	transform_function_open(cg)
+	for i in directive_count..<len(body.body) {
+		gen_statement_list_entry(cg, body.body[:], i)
+		codegen_end_item_line(cg, body.body[:], i, body.loc.end)
 	}
+	transform_function_close(cg)
+	codegen_resource_close(cg, kind, outer)
 	cg.depth -= 1
+	minify_trim_terminator(cg, body.body[:])
 	cg_byte(cg, '}')
+}
+
+codegen_parameter_properties :: proc(cg: ^Codegen, params: []FunctionParameter, constructor: ConstructorKind) -> [dynamic]string {
+	properties: [dynamic]string
+	if !cg.cfg.strip_types || constructor == .None { return properties }
+	properties.allocator = context.temp_allocator
+	for param in params {
+		if param.accessibility == .None && !param.readonly && !param.override_ { continue }
+		if id, ok := param.pattern.(^Identifier); ok && id != nil {
+			append(&properties, id.name)
+		}
+	}
+	return properties
+}
+
+gen_parameter_property_assignment :: proc(cg: ^Codegen, name: string) {
+	cg_str(cg, "this.")
+	cg_str(cg, name)
+	cg_infix_operator(cg, "=")
+	cg_str(cg, name)
 }
 
 // ----------------------------------------------------------------------------
@@ -1351,10 +1922,15 @@ gen_class_like :: proc(
 	type_parameters: Maybe(^TSTypeParameterDeclaration),
 	super_type_arguments: Maybe(^TSTypeParameterInstantiation),
 	implements_list: [dynamic]TSInterfaceHeritage,
+	name_start: u32 = SOURCE_OFFSET_NONE, // source offset of the name, when it has one
 ) {
 	_ = super_type_arguments
 	cg_str(cg, "class")
-	if len(name) > 0 { cg_hard_space(cg); cg_str(cg, name) }
+	if len(name) > 0 {
+		cg_hard_space(cg)
+		if name_start != SOURCE_OFFSET_NONE { sourcemap_record(cg.sm, u32(cg.pos), name_start) }
+		cg_str(cg, name)
+	}
 	gen_ts_type_parameter_declaration(cg, type_parameters)
 	if sc, ok := super_class.?; ok {
 		cg_str(cg, " extends ")
@@ -1370,33 +1946,50 @@ gen_class_like :: proc(
 		}
 	}
 	cg_space(cg)
+	gen_class_body(cg, body, super_class != nil)
+}
+
+gen_class_body :: proc(cg: ^Codegen, body: ClassBody, derived: bool) {
+	if cg.comment_next < body.loc.start {
+		// The caller has already written the space before the brace.
+		codegen_flush_comments(cg, body.loc.start)
+	}
 	cg_byte(cg, '{')
-	if len(body.body) == 0 { cg_byte(cg, '}'); return }
+	comments := codegen_comments_in_body(cg, body.loc)
+	proto_name := cg.resource_proto_class == body.loc.start
+	if !proto_name && len(body.body) == 0 && !codegen_has_ordinary_comments(comments) { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
-	for i in 0..<len(body.body) {
-		el := body.body[i]
-		// Type-stripping erases members that carry no runtime: abstract
-		// members and bodyless method / overload signatures.
-		if cg.cfg.strip_types && class_element_erased(el) { continue }
-		if cg.sm != nil {
-			// Force the indent before recording so the mapping points at
-			// the first non-whitespace column (e.g. the method key /
-			// modifier keyword) rather than at the leading spaces.
-			cg_indent(cg)
-			cg_record_class_element_mapping(cg, &body.body[i])
-		}
-		gen_class_element(cg, el)
+	if proto_name {
+		// Object literals reserve __proto__ as a setter. Install the inferred
+		// name before static fields, preserving class methods and accessors.
+		cg_str(cg, "static {const O = ({}).constructor; if (O.getOwnPropertyDescriptor(this,'name').value === '') O.defineProperty(this,'name',{value:'__proto__'});}")
 		cg_newline(cg)
+	}
+	codegen_emit_leading_comments(cg, body.body[:], body.loc.start, body.loc.end)
+	for el, i in body.body {
+		erased := cg.cfg.strip_types && class_element_erased(el)
+		if !erased {
+			// Comments that share the member's line come before its mapping.
+			if cg.comment_next < el.loc.start { codegen_flush_comments(cg, el.loc.start) }
+			if cg.sm != nil {
+				cg_indent(cg)
+				cg_record_class_element_mapping(cg, &body.body[i])
+			}
+			gen_class_element(cg, el, derived)
+		}
+		codegen_end_item_line(cg, body.body[:], i, body.loc.end, erased)
 	}
 	cg.depth -= 1
 	cg_byte(cg, '}')
 }
 
 // A class member that type-stripping erases entirely because it carries no
-// runtime: an abstract member, or a bodyless method / constructor (a TS
+// runtime: a declared field, an abstract member, or a bodyless method / constructor (a TS
 // overload signature or ambient method declaration).
 class_element_erased :: proc(el: ClassElement) -> bool {
+	if el.kind == .IndexSignature { return true }
+	if el.declare { return true }
 	if el.abstract { return true }
 	#partial switch el.kind {
 	case .Method, .Constructor:
@@ -1409,11 +2002,22 @@ class_element_erased :: proc(el: ClassElement) -> bool {
 	return false
 }
 
-gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
+gen_class_element :: proc(cg: ^Codegen, el: ClassElement, derived: bool) {
 	for d in el.decorators {
 		gen_decorator(cg, d)
 		cg_break_or_space(cg)
 	}
+	// `async`, `accessor` and the TypeScript modifiers end at a line break.
+	// A comment that followed the decorators on their own line stays in front
+	// of the first modifier instead of drifting behind it.
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		first := el.loc.start
+		if count := len(el.decorators); count > 0 {
+			first = codegen_skip_trivia(cg.source, el.decorators[count - 1].loc.end)
+		}
+		codegen_flush_comments(cg, first)
+	}
+	if el.declare { cg_str(cg, "declare ") }
 	switch el.accessibility {
 	case .None:      // nothing
 	case .Public:    if !cg.cfg.strip_types { cg_str(cg, "public ") }
@@ -1426,27 +2030,12 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 	if el.readonly  && !cg.cfg.strip_types { cg_str(cg, "readonly ") }
 	if el.is_accessor { cg_str(cg, "accessor ") }
 	switch el.kind {
-	case .Method:
-		// ClassElementKind.Method covers both MethodDefinition AND
-		// PropertyDefinition: if the value is a FunctionExpression it's
-		// a method; otherwise it's a field initializer (`x = 1;` or `x;`).
-		// Mirrors the emitter's class-element dispatch.
-		//
-		// Disambiguation for `name = function id() {}`: a real method's
-		// FunctionExpression value is anonymous (no `.id`). A non-nil
-		// `.id` proves the source had `=` + a named function expression,
-		// so this slot is a PropertyDefinition, not a MethodDefinition.
+	case .Method, .Field:
 		raw_val, val_ok := el.value.?
 		fn: ^FunctionExpression
 		is_method := false
-		if val_ok {
-			if f, ok := raw_val.(^FunctionExpression); ok {
-				_, has_id := f.id.?
-				if !has_id {
-					fn = f
-					is_method = true
-				}
-			}
+		if val_ok && el.kind == .Method {
+			fn, is_method = raw_val.(^FunctionExpression)
 		}
 		if is_method {
 			if fn.async { cg_str(cg, "async ") }
@@ -1454,10 +2043,10 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		}
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
-		if el.computed { cg_byte(cg, ']') }
+		if el.computed { cg_close_key(cg, el.key); cg_byte(cg, ']') }
 		if el.optional && !cg.cfg.strip_types { cg_byte(cg, '?') }
 		if el.definite && !cg.cfg.strip_types { cg_byte(cg, '!') }
-		if ta, ok := el.type_annotation.?; ok && !cg.cfg.strip_types {
+		if ta, ok := el.typing.annotation.?; ok && !cg.cfg.strip_types {
 			cg_str(cg, ": ")
 			gen_ts_type(cg, ta.type_annotation)
 		}
@@ -1467,9 +2056,10 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		}
 		// PropertyDefinition path. Optional initializer + terminating `;`.
 		if val_ok {
-			cg_space(cg)
-			cg_byte(cg, '=')
-			cg_space(cg)
+			outer_omit_self := cg.jsx_omit_self
+			cg.jsx_omit_self = false
+			defer cg.jsx_omit_self = outer_omit_self
+			cg_infix_operator(cg, "=")
 			gen_expression(cg, raw_val, PREC_ASSIGN)
 		}
 		cg_byte(cg, ';')
@@ -1477,7 +2067,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		cg_str(cg, "get ")
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
-		if el.computed { cg_byte(cg, ']') }
+		if el.computed { cg_close_key(cg, el.key); cg_byte(cg, ']') }
 		if val, ok := el.value.?; ok {
 			if fn, is_fn := val.(^FunctionExpression); is_fn {
 				gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
@@ -1489,7 +2079,7 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		cg_str(cg, "set ")
 		if el.computed { cg_byte(cg, '[') }
 		gen_expression(cg, el.key, PREC_ASSIGN)
-		if el.computed { cg_byte(cg, ']') }
+		if el.computed { cg_close_key(cg, el.key); cg_byte(cg, ']') }
 		if val, ok := el.value.?; ok {
 			if fn, is_fn := val.(^FunctionExpression); is_fn {
 				gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
@@ -1498,31 +2088,30 @@ gen_class_element :: proc(cg: ^Codegen, el: ClassElement) {
 		}
 		cg_str(cg, "() {}")
 	case .Constructor:
-		cg_str(cg, "constructor")
+		gen_expression(cg, el.key, PREC_ASSIGN)
 		if val, ok := el.value.?; ok {
 			if fn, is_fn := val.(^FunctionExpression); is_fn {
-				gen_function_params_and_body(cg, fn.async, fn.generator, fn.params[:], fn.body, fn.no_body, fn.type_parameters, fn.return_type)
+				constructor := derived ? ConstructorKind.Derived : ConstructorKind.Base
+				gen_function_params_and_body(cg, fn.async, fn.generator, fn.params[:], fn.body, fn.no_body, fn.type_parameters, fn.return_type, constructor)
 				return
 			}
 		}
 		cg_str(cg, "() {}")
+	case .IndexSignature:
+		gen_ts_signature(cg, el.typing.index_signature)
+		cg_byte(cg, ';')
 	case .StaticBlock:
-		// Parser stores the static block as a FunctionExpression with no
-		// params; body.body holds the statements. See parse_static_block.
+		outer_omit_self := cg.jsx_omit_self
+		cg.jsx_omit_self = false
+		defer cg.jsx_omit_self = outer_omit_self
 		cg_str(cg, "static ")
-		cg_byte(cg, '{')
 		if v, ok := el.value.?; ok {
-			if fn, is_fn := v.(^FunctionExpression); is_fn && len(fn.body.body) > 0 {
-				cg_newline(cg)
-				cg.depth += 1
-				for i in 0..<len(fn.body.body) {
-					gen_statement(cg, fn.body.body[i]^)
-					cg_newline(cg)
-				}
-				cg.depth -= 1
+			if fn, is_fn := v.(^FunctionExpression); is_fn {
+				gen_statement_block(cg, fn.body.body[:], fn.body.loc)
+				return
 			}
 		}
-		cg_byte(cg, '}')
+		cg_str(cg, "{}")
 	}
 }
 
@@ -1554,17 +2143,23 @@ decl_to_stmt :: proc(d: Declaration) -> Statement {
 
 gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 	if ty == nil { cg_str(cg, "any"); return }
+	if cg.declaration_emit != nil { dts_track_type(cg.declaration_emit, ty) }
+	if cg.comment_next != CODEGEN_COMMENT_NONE {
+		codegen_flush_comments(cg, get_ts_type_loc(ty).start)
+	}
 	switch v in ty^ {
 	case ^TSKeywordType:      cg_str(cg, TS_KEYWORD_SOURCE[v.kind])
 	case ^TSTypeReference:
 		gen_expression(cg, v.type_name, PREC_CALL)
 		gen_ts_type_arguments(cg, v.type_parameters)
 	case ^TSUnionType:
+		if len(v.types) == 1 { cg_str(cg, "| ") }
 		for i in 0..<len(v.types) {
 			if i > 0 { cg_str(cg, " | ") }
 			gen_ts_type(cg, v.types[i])
 		}
 	case ^TSIntersectionType:
+		if len(v.types) == 1 { cg_str(cg, "& ") }
 		for i in 0..<len(v.types) {
 			if i > 0 { cg_str(cg, " & ") }
 			gen_ts_type(cg, v.types[i])
@@ -1578,6 +2173,7 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 			if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 			gen_ts_type(cg, v.element_types[i])
 		}
+		cg_close_comments(cg, v.loc.end)
 		cg_byte(cg, ']')
 	case ^TSFunctionType:        gen_ts_function_type(cg, v)
 	case ^TSConstructorType:     gen_ts_constructor_type(cg, v)
@@ -1593,6 +2189,7 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 	case ^TSParenthesizedType:
 		cg_byte(cg, '(')
 		gen_ts_type(cg, v.type_annotation)
+		cg_close_comments(cg, v.loc.end)
 		cg_byte(cg, ')')
 	case ^TSRestType:
 		cg_str(cg, "...")
@@ -1601,9 +2198,19 @@ gen_ts_type :: proc(cg: ^Codegen, ty: ^TSType) {
 		gen_ts_type(cg, v.type_annotation)
 		cg_byte(cg, '?')
 	case ^TSNamedTupleMember:
+		element_type := v.element_type
+		// A named rest element stores the rest wrapper around its type.
+		// The printer puts the spread before the label.
+		if element_type != nil {
+			if rest, ok := element_type^.(^TSRestType); ok && rest != nil {
+				cg_str(cg, "...")
+				element_type = rest.type_annotation
+			}
+		}
 		cg_str(cg, v.label.name)
+		if v.optional { cg_byte(cg, '?') }
 		cg_str(cg, ": ")
-		gen_ts_type(cg, v.element_type)
+		gen_ts_type(cg, element_type)
 	case ^TSTypePredicate:    gen_ts_type_predicate(cg, v)
 	case ^TSImportType:       gen_ts_import_type_full(cg, v)
 	}
@@ -1645,8 +2252,14 @@ gen_string_literal :: proc(cg: ^Codegen, e: ^StringLiteral) {
 }
 
 // Re-quote an arbitrary string as a JS string literal (double-quoted).
-gen_string_quoted :: proc(cg: ^Codegen, s: string) {
+gen_string_quoted :: proc(cg: ^Codegen, s: string, suffix: string = "") {
 	cg_byte(cg, '"')
+	gen_string_content(cg, s)
+	if suffix != "" { gen_string_content(cg, suffix) }
+	cg_byte(cg, '"')
+}
+
+gen_string_content :: proc(cg: ^Codegen, s: string) {
 	for i in 0..<len(s) {
 		c := s[i]
 		switch c {
@@ -1665,7 +2278,6 @@ gen_string_quoted :: proc(cg: ^Codegen, s: string) {
 			}
 		}
 	}
-	cg_byte(cg, '"')
 }
 
 gen_template_literal :: proc(cg: ^Codegen, e: ^TemplateLiteral) {
@@ -1675,6 +2287,7 @@ gen_template_literal :: proc(cg: ^Codegen, e: ^TemplateLiteral) {
 		if i < len(e.expressions) {
 			cg_str(cg, "${")
 			gen_expression(cg, e.expressions[i], PREC_LOWEST)
+			if i + 1 < len(e.quasis) { cg_close_comments(cg, e.quasis[i + 1].loc.start) }
 			cg_byte(cg, '}')
 		}
 	}
@@ -1682,7 +2295,7 @@ gen_template_literal :: proc(cg: ^Codegen, e: ^TemplateLiteral) {
 }
 
 gen_tagged_template :: proc(cg: ^Codegen, e: ^TaggedTemplateExpression) {
-	gen_expression(cg, e.tag, PREC_CALL)
+	gen_chain_operand(cg, e.tag)
 	gen_expression(cg, e.quasi, PREC_CALL)
 }
 
@@ -1692,6 +2305,10 @@ gen_tagged_template :: proc(cg: ^Codegen, e: ^TaggedTemplateExpression) {
 
 gen_array_expression :: proc(cg: ^Codegen, e: ^ArrayExpression) {
 	cg_byte(cg, '[')
+	if cg.comment_next < e.loc.end && gen_commented_array(cg, e) {
+		cg_byte(cg, ']')
+		return
+	}
 	for i in 0..<len(e.elements) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		if el, ok := e.elements[i].?; ok {
@@ -1707,19 +2324,57 @@ gen_array_expression :: proc(cg: ^Codegen, e: ^ArrayExpression) {
 			cg_byte(cg, ',')
 		}
 	}
+	cg_close_comments(cg, e.loc.end)
 	cg_byte(cg, ']')
+}
+
+// Comments between elements read best with one element per line. A hole has
+// no span to hang a comment on, so arrays with holes keep the compact form.
+gen_commented_array :: proc(cg: ^Codegen, e: ^ArrayExpression) -> bool {
+	for element in e.elements {
+		if _, present := element.?; !present { return false }
+	}
+	// A present Maybe(^Expression) has the representation of its pointer.
+	#assert(size_of(Maybe(^Expression)) == size_of(^Expression))
+	elements := transmute([]^Expression)e.elements[:]
+	if !codegen_has_list_comments(cg, elements, e.loc.end) { return false }
+	gen_commented_list(cg, elements, e.loc)
+	return true
 }
 
 gen_object_expression :: proc(cg: ^Codegen, e: ^ObjectExpression) {
 	cg_byte(cg, '{')
-	if len(e.properties) == 0 { cg_byte(cg, '}'); return }
+	if codegen_has_list_comments(cg, e.properties[:], e.loc.end) {
+		gen_commented_list(cg, e.properties[:], e.loc)
+		cg_byte(cg, '}')
+		return
+	}
+	if len(e.properties) == 0 {
+		cg_close_comments(cg, e.loc.end)
+		cg_byte(cg, '}')
+		return
+	}
 	cg_space(cg)
 	for i in 0..<len(e.properties) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_property(cg, e.properties[i])
 	}
+	cg_close_comments(cg, e.loc.end)
 	cg_space(cg)
 	cg_byte(cg, '}')
+}
+
+gen_commented_list :: proc(cg: ^Codegen, items: []$T, loc: Loc) {
+	cg_newline(cg)
+	cg.depth += 1
+	codegen_emit_leading_comments(cg, items, loc.start, loc.end)
+	for item, index in items {
+		when T == Property { gen_property(cg, item) }
+		else { gen_expression(cg, item, PREC_ASSIGN) }
+		if index + 1 < len(items) { cg_byte(cg, ',') }
+		codegen_end_item_line(cg, items, index, loc.end)
+	}
+	cg.depth -= 1
 }
 
 gen_property :: proc(cg: ^Codegen, p: Property) {
@@ -1727,15 +2382,24 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		gen_expression(cg, p.value, PREC_ASSIGN)
 		return
 	}
+	// `async` ends at a line break: comments before the property precede it.
+	if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, p.loc.start) }
 	switch p.kind {
 	case .Init:
 		if p.shorthand {
+			value := p.value
+			if fallback, ok := value.(^AssignmentExpression); ok { value = fallback.left }
+			if identifier, ok := value.(^Identifier); ok && (codegen_property_reference(cg, identifier) != "" || (len(cg.renamed) != 0 && cg.renamed[identifier.loc.start] != "")) {
+				cg_str(cg, identifier.name)
+				cg_byte(cg, ':')
+				cg_space(cg)
+			}
 			gen_expression(cg, p.value, PREC_ASSIGN)
 			return
 		}
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		cg_byte(cg, ':')
 		cg_space(cg)
 		gen_expression(cg, p.value, PREC_ASSIGN)
@@ -1747,7 +2411,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		}
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		if fn_for_prefix != nil {
 			gen_function_params_and_body(cg, fn_for_prefix.async, fn_for_prefix.generator, fn_for_prefix.params[:], fn_for_prefix.body, fn_for_prefix.no_body, fn_for_prefix.type_parameters, fn_for_prefix.return_type)
 		}
@@ -1755,7 +2419,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		cg_str(cg, "get ")
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		if fn, is_fn := p.value.(^FunctionExpression); is_fn {
 			gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
 		}
@@ -1763,7 +2427,7 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 		cg_str(cg, "set ")
 		if p.computed { cg_byte(cg, '[') }
 		gen_expression(cg, p.key, PREC_ASSIGN)
-		if p.computed { cg_byte(cg, ']') }
+		if p.computed { cg_close_key(cg, p.key); cg_byte(cg, ']') }
 		if fn, is_fn := p.value.(^FunctionExpression); is_fn {
 			gen_function_params_and_body(cg, false, false, fn.params[:], fn.body, fn.no_body, nil, fn.return_type)
 		}
@@ -1771,24 +2435,34 @@ gen_property :: proc(cg: ^Codegen, p: Property) {
 }
 
 gen_function_expression :: proc(cg: ^Codegen, e: ^FunctionExpression) {
-	name := ""
-	if id, ok := e.id.?; ok { name = id.name }
-	gen_function_expression_like(cg, e.async, e.generator, name, e.params[:], e.body, e.no_body, e.type_parameters, e.return_type, false)
+	name, name_start := "", u32(0)
+	if id, ok := e.id.?; ok { name, name_start = minify_binding_name(cg, id), id.loc.start }
+	gen_function_expression_like(
+		cg, e.async, e.generator, name, e.params[:], e.body, e.no_body, e.type_parameters,
+		e.return_type, false, name_start,
+	)
 }
 
-gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression) {
-	if e.async { cg_str(cg, "async ") }
+gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression, ctx: CodegenExpressionContext) {
+	bare := minify_arrow_bare_parameter(cg, e)
+	if e.async {
+		cg_str(cg, "async")
+		if bare || !cg.cfg.compact_syntax { cg_hard_space(cg) }
+	}
 	// TS generic arrow: `<T>(x: T) => x`. Without this, the type-parameter
 	// list is silently erased, which breaks both round-trip equality and
 	// the semantic meaning when a downstream consumer reads typeParameters
 	// off the AST and we round-trip via codegen.
 	gen_ts_type_parameter_declaration(cg, e.type_parameters)
-	cg_byte(cg, '(')
+	if !bare { cg_byte(cg, '(') }
 	for i in 0..<len(e.params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_function_param(cg, e.params[i])
 	}
-	cg_byte(cg, ')')
+	if len(e.params) > 0 && cg.comment_next != CODEGEN_COMMENT_NONE {
+		cg_close_comments(cg, codegen_skip_trivia(cg.source, e.params[len(e.params) - 1].loc.end))
+	}
+	if !bare { cg_byte(cg, ')') }
 	if rt, ok := e.return_type.?; ok && !cg.cfg.strip_types {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, rt.type_annotation)
@@ -1798,15 +2472,13 @@ gen_arrow_function :: proc(cg: ^Codegen, e: ^ArrowFunctionExpression) {
 	cg_space(cg)
 	switch body in e.body {
 	case ^Expression:
-		// `() => {foo: 1}` parses as a block with a labeled statement, not
-		// an object literal. Wrap ObjectExpression bodies in parens so the
-		// re-parse round-trips to the same Expression.
-		if _, is_obj := body^.(^ObjectExpression); is_obj {
+		// A leading object literal can also be the receiver of a member access.
+		if expression_starts_with_ambiguous_token(cg, body, .Arrow_Body) {
 			cg_byte(cg, '(')
 			gen_expression(cg, body, PREC_ASSIGN)
 			cg_byte(cg, ')')
 		} else {
-			gen_expression(cg, body, PREC_ASSIGN)
+			gen_expression(cg, body, PREC_ASSIGN, ctx)
 		}
 	case ^BlockStatement: gen_block_statement(cg, body)
 	}
@@ -1821,18 +2493,124 @@ gen_class_expression :: proc(cg: ^Codegen, e: ^ClassExpression) {
 		gen_decorator(cg, d)
 		cg_hard_space(cg)
 	}
-	name := ""
-	if id, ok := e.id.?; ok { name = id.name }
-	gen_class_like(cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements)
+	name, name_start := "", u32(0)
+	if id, ok := e.id.?; ok { name, name_start = minify_binding_name(cg, id), id.loc.start }
+	gen_class_like(
+		cg, name, e.super_class, e.body, e.type_parameters, e.super_type_arguments, e.implements,
+		name_start,
+	)
 }
 
+// gen_access_chain prints a member / call chain (`a.b(c)[d]...`) without
+// recursing along it. The parser builds such chains in a loop and does
+// not bound their length, so one native frame per link would overflow
+// the stack on generated code. Each link is suspended on cg.access_work
+// while its receiver prints; the output is byte-for-byte what the
+// recursive printer produced.
+//
+// `expr` has already been through gen_expression_begin (parentheses,
+// source map) and the annotation hook; its closing parenthesis belongs
+// to the caller.
+gen_access_chain :: proc(cg: ^Codegen, expr: ^Expression) {
+	base := len(cg.access_work)
+	current := expr
+	for _ in 0 ..< EXPR_SPINE_COUNT_MAX {
+		receiver, suspended := gen_access_enter(cg, current)
+		if !suspended { break }
+		// A grouped optional chain keeps its grouping; see gen_chain_operand.
+		if receiver != nil {
+			if _, is_chain := receiver^.(^ChainExpression); is_chain {
+				gen_chain_operand(cg, receiver)
+				break
+			}
+		}
+		value, child_ctx, close_paren := gen_expression_begin(cg, receiver, PREC_CALL, {})
+		if value == nil { break }
+		is_link := false
+		#partial switch _ in value^ { case ^MemberExpression, ^CallExpression: is_link = true }
+		if !is_link {
+			gen_expression_raw(cg, value, child_ctx)
+			if close_paren { cg_byte(cg, ')') }
+			break
+		}
+		// Continue down the chain; what gen_expression_raw does before
+		// dispatching (the annotation hook) happens here instead.
+		if len(cg.annotations) != 0 { codegen_emit_expression_annotation(cg, value) }
+		cg.access_work[len(cg.access_work) - 1].close_paren = close_paren
+		current = value
+	}
+	for len(cg.access_work) > base {
+		frame := pop(&cg.access_work)
+		// `close_paren` was recorded on the parent frame for its receiver,
+		// which is the link printed just before this frame resumes.
+		gen_access_leave(cg, frame)
+	}
+	assert(len(cg.access_work) == base)
+}
+
+// gen_access_enter prints what precedes a link's receiver and suspends
+// the link. Returns the receiver to print next; `suspended` is false when
+// the link was emitted whole (an inlined const enum member).
+gen_access_enter :: proc(
+	cg: ^Codegen,
+	expr: ^Expression,
+) -> (receiver: ^Expression, suspended: bool) {
+	frame := CodegenAccessFrame{expr = expr}
+	#partial switch e in expr^ {
+	case ^MemberExpression:
+		if cg.cfg.optimize_const_enums && gen_inlined_enum_member(cg, e) { return nil, false }
+		receiver = e.object
+	case ^CallExpression:
+		if len(cg.param_properties_after_super) > 0 && e.callee != nil {
+			if _, is_super := e.callee^.(^Super); is_super {
+				frame.super_props = cg.param_properties_after_super
+				cg_byte(cg, '(')
+			}
+		}
+		receiver = e.callee
+	case:
+		unreachable()
+	}
+	frame.output_mark = cg.pos
+	append(&cg.access_work, frame)
+	return receiver, true
+}
+
+// gen_access_leave prints what follows a link's receiver.
+gen_access_leave :: proc(cg: ^Codegen, frame: CodegenAccessFrame) {
+	// The receiver of this link may itself have been parenthesised.
+	if frame.close_paren { cg_byte(cg, ')') }
+	#partial switch e in frame.expr^ {
+	case ^MemberExpression: gen_member_suffix(cg, e, frame.output_mark)
+	case ^CallExpression:   gen_call_suffix(cg, e, frame.super_props)
+	case:                   unreachable()
+	}
+}
+
+// gen_member_expression prints a member expression that is not wrapped
+// in an Expression (an assignment-pattern target). The object goes back
+// through gen_expression, so a long chain below it is still printed by
+// gen_access_chain's loop.
 gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
+	if cg.cfg.optimize_const_enums && gen_inlined_enum_member(cg, e) { return }
 	obj_start := cg.pos
-	gen_expression(cg, e.object, PREC_CALL)
+	gen_chain_operand(cg, e.object)
+	gen_member_suffix(cg, e, obj_start)
+}
+
+// gen_member_suffix prints the property access that follows a member
+// expression's object. `obj_start` is cg.pos before the object printed.
+gen_member_suffix :: proc(cg: ^Codegen, e: ^MemberExpression, obj_start: int) {
+	// A chain broken over lines often carries a comment before the dot.
+	// Comments inside the brackets of a computed access stay inside them.
+	if cg.comment_next != CODEGEN_COMMENT_NONE && !e.computed {
+		codegen_flush_comments(cg, loc_from_expr(e.property).start)
+	}
 	if e.computed {
 		if e.optional { cg_str(cg, "?.") }
 		cg_byte(cg, '[')
 		gen_expression(cg, e.property, PREC_LOWEST)
+		cg_close_comments(cg, e.loc.end)
 		cg_byte(cg, ']')
 	} else {
 		// A bare decimal-integer object (`1`, `100`) immediately
@@ -1843,7 +2621,7 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 		// optional `?.` form is also safe — the `?` terminates the
 		// number. ECMA-262 §12.9.3 / §13.3.
 		if !e.optional {
-			if _, is_num := e.object.(^NumericLiteral); is_num {
+			if _, is_num := codegen_runtime_expression(cg, e.object)^.(^NumericLiteral); is_num {
 				bare_int := cg.pos > obj_start
 				for i in obj_start..<cg.pos {
 					c := cg.buf[i]
@@ -1857,54 +2635,137 @@ gen_member_expression :: proc(cg: ^Codegen, e: ^MemberExpression) {
 		}
 		cg_byte(cg, e.optional ? '?' : '.')
 		if e.optional { cg_byte(cg, '.') }
+		// Debuggers resolve a member name through the mapping at its first byte.
+		sourcemap_record(cg.sm, u32(cg.pos), loc_from_expr(e.property).start)
 		gen_expression_raw(cg, e.property)
 	}
 }
 
-gen_call_expression :: proc(cg: ^Codegen, e: ^CallExpression) {
-	gen_expression(cg, e.callee, PREC_CALL)
-	if e.optional { cg_str(cg, "?.") }
-	gen_ts_type_arguments(cg, e.type_parameters)
-	cg_byte(cg, '(')
-	for i in 0..<len(e.arguments) {
-		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
-		gen_expression(cg, e.arguments[i], PREC_ASSIGN)
+// The object of a member access, the callee of a call or the tag of a
+// template. An optional chain ends where its grouping ends: `(a?.b).c` reads
+// `c` even when `a` is nullish, and `a?.b.c` does not. The grouping is kept.
+gen_chain_operand :: proc(cg: ^Codegen, operand: ^Expression) {
+	if operand != nil {
+		if _, is_chain := operand^.(^ChainExpression); is_chain {
+			cg_byte(cg, '(')
+			gen_expression(cg, operand, PREC_LOWEST)
+			cg_byte(cg, ')')
+			return
+		}
 	}
-	cg_byte(cg, ')')
+	gen_expression(cg, operand, PREC_CALL)
+}
+
+// gen_call_suffix prints the arguments that follow a call's callee, and
+// the parameter-property assignments owed after a `super(...)` call.
+gen_call_suffix :: proc(cg: ^Codegen, e: ^CallExpression, properties: []string) {
+	if e.optional { cg_str(cg, "?.") }
+	gen_call_arguments(cg, e)
+	if len(properties) > 0 {
+		// Use a sequence so assignments follow the successful super call,
+		// even when the result is used within another expression.
+		for name in properties {
+			cg_byte(cg, ',')
+			cg_space(cg)
+			gen_parameter_property_assignment(cg, name)
+		}
+		cg_byte(cg, ',')
+		cg_space(cg)
+		cg_str(cg, "this)")
+	}
 }
 
 gen_new_expression :: proc(cg: ^Codegen, e: ^NewExpression) {
+	bare := cg.bare_new == e
+	cg.bare_new = nil
 	cg_str(cg, "new ")
 	// The `new` callee grammar is MemberExpression | NewExpression — a
 	// CallExpression callee needs explicit parens, otherwise
 	// `new f()()` parses as `(new f)()` (call on the new), not the
 	// intended `new (f())()`.
-	if _, is_call := e.callee^.(^CallExpression); is_call {
+	if new_callee_needs_group(e.callee) {
 		cg_byte(cg, '(')
 		gen_expression(cg, e.callee, PREC_LOWEST)
 		cg_byte(cg, ')')
 	} else {
 		gen_expression(cg, e.callee, PREC_CALL)
 	}
-	gen_ts_type_arguments(cg, e.type_parameters)
+	if !bare { gen_call_arguments(cg, e) }
+}
+
+// The arguments of `new` attach to the first call on the callee's left spine:
+// `new (a().b)()` constructs the member, `new a().b()` calls it. An optional
+// chain may not be a `new` callee at all without grouping.
+new_callee_needs_group :: proc(callee: ^Expression) -> bool {
+	current := callee
+	for current != nil {
+		#partial switch e in current^ {
+		case ^CallExpression, ^ImportExpression, ^ChainExpression: return true
+		case ^MemberExpression:           current = e.object
+		case ^TaggedTemplateExpression:   current = e.tag
+		case ^TSNonNullExpression:        current = e.expression
+		case ^TSInstantiationExpression:  current = e.expression
+		case: return false
+		}
+	}
+	return false
+}
+
+gen_call_arguments :: proc(cg: ^Codegen, call: $T) {
+	gen_ts_type_arguments(cg, call.type_parameters)
+	gen_argument_list(cg, call.arguments[:], call.loc)
+}
+
+gen_argument_list :: proc(cg: ^Codegen, args: []^Expression, loc: Loc) {
 	cg_byte(cg, '(')
-	for i in 0..<len(e.arguments) {
-		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
-		gen_expression(cg, e.arguments[i], PREC_ASSIGN)
+	if codegen_has_list_comments(cg, args, loc.end) {
+		gen_commented_list(cg, args, loc)
+	} else {
+		for arg, index in args {
+			if index > 0 { cg_byte(cg, ','); cg_space(cg) }
+			gen_expression(cg, arg, PREC_ASSIGN)
+		}
+		cg_close_comments(cg, loc.end)
 	}
 	cg_byte(cg, ')')
 }
 
-gen_conditional_expression :: proc(cg: ^Codegen, e: ^ConditionalExpression) {
-	gen_expression(cg, e.test, PREC_COND + 1)
+gen_conditional_expression :: proc(cg: ^Codegen, e: ^ConditionalExpression, ctx: CodegenExpressionContext) {
+	gen_expression(cg, e.test, PREC_COND + 1, ctx)
 	cg_space(cg)
 	cg_byte(cg, '?')
 	cg_space(cg)
-	gen_expression(cg, e.consequent, PREC_ASSIGN)
+	// The consequent admits an unparenthesized in operator even in a for initializer.
+	if conditional_consequent_needs_group(cg, e.consequent) {
+		cg_byte(cg, '(')
+		gen_expression(cg, e.consequent, PREC_ASSIGN)
+		cg_byte(cg, ')')
+	} else {
+		gen_expression(cg, e.consequent, PREC_ASSIGN)
+	}
 	cg_space(cg)
 	cg_byte(cg, ':')
 	cg_space(cg)
-	gen_expression(cg, e.alternate, PREC_ASSIGN)
+	gen_expression(cg, e.alternate, PREC_ASSIGN, ctx)
+}
+
+// After `?`, `async (a): T => a : b` reads as the call `async(a)` followed by
+// the alternate. Only grouping makes it an arrow with a return type.
+conditional_consequent_needs_group :: proc(cg: ^Codegen, consequent: ^Expression) -> bool {
+	if cg.cfg.strip_types || consequent == nil { return false }
+	arrow, is_arrow := consequent^.(^ArrowFunctionExpression)
+	if !is_arrow || !arrow.async { return false }
+	_, typed := arrow.return_type.?
+	return typed
+}
+
+// Separate adjacent signs so the lexer cannot merge them into ++ or --.
+cg_prefix_operator :: proc(cg: ^Codegen, op: string) {
+	sign := op[0]
+	if (sign == '+' || sign == '-') && cg.pos > 0 && cg.buf[cg.pos - 1] == sign {
+		cg_hard_space(cg)
+	}
+	cg_str(cg, op)
 }
 
 gen_update_expression :: proc(cg: ^Codegen, e: ^UpdateExpression) {
@@ -1914,7 +2775,7 @@ gen_update_expression :: proc(cg: ^Codegen, e: ^UpdateExpression) {
 	case .Decrement: op = "--"
 	}
 	if e.prefix {
-		cg_str(cg, op)
+		cg_prefix_operator(cg, op)
 		gen_expression(cg, e.argument, PREC_UPDATE)
 	} else {
 		gen_expression(cg, e.argument, PREC_UPDATE)
@@ -1934,39 +2795,118 @@ gen_unary_expression :: proc(cg: ^Codegen, e: ^UnaryExpression) {
 	case .Void:       op = "void";   word = true
 	case .Delete:     op = "delete"; word = true
 	}
-	cg_str(cg, op)
+	cg_prefix_operator(cg, op)
 	if word { cg_hard_space(cg) }
 	gen_expression(cg, e.argument, PREC_UNARY)
 }
 
-gen_binary_expression :: proc(cg: ^Codegen, e: ^BinaryExpression) {
-	op, prec := binop_text(e.operator)
-	// Spec: ExponentiationExpression's left operand is restricted to
-	// UpdateExpression — a UnaryExpression / AwaitExpression on the
-	// left of `**` is a syntax error unless parenthesized. Normal
-	// precedence comparison would let `await x ** y` through because
-	// PREC_UNARY > PREC_EXP, but the parse re-rejects it. Force parens
-	// on the left when the operator is `**` and the left is a prefix
-	// form that cannot legally appear there bare.
-	if op == "**" && left_needs_paren_for_exp(e.left) {
-		cg_byte(cg, '(')
-		gen_expression(cg, e.left, PREC_LOWEST)
-		cg_byte(cg, ')')
-	} else {
-		gen_expression(cg, e.left, prec)
+gen_infix_expression :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressionContext) {
+	// Other expression kinds can reenter this printer, e.g. through a call argument.
+	base := len(cg.infix_work)
+	gen_infix_schedule(cg, expr, ctx)
+	for len(cg.infix_work) > base {
+		task := pop(&cg.infix_work)
+		switch task.kind {
+		case .Open:     cg_byte(cg, '(')
+		case .Close:    cg_byte(cg, ')')
+		case .Operator: cg_infix_operator(cg, task.operator)
+		case .Operand:
+			value, child_ctx, close_paren := gen_expression_begin(cg, task.expr, task.precedence, task.ctx)
+			if value == nil { continue }
+			if close_paren { append(&cg.infix_work, CodegenInfixTask{kind = .Close}) }
+			#partial switch _ in value^ {
+			case ^BinaryExpression, ^LogicalExpression:
+				gen_infix_schedule(cg, value, child_ctx)
+			case:
+				gen_expression_raw(cg, value, child_ctx)
+			}
+		}
 	}
-	// Word operators (`in`, `instanceof`) MUST be separated from the
-	// surrounding identifiers / private names. Symbolic operators (`+`,
-	// `**`, `<<`, etc.) can elide the spaces in minified mode because
-	// the lexer will retokenise correctly without them.
-	word_op := op == "in" || op == "instanceof"
-	if word_op { cg_hard_space(cg) } else { cg_space(cg) }
+	assert(len(cg.infix_work) == base)
+}
+
+gen_infix_schedule :: proc(cg: ^Codegen, expr: ^Expression, ctx: CodegenExpressionContext) {
+	left, right: ^Expression
+	operator: string
+	precedence: int
+	power := false
+	operand_ctx := ctx
+	#partial switch node in expr^ {
+	case ^BinaryExpression:
+		left, right = node.left, node.right
+		operator, precedence = binop_text(node.operator)
+		power = node.operator == .Pow
+	case ^LogicalExpression:
+		left, right = node.left, node.right
+		switch node.operator {
+		case .Or:  operator, precedence = "||", PREC_LOR
+		case .And: operator, precedence = "&&", PREC_LAND
+		case .NullishCoalescing:
+			operator, precedence = "??", PREC_NULLISH
+			operand_ctx += {.Nullish_Operand}
+		}
+	case: unreachable()
+	}
+	// Push in reverse print order. Only exponentiation groups to the right.
+	right_prec := precedence if power else precedence + 1
+	append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = right, precedence = right_prec, ctx = operand_ctx})
+	append(&cg.infix_work, CodegenInfixTask{kind = .Operator, operator = operator})
+	if (power && left_needs_paren_for_exp(left)) || infix_left_type_needs_group(cg, left, operator) {
+		append(&cg.infix_work, CodegenInfixTask{kind = .Close})
+		append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = left, precedence = PREC_LOWEST})
+		append(&cg.infix_work, CodegenInfixTask{kind = .Open})
+	} else {
+		// `(a ** b) ** c` needs its grouping: without it the right side binds first.
+		left_prec := precedence + 1 if power else precedence
+		append(&cg.infix_work, CodegenInfixTask{kind = .Operand, expr = left, precedence = left_prec, ctx = operand_ctx})
+	}
+}
+
+// Preserve lexical boundaries around word operators and after a TS postfix '!'.
+cg_infix_operator :: proc(cg: ^Codegen, op: string) {
+	word := op == "in" || op == "instanceof"
+	after_bang := op[0] == '=' && cg.pos > 0 && cg.buf[cg.pos - 1] == '!'
+	if word { minify_word_space(cg) } else if after_bang { cg_hard_space(cg) } else { cg_space(cg) }
 	cg_str(cg, op)
-	if word_op { cg_hard_space(cg) } else { cg_space(cg) }
-	// Right-assoc only for **; everything else is left-assoc, so bump on right.
-	right_prec := prec + 1
-	if op == "**" { right_prec = prec }
-	gen_expression(cg, e.right, right_prec)
+	if word { cg_hard_space(cg) } else { cg_space(cg) }
+}
+
+// The type of `x as T` keeps reading where it can: `T | b` and `T & b` are
+// one type, and after a type name `<`, `<<` or `<=` opens its type arguments. The
+// assertion is grouped so that the operator is an operator. Where the bare
+// form reads the same (`x as any < b`), nothing is added.
+infix_left_type_needs_group :: proc(cg: ^Codegen, left: ^Expression, operator: string) -> bool {
+	if cg.cfg.strip_types || left == nil { return false }
+	type: ^TSType
+	#partial switch e in left^ {
+	case ^TSAsExpression:        type = e.type_annotation
+	case ^TSSatisfiesExpression: type = e.type_annotation
+	case: return false
+	}
+	switch operator {
+	case "|", "&":  return true
+	case "<", "<<", "<=": return ts_type_takes_arguments(type)
+	}
+	return false
+}
+
+// True when the type ends in a name that type arguments could follow.
+ts_type_takes_arguments :: proc(type: ^TSType) -> bool {
+	current := type
+	for current != nil {
+		#partial switch t in current^ {
+		case ^TSTypeReference: return t.type_parameters == nil
+		case ^TSTypeQuery, ^TSImportType: return true
+		case ^TSUnionType:
+			if len(t.types) == 0 { return false }
+			current = t.types[len(t.types) - 1]
+		case ^TSIntersectionType:
+			if len(t.types) == 0 { return false }
+			current = t.types[len(t.types) - 1]
+		case: return false
+		}
+	}
+	return false
 }
 
 // left_needs_paren_for_exp — true when `expr` cannot legally appear as
@@ -2010,27 +2950,10 @@ binop_text :: proc(op: BinaryOperator) -> (string, int) {
 	return "+", PREC_ADD
 }
 
-gen_logical_expression :: proc(cg: ^Codegen, e: ^LogicalExpression) {
-	op := ""
-	prec := PREC_LOR
-	switch e.operator {
-	case .Or:                 op = "||"; prec = PREC_LOR
-	case .And:                op = "&&"; prec = PREC_LAND
-	case .NullishCoalescing:  op = "??"; prec = PREC_NULLISH
-	}
-	gen_expression(cg, e.left, prec)
-	cg_space(cg)
-	cg_str(cg, op)
-	cg_space(cg)
-	gen_expression(cg, e.right, prec + 1)
-}
-
-gen_assignment_expression :: proc(cg: ^Codegen, e: ^AssignmentExpression) {
+gen_assignment_expression :: proc(cg: ^Codegen, e: ^AssignmentExpression, ctx: CodegenExpressionContext) {
 	gen_expression(cg, e.left, PREC_CALL)
-	cg_space(cg)
-	cg_str(cg, assign_op_text(e.operator))
-	cg_space(cg)
-	gen_expression(cg, e.right, PREC_ASSIGN)
+	cg_infix_operator(cg, assign_op_text(e.operator))
+	gen_expression(cg, e.right, PREC_ASSIGN, ctx)
 }
 
 assign_op_text :: proc(op: AssignmentOperator) -> string {
@@ -2055,32 +2978,50 @@ assign_op_text :: proc(op: AssignmentOperator) -> string {
 	return "="
 }
 
-gen_sequence_expression :: proc(cg: ^Codegen, e: ^SequenceExpression) {
+gen_sequence_expression :: proc(cg: ^Codegen, e: ^SequenceExpression, ctx: CodegenExpressionContext) {
 	for i in 0..<len(e.expressions) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
-		gen_expression(cg, e.expressions[i], PREC_ASSIGN)
+		gen_expression(cg, e.expressions[i], PREC_ASSIGN, ctx)
 	}
 }
 
-gen_yield_expression :: proc(cg: ^Codegen, e: ^YieldExpression) {
+gen_yield_expression :: proc(cg: ^Codegen, e: ^YieldExpression, ctx: CodegenExpressionContext) {
+	if arg, ok := e.argument.?; ok && !e.delegate {
+		codegen_hoist_comments(cg, loc_from_expr(arg).start, e.loc.start)
+	}
 	cg_str(cg, "yield")
 	if e.delegate { cg_byte(cg, '*') }
 	if arg, ok := e.argument.?; ok {
-		cg_hard_space(cg)
-		gen_expression(cg, arg, PREC_ASSIGN)
+		if e.delegate && cg.cfg.compact_syntax {} else { minify_keyword_space(cg, arg) }
+		gen_expression(cg, arg, PREC_ASSIGN, ctx)
 	}
 }
 
 gen_import_expression :: proc(cg: ^Codegen, e: ^ImportExpression) {
 	cg_str(cg, "import")
 	if len(e.phase) > 0 { cg_byte(cg, '.'); cg_str(cg, e.phase) }
-	cg_byte(cg, '(')
-	gen_expression(cg, e.source, PREC_ASSIGN)
-	if e.options != nil {
-		cg_byte(cg, ',')
-		cg_space(cg)
-		gen_expression(cg, e.options, PREC_ASSIGN)
+	values := [2]^Expression{e.source, e.options}
+	args := values[:2 if e.options != nil else 1]
+	if cg.cfg.minified {
+		comments := codegen_argument_comments(cg, e.loc.start, e.loc.end)
+		if len(comments) > 0 {
+			gen_compact_import_arguments(cg, args, comments, e.loc)
+			return
+		}
 	}
+	gen_argument_list(cg, args, e.loc)
+}
+
+gen_compact_import_arguments :: proc(cg: ^Codegen, args: []^Expression, comments: []Comment, loc: Loc) {
+	cg_byte(cg, '(')
+	start := loc.start
+	for argument, index in args {
+		span := loc_from_expr(argument)
+		codegen_emit_import_hints(cg, comments, start, span.start, index > 0)
+		gen_expression(cg, argument, PREC_ASSIGN)
+		start = span.end
+	}
+	codegen_emit_import_hints(cg, comments, start, loc.end, false)
 	cg_byte(cg, ')')
 }
 
@@ -2095,8 +3036,12 @@ gen_meta_property :: proc(cg: ^Codegen, e: ^MetaProperty) {
 // ----------------------------------------------------------------------------
 
 gen_jsx_element :: proc(cg: ^Codegen, e: ^JSXElement) {
+	if cg.cfg.jsx.runtime != .Preserve {
+		gen_jsx_runtime(cg, e.loc.start, e.opening_element, e.children[:])
+		return
+	}
 	cg_byte(cg, '<')
-	gen_jsx_name(cg, e.opening_element.name)
+	alias := gen_jsx_name(cg, e.opening_element.name)
 	// TS-in-JSX generic type arguments: `<Foo<T> />`. The opening element
 	// carries them; without this emission, the type args are dropped and
 	// the round-trip diff shows `openingElement.typeArguments` only on
@@ -2104,8 +3049,16 @@ gen_jsx_element :: proc(cg: ^Codegen, e: ^JSXElement) {
 	gen_ts_type_arguments(cg, e.opening_element.type_arguments)
 	for a in e.opening_element.attributes {
 		cg_byte(cg, ' ')
+		if cg.comment_next != CODEGEN_COMMENT_NONE {
+			switch attribute in a {
+			case JSXAttribute:        codegen_flush_comments(cg, attribute.loc.start)
+			case ^JSXSpreadAttribute: codegen_flush_comments(cg, attribute.loc.start)
+			}
+		}
 		gen_jsx_attr(cg, a)
 	}
+	// Children are text: a comment still pending there would become content.
+	cg_close_comments(cg, e.opening_element.loc.end)
 	if e.opening_element.self_closing {
 		cg_str(cg, " />")
 		return
@@ -2116,12 +3069,17 @@ gen_jsx_element :: proc(cg: ^Codegen, e: ^JSXElement) {
 	}
 	cg_str(cg, "</")
 	if cl, ok := e.closing_element.?; ok {
-		gen_jsx_name(cg, cl.name)
+		gen_jsx_name(cg, cl.name, alias)
+		cg_close_comments(cg, cl.loc.end)
 	}
 	cg_byte(cg, '>')
 }
 
 gen_jsx_fragment :: proc(cg: ^Codegen, e: ^JSXFragment) {
+	if cg.cfg.jsx.runtime != .Preserve {
+		gen_jsx_runtime(cg, e.loc.start, nil, e.children[:])
+		return
+	}
 	cg_str(cg, "<>")
 	for c in e.children {
 		gen_jsx_child(cg, c)
@@ -2132,27 +3090,41 @@ gen_jsx_fragment :: proc(cg: ^Codegen, e: ^JSXFragment) {
 gen_jsx_expression_container :: proc(cg: ^Codegen, e: ^JSXExpressionContainer) {
 	cg_byte(cg, '{')
 	gen_expression(cg, e.expression, PREC_ASSIGN)
+	cg_close_comments(cg, e.loc.end)
 	cg_byte(cg, '}')
 }
 
-gen_jsx_name :: proc(cg: ^Codegen, name: JSXElementName) {
+// A closing tag refers to its opening tag. It has its own source position but
+// does not add a second lexical read to the semantic model.
+gen_jsx_binding_name :: proc(cg: ^Codegen, id: JSXIdentifier, opening_alias: string) -> string {
+	alias := opening_alias
+	if alias == "" && len(cg.renamed) != 0 { alias = cg.renamed[id.loc.start] }
+	if alias != "" { sourcemap_record(cg.sm, u32(cg.pos), id.loc.start) }
+	cg_str(cg, alias if alias != "" else id.name)
+	return alias
+}
+
+gen_jsx_name :: proc(cg: ^Codegen, name: JSXElementName, opening_alias := "") -> string {
 	switch n in name {
-	case JSXIdentifier:        cg_str(cg, n.name)
-	case ^JSXMemberExpression: gen_jsx_member(cg, n)
+	case JSXIdentifier:        return gen_jsx_binding_name(cg, n, opening_alias)
+	case ^JSXMemberExpression: return gen_jsx_member(cg, n, opening_alias)
 	case ^JSXNamespacedName:
 		cg_str(cg, n.namespace.name)
 		cg_byte(cg, ':')
 		cg_str(cg, n.name.name)
 	}
+	return ""
 }
 
-gen_jsx_member :: proc(cg: ^Codegen, m: ^JSXMemberExpression) {
+gen_jsx_member :: proc(cg: ^Codegen, m: ^JSXMemberExpression, opening_alias: string) -> string {
+	alias: string
 	switch o in m.object {
-	case JSXIdentifier:        cg_str(cg, o.name)
-	case ^JSXMemberExpression: gen_jsx_member(cg, o)
+	case JSXIdentifier:        alias = gen_jsx_binding_name(cg, o, opening_alias)
+	case ^JSXMemberExpression: alias = gen_jsx_member(cg, o, opening_alias)
 	}
 	cg_byte(cg, '.')
 	cg_str(cg, m.property.name)
+	return alias
 }
 
 gen_jsx_attr :: proc(cg: ^Codegen, a: JSXAttributeItem) {
@@ -2184,7 +3156,7 @@ gen_jsx_child :: proc(cg: ^Codegen, c: JSXChild) {
 	switch v in c {
 	case ^JSXElement:              gen_jsx_element(cg, v)
 	case ^JSXFragment:             gen_jsx_fragment(cg, v)
-	case ^JSXText:                 cg_str(cg, v.value)
+	case ^JSXText:                 cg_str(cg, v.raw)
 	case ^JSXExpressionContainer:  gen_jsx_expression_container(cg, v)
 	case ^JSXSpreadChild:          cg_byte(cg, '{'); cg_str(cg, "..."); gen_expression(cg, v.expression, PREC_ASSIGN); cg_byte(cg, '}')
 	}
@@ -2194,8 +3166,18 @@ gen_jsx_child :: proc(cg: ^Codegen, c: JSXChild) {
 // TS expressions
 // ----------------------------------------------------------------------------
 
-gen_ts_as_expression        :: proc(cg: ^Codegen, e: ^TSAsExpression)        { gen_expression(cg, e.expression, PREC_UNARY); cg_str(cg, " as "); gen_ts_type(cg, e.type_annotation) }
-gen_ts_satisfies_expression :: proc(cg: ^Codegen, e: ^TSSatisfiesExpression) { gen_expression(cg, e.expression, PREC_UNARY); cg_str(cg, " satisfies "); gen_ts_type(cg, e.type_annotation) }
+// `operand as T` and `operand satisfies T`. The operand is the left side of
+// a relational operator, so anything that binds at least as tightly prints
+// bare, including another `as`. The context is passed on: in a `for`
+// initializer an `in` inside the operand still needs its grouping.
+gen_ts_type_postfix :: proc(
+	cg: ^Codegen, operand: ^Expression, keyword: string, type: ^TSType,
+	ctx: CodegenExpressionContext,
+) {
+	gen_expression(cg, operand, PREC_REL, ctx)
+	cg_str(cg, keyword)
+	gen_ts_type(cg, type)
+}
 gen_ts_type_assertion       :: proc(cg: ^Codegen, e: ^TSTypeAssertion)       { cg_byte(cg, '<'); gen_ts_type(cg, e.type_annotation); cg_byte(cg, '>'); gen_expression(cg, e.expression, PREC_UNARY) }
 gen_ts_instantiation        :: proc(cg: ^Codegen, e: ^TSInstantiationExpression) { gen_ts_instantiation_full(cg, e) }
 
@@ -2237,15 +3219,19 @@ gen_ts_type_parameter_declaration :: proc(
 	if cg.cfg.strip_types { return }
 	d, ok := decl.?
 	if !ok || d == nil || len(d.params) == 0 { return }
+	// A generic function type can immediately follow a type assertion's '<'.
+	if cg.pos > 0 && cg.buf[cg.pos - 1] == '<' { cg_hard_space(cg) }
 	cg_byte(cg, '<')
 	for i in 0..<len(d.params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
 		gen_ts_type_parameter(cg, d.params[i])
 	}
+	cg_close_comments(cg, d.loc.end)
 	cg_byte(cg, '>')
 }
 
 gen_ts_type_parameter :: proc(cg: ^Codegen, p: TSTypeParameter) {
+	if cg.comment_next != CODEGEN_COMMENT_NONE { codegen_flush_comments(cg, p.loc.start) }
 	if p.const_ { cg_str(cg, "const ") }
 	if p.in_    { cg_str(cg, "in ") }
 	if p.out    { cg_str(cg, "out ") }
@@ -2266,12 +3252,28 @@ gen_ts_type_arguments :: proc(
 ) {
 	if cg.cfg.strip_types { return }
 	a, ok := args.?
-	if !ok || a == nil || len(a.params) == 0 { return }
+	if !ok || a == nil { return }
+	if len(a.params) == 0 {
+		// The parser accepts JSDoc-only spellings such as <?> without a type node.
+		if a.loc.start < a.loc.end && u64(a.loc.end) <= u64(len(cg.source)) {
+			if cg.comment_next < a.loc.start { codegen_flush_comments(cg, a.loc.start) }
+			cg_str(cg, cg.source[a.loc.start:a.loc.end])
+			// The copied text already contains its comments.
+			codegen_skip_comments(cg, a.loc.end)
+		}
+		return
+	}
 	cg_byte(cg, '<')
 	for i in 0..<len(a.params) {
 		if i > 0 { cg_byte(cg, ','); cg_space(cg) }
+		// Declaration output follows TypeScript and parenthesizes a leading
+		// generic function type, so `<` is never followed directly by `<`.
+		wrap := i == 0 && cg.declaration_emit != nil && dts_parenthesized_argument(a.params[i])
+		if wrap { cg_byte(cg, '(') }
 		gen_ts_type(cg, a.params[i])
+		if wrap { cg_byte(cg, ')') }
 	}
+	cg_close_comments(cg, a.loc.end)
 	cg_byte(cg, '>')
 }
 
@@ -2290,11 +3292,18 @@ gen_ts_function_params :: proc(cg: ^Codegen, params: []TSFunctionParam) {
 }
 
 gen_ts_function_param :: proc(cg: ^Codegen, p: TSFunctionParam) {
-	gen_pattern(cg, p.pattern)
+	pattern := p.pattern
+	assignment, has_default := pattern.(^AssignmentPattern)
+	if has_default && assignment != nil { pattern = assignment.left }
+	gen_pattern(cg, pattern)
 	if p.optional { cg_byte(cg, '?') }
 	if ta, ok := p.type_annotation.?; ok {
 		cg_str(cg, ": ")
 		gen_ts_type(cg, ta.type_annotation)
+	}
+	if has_default && assignment != nil {
+		cg_str(cg, " = ")
+		gen_expression(cg, assignment.right, PREC_ASSIGN)
 	}
 }
 
@@ -2305,12 +3314,13 @@ gen_ts_function_param :: proc(cg: ^Codegen, p: TSFunctionParam) {
 
 gen_ts_signature :: proc(cg: ^Codegen, sig: ^TSSignature) {
 	if sig == nil { return }
+	if cg.declaration_emit != nil && !dts_track_signature(cg.declaration_emit, sig) { return }
 	switch v in sig^ {
 	case TSPropertySignature:
 		if v.readonly { cg_str(cg, "readonly ") }
 		if v.computed { cg_byte(cg, '[') }
 		gen_expression(cg, v.key, PREC_ASSIGN)
-		if v.computed { cg_byte(cg, ']') }
+		if v.computed { cg_close_key(cg, v.key); cg_byte(cg, ']') }
 		if v.optional { cg_byte(cg, '?') }
 		if ta, ok := v.type_annotation.?; ok {
 			cg_str(cg, ": ")
@@ -2325,7 +3335,7 @@ gen_ts_signature :: proc(cg: ^Codegen, sig: ^TSSignature) {
 		}
 		if v.computed { cg_byte(cg, '[') }
 		gen_expression(cg, v.key, PREC_ASSIGN)
-		if v.computed { cg_byte(cg, ']') }
+		if v.computed { cg_close_key(cg, v.key); cg_byte(cg, ']') }
 		if v.optional { cg_byte(cg, '?') }
 		gen_ts_type_parameter_declaration(cg, v.type_parameters)
 		gen_ts_function_params(cg, v.params[:])
@@ -2367,20 +3377,36 @@ gen_ts_signature :: proc(cg: ^Codegen, sig: ^TSSignature) {
 	}
 }
 
-gen_ts_signature_list :: proc(cg: ^Codegen, members: []^TSSignature) {
+gen_ts_signature_list :: proc(cg: ^Codegen, members: []^TSSignature, loc: Loc) {
 	cg_byte(cg, '{')
-	if len(members) == 0 { cg_byte(cg, '}'); return }
+	if len(members) == 0 && cg.comment_next >= loc.end { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
+	codegen_emit_leading_comments(cg, members, loc.start, loc.end)
 	for i in 0..<len(members) {
 		cg_indent(cg)
+		// Comments that share the member's line come before its modifiers.
+		if cg.comment_next != CODEGEN_COMMENT_NONE {
+			codegen_flush_comments(cg, codegen_signature_loc(members[i]).start)
+		}
 		gen_ts_signature(cg, members[i])
 		cg_byte(cg, ';')
-		cg_newline(cg)
+		codegen_end_item_line(cg, members, i, loc.end)
 	}
 	cg.depth -= 1
 	cg_indent(cg)
 	cg_byte(cg, '}')
+}
+
+codegen_signature_loc :: proc(signature: ^TSSignature) -> Loc {
+	switch value in signature^ {
+	case TSPropertySignature:             return value.loc
+	case TSMethodSignature:               return value.loc
+	case TSCallSignatureDeclaration:      return value.loc
+	case TSConstructSignatureDeclaration: return value.loc
+	case TSIndexSignature:                return value.loc
+	}
+	return {}
 }
 
 
@@ -2402,7 +3428,7 @@ gen_ts_interface_declaration_full :: proc(cg: ^Codegen, s: ^TSInterfaceDeclarati
 		}
 	}
 	cg_space(cg)
-	gen_ts_signature_list(cg, s.body.body[:])
+	gen_ts_signature_list(cg, s.body.body[:], s.body.loc)
 }
 
 gen_ts_type_alias_declaration_full :: proc(cg: ^Codegen, s: ^TSTypeAliasDeclaration) {
@@ -2422,9 +3448,11 @@ gen_ts_enum_declaration_full :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
 	cg_str(cg, s.id.name)
 	cg_space(cg)
 	cg_byte(cg, '{')
-	if len(s.body.members) == 0 { cg_byte(cg, '}'); return }
+	body := s.body.loc
+	if len(s.body.members) == 0 && cg.comment_next >= body.end { cg_byte(cg, '}'); return }
 	cg_newline(cg)
 	cg.depth += 1
+	codegen_emit_leading_comments(cg, s.body.members[:], body.start, body.end)
 	for i in 0..<len(s.body.members) {
 		cg_indent(cg)
 		m := s.body.members[i]
@@ -2434,88 +3462,103 @@ gen_ts_enum_declaration_full :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
 			gen_expression(cg, init, PREC_ASSIGN)
 		}
 		cg_byte(cg, ',')
-		cg_newline(cg)
+		codegen_end_item_line(cg, s.body.members[:], i, body.end)
 	}
 	cg.depth -= 1
 	cg_indent(cg)
 	cg_byte(cg, '}')
 }
 
-// gen_ts_enum_lowered emits the TypeScript enum as a JavaScript IIFE pattern:
-//   var Foo; (function(Foo) { Foo[Foo["A"] = 0] = "A"; ... })(Foo || (Foo = {}));
-// This is the standard TypeScript compiler output for non-const enums.
-gen_ts_enum_lowered :: proc(cg: ^Codegen, s: ^TSEnumDeclaration) {
+// Lower each declaration to an IIFE that extends the enum's shared object.
+gen_ts_enum_lowered :: proc(cg: ^Codegen, s: ^TSEnumDeclaration, exported := false, namespace := "", guard_initializer := false) {
 	if s == nil { return }
 	// `declare enum` erases entirely in strip-types mode.
 	if s.declare { return }
+	if cg.cfg.optimize_const_enums && !exported && namespace == "" && cg.runtime_scope.enum_constants.erased[s.loc.start] { return }
 	name := s.id.name
+	alias, scope := codegen_open_enum(cg, s)
+	defer codegen_close_runtime_scope(cg, scope)
+	// A module may export a merged enum only once.
+	if exported {
+		if scope == SCOPE_ROOT {
+			cg_module_keyword(cg, "export ")
+		} else if !cg.runtime_scope.emitted_exports[scope] {
+			cg.runtime_scope.emitted_exports[scope] = true
+			cg_module_keyword(cg, "export ")
+		}
+	}
 	// `var Name;`
 	cg_str(cg, "var ")
 	cg_str(cg, name)
 	cg_byte(cg, ';')
 	cg_newline(cg)
 	cg_indent(cg)
+	if guard_initializer { gen_module_resource_try(cg) }
 	// `(function(Name) {`
 	cg_str(cg, "(function(")
-	cg_str(cg, name)
+	cg_str(cg, alias)
 	cg_str(cg, ") {")
 	cg_newline(cg)
 	cg.depth += 1
-	auto_val := 0
-	for m in s.body.members {
-		cg_indent(cg)
-		// Get member name as string.
-		member_name := enum_member_name(m.id)
-		if member_name == "" { continue }
-		has_init := false
-		if _, ok := m.initializer.?; ok { has_init = true }
-		if has_init {
-			// `Name[Name["Key"] = <init>] = "Key";`
-			cg_str(cg, name)
-			cg_byte(cg, '[')
-			cg_str(cg, name)
-			cg_str(cg, "[\"")
-			cg_str(cg, member_name)
-			cg_str(cg, "\"] = ")
-			gen_expression(cg, m.initializer.?, PREC_ASSIGN)
-			cg_str(cg, "] = \"")
-			cg_str(cg, member_name)
-			cg_str(cg, "\";")
+	previous: Maybe(string)
+	for member in s.body.members {
+		key, valid := enum_member_name(member.id)
+		if !valid { continue }
+		gen_runtime_property(cg, alias, key)
+		cg_str(cg, " = ")
+		if init, has_initializer := member.initializer.?; has_initializer {
+			gen_expression(cg, init, PREC_ASSIGN)
+		} else if last, has_previous := previous.?; has_previous {
+			gen_runtime_property(cg, alias, last)
+			cg_str(cg, " + 1")
 		} else {
-			// `Name[Name["Key"] = N] = "Key";`
-			cg_str(cg, name)
-			cg_byte(cg, '[')
-			cg_str(cg, name)
-			cg_str(cg, "[\"")
-			cg_str(cg, member_name)
-			cg_str(cg, "\"] = ")
-			cg_str(cg, fmt.tprintf("%d", auto_val))
-			cg_str(cg, "] = \"")
-			cg_str(cg, member_name)
-			cg_str(cg, "\";")
+			cg_byte(cg, '0')
 		}
-		auto_val += 1
+		cg_byte(cg, ';')
 		cg_newline(cg)
+		gen_enum_reverse_mapping(cg, alias, key)
+		cg_newline(cg)
+		previous = key
 	}
 	cg.depth -= 1
 	cg_indent(cg)
-	// `})(Name || (Name = {}));`
-	cg_str(cg, "})(")
-	cg_str(cg, name)
-	cg_str(cg, " || (")
-	cg_str(cg, name)
-	cg_str(cg, " = {}));")
+	gen_runtime_scope_invocation(cg, name, namespace)
+	if guard_initializer { gen_module_resource_catch(cg) }
 }
 
-// enum_member_name extracts the string name from an enum member's id
-// (Identifier or StringLiteral).
-enum_member_name :: proc(id: ^Expression) -> string {
-	if id == nil { return "" }
-	#partial switch v in id^ {
-	case ^Identifier:    if v != nil { return v.name }
-	case ^StringLiteral: if v != nil { return v.value }
+gen_runtime_property :: proc(cg: ^Codegen, object, key: string) {
+	cg_str(cg, object)
+	cg_byte(cg, '[')
+	gen_string_quoted(cg, key)
+	cg_byte(cg, ']')
+}
+
+// The forward assignment evaluates the initializer once. Only numbers
+// have reverse entries, including when the initializer is computed.
+gen_enum_reverse_mapping :: proc(cg: ^Codegen, enum_name, key: string) {
+	cg_str(cg, "if (typeof ")
+	gen_runtime_property(cg, enum_name, key)
+	cg_str(cg, " === \"number\") ")
+	cg_str(cg, enum_name)
+	cg_byte(cg, '[')
+	gen_runtime_property(cg, enum_name, key)
+	cg_str(cg, "] = ")
+	gen_string_quoted(cg, key)
+	cg_byte(cg, ';')
+}
+
+enum_member_name :: proc(id: ^Expression) -> (name: string, valid: bool) {
+	if id == nil { return "", false }
+	#partial switch value in id^ {
+	case ^Identifier: if value != nil { return value.name, true }
+	case ^StringLiteral: if value != nil { return value.value, true }
+	case ^TemplateLiteral:
+		if value != nil && len(value.expressions) == 0 && len(value.quasis) == 1 {
+			quasi := value.quasis[0]
+			return quasi.cooked.? or_else quasi.raw, true
+		}
 	}
-	return ""
+	return "", false
 }
 
 gen_ts_module_declaration_full :: proc(cg: ^Codegen, s: ^TSModuleDeclaration) {
@@ -2599,15 +3642,24 @@ gen_ts_import_equals_full :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration) {
 	if s.import_kind == .Type { cg_str(cg, "type ") }
 	cg_str(cg, s.id.name)
 	cg_str(cg, " = ")
-	switch r in s.module_reference {
+	gen_ts_import_equals_reference(cg, s.module_reference)
+	cg_byte(cg, ';')
+}
+
+gen_ts_import_equals_reference :: proc(cg: ^Codegen, reference: TSModuleReference) {
+	switch r in reference {
 	case ^Expression:
 		gen_expression(cg, r, PREC_CALL)
 	case ^TSExternalModuleReference:
-		cg_str(cg, "require(")
+		name := "require"
+		if cg.runtime_scope != nil && cg.runtime_scope.require_alias != "" {
+			name = cg.runtime_scope.require_alias
+		}
+		cg_str(cg, name)
+		cg_byte(cg, '(')
 		gen_string_literal(cg, r.expression)
 		cg_byte(cg, ')')
 	}
-	cg_byte(cg, ';')
 }
 
 gen_ts_export_assignment_full :: proc(cg: ^Codegen, s: ^TSExportAssignment) {
@@ -2625,14 +3677,7 @@ gen_ts_import_equals_lowered :: proc(cg: ^Codegen, s: ^TSImportEqualsDeclaration
 	cg_str(cg, "const ")
 	cg_str(cg, s.id.name)
 	cg_str(cg, " = ")
-	switch r in s.module_reference {
-	case ^Expression:
-		gen_expression(cg, r, PREC_CALL)
-	case ^TSExternalModuleReference:
-		cg_str(cg, "require(")
-		gen_string_literal(cg, r.expression)
-		cg_byte(cg, ')')
-	}
+	gen_ts_import_equals_reference(cg, s.module_reference)
 	cg_byte(cg, ';')
 }
 
@@ -2673,7 +3718,7 @@ gen_ts_constructor_type :: proc(cg: ^Codegen, t: ^TSConstructorType) {
 }
 
 gen_ts_type_literal :: proc(cg: ^Codegen, t: ^TSTypeLiteral) {
-	gen_ts_signature_list(cg, t.members[:])
+	gen_ts_signature_list(cg, t.members[:], t.loc)
 }
 
 gen_ts_conditional_type :: proc(cg: ^Codegen, t: ^TSConditionalType) {
@@ -2715,6 +3760,7 @@ gen_ts_indexed_access_type :: proc(cg: ^Codegen, t: ^TSIndexedAccessType) {
 	gen_ts_type(cg, t.object_type)
 	cg_byte(cg, '[')
 	gen_ts_type(cg, t.index_type)
+	cg_close_comments(cg, t.loc.end)
 	cg_byte(cg, ']')
 }
 
@@ -2760,11 +3806,9 @@ gen_ts_literal_type :: proc(cg: ^Codegen, t: ^TSLiteralType) {
 gen_ts_template_literal_type :: proc(cg: ^Codegen, t: ^TSTemplateLiteralType) {
 	cg_byte(cg, '`')
 	for i in 0..<len(t.quasis) {
-		if c, ok := t.quasis[i].cooked.?; ok {
-			cg_str(cg, c)
-		} else {
-			cg_str(cg, t.quasis[i].raw)
-		}
+		// The raw text keeps the escapes. The cooked text of `\t` is a tab, and
+		// of `\r\n` a line break that the template would then normalize.
+		cg_str(cg, t.quasis[i].raw)
 		if i < len(t.types) {
 			cg_str(cg, "${")
 			gen_ts_type(cg, t.types[i])
@@ -2787,6 +3831,11 @@ gen_ts_import_type_full :: proc(cg: ^Codegen, t: ^TSImportType) {
 	if t.is_typeof { cg_str(cg, "typeof ") }
 	cg_str(cg, "import(")
 	gen_ts_type(cg, t.argument)
+	if options := ts_import_type_options(t); options != nil {
+		cg_byte(cg, ',')
+		cg_space(cg)
+		gen_expression(cg, options, PREC_ASSIGN)
+	}
 	cg_byte(cg, ')')
 	if q, ok := t.qualifier.?; ok {
 		cg_byte(cg, '.')

@@ -113,7 +113,9 @@ Lexer :: struct {
 	offset:     int,                  // 8B  — read/write every token
 	had_line_terminator: bool,        // 1B  — write every token
 	last_token_type: TokenType,       // 1B  — write every token
-	template_depth: u8,               // 1B  — number of active template interpolations
+	// Number of `${ ... }` interpolations the cursor is currently inside,
+	// at most TEMPLATE_DEPTH_MAX. See "Template interpolation state" below.
+	template_depth: u16,              // 2B  — read on every `{` / `}`
 	// Lazy nxt: true when `nxt` holds a pre-lexed token (from a peek).
 	// advance_token checks this to decide whether to copy nxt→cur (cheap)
 	// or lex directly into cur (no 16-byte copy). ~90% of advances skip
@@ -126,7 +128,13 @@ Lexer :: struct {
 	// token is fetched.
 	is_module_mode: bool,             // 1B  — set once at init
 	_hot_pad: [2]u8,                  // 2B  — align to 32B boundary
-	template_brace_stack: [8]u8,      // 8B  — brace depth per template nesting level (max 8 deep)
+	// Count of `{` still open inside the INNERMOST active interpolation.
+	// Only the innermost count changes per token, so it alone lives in the
+	// hot line; the counts of the enclosing interpolations are parked on
+	// the cold `template_outer` list. A `}` seen at count zero closes the
+	// interpolation. u32 cannot wrap: every `{` is a source byte and token
+	// offsets are u32, so a source holds fewer than 2^32 of them.
+	template_brace_depth: u32,        // 4B  — read/write on `{` / `}` inside `${ }`
 	cur:   FastToken,            // 16B — read/write every token (parser reads)
 	nxt:   FastToken,            // 16B — read/write every token
 	// --- 64 bytes so far: fits in 1 cache line ---
@@ -149,6 +157,16 @@ Lexer :: struct {
 	column:     int,
 	allocator:  mem.Allocator,
 	template_stack: [dynamic]bool,
+	// Brace counts of the interpolations that enclose the innermost one,
+	// innermost-enclosing first. nil while template_depth <= 1.
+	template_outer: ^TemplateOuterLevel,
+	// Latched by lexer_halt: the rest of the input is deliberately not
+	// tokenised and the parser discards diagnostics raised from then on,
+	// which could only be artefacts of the forced end of input.
+	halted: bool,
+	// Why the lexer halted, when the lexer itself decided to (code .None
+	// when the parser halted it, e.g. on out of memory).
+	halt_error: LexerError,
 	strict_mode: bool,
 	at_start_of_file: bool,
 
@@ -217,25 +235,195 @@ LexerError :: struct {
 	offset:  u32,
 	message: string,
 	code:    ErrorCode,   // .None for legacy / un-migrated lexer errors
+	// Byte length of the offending construct, for diagnostics that span
+	// more than a point. Zero (the default) keeps the legacy point span.
+	length:  u32,
 }
 
-// Build line offset table in a single pre-pass
-build_line_table :: proc(l: ^Lexer) {
-	src := l.source_bytes
-	src_len := len(src)
-	cap := max(src_len / 40 + 16, 256)
-	lines := make([]u32, cap, l.allocator)
-	lines[0] = 0
-	count: u32 = 1
-	for i := 0; i < src_len; i += 1 {
-		if src[i] == '\n' {
-			if int(count) >= len(lines) { break }
-			lines[count] = u32(i + 1)
-			count += 1
-		}
+// ----------------------------------------------------------------------------
+// Template interpolation state
+// ----------------------------------------------------------------------------
+//
+// Inside `${ ... }` the lexer must tell a `}` that closes an object literal
+// or block from the `}` that ends the interpolation and resumes the template
+// text. It does so by counting open `{` per interpolation:
+//
+//   template_depth        how many interpolations are open (0 = not in one)
+//   template_brace_depth  open `{` in the innermost interpolation
+//   template_outer        the same count for each enclosing interpolation
+//
+// The enclosing counts form a linked list of arena nodes that are never
+// modified after they are written: entering a nested interpolation links a
+// new node in front, leaving it moves the head pointer back to the parent.
+// That makes the whole state three scalars (depth, count, head pointer), so
+// the parser's speculative-parse snapshot (`lexer_snapshot`) captures it
+// exactly at any depth by copying them, with nothing to deep-copy. A fixed
+// array of counters would not have that property: a speculative parse that
+// leaves and re-enters a level overwrites the slot the snapshot relies on.
+//
+// Cost: no allocation up to depth 1 (the overwhelmingly common case); one
+// 16-byte arena node per nested interpolation beyond that. Before this
+// design the state was `[8]u8`: depth 9 silently stopped tracking and 256
+// open braces wrapped the counter, so valid programs were rejected.
+//
+// TEMPLATE_DEPTH_MAX bounds the list (and so the arena spent on it: at most
+// 255 nodes = 4 KiB live). It is far above anything hand-written or
+// generated code produces (V8 accepts more, but only until its own stack
+// runs out), and it is low enough that the recursive-descent parser, which
+// spends several stack frames per level, reaches the cap before it reaches
+// the end of an 8 MiB stack even in unoptimised builds. Exceeding it is
+// reported as K1016_TemplateNestingTooDeep at the offending `${` and lexing
+// halts, rather than continuing with brace tracking known to be wrong.
+TEMPLATE_DEPTH_MAX :: 256
+
+TemplateOuterLevel :: struct {
+	parent:      ^TemplateOuterLevel, // next enclosing interpolation, or nil
+	brace_depth: u32,                 // its open `{` count while suspended
+}
+
+#assert(TEMPLATE_DEPTH_MAX <= max(u16))
+#assert(size_of(TemplateOuterLevel) <= 16) // 16 on 64-bit targets, 8 on wasm32
+// The parser reads `cur` / `nxt` on every token. These are the offsets they
+// had (measured, 64-bit targets) before the template state changed from
+// `[8]u8` to a u32 count plus a cold pointer; pin them so the change, and
+// later ones, cannot silently shift the hot fields across cache lines.
+when size_of(rawptr) == 8 {
+	#assert(offset_of(Lexer, template_depth) == 40)
+	#assert(offset_of(Lexer, template_brace_depth) == 48)
+	#assert(offset_of(Lexer, cur) == 56)
+	#assert(offset_of(Lexer, nxt) == 80)
+}
+
+// Enter the interpolation whose `${` starts at `dollar_offset`. Returns
+// false when the level cannot be opened (nesting cap or allocation
+// failure); a diagnostic has then been recorded and lexing halted, and the
+// caller must return an Invalid token.
+template_level_enter :: proc(l: ^Lexer, dollar_offset: int) -> bool {
+	assert(dollar_offset + 2 <= len(l.source_bytes))
+	assert(l.template_depth <= TEMPLATE_DEPTH_MAX)
+	if l.template_depth == TEMPLATE_DEPTH_MAX {
+		template_level_refuse(l, dollar_offset, .K1016_TemplateNestingTooDeep,
+			"Template literal nesting exceeds 256 levels")
+		return false
 	}
-	l.line_offsets = lines[:count]
-	l.num_lines = count
+	if l.template_depth > 0 {
+		// Park the enclosing interpolation's count; depth 0 has none.
+		outer, alloc_err := new(TemplateOuterLevel, l.allocator)
+		if alloc_err != nil || outer == nil {
+			template_level_refuse(l, dollar_offset, .K2085_OutOfMemory,
+				"Out of memory: input exceeds the parser arena")
+			return false
+		}
+		outer.parent = l.template_outer
+		outer.brace_depth = l.template_brace_depth
+		l.template_outer = outer
+	} else {
+		assert(l.template_outer == nil)
+		assert(l.template_brace_depth == 0)
+	}
+	l.template_depth += 1
+	l.template_brace_depth = 0
+	return true
+}
+
+// Leave the innermost interpolation: its closing `}` was just recognised.
+// Tolerates depth 0 because error recovery in the TS template-type parser
+// re-lexes a stray `}` as a continuation (see parse_ts_template_literal_type).
+template_level_leave :: proc(l: ^Lexer) {
+	if l.template_depth == 0 {
+		assert(l.template_outer == nil)
+		return
+	}
+	l.template_depth -= 1
+	if l.template_depth > 0 {
+		outer := l.template_outer
+		assert(outer != nil)
+		l.template_brace_depth = outer.brace_depth
+		l.template_outer = outer.parent
+	} else {
+		assert(l.template_outer == nil)
+		l.template_brace_depth = 0
+	}
+}
+
+// Record why an interpolation could not be opened and halt the lexer.
+// Carrying on would misread each following `}` and bury the real cause
+// under a cascade of unrelated syntax errors.
+template_level_refuse :: proc(l: ^Lexer, dollar_offset: int, code: ErrorCode, message: string) {
+	lexer_halt_with_error(l, LexerError{
+		offset  = u32(dollar_offset),
+		length  = 2, // the `${`
+		message = message,
+		code    = code,
+	})
+}
+
+// Halt, recording `reason` as the diagnostic that explains why. Only the
+// first halt records: a speculative parse may rewind and run into the same
+// condition again. The reason is kept in `halt_error` as well as in
+// lexer_errors so the parser can restore it if a re-lex path pops it.
+lexer_halt_with_error :: proc(l: ^Lexer, reason: LexerError) {
+	assert(reason.code != .None)
+	if !l.halted {
+		l.halt_error = reason
+		bump_append(&l.lexer_errors, reason)
+	}
+	lexer_halt(l)
+}
+
+// Stop tokenising: move the cursor to the end of input so every later token
+// is EOF, and latch `halted`. Used for conditions after which the token
+// stream cannot be trusted (template nesting cap) or must not be consumed
+// (out of memory). The latch is what keeps the stop in force when the
+// parser rewinds the cursor: lexer_restore re-applies it. Idempotent.
+lexer_halt :: proc(l: ^Lexer) {
+	l.halted = true
+	l.offset = len(l.source_bytes)
+	assert(l.offset == len(l.source_bytes))
+}
+
+// Refuse the whole source before parsing starts: forget what init_lexer
+// gathered while priming the first token (it may have read through the
+// bytes being refused), record the one diagnostic that explains the
+// refusal, and halt so the parser sees an empty program.
+lexer_refuse_source :: proc(l: ^Lexer, offset, length: u32, code: ErrorCode, message: string) {
+	assert(int(offset) + int(length) <= len(l.source_bytes))
+	assert(length > 0)
+	assert(!l.halted)
+	clear(&l.lexer_errors)
+	clear(&l.comments)
+	lexer_halt_with_error(l, LexerError{
+		offset = offset, length = length, message = message, code = code,
+	})
+	end := u32(len(l.source_bytes))
+	l.cur = FastToken{start = end, end = end, kind = .EOF}
+	l.nxt_valid = false
+}
+
+// Index every ECMAScript line terminator. Treat CRLF as one line break.
+source_line_offsets :: proc(buf: string, allocator: mem.Allocator = context.allocator) -> []u32 {
+	out := make([dynamic]u32, 1, max(64, len(buf) / 32), allocator)
+	out[0] = 0
+	bytes := transmute([]u8)buf
+	for i := 0; i < len(bytes); i += 1 {
+		switch bytes[i] {
+		case '\r':
+			if i + 1 < len(bytes) && bytes[i + 1] == '\n' { i += 1 }
+		case '\n':
+		case 0xE2:
+			if !is_ls_ps_at(bytes, i) { continue }
+			i += 2
+		case:
+			continue
+		}
+		append(&out, u32(i + 1))
+	}
+	return out[:]
+}
+
+build_line_table :: proc(l: ^Lexer) {
+	l.line_offsets = source_line_offsets(l.source, l.allocator)
+	l.num_lines = u32(len(l.line_offsets))
 }
 
 // Compute line/col from byte offset using binary search
@@ -408,6 +596,15 @@ init_single_char_table :: proc "contextless" () {
 	single_char_tokens['@'] = .At
 }
 
+// Forget the comments recorded at or after `offset` before the lexer rewinds
+// there. The text is either not a comment in its new reading, or is recorded
+// again when it is lexed a second time. Comments are appended in source order.
+lexer_drop_comments_from :: proc(l: ^Lexer, offset: u32) {
+	for len(l.comments) > 0 && l.comments[len(l.comments) - 1].start >= offset {
+		pop(&l.comments)
+	}
+}
+
 relex_as_regex :: proc(l: ^Lexer) {
 	if l.cur.kind != .Div && l.cur.kind != .AssignDiv { return }
 	// Trim any lexer errors that were emitted at or past the current token
@@ -420,6 +617,8 @@ relex_as_regex :: proc(l: ^Lexer) {
 	for len(l.lexer_errors) > 0 && l.lexer_errors[len(l.lexer_errors)-1].offset >= relex_start {
 		pop(&l.lexer_errors)
 	}
+	// Lexing ahead as division can record `/*` inside the pattern as a comment.
+	lexer_drop_comments_from(l, relex_start)
 	l.offset = int(relex_start)
 	start := l.cur.start
 	flags := l.cur.flags
@@ -907,15 +1106,14 @@ lex_token :: proc(l: ^Lexer) -> FastToken {
 	if tt != .Invalid {
 		// When inside template interpolation, track brace depth
 		if l.template_depth > 0 {
-			idx := l.template_depth - 1
 			if tt == .RBrace {
-				if l.template_brace_stack[idx] == 0 {
+				if l.template_brace_depth == 0 {
 					// Closes the interpolation → template resume
 					return lex_template_resume(l, start, flags)
 				}
-				l.template_brace_stack[idx] -= 1
+				l.template_brace_depth -= 1
 			} else if tt == .LBrace {
-				l.template_brace_stack[idx] += 1
+				l.template_brace_depth += 1
 			}
 		}
 		l.offset += 1
@@ -1499,7 +1697,13 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 
 	// Fast path: simple integer (no dot, no exponent, no underscore, fits in u64)
 	value: f64
-	if is_simple_int && (end - start) <= 15 {
+	if legacy_zero_prefix && !legacy_zero_prefix_has_89 && is_simple_int {
+		// §B.1.1 LegacyOctalIntegerLiteral: `010` is eight, not ten. The digit
+		// loop above accumulated in base ten because it cannot know that no
+		// `8` or `9` follows until the literal ends, so the value is redone
+		// here. Only this cold Annex B spelling pays for the second pass.
+		value = lex_legacy_octal_value(src[start:end])
+	} else if is_simple_int && (end - start) <= 15 {
 		value = f64(acc)
 	} else {
 		text := l.source[start:end]
@@ -1529,6 +1733,37 @@ lex_number :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	}
 
 	return FastToken{start = start, end = end, kind = .Number, flags = flags}
+}
+
+// Mathematical value of a LegacyOctalIntegerLiteral (§B.1.1), rounded to the
+// nearest f64 the way the engine rounds any NumericLiteral (§12.9.3).
+//
+// The top bits are gathered in a u64. Once another digit would no longer fit,
+// the remaining digits only move the binary exponent, and whether any of them
+// was non-zero is folded into bit zero as a sticky bit. The u64 then holds at
+// least 61 significant bits, more than the 53 an f64 keeps, so the conversion
+// rounds exactly as the full integer would.
+lex_legacy_octal_value :: proc(digits: []u8) -> f64 {
+	assert(len(digits) >= 2)
+	assert(digits[0] == '0')
+	mantissa: u64 = 0
+	shift_bits: u32 = 0
+	sticky := false
+	for digit in digits {
+		assert(digit >= '0' && digit <= '7')
+		if mantissa >> 61 == 0 {
+			mantissa = mantissa << 3 | u64(digit - '0')
+		} else {
+			shift_bits += 3
+			if digit != '0' { sticky = true }
+		}
+	}
+	if sticky { mantissa |= 1 }
+	value := f64(mantissa)
+	// Scaling by a power of two is exact; past the f64 range it overflows to
+	// infinity, which is also what the engine evaluates such a literal to.
+	for ; shift_bits > 0 && value < max(f64); shift_bits -= 3 { value *= 8 }
+	return value
 }
 
 lex_hex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
@@ -1838,6 +2073,36 @@ append_utf8 :: #force_inline proc(cook_buf: ^[dynamic]u8, cp: u32) {
 	}
 }
 
+// Append the code point of a `\u` escape to a cooked value, keeping the value
+// in WTF-8: UTF-8, plus 3-byte sequences for surrogates that have no partner.
+//
+// A JavaScript string is a sequence of UTF-16 code units, so a high surrogate
+// followed by a low one is a single supplementary code point however the two
+// were spelled: `\uD83D\uDE00`, `\u{D83D}\u{DE00}`, or the two halves on either
+// side of a line continuation. When `cp` is a low surrogate and the value
+// already ends in a high one, the pair is rewritten as its 4-byte sequence.
+// Leaving it as two 3-byte sequences would be neither UTF-8 nor WTF-8.
+//
+// The three bytes ED A0..AF 80..BF at the end of the buffer can only be a high
+// surrogate: ED is a lead byte, never a continuation byte, so they cannot be
+// the tail of a longer sequence.
+append_utf8_joining_surrogates :: proc(cook_buf: ^[dynamic]u8, cp: u32) {
+	assert(cp <= 0x10FFFF)
+	length := len(cook_buf)
+	if cp >= 0xDC00 && cp <= 0xDFFF && length >= 3 {
+		lead, second, third := cook_buf[length - 3], cook_buf[length - 2], cook_buf[length - 1]
+		if lead == 0xED && second >= 0xA0 && second <= 0xAF && third >= 0x80 && third <= 0xBF {
+			high := 0xD000 | u32(second & 0x3F) << 6 | u32(third & 0x3F)
+			assert(high >= 0xD800 && high <= 0xDBFF)
+			resize(cook_buf, length - 3)
+			append_utf8(cook_buf, 0x10000 + (high - 0xD800) * 0x400 + (cp - 0xDC00))
+			assert(len(cook_buf) == length + 1) // Six bytes became four.
+			return
+		}
+	}
+	append_utf8(cook_buf, cp)
+}
+
 hex_val :: #force_inline proc(c: u8) -> i32 {
 	switch {
 	case c >= '0' && c <= '9': return i32(c - '0')
@@ -2003,7 +2268,7 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 						} else if overflow {
 							bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: code point out of range [0..0x10FFFF]", code = .K1011_InvalidEscapeSequence})
 						} else {
-							append_utf8(&cook_buf, cp)
+							append_utf8_joining_surrogates(&cook_buf, cp)
 						}
 					} else {
 						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u{} escape: missing closing '}'", code = .K1011_InvalidEscapeSequence})
@@ -2046,7 +2311,10 @@ lex_string_scalar :: proc(l: ^Lexer, start: u32, flags: u8, quote: u8) -> FastTo
 							}
 						}
 					}
-						append_utf8(&cook_buf, cp)
+						// Not the `\uHHHH\uHHHH` shape handled above, but `cp` may
+						// still complete a pair begun by `\u{D83D}` or a high
+						// surrogate before a line continuation.
+						append_utf8_joining_surrogates(&cook_buf, cp)
 						l.offset += 6
 					} else {
 						bump_append(&l.lexer_errors, LexerError{offset = uesc_off, message = "Invalid \\u escape: expected 4 hex digits", code = .K1011_InvalidEscapeSequence})
@@ -2624,27 +2892,24 @@ lex_regex :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 		bump_append(&l.lexer_errors, LexerError{offset = u32(flags_start), message = "Regular expression flags 'u' and 'v' are mutually exclusive", code = .K1012_InvalidRegex})
 	}
 
-	// Now that flags are parsed, run the full pattern validator. It owns
-	// every diagnostic that depends on flag context (property escapes,
-	// strict IdentityEscape, char-class range early errors in u/v mode,
-	// v-flag set notation, …) plus the flag-agnostic named-group checks.
+	// Now that flags are parsed, validate the pattern. Every diagnostic that
+	// depends on flag context (property escapes, strict IdentityEscape, class
+	// ranges, `v` set notation, …) comes from here, together with the
+	// flag-agnostic quantifier and named-group checks.
 	//
-	// Promoted to always-on (2026-05-08). Was previously gated on
-	// check_semantics, mirroring OXC's parser/semantic split, but every
-	// diagnostic emitted here is a §22.2.1 early error — a SyntaxError
-	// that ECMA-262 specifies as parse-phase. Running it always closes
-	// ~356 negatives in `parser_test262.snap` (the
-	// `language/literals/regexp` and `built-ins/RegExp/property-escapes`
-	// clusters) without any false-positive risk on positive fixtures —
-	// `semantic_test262.snap` has been at 47088/47090 positives for
-	// multiple sessions with this code path active.
+	// Always on: each diagnostic is a §22.2.1 early error, a SyntaxError the
+	// specification assigns to the parse phase, and the regexp negatives in
+	// `parser_test262.snap` depend on it.
 	//
-	// Post-#5 the validator no longer reaches into lexer state — it
-	// takes (source, span, flags, alloc) and returns a
-	// [dynamic]RegexDiagnostic. We map those back into LexerError so the
-	// lexer's error channel stays the single source of truth.
+	// regex_validate_literal never reaches into lexer state: it takes
+	// (source, span, flags, alloc) and returns diagnostics, which are mapped
+	// into LexerError so the lexer's error channel stays the single source
+	// of truth. It accepts an ordinary literal after the validator's scans
+	// and consults the regexp tree builder for the rest; see its comment.
 	if !l.skip_regex_validation {
-		diags := regex_validate(l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator)
+		diags := regex_validate_literal(
+			l.source_bytes, u32(pattern_start), pattern_end, has_u, has_v, l.allocator,
+		)
 		for d in diags {
 			// Propagate the validator's code if it set one, otherwise
 			// fall back to K1012_InvalidRegex — every regex-validator
@@ -2828,7 +3093,9 @@ process_template_escapes :: proc(raw: string, allocator: mem.Allocator) -> strin
 			// \uHHHH or \u{H...H}. Reuse the shared decoder.
 			cp, ok, consumed := decode_u_escape(src, i)
 			if ok {
-				append_utf8(&buf, cp)
+				// Joins an escaped surrogate pair into one code point, as
+				// string literals do; see StringLiteral.value in ast.odin.
+				append_utf8_joining_surrogates(&buf, cp)
 				i += consumed - 1
 			} else {
 				bump_append(&buf, ch)
@@ -2894,12 +3161,10 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
 			content_end := u32(l.offset)
-			l.offset += 2 // consume ${  
-			// Push template brace depth
-			if l.template_depth < len(l.template_brace_stack) {
-				l.template_brace_stack[l.template_depth] = 0
-				l.template_depth += 1
+			if !template_level_enter(l, l.offset) {
+				return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 			}
+			l.offset += 2 // consume ${
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateHead, flags = flags}
 		}
@@ -2929,11 +3194,19 @@ lex_template_start :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 }
 
+// The `}` at `start` closes the innermost interpolation: leave that level,
+// then scan the template text that follows.
 lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
+	template_level_leave(l)
+	return lex_template_continue(l, start, flags)
+}
+
+// Scan template text from the `}` at `start` up to the next `${` (returns
+// TemplateMiddle and enters a new level) or closing backtick (TemplateTail).
+// Split from lex_template_resume so a caller that already left the level
+// can re-scan the continuation without leaving a second one.
+lex_template_continue :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 	l.offset += 1
-	if l.template_depth > 0 {
-		l.template_depth -= 1
-	}
 	src := l.source_bytes
 	src_len := len(src)
 	content_start := l.offset
@@ -2966,11 +3239,10 @@ lex_template_resume :: proc(l: ^Lexer, start: u32, flags: u8) -> FastToken {
 			raw_content := l.source[content_start:l.offset]
 			cooked := process_template_escapes(raw_content, l.allocator)
 			content_end := u32(l.offset)
-			l.offset += 2
-			if l.template_depth < len(l.template_brace_stack) {
-				l.template_brace_stack[l.template_depth] = 0
-				l.template_depth += 1
+			if !template_level_enter(l, l.offset) {
+				return FastToken{start = start, end = u32(l.offset), kind = .Invalid, flags = flags}
 			}
+			l.offset += 2
 			l.lit_offset[l.lit_write_idx] = u32(content_start); l.lit_value[l.lit_write_idx] = LiteralValue(cooked); l.lit_type[l.lit_write_idx] = .String
 			return FastToken{start = u32(content_start), end = content_end, kind = .TemplateMiddle, flags = flags}
 		}
@@ -3021,14 +3293,6 @@ KEYWORD_HASH_TABLE: [268]TokenType
 // (identifiers that happen to share first-char + length with a keyword).
 KEYWORD_VERIFY: [268]u32
 
-// Keyword tail bytes (indices 4..length) packed little-endian into a u64, used
-// for a single masked word-compare on keywords longer than 4 bytes. Replaces a
-// per-candidate dependent byte-compare chain (one MOV+AND+CMP versus up to six
-// sequential byte loads). Only the non-colliding `length > 4` slots are read;
-// the 6 collision slots (.Invalid) resolve their tail inline in the 2nd-byte
-// switch and never consult this table.
-KEYWORD_TAIL: [268]u64
-
 @(init)
 init_keyword_hash :: proc "contextless" () {
 	for i in 0..<268 { KEYWORD_HASH_TABLE[i] = .Identifier }
@@ -3053,11 +3317,6 @@ init_keyword_hash :: proc "contextless" () {
 		if len(b) > 2 { v |= u32(b[2]) << 8 }
 		if len(b) > 3 { v |= u32(b[3]) << 16 }
 		KEYWORD_VERIFY[h] = v
-		// Pack bytes 4..len little-endian for the length>4 tail compare.
-		// Max keyword length is 10 (instanceof), so at most 6 bytes / shift 40.
-		t: u64 = 0
-		for j in 4..<len(b) { t |= u64(b[j]) << uint(8 * (j - 4)) }
-		KEYWORD_TAIL[h] = t
 	}
 
 	// Non-colliding keywords (51 entries)
@@ -3149,25 +3408,41 @@ lookup_keyword_by_letter :: #force_inline proc(src: []u8, start: u32, end: u32) 
 	if v != KEYWORD_VERIFY[h] { return .Identifier }
 
 	// For length ≤ 4, bytes 1..3 verify fully matched — we're done.
-	// For length > 4, verify the rest (bytes 4..length) in one masked
-	// word-compare against the precomputed KEYWORD_TAIL slot, replacing the
-	// former per-candidate dependent byte-compare chain. The hash + 3-byte
-	// verify already narrowed `h` to exactly one candidate, so a single
-	// compare of the remaining `length-4` bytes confirms the match.
+	// For length > 4, verify remaining bytes 4+.
 	if length > 4 {
-		n := length - 4 // 1..6 (max keyword length is 10).
-		observed: u64 = ---
-		// Fast path: one unaligned 8-byte load when 8 bytes are in bounds.
-		// Near EOF the source carries no trailing padding (the SIMD scan
-		// stops 16 bytes short), so fall back to a bounded byte pack.
-		if int(start) + 12 <= len(src) {
-			observed = load_u64_unaligned(&src[start + 4])
-		} else {
-			observed = 0
-			for j in u32(0)..<n { observed |= u64(src[start + 4 + j]) << uint(8 * j) }
+		// Only ~20 keywords have length > 4. Verify bytes 4+ with
+		// a targeted per-candidate check (the hash + 3-byte verify
+		// already narrowed to a single candidate).
+		#partial switch candidate {
+		case .Assert:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
+		case .Asserts:    if src[start+4] != 'r' || src[start+5] != 't' || src[start+6] != 's' { return .Identifier }
+		case .Break:      if src[start+4] != 'k' { return .Identifier }
+		case .Continue:   if src[start+4] != 'i' || src[start+5] != 'n' || src[start+6] != 'u' || src[start+7] != 'e' { return .Identifier }
+		case .Delete:     if src[start+4] != 't' || src[start+5] != 'e' { return .Identifier }
+		case .Default:    if src[start+4] != 'u' || src[start+5] != 'l' || src[start+6] != 't' { return .Identifier }
+		case .Debugger:   if src[start+4] != 'g' || src[start+5] != 'g' || src[start+6] != 'e' || src[start+7] != 'r' { return .Identifier }
+		case .Export:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
+		case .Extends:    if src[start+4] != 'n' || src[start+5] != 'd' || src[start+6] != 's' { return .Identifier }
+		case .False:      if src[start+4] != 'e' { return .Identifier }
+		case .Finally:    if src[start+4] != 'l' || src[start+5] != 'l' || src[start+6] != 'y' { return .Identifier }
+		case .Function:   if src[start+4] != 't' || src[start+5] != 'i' || src[start+6] != 'o' || src[start+7] != 'n' { return .Identifier }
+		case .Infer:      if src[start+4] != 'r' { return .Identifier }
+		case .Import:     if src[start+4] != 'r' || src[start+5] != 't' { return .Identifier }
+		case .Instanceof: if src[start+4] != 'a' || src[start+5] != 'n' || src[start+6] != 'c' || src[start+7] != 'e' || src[start+8] != 'o' || src[start+9] != 'f' { return .Identifier }
+		case .Keyof:      if src[start+4] != 'f' { return .Identifier }
+		case .Never:      if src[start+4] != 'r' { return .Identifier }
+		case .Override:   if src[start+4] != 'r' || src[start+5] != 'i' || src[start+6] != 'd' || src[start+7] != 'e' { return .Identifier }
+		case .Return:     if src[start+4] != 'r' || src[start+5] != 'n' { return .Identifier }
+		case .Super:      if src[start+4] != 'r' { return .Identifier }
+		case .Satisfies:  if src[start+4] != 's' || src[start+5] != 'f' || src[start+6] != 'i' || src[start+7] != 'e' || src[start+8] != 's' { return .Identifier }
+		case .Throw:      if src[start+4] != 'w' { return .Identifier }
+		case .Typeof:     if src[start+4] != 'o' || src[start+5] != 'f' { return .Identifier }
+		case .Using:      if src[start+4] != 'g' { return .Identifier }
+		case .Unique:     if src[start+4] != 'u' || src[start+5] != 'e' { return .Identifier }
+		case .While:      if src[start+4] != 'e' { return .Identifier }
+		case .Yield:      if src[start+4] != 'd' { return .Identifier }
 		}
-		mask := (u64(1) << uint(8 * n)) - 1
-		if (observed & mask) != KEYWORD_TAIL[h] { return .Identifier }
 	}
+
 	return candidate
 }

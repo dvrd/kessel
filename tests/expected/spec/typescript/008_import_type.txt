@@ -106,13 +106,13 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 74,
+      "end": 72,
       "value": " TS `import type` — type-only import, does not emit a runtime require."
     },
     {
       "type": "Line",
-      "start": 75,
-      "end": 129,
+      "start": 73,
+      "end": 127,
       "value": " ESTree/TS: ImportDeclaration.importKind === \"type\"."
     }
   ]

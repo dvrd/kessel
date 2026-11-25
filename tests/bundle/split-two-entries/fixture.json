@@ -1,0 +1,21 @@
+{
+  "entries": [
+    "a.mjs",
+    "b.mjs"
+  ],
+  "args": [
+    "--splitting"
+  ],
+  "files": [
+    "a.mjs",
+    "b.mjs",
+    "chunk-lazy.mjs",
+    "chunk-shared.mjs",
+    "chunk-runtime.mjs"
+  ],
+  "once": [
+    "console.log('shared evaluated')",
+    "console.log('util loaded')",
+    "console.log('lazy evaluated'"
+  ]
+}

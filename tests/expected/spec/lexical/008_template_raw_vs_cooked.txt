@@ -216,49 +216,49 @@
     {
       "type": "Line",
       "start": 0,
-      "end": 74,
+      "end": 72,
       "value": " Lexical: template literals carry two strings per quasi — a `raw` form"
     },
     {
       "type": "Line",
-      "start": 75,
-      "end": 146,
+      "start": 73,
+      "end": 144,
       "value": " (exactly the bytes the programmer typed between the backticks) and a"
     },
     {
       "type": "Line",
-      "start": 147,
-      "end": 220,
+      "start": 145,
+      "end": 218,
       "value": " `cooked` form (with escape sequences decoded). Tagged templates expose"
     },
     {
       "type": "Line",
-      "start": 221,
-      "end": 289,
+      "start": 219,
+      "end": 287,
       "value": " both via `strings.raw[i]` and `strings[i]`. Each case below has a"
     },
     {
       "type": "Line",
-      "start": 290,
-      "end": 348,
+      "start": 288,
+      "end": 346,
       "value": " distinct raw/cooked pair so the parser can't fuse them."
     },
     {
       "type": "Line",
-      "start": 391,
-      "end": 431,
+      "start": 389,
+      "end": 429,
       "value": " cooked: \"A\\n\\t\"; raw: \"\\\\u0041\\\\n\\\\t\""
     },
     {
       "type": "Line",
-      "start": 475,
-      "end": 500,
+      "start": 473,
+      "end": 498,
       "value": " cooked: \"line1\\nline2\""
     },
     {
       "type": "Line",
-      "start": 544,
-      "end": 570,
+      "start": 542,
+      "end": 568,
       "value": " cooked quasi seg 0: \"A\""
     }
   ]

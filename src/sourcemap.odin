@@ -1,7 +1,7 @@
 package kessel
 
 // ============================================================================
-// Source Map v3 \u2014 sourcemap generation for codegen output.
+// Source Map v3 generation for codegen output.
 // ============================================================================
 //
 // Spec: https://tc39.es/source-map/
@@ -11,29 +11,16 @@ package kessel
 //
 //   * The map is built **post-codegen**, not inline. Codegen records a
 //     `(gen_offset, src_offset)` pair into `Codegen.sm.records` at each
-//     statement boundary; this is a single u32-pair append on a hot path
-//     and costs nothing when `sm == nil` (the default for users who don't
-//     ask for sourcemaps).
+//     statement, class member, or expression boundary. The record stores
+//     two u32 offsets.
 //
-//   * Line/column conversion happens once, after the whole buffer is
-//     written. Two single passes:
-//       1. Walk `cg.buf[:cg.pos]` to compute (line, col) for each gen
-//          offset recorded in `sm.records`.
-//       2. Walk `source` byte-by-byte (or reuse `line_offsets`) to convert
-//          src_offset \u2192 (src_line, src_col).
+//   * After codegen, index the ECMAScript line terminators in both buffers.
+//     Forward mappings on one line reuse their previous UTF-16 column.
 //
 //   * Each (gen_line, gen_col, src_line, src_col) tuple is encoded as a
 //     comma-separated VLQ segment in the `mappings` string, segments
-//     joined by `;` per line. UTF-16 BMP columns are required by the
-//     spec for both gen and src \u2014 we approximate with byte columns when
-//     the source is pure ASCII (the common case); when non-ASCII is
-//     present we convert byte offsets to UTF-16 units using the same
-//     algorithm as `emitter.odin`'s `convert_to_utf16_offset`.
+//     joined by `;` per line. Columns count UTF-16 code units on both sides.
 //
-//   * Granularity: one mapping per Statement is enough for usable
-//     debugger jump-to-source on minified output. Finer-grained
-//     per-expression mappings can be layered on later without changing
-//     the wire format here.
 import "core:strings"
 import "core:slice"
 
@@ -48,16 +35,12 @@ SourceMapRecord :: struct {
 
 SourceMap :: struct {
 	records: [dynamic]SourceMapRecord,
-	// Borrowed from the lexer. Used by offset_to_line_col for the source
-	// side. If nil, src_offset \u2192 (line, col) falls back to a fresh scan.
-	src_line_offsets: []u32,
 	source: string,
 }
 
-sourcemap_init :: proc(sm: ^SourceMap, source: string, src_line_offsets: []u32) {
-	sm.records          = make([dynamic]SourceMapRecord)
-	sm.src_line_offsets = src_line_offsets
-	sm.source           = source
+sourcemap_init :: proc(sm: ^SourceMap, source: string) {
+	sm.records = make([dynamic]SourceMapRecord)
+	sm.source  = source
 }
 
 sourcemap_destroy :: proc(sm: ^SourceMap) {
@@ -152,43 +135,29 @@ base64_encode :: proc(input: []byte) -> []byte {
 	return out
 }
 
-vlq_encode_into :: proc(buf: ^[dynamic]byte, value: int) {
-	v: u32
-	if value < 0 {
-		v = (u32(-value) << 1) | 1
-	} else {
-		v = u32(value) << 1
-	}
-	for {
-		digit := v & 0x1f
-		v >>= 5
-		if v != 0 { digit |= 0x20 }
-		append(buf, B64[digit])
-		if v == 0 { break }
-	}
-}
-
 // ----------------------------------------------------------------------------
 // Map serialisation
 // ----------------------------------------------------------------------------
 
-// Convert a byte offset into (line, col_utf16) for a buffer with the
-// given line-offset table. Lines are 0-based, columns are UTF-16 code
-// units (BMP \u2192 1 unit, supplementary \u2192 2 units).
-offset_to_zero_based_line_col_u16 :: proc(buf: string, line_offsets: []u32, offset: u32) -> (line, col: u32) {
-	// Binary search for the largest line_offset <= offset.
-	if len(line_offsets) == 0 || offset == 0 {
-		return 0, 0
-	}
+SourceMapPosition :: struct {
+	line, col, offset: u32,
+}
+
+// Convert a byte offset into zero-based line and UTF-16 column coordinates.
+sourcemap_position_at :: proc(buf: string, line_offsets: []u32, offset: u32, previous: ^SourceMapPosition) -> (line, col: u32) {
 	lo, hi := 0, len(line_offsets) - 1
 	for lo < hi {
 		mid := (lo + hi + 1) / 2
 		if line_offsets[mid] <= offset { lo = mid } else { hi = mid - 1 }
 	}
-	line_start := line_offsets[lo]
-	// UTF-16 column: count code units from line_start to offset.
 	col_u16 := u32(0)
-	i := int(line_start)
+	i := int(line_offsets[lo])
+	// Resume a forward scan on the same line. In particular, a minified
+	// file can have thousands of mappings on one line.
+	if previous.line == u32(lo) && previous.offset <= offset {
+		i = int(previous.offset)
+		col_u16 = previous.col
+	}
 	end := int(offset)
 	if end > len(buf) { end = len(buf) }
 	for i < end {
@@ -211,26 +180,16 @@ offset_to_zero_based_line_col_u16 :: proc(buf: string, line_offsets: []u32, offs
 			i += 4
 		}
 	}
-	return u32(lo), col_u16
-}
-
-// Build a line-offset table for `buf` in one linear scan. Same shape as
-// the lexer's table: indices into `buf` where each line starts.
-build_line_offsets :: proc(buf: string) -> []u32 {
-	out := make([dynamic]u32, 1, max(64, len(buf) / 32))
-	out[0] = 0
-	for i in 0..<len(buf) {
-		if buf[i] == '\n' {
-			append(&out, u32(i + 1))
-		}
-	}
-	return out[:]
+	previous^ = {line = u32(lo), col = col_u16, offset = offset}
+	return previous.line, previous.col
 }
 
 // Encode the recorded mappings into a `mappings` VLQ string.
 encode_mappings :: proc(sm: ^SourceMap, gen_buf: string) -> string {
-	gen_line_offsets := build_line_offsets(gen_buf)
+	gen_line_offsets := source_line_offsets(gen_buf)
 	defer delete(gen_line_offsets)
+	src_line_offsets := source_line_offsets(sm.source)
+	defer delete(src_line_offsets)
 
 	// Sort records by (gen_offset). They should already be in order, but
 	// nested expression emission could theoretically interleave.
@@ -239,41 +198,22 @@ encode_mappings :: proc(sm: ^SourceMap, gen_buf: string) -> string {
 	})
 
 	sb := strings.builder_make()
-	tmp := make([dynamic]byte, 0, 16)
-	defer delete(tmp)
-
-	prev_gen_line: u32 = 0
-	prev_gen_col:  i64 = 0  // resets per generated line
-	prev_src_line: i64 = 0
-	prev_src_col:  i64 = 0
+	// One segment encoder for this map and for SourceMapBuilder
+	// (sourcemap_builder.odin): the delta and separator rules live there.
+	state: SourceMapSegmentState
+	gen_position, src_position: SourceMapPosition
 
 	for rec in sm.records {
-		gen_line, gen_col := offset_to_zero_based_line_col_u16(gen_buf, gen_line_offsets, rec.gen_offset)
-
-		// Advance generated-line separators. Each `;` resets the col delta.
-		for prev_gen_line < gen_line {
-			strings.write_byte(&sb, ';')
-			prev_gen_line += 1
-			prev_gen_col = 0
-		}
-		// Comma between segments on the same line.
-		if strings.builder_len(sb) > 0 {
-			last := sb.buf[len(sb.buf) - 1]
-			if last != ';' { strings.write_byte(&sb, ',') }
-		}
-
-		src_line, src_col := offset_to_zero_based_line_col_u16(sm.source, sm.src_line_offsets, rec.src_offset)
-
-		clear(&tmp)
-		vlq_encode_into(&tmp, int(i64(gen_col) - prev_gen_col))
-		vlq_encode_into(&tmp, 0) // source index (always 0; single-source maps)
-		vlq_encode_into(&tmp, int(i64(src_line) - prev_src_line))
-		vlq_encode_into(&tmp, int(i64(src_col)  - prev_src_col))
-		strings.write_bytes(&sb, tmp[:])
-
-		prev_gen_col = i64(gen_col)
-		prev_src_line = i64(src_line)
-		prev_src_col  = i64(src_col)
+		gen_line, gen_col := sourcemap_position_at(gen_buf, gen_line_offsets, rec.gen_offset, &gen_position)
+		src_line, src_col := sourcemap_position_at(sm.source, src_line_offsets, rec.src_offset, &src_position)
+		sourcemap_write_segment(&sb, &state, SourceMapMapping{
+			generated_line   = gen_line,
+			generated_column = gen_col,
+			source           = 0, // single-source maps
+			original_line    = src_line,
+			original_column  = src_col,
+			name             = SOURCEMAP_NO_NAME,
+		})
 	}
 
 	return strings.to_string(sb)

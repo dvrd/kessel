@@ -1,0 +1,1 @@
+{"private":true,"dependencies":{"@babel/parser":"^7.29.2","acorn":"^8.16.0","es-module-lexer":"1.7.0","oxc-minify":"0.127.0","oxc-parser":"0.127.0","oxc-resolver":"11.19.1","oxc-transform":"0.127.0","oxlint":"1.60.0","prettier":"3.8.3","source-map-js":"1.2.1","typescript":"5.9.3"}}

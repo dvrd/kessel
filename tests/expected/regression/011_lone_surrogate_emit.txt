@@ -302,223 +302,223 @@
     {
       "type": "Line",
       "start": 76,
-      "end": 154,
+      "end": 152,
       "value": " through WTF-8 in the cooked buffer (lex_string_scalar → append_utf8 emits"
     },
     {
       "type": "Line",
-      "start": 155,
-      "end": 229,
+      "start": 153,
+      "end": 227,
       "value": " 0xED 0xA0-BF 0x80-BF for U+D800..U+DFFF), but out_string streamed those"
     },
     {
       "type": "Line",
-      "start": 230,
-      "end": 303,
+      "start": 228,
+      "end": 301,
       "value": " raw bytes to stdout. JSON forbids raw surrogate bytes; `JSON.parse` on"
     },
     {
       "type": "Line",
-      "start": 304,
-      "end": 379,
+      "start": 302,
+      "end": 377,
       "value": " the resulting output normalises the invalid-UTF-8 triple to three U+FFFD"
     },
     {
       "type": "Line",
-      "start": 380,
-      "end": 453,
+      "start": 378,
+      "end": 451,
       "value": " replacement characters, diverging from OXC which escapes surrogates as"
     },
     {
       "type": "Line",
-      "start": 454,
-      "end": 485,
+      "start": 452,
+      "end": 483,
       "value": " `\\uXXXX` in the JSON output."
     },
     {
       "type": "Line",
-      "start": 486,
-      "end": 488,
+      "start": 484,
+      "end": 486,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 489,
-      "end": 561,
+      "start": 487,
+      "end": 559,
       "value": " Surfaced by Bug I-5 (ClassBody JSON emit): handsontable.js contains 2"
     },
     {
       "type": "Line",
-      "start": 562,
-      "end": 632,
+      "start": 560,
+      "end": 630,
       "value": " lone-surrogate strings whose `value` mismatched OXC (compared=6270,"
     },
     {
       "type": "Line",
-      "start": 633,
-      "end": 709,
+      "start": 631,
+      "end": 705,
       "value": " mismatches=2 with `\\uDEAD` and `\\uD834\\uDF06` — the latter a PAIR where"
     },
     {
       "type": "Line",
-      "start": 710,
-      "end": 783,
+      "start": 706,
+      "end": 779,
       "value": " the high surrogate appears *after* the low in source order, so it does"
     },
     {
       "type": "Line",
-      "start": 784,
-      "end": 854,
+      "start": 780,
+      "end": 850,
       "value": " not combine into a BMP supplementary character and both stay lone)."
     },
     {
       "type": "Line",
-      "start": 855,
-      "end": 857,
+      "start": 851,
+      "end": 853,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 858,
-      "end": 933,
+      "start": 854,
+      "end": 929,
       "value": " Fix: `wtf8_surrogate_at` detects the 3-byte WTF-8 triple at emit time in"
     },
     {
       "type": "Line",
-      "start": 934,
-      "end": 1007,
+      "start": 930,
+      "end": 1003,
       "value": " `out_string` / `out_string_inner`; every detected surrogate is escaped"
     },
     {
       "type": "Line",
-      "start": 1008,
-      "end": 1075,
+      "start": 1004,
+      "end": 1071,
       "value": " as `\\uXXXX` (lowercase hex, matching OXC). ECMA-262 permits lone"
     },
     {
       "type": "Line",
-      "start": 1076,
-      "end": 1149,
+      "start": 1072,
+      "end": 1145,
       "value": " surrogates in string literals, so the ESTree `value` field round-trips"
     },
     {
       "type": "Line",
-      "start": 1150,
-      "end": 1216,
+      "start": 1146,
+      "end": 1212,
       "value": " through JSON as a 1-codepoint string, preserving the surrogate."
     },
     {
       "type": "Line",
-      "start": 1217,
-      "end": 1219,
+      "start": 1213,
+      "end": 1215,
       "value": ""
     },
     {
       "type": "Line",
-      "start": 1220,
-      "end": 1293,
+      "start": 1216,
+      "end": 1288,
       "value": " This fixture exercises every interesting shape from ECMA-262 §12.9.4:"
     },
     {
       "type": "Line",
-      "start": 1295,
-      "end": 1342,
+      "start": 1290,
+      "end": 1337,
       "value": " Bare lone low surrogate at BOF of the value."
     },
     {
       "type": "Line",
-      "start": 1364,
-      "end": 1392,
+      "start": 1359,
+      "end": 1387,
       "value": " Bare lone high surrogate."
     },
     {
       "type": "Line",
-      "start": 1414,
-      "end": 1468,
+      "start": 1409,
+      "end": 1463,
       "value": " Lone surrogate surrounded by normal BMP characters."
     },
     {
       "type": "Line",
-      "start": 1492,
-      "end": 1564,
+      "start": 1487,
+      "end": 1557,
       "value": " Reversed \"pair\" — a low followed by a high is NOT a valid surrogate"
     },
     {
       "type": "Line",
-      "start": 1565,
-      "end": 1629,
+      "start": 1558,
+      "end": 1622,
       "value": " pair under UTF-16 (high must precede low), so both stay lone."
     },
     {
       "type": "Line",
-      "start": 1657,
-      "end": 1732,
+      "start": 1650,
+      "end": 1723,
       "value": " Valid surrogate pair (U+1D306, 𝌆 TETRAGRAM FOR CENTRE). This must NOT"
     },
     {
       "type": "Line",
-      "start": 1733,
-      "end": 1802,
+      "start": 1724,
+      "end": 1793,
       "value": " regress: it should decode to one supplementary-plane codepoint and"
     },
     {
       "type": "Line",
-      "start": 1803,
-      "end": 1877,
+      "start": 1794,
+      "end": 1868,
       "value": " emit either as the 4-byte UTF-8 or as the `\\uD834\\uDF06` pair depending"
     },
     {
       "type": "Line",
-      "start": 1878,
-      "end": 1918,
+      "start": 1869,
+      "end": 1909,
       "value": " on convention. Either way, no U+FFFD."
     },
     {
       "type": "Line",
-      "start": 1946,
-      "end": 2011,
+      "start": 1937,
+      "end": 2002,
       "value": " Mix of ASCII, valid pair, lone surrogate, and BMP punctuation."
     },
     {
       "type": "Line",
-      "start": 2066,
-      "end": 2107,
+      "start": 2057,
+      "end": 2098,
       "value": " Multiple lone surrogates back-to-back."
     },
     {
       "type": "Line",
-      "start": 2141,
-      "end": 2215,
+      "start": 2132,
+      "end": 2206,
       "value": " Template literal with surrogate (templates don't cook escapes today but"
     },
     {
       "type": "Line",
-      "start": 2216,
-      "end": 2284,
+      "start": 2207,
+      "end": 2275,
       "value": " we still want to exercise the `raw` path and confirm no SIGSEGV)."
     },
     {
       "type": "Line",
-      "start": 2321,
-      "end": 2396,
+      "start": 2312,
+      "end": 2387,
       "value": " Emit within an object-literal value, exercising the full emit call chain"
     },
     {
       "type": "Line",
-      "start": 2397,
-      "end": 2474,
+      "start": 2388,
+      "end": 2461,
       "value": " through print_expression_ast → ObjectExpression → print_expression_ast"
     },
     {
       "type": "Line",
-      "start": 2475,
-      "end": 2511,
+      "start": 2462,
+      "end": 2494,
       "value": " → StringLiteral → out_string."
     },
     {
       "type": "Line",
-      "start": 2601,
-      "end": 2614,
+      "start": 2584,
+      "end": 2597,
       "value": " valid pair"
     }
   ]

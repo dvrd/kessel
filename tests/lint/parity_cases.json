@@ -1,0 +1,585 @@
+{
+  "eslint/constructor-super": [
+    {"source":"class A extends null { constructor() { } }","extension":"tsx","spans":[[23,40]]},
+    {"source":"class A extends B { constructor() { } }","extension":"tsx","spans":[[20,37]]},
+    {"source":"class A extends B { constructor() { for (var a of b) super.foo(); } }","extension":"tsx","spans":[[20,67]]}
+  ],
+  "eslint/default-case-last": [
+    {"source":"switch (foo) { default: bar(); break; case 1: baz(); break; }","extension":"tsx","spans":[[15,22]]},
+    {"source":"switch (foo) { default: break; case 1: break; }","extension":"tsx","spans":[[15,22]]},
+    {"source":"switch (foo) { default: break; case 1: }","extension":"tsx","spans":[[15,22]]}
+  ],
+  "eslint/eqeqeq": [
+    {"source":"typeof foo == 'undefined'","extension":"tsx","spans":[[11,13]]},
+    {"source":"'hello' != 'world'","extension":"tsx","spans":[[8,10]]},
+    {"source":"0 == 0","extension":"tsx","spans":[[2,4]]}
+  ],
+  "eslint/for-direction": [
+    {"source":"for(var i = 0; i < 10; i--){}","extension":"tsx","spans":[[15,21]]},
+    {"source":"for(var i = 0; i <= 10; i--){}","extension":"tsx","spans":[[15,22]]},
+    {"source":"for(var i = 10; i > 10; i++){}","extension":"tsx","spans":[[16,22]]}
+  ],
+  "eslint/getter-return": [
+    {"source":"var foo = { get bar() {} };","extension":"js","spans":[[19,24]]},
+    {"source":"var foo = { get\n bar () {} };","extension":"js","spans":[[21,26]]},
+    {"source":"var foo = { get bar(){if(baz) {return true;}} };","extension":"js","spans":[[19,45]]}
+  ],
+  "eslint/no-array-constructor": [
+    {"source":"new Array()","extension":"tsx","spans":[[0,11]]},
+    {"source":"new Array","extension":"tsx","spans":[[0,9]]},
+    {"source":"new Array(x, y)","extension":"tsx","spans":[[0,15]]}
+  ],
+  "eslint/no-async-promise-executor": [
+    {"source":"new Promise(async function foo(resolve, reject) {})","extension":"tsx","spans":[[12,17]]},
+    {"source":"new Promise(async (resolve, reject) => {})","extension":"tsx","spans":[[12,17]]},
+    {"source":"new Promise(((((async () => {})))))","extension":"tsx","spans":[[16,21]]}
+  ],
+  "eslint/no-bitwise": [
+    {"source":"a ^ b","extension":"tsx","spans":[[0,5]]},
+    {"source":"a | b","extension":"tsx","spans":[[0,5]]},
+    {"source":"a & b","extension":"tsx","spans":[[0,5]]}
+  ],
+  "eslint/no-caller": [
+    {"source":"var x = arguments.callee","extension":"tsx","spans":[[18,24]]},
+    {"source":"var x = arguments.caller","extension":"tsx","spans":[[18,24]]}
+  ],
+  "eslint/no-case-declarations": [
+    {"source":"switch (a) { case 1: let x = 1; break; }","extension":"tsx","spans":[[21,24]]},
+    {"source":"switch (a) { default: let x = 2; break; }","extension":"tsx","spans":[[22,25]]},
+    {"source":"switch (a) { case 1: const x = 1; break; }","extension":"tsx","spans":[[21,26]]}
+  ],
+  "eslint/no-class-assign": [
+    {"source":"class A { } A = 0;","extension":"tsx","spans":[[12,13]]},
+    {"source":"class A { } ({A} = 0);","extension":"tsx","spans":[[14,15]]},
+    {"source":"class A { } ({b: A = 0} = {});","extension":"tsx","spans":[[17,18]]}
+  ],
+  "eslint/no-compare-neg-zero": [
+    {"source":"x === -0","extension":"tsx","spans":[[0,8]]},
+    {"source":"-0 === x","extension":"tsx","spans":[[0,8]]},
+    {"source":"x == -0","extension":"tsx","spans":[[0,7]]}
+  ],
+  "eslint/no-cond-assign": [
+    {"source":"var x; if (x = 0) { var b = 1; }","extension":"tsx","spans":[[13,14]]},
+    {"source":"var x; while (x = 0) { var b = 1; }","extension":"tsx","spans":[[16,17]]},
+    {"source":"var x = 0, y; do { y = x; } while (x = x + 1);","extension":"tsx","spans":[[37,38]]}
+  ],
+  "eslint/no-console": [
+    {"source":"console.log()","extension":"tsx","spans":[[0,11]]},
+    {"source":"foo(console.log)","extension":"tsx","spans":[[4,15]]},
+    {"source":"console.log(foo)","extension":"tsx","spans":[[0,11]]}
+  ],
+  "eslint/no-const-assign": [
+    {"source":"const x = 0; x = 1;","extension":"tsx","spans":[[13,14]]},
+    {"source":"const {a: x} = {a: 0}; x = 1;","extension":"tsx","spans":[[23,24]]},
+    {"source":"const x = 0; ({x} = {x: 1});","extension":"tsx","spans":[[15,16]]}
+  ],
+  "eslint/no-continue": [
+    {"source":"var sum = 0, i; for(i = 0; i < 10; i++){ if(i <= 5) { continue; } sum += i; }","extension":"tsx","spans":[[54,62]]},
+    {"source":"var sum = 0, i; myLabel: for(i = 0; i < 10; i++){ if(i <= 5) { continue myLabel; } sum += i; }","extension":"tsx","spans":[[63,71]]},
+    {"source":"var sum = 0, i = 0; while(i < 10) { if(i <= 5) { i++; continue; } sum += i; i++; }","extension":"tsx","spans":[[54,62]]}
+  ],
+  "eslint/no-debugger": [
+    {"source":"if (foo) debugger","extension":"tsx","spans":[[9,17]]}
+  ],
+  "eslint/no-delete-var": [
+    {"source":"delete x","extension":"tsx","spans":[[0,8]]}
+  ],
+  "eslint/no-dupe-class-members": [
+    {"source":"class A { foo() {} foo() {} }","extension":"js","spans":[[10,13]]},
+    {"source":"!class A { foo() {} foo() {} };","extension":"js","spans":[[11,14]]},
+    {"source":"class A { 'foo'() {} 'foo'() {} }","extension":"js","spans":[[10,15]]}
+  ],
+  "eslint/no-dupe-else-if": [
+    {"source":"if (a) {} else if (a) {}","extension":"tsx","spans":[[4,5]]},
+    {"source":"if (a); else if (a);","extension":"tsx","spans":[[4,5]]},
+    {"source":"if (a) {} else if (a) {} else {}","extension":"tsx","spans":[[4,5]]}
+  ],
+  "eslint/no-dupe-keys": [
+    {"source":"var x = { a: b, ['a']: b };","extension":"tsx","spans":[[10,11]]},
+    {"source":"var x = { y: 1, y: 2 };","extension":"tsx","spans":[[10,11]]},
+    {"source":"var x = { '': 1, '': 2 };","extension":"tsx","spans":[[10,12]]}
+  ],
+  "eslint/no-duplicate-case": [
+    {"source":"var a = 1; switch (a) {case 1: break; case 1: break; case 2: break; default: break;}","extension":"tsx","spans":[[28,29]]},
+    {"source":"var a = 1; switch (a) {case 1: break; case (1): break; case 2: break; default: break;}","extension":"tsx","spans":[[28,29]]},
+    {"source":"var a = '1'; switch (a) {case '1': break; case '1': break; case '2': break; default: break;}","extension":"tsx","spans":[[30,33]]}
+  ],
+  "eslint/no-empty": [
+    {"source":"try {} catch (ex) {throw ex}","extension":"tsx","spans":[[4,6]]},
+    {"source":"try { foo() } catch (ex) {throw ex} finally {}","extension":"tsx","spans":[[44,46]]},
+    {"source":"try { foo() } catch (ex) {}","extension":"tsx","spans":[[25,27]]}
+  ],
+  "eslint/no-empty-character-class": [
+    {"source":"var foo = /^abc[]/;","extension":"tsx","spans":[[15,17]]},
+    {"source":"var foo = /foo[]bar/;","extension":"tsx","spans":[[14,16]]},
+    {"source":"if (foo.match(/^abc[]/)) {}","extension":"tsx","spans":[[19,21]]}
+  ],
+  "eslint/no-empty-pattern": [
+    {"source":"var {} = foo","extension":"tsx","spans":[[4,6]]},
+    {"source":"var [] = foo","extension":"tsx","spans":[[4,6]]},
+    {"source":"var {a: {}} = foo","extension":"tsx","spans":[[8,10]]}
+  ],
+  "eslint/no-empty-static-block": [
+    {"source":"class Foo { static {} }","extension":"tsx","spans":[[12,21]]},
+    {"source":"class Foo { static { } }","extension":"tsx","spans":[[12,22]]},
+    {"source":"class Foo { static {\n\n\t\t\t } }","extension":"tsx","spans":[[12,27]]}
+  ],
+  "eslint/no-eq-null": [
+    {"source":"if (x == null) { }","extension":"tsx","spans":[[4,13]]},
+    {"source":"if (x != null) { }","extension":"tsx","spans":[[4,13]]},
+    {"source":"do {} while (null == x)","extension":"tsx","spans":[[13,22]]}
+  ],
+  "eslint/no-eval": [
+    {"source":"eval(foo)","extension":"tsx","spans":[[0,4]]},
+    {"source":"eval('foo')","extension":"tsx","spans":[[0,4]]},
+    {"source":"function foo(eval) { eval('foo') }","extension":"tsx","spans":[[21,25]]}
+  ],
+  "eslint/no-ex-assign": [
+    {"source":"try { } catch (e) { e = 10; }","extension":"tsx","spans":[[20,21]]},
+    {"source":"try { } catch (ex) { ex = 10; }","extension":"tsx","spans":[[21,23]]},
+    {"source":"try { } catch (ex) { [ex] = []; }","extension":"tsx","spans":[[22,24]]}
+  ],
+  "eslint/no-extend-native": [
+    {"source":"Object.prototype.p = 0","extension":"tsx","spans":[[0,22]]},
+    {"source":"Function.prototype['p'] = 0","extension":"tsx","spans":[[0,27]]},
+    {"source":"Object.prototype.p = 0; Object.prototype.q = 0","extension":"tsx","spans":[[0,22],[24,46]]}
+  ],
+  "eslint/no-extra-boolean-cast": [
+    {"source":"if (!!foo) {}","extension":"tsx","spans":[[4,9]]},
+    {"source":"do {} while (!!foo)","extension":"tsx","spans":[[13,18]]},
+    {"source":"while (!!foo) {}","extension":"tsx","spans":[[7,12]]}
+  ],
+  "eslint/no-fallthrough": [
+    {"source":"switch(foo) { case 0: a();\ncase 1: b() }","extension":"tsx","spans":[[27,38]]},
+    {"source":"switch(foo) { case 0: a();\ndefault: b() }","extension":"tsx","spans":[[27,39]]},
+    {"source":"switch(foo) { case 0: a(); default: b() }","extension":"tsx","spans":[[27,39]]}
+  ],
+  "eslint/no-func-assign": [
+    {"source":"function foo() {}; foo = bar;","extension":"tsx","spans":[[19,22]]},
+    {"source":"function foo() { foo = bar; }","extension":"tsx","spans":[[17,20]]},
+    {"source":"foo = bar; function foo() { };","extension":"tsx","spans":[[0,3]]}
+  ],
+  "eslint/no-global-assign": [
+    {"source":"String = 'hello world';","extension":"tsx","spans":[[0,6]]},
+    {"source":"String++;","extension":"tsx","spans":[[0,6]]},
+    {"source":"({Object = 0, String = 0} = {});","extension":"tsx","spans":[[2,8],[14,20]]}
+  ],
+  "eslint/no-import-assign": [
+    {"source":"import mod1 from 'mod'; mod1 = 0","extension":"tsx","spans":[[24,28]]},
+    {"source":"import mod2 from 'mod'; mod2 += 0","extension":"tsx","spans":[[24,28]]},
+    {"source":"import mod3 from 'mod'; mod3++","extension":"tsx","spans":[[24,28]]}
+  ],
+  "eslint/no-iterator": [
+    {"source":"var a = test.__iterator__;","extension":"tsx","spans":[[8,25]]},
+    {"source":"Foo.prototype.__iterator__ = function() {};","extension":"tsx","spans":[[0,26]]},
+    {"source":"var a = test['__iterator__'];","extension":"tsx","spans":[[8,28]]}
+  ],
+  "eslint/no-labels": [
+    {"source":"label: while(true) {}","extension":"tsx","spans":[[0,5]]},
+    {"source":"label: while (true) { break label; }","extension":"tsx","spans":[[0,5],[28,33]]},
+    {"source":"label: while (true) { continue label; }","extension":"tsx","spans":[[0,5],[31,36]]}
+  ],
+  "eslint/no-loss-of-precision": [
+    {"source":"var x = 9007199254740993","extension":"tsx","spans":[[8,24]]},
+    {"source":"var x = 9007199254740.993e3","extension":"tsx","spans":[[8,27]]},
+    {"source":"var x = 9.007199254740993e15","extension":"tsx","spans":[[8,28]]}
+  ],
+  "eslint/no-multi-assign": [
+    {"source":"var a = b = c;","extension":"tsx","spans":[[8,13]]},
+    {"source":"var a = b = c = d;","extension":"tsx","spans":[[8,17],[12,17]]},
+    {"source":"let foo = bar = cee = 100;","extension":"tsx","spans":[[10,25],[16,25]]}
+  ],
+  "eslint/no-multi-str": [
+    {"source":"var x = 'Line 1 \\\n\t\t\t Line 2'","extension":"tsx","spans":[[16,17]]},
+    {"source":"test('Line 1 \\\n\t\t\t Line 2');","extension":"tsx","spans":[[13,14]]},
+    {"source":"'foo\\\rbar';","extension":"tsx","spans":[[4,5]]}
+  ],
+  "eslint/no-nested-ternary": [
+    {"source":"foo ? bar : baz === qux ? quxx : foobar;","extension":"tsx","spans":[[0,39]]},
+    {"source":"foo ? baz === qux ? quxx : foobar : bar;","extension":"tsx","spans":[[0,39]]},
+    {"source":"var result = foo ? (bar ? baz : qux) : quux;","extension":"tsx","spans":[[13,43]]}
+  ],
+  "eslint/no-new": [
+    {"source":"new Date()","extension":"tsx","spans":[[0,8]]},
+    {"source":"(() => { new Date() })","extension":"tsx","spans":[[9,17]]},
+    {"source":"(new Date())","extension":"tsx","spans":[[1,9]]}
+  ],
+  "eslint/no-new-native-nonconstructor": [
+    {"source":"var foo = new Symbol('foo');","extension":"tsx","spans":[[10,13]]},
+    {"source":"function bar() { return function Symbol() {}; } var baz = new Symbol('baz');","extension":"tsx","spans":[[58,61]]},
+    {"source":"var foo = new BigInt(9007199254740991);","extension":"tsx","spans":[[10,13]]}
+  ],
+  "eslint/no-new-wrappers": [
+    {"source":"var a = new String('hello');","extension":"tsx","spans":[[8,27]]},
+    {"source":"var a = new Number(10);","extension":"tsx","spans":[[8,22]]},
+    {"source":"var a = new Boolean(false);","extension":"tsx","spans":[[8,26]]}
+  ],
+  "eslint/no-nonoctal-decimal-escape": [
+    {"source":"'\\8'","extension":"tsx","spans":[[1,3]]},
+    {"source":"'\\9'","extension":"tsx","spans":[[1,3]]},
+    {"source":"\"\\8\"","extension":"tsx","spans":[[1,3]]}
+  ],
+  "eslint/no-obj-calls": [
+    {"source":"Math();","extension":"tsx","spans":[[0,6]]},
+    {"source":"var x = Math();","extension":"tsx","spans":[[8,14]]},
+    {"source":"f(Math());","extension":"tsx","spans":[[2,8]]}
+  ],
+  "eslint/no-object-constructor": [
+    {"source":"new Object","extension":"tsx","spans":[[0,10]]},
+    {"source":"(new Object() instanceof Object);","extension":"tsx","spans":[[1,13]]},
+    {"source":"var yield = 5;\n        yield: while (foo) {\n            if (bar)\n                break yield\n            new Object();\n        }","extension":"tsx","spans":[[105,117]]}
+  ],
+  "eslint/no-param-reassign": [
+    {"source":"function foo(a) { a = 1; }","extension":"tsx","spans":[[18,19]]},
+    {"source":"function foo(a) { a += 1; }","extension":"tsx","spans":[[18,19]]},
+    {"source":"function foo(a) { ({...a} = obj); }","extension":"tsx","spans":[[23,24]]}
+  ],
+  "eslint/no-plusplus": [
+    {"source":"var foo = 0; foo++;","extension":"tsx","spans":[[13,18]]},
+    {"source":"var foo = 0; foo--;","extension":"tsx","spans":[[13,18]]},
+    {"source":"var foo = 0; --foo;","extension":"tsx","spans":[[13,18]]}
+  ],
+  "eslint/no-promise-executor-return": [
+    {"source":"new Promise(function (resolve, reject) { return 1; })","extension":"tsx","spans":[[41,50]]},
+    {"source":"new Promise(function foo(resolve, reject) { return 1; })","extension":"tsx","spans":[[44,53]]},
+    {"source":"new Promise((resolve, reject) => { return 1; })","extension":"tsx","spans":[[35,44]]}
+  ],
+  "eslint/no-proto": [
+    {"source":"var a = test.__proto__;","extension":"tsx","spans":[[8,22]]},
+    {"source":"var a = test['__proto__'];","extension":"tsx","spans":[[8,25]]},
+    {"source":"var a = test[`__proto__`];","extension":"tsx","spans":[[8,25]]}
+  ],
+  "eslint/no-prototype-builtins": [
+    {"source":"foo.hasOwnProperty('bar')","extension":"tsx","spans":[[0,18]]},
+    {"source":"foo.isPrototypeOf('bar')","extension":"tsx","spans":[[0,17]]},
+    {"source":"foo.propertyIsEnumerable('bar')","extension":"tsx","spans":[[0,24]]}
+  ],
+  "eslint/no-script-url": [
+    {"source":"var a = 'javascript:void(0);';","extension":"tsx","spans":[[8,29]]},
+    {"source":"var a = 'javascript:';","extension":"tsx","spans":[[8,21]]},
+    {"source":"var a = `javascript:`;","extension":"tsx","spans":[[8,21]]}
+  ],
+  "eslint/no-self-assign": [
+    {"source":"a = a","extension":"tsx","spans":[[4,5]]},
+    {"source":"[a] = [a]","extension":"tsx","spans":[[7,8]]},
+    {"source":"[a, b] = [a, b]","extension":"tsx","spans":[[10,11],[13,14]]}
+  ],
+  "eslint/no-self-compare": [
+    {"source":"if (x === x) { }","extension":"tsx","spans":[[4,5]]},
+    {"source":"if (x !== x) { }","extension":"tsx","spans":[[4,5]]},
+    {"source":"if (x > x) { }","extension":"tsx","spans":[[4,5]]}
+  ],
+  "eslint/no-setter-return": [
+    {"source":"({ set a(val){ return val + 1; } })","extension":"js","spans":[[15,30]]},
+    {"source":"({ set a(val) { return 1; } })","extension":"js","spans":[[16,25]]},
+    {"source":"class A { set a(val) { return 1; } }","extension":"js","spans":[[23,32]]}
+  ],
+  "eslint/no-shadow-restricted-names": [
+    {"source":"function NaN(NaN) { var NaN; !function NaN(NaN) { try {} catch(NaN) {} }; }","extension":"tsx","spans":[[9,12],[13,16],[24,27],[39,42],[43,46],[63,66]]},
+    {"source":"function undefined(undefined) { !function undefined(undefined) { try {} catch(undefined) {} }; }","extension":"tsx","spans":[[9,18],[19,28],[42,51],[52,61],[78,87]]},
+    {"source":"function Infinity(Infinity) { var Infinity; !function Infinity(Infinity) { try {} catch(Infinity) {} }; }","extension":"tsx","spans":[[9,17],[18,26],[34,42],[54,62],[63,71],[88,96]]}
+  ],
+  "eslint/no-sparse-arrays": [
+    {"source":"var a = [,];","extension":"tsx","spans":[[9,9]]},
+    {"source":"var a = [ 1,, 2];","extension":"tsx","spans":[[12,12]]},
+    {"source":"var a = [ 1,,,, 2];","extension":"tsx","spans":[[12,12]]}
+  ],
+  "eslint/no-template-curly-in-string": [
+    {"source":"'Hello, ${name}'","extension":"tsx","spans":[[0,16]]},
+    {"source":"'Hello, ${{name}'","extension":"tsx","spans":[[0,17]]},
+    {"source":"\"Hello, ${name}\"","extension":"tsx","spans":[[0,16]]}
+  ],
+  "eslint/no-ternary": [
+    {"source":"var foo = true ? thing : stuff;","extension":"tsx","spans":[[10,30]]},
+    {"source":"true ? thing() : stuff();","extension":"tsx","spans":[[0,24]]},
+    {"source":"function foo(bar) { return bar ? baz : qux; }","extension":"tsx","spans":[[27,42]]}
+  ],
+  "eslint/no-unassigned-vars": [
+    {"source":"let x; let a = x, b; log(x, a, b);","extension":"tsx","spans":[[4,5],[18,19]]},
+    {"source":"const foo = (two) => { let one; if (one === two) {} }","extension":"tsx","spans":[[27,30]]},
+    {"source":"let user; greet(user);","extension":"tsx","spans":[[4,8]]}
+  ],
+  "eslint/no-unneeded-ternary": [
+    {"source":"var a = x === 2 ? true : false;","extension":"tsx","spans":[[8,30]]},
+    {"source":"var a = (x === 2) ? true : false;","extension":"tsx","spans":[[8,32]]},
+    {"source":"var a = x >= 2 ? true : false;","extension":"tsx","spans":[[8,29]]}
+  ],
+  "eslint/no-unreachable": [
+    {"source":"function foo() { return x; var x = 1; }","extension":"tsx","spans":[[27,37]]},
+    {"source":"function foo() { return x; var x, y = 1; }","extension":"tsx","spans":[[27,40]]},
+    {"source":"while (true) { break; var x = 1; }","extension":"tsx","spans":[[22,32]]}
+  ],
+  "eslint/no-unsafe-finally": [
+    {"source":"var foo = function() { \n try { \n return 1; \n } catch(err) { \n return 2; \n } finally { \n return 3; \n } \n }","extension":"tsx","spans":[[88,97]]},
+    {"source":"var foo = function() { try { return 1 } catch(err) { return 2 } finally { if(true) { return 3 } else { return 2 } } }","extension":"tsx","spans":[[85,93],[103,111]]},
+    {"source":"var foo = function() { try { return 1 } catch(err) { return 2 } finally { return 3 } }","extension":"tsx","spans":[[74,82]]}
+  ],
+  "eslint/no-unsafe-negation": [
+    {"source":"!a in b","extension":"tsx","spans":[[0,2]]},
+    {"source":"(!a in b)","extension":"tsx","spans":[[1,3]]},
+    {"source":"!(a) in b","extension":"tsx","spans":[[0,4]]}
+  ],
+  "eslint/no-unsafe-optional-chaining": [
+    {"source":"(obj?.foo && obj?.baz).bar","extension":"tsx","spans":[[1,9],[13,21]]},
+    {"source":"(foo ? obj?.foo : obj?.bar).bar","extension":"tsx","spans":[[7,15],[18,26]]},
+    {"source":"const a = [...obj?.foo];","extension":"tsx","spans":[[14,22]]}
+  ],
+  "eslint/no-unused-expressions": [
+    {"source":"0","extension":"tsx","spans":[[0,1]]},
+    {"source":"a","extension":"tsx","spans":[[0,1]]},
+    {"source":"f(), 0","extension":"tsx","spans":[[0,6]]}
+  ],
+  "eslint/no-unused-labels": [
+    {"source":"A: var foo = 0;","extension":"tsx","spans":[[0,1]]},
+    {"source":"A: { foo(); bar(); }","extension":"tsx","spans":[[0,1]]},
+    {"source":"A: if (a) { foo(); bar(); }","extension":"tsx","spans":[[0,1]]}
+  ],
+  "eslint/no-useless-backreference": [
+    {"source":"/(b)(\\2a)/","extension":"tsx","spans":[[5,7]]},
+    {"source":"/\\k<foo>(?<foo>bar)/","extension":"tsx","spans":[[1,8]]},
+    {"source":"/(?<!(a)\\1)b/","extension":"tsx","spans":[[8,10]]}
+  ],
+  "eslint/no-useless-catch": [
+    {"source":"\n        try {\n          foo();\n        } catch (err) {\n          throw err;\n        }\n      ","extension":"tsx","spans":[[49,52]]},
+    {"source":"\n        try {\n          foo();\n        } catch (err) {\n          throw err;\n        } finally {\n          foo();\n        }\n      ","extension":"tsx","spans":[[49,52]]},
+    {"source":"\n        try {\n          foo();\n        } catch (err) {\n          /* some comment */\n          throw err;\n        }\n      ","extension":"tsx","spans":[[49,52]]}
+  ],
+  "eslint/no-useless-computed-key": [
+    {"source":"({ ['0']: 0 })","extension":"tsx","spans":[[4,7]]},
+    {"source":"({ ['0+1,234']: 0 })","extension":"tsx","spans":[[4,13]]},
+    {"source":"({ [0]: 0 })","extension":"tsx","spans":[[4,5]]}
+  ],
+  "eslint/no-useless-concat": [
+    {"source":"'a' + 'b'","extension":"tsx","spans":[[0,9]]},
+    {"source":"(foo + 'a') + ('b' + 'c')","extension":"tsx","spans":[[15,24]]},
+    {"source":"foo['a' + 'b']","extension":"tsx","spans":[[4,13]]}
+  ],
+  "eslint/no-useless-rename": [
+    {"source":"let {foo: foo} = obj;","extension":"tsx","spans":[[5,13]]},
+    {"source":"({foo: (foo)} = obj);","extension":"tsx","spans":[[2,12]]},
+    {"source":"let {\\u0061: a} = obj;","extension":"tsx","spans":[[5,14]]}
+  ],
+  "eslint/no-useless-return": [
+    {"source":"function foo() { return; }","extension":"tsx","spans":[[17,24]]},
+    {"source":"function foo() { doSomething(); return; }","extension":"tsx","spans":[[32,39]]},
+    {"source":"\n        function foo() {\n            if (foo) {\n                return;\n            }\n            return;\n        }\n        ","extension":"tsx","spans":[[99,106]]}
+  ],
+  "eslint/no-var": [
+    {"source":"var foo = bar;","extension":"tsx","spans":[[0,3]]},
+    {"source":"var foo = bar, toast = most;","extension":"tsx","spans":[[0,3]]},
+    {"source":"var foo = bar; let toast = most;","extension":"tsx","spans":[[0,3]]}
+  ],
+  "eslint/no-void": [
+    {"source":"void 0","extension":"tsx","spans":[[0,6]]},
+    {"source":"void(0)","extension":"tsx","spans":[[0,7]]},
+    {"source":"var foo = void 0","extension":"tsx","spans":[[10,16]]}
+  ],
+  "eslint/no-with": [
+    {"source":"with(foo) { bar() }","extension":"js","spans":[[0,4]]}
+  ],
+  "eslint/operator-assignment": [
+    {"source":"x = x + y","extension":"tsx","spans":[[0,9]]},
+    {"source":"x = x - y","extension":"tsx","spans":[[0,9]]},
+    {"source":"x = x * y","extension":"tsx","spans":[[0,9]]}
+  ],
+  "eslint/prefer-const": [
+    {"source":"let x = 1; foo(x);","extension":"tsx","spans":[[4,5]]},
+    {"source":"for (let i in [1,2,3]) { foo(i); }","extension":"tsx","spans":[[9,10]]},
+    {"source":"for (let x of [1,2,3]) { foo(x); }","extension":"tsx","spans":[[9,10]]}
+  ],
+  "eslint/prefer-exponentiation-operator": [
+    {"source":"Math.pow(a, b) + Math.pow(c,\n\t\t\t d)","extension":"tsx","spans":[[0,14],[17,35]]},
+    {"source":"Math.pow(Math.pow(a, b), Math.pow(c, d))","extension":"tsx","spans":[[0,40],[9,23],[25,39]]},
+    {"source":"Math.pow(a, b)**Math.pow(c, d)","extension":"tsx","spans":[[0,14],[16,30]]}
+  ],
+  "eslint/prefer-spread": [
+    {"source":"foo.apply(undefined, args);","extension":"tsx","spans":[[0,26]]},
+    {"source":"foo.apply(null, args);","extension":"tsx","spans":[[0,21]]},
+    {"source":"foo.apply?.(undefined, args);","extension":"tsx","spans":[[0,28]]}
+  ],
+  "eslint/require-yield": [
+    {"source":"function* foo() { return 0; }","extension":"tsx","spans":[[10,13]]},
+    {"source":"(function* foo() { return 0; })();","extension":"tsx","spans":[[11,14]]},
+    {"source":"var obj = { *foo() { return 0; } }","extension":"tsx","spans":[[16,32]]}
+  ],
+  "eslint/symbol-description": [
+    {"source":"Symbol();","extension":"tsx","spans":[[0,8]]},
+    {"source":"Symbol(); Symbol = function () {};","extension":"tsx","spans":[[0,8]]}
+  ],
+  "eslint/use-isnan": [
+    {"source":"123 == NaN;","extension":"tsx","spans":[[7,10]]},
+    {"source":"123 === NaN;","extension":"tsx","spans":[[8,11]]},
+    {"source":"NaN === \"abc\";","extension":"tsx","spans":[[0,3]]}
+  ],
+  "eslint/valid-typeof": [
+    {"source":"typeof foo === 'strnig'","extension":"tsx","spans":[[15,23]]},
+    {"source":"'strnig' === typeof foo","extension":"tsx","spans":[[0,8]]},
+    {"source":"if (typeof bar === 'umdefined') {}","extension":"tsx","spans":[[19,30]]}
+  ],
+  "oxc/bad-array-method-on-arguments": [
+    {"source":"function fn() {arguments['map'](() => {})}","extension":"tsx","spans":[[15,31]]},
+    {"source":"function fn() {arguments[`map`](() => {})}","extension":"tsx","spans":[[15,31]]},
+    {"source":"function fn() {arguments.at(0)}","extension":"tsx","spans":[[15,27]]}
+  ],
+  "oxc/bad-char-at-comparison": [
+    {"source":"a.charAt(4) === 'aa'","extension":"tsx","spans":[[0,11]]},
+    {"source":"a.charAt(4) === '/n'","extension":"tsx","spans":[[0,11]]},
+    {"source":"a.charAt(3) === '/t'","extension":"tsx","spans":[[0,11]]}
+  ],
+  "oxc/bad-comparison-sequence": [
+    {"source":"if (a == b == c) { console.log('foo') }","extension":"tsx","spans":[[4,15]]},
+    {"source":"if (a == b == c == d) { console.log('foo') }","extension":"tsx","spans":[[4,20]]},
+    {"source":"if ((a == b == c) == d) { console.log('foo') }","extension":"tsx","spans":[[5,16]]}
+  ],
+  "oxc/bad-min-max-func": [
+    {"source":"Math.min(Math.max(100, x), 0)","extension":"tsx","spans":[[0,29]]},
+    {"source":"Math.max(255.255, Math.min(0, x))","extension":"tsx","spans":[[0,33]]},
+    {"source":"Math.max(Math.min(0, x), 255)","extension":"tsx","spans":[[0,29]]}
+  ],
+  "oxc/bad-object-literal-comparison": [
+    {"source":"if (y === {}) { }","extension":"tsx","spans":[[4,12]]},
+    {"source":"if (arr !== []) { }","extension":"tsx","spans":[[4,14]]},
+    {"source":"if (typeof item == 'object' && item == {}) { }","extension":"tsx","spans":[[31,41]]}
+  ],
+  "oxc/bad-replace-all-arg": [
+    {"source":"withSpaces.replaceAll(/\\s+/, ',');","extension":"tsx","spans":[[11,21]]},
+    {"source":"withSpaces.replaceAll(/\\s+/i, ',');","extension":"tsx","spans":[[11,21]]},
+    {"source":"withSpaces.replaceAll(new RegExp('\\s+'), ',');","extension":"tsx","spans":[[11,21]]}
+  ],
+  "oxc/double-comparisons": [
+    {"source":"x == y || x < y","extension":"tsx","spans":[[0,15]]},
+    {"source":"x < y || x == y","extension":"tsx","spans":[[0,15]]},
+    {"source":"x == y || x > y","extension":"tsx","spans":[[0,15]]}
+  ],
+  "oxc/erasing-op": [
+    {"source":"x * 0;","extension":"tsx","spans":[[0,5]]},
+    {"source":"0 * x;","extension":"tsx","spans":[[0,5]]},
+    {"source":"0 & x;","extension":"tsx","spans":[[0,5]]}
+  ],
+  "oxc/missing-throw": [
+    {"source":"function foo() { new Error() }","extension":"tsx","spans":[[17,28]]},
+    {"source":"const foo = () => { new Error() }","extension":"tsx","spans":[[20,31]]}
+  ],
+  "oxc/number-arg-out-of-range": [
+    {"source":"var x = 42;var s = x.toString(1);","extension":"tsx","spans":[[19,32]]},
+    {"source":"var x = 42;var s = x.toString(43);","extension":"tsx","spans":[[19,33]]},
+    {"source":"var x = 42;var s = x.toFixed(22);","extension":"tsx","spans":[[19,32]]}
+  ],
+  "oxc/uninvoked-array-callback": [
+    {"source":"const list = new Array(5).map(_ => {})","extension":"tsx","spans":[[26,29]]},
+    {"source":"const list = new Array(5).filter(function(_) {})","extension":"tsx","spans":[[26,32]]},
+    {"source":"const list = new Array(5)['every'](function(_) {})","extension":"tsx","spans":[[26,33]]}
+  ],
+  "react/rules-of-hooks": [
+    {"source":"\n        function ComponentWithConditionalHook() {\n               if (cond) {\n                 useConditionalHook();\n               }\n             }\n        ","extension":"tsx","spans":[[95,115]]},
+    {"source":"\n            function useHook() {\n                a && useHook1();\n                b && useHook2();\n            }\n        ","extension":"tsx","spans":[[55,65],[88,98]]},
+    {"source":"\n            function Component() {\n                condition ? useHook() : null;\n            }\n        ","extension":"tsx","spans":[[64,73]]}
+  ],
+  "typescript/no-duplicate-enum-values": [
+    {"source":"\n            enum E {\n              A = 1,\n              B = 1,\n            }\n        ","extension":"tsx","spans":[[40,41]]},
+    {"source":"\n            enum E {\n              A = 0x10,\n              B = 16,\n            }\n        ","extension":"tsx","spans":[[40,44]]},
+    {"source":"\n            enum E {\n              A = 'A',\n              B = 'A',\n            }\n        ","extension":"tsx","spans":[[40,43]]}
+  ],
+  "typescript/no-empty-interface": [
+    {"source":"interface Foo {}","extension":"tsx","spans":[[0,16]]}
+  ],
+  "typescript/no-extra-non-null-assertion": [
+    {"source":"const foo: { bar: number } | null = null; const bar = foo!!!.bar;","extension":"tsx","spans":[[57,57],[58,58]]},
+    {"source":"const foo: { bar: number } | null = null; const bar = foo!!.bar; ","extension":"tsx","spans":[[57,57]]},
+    {"source":"function foo(bar: number | undefined) { const a: number = bar!!; }","extension":"tsx","spans":[[61,61]]}
+  ],
+  "typescript/no-misused-new": [
+    {"source":"interface I { new (): I; constructor(): void;}","extension":"tsx","spans":[[14,17],[25,36]]},
+    {"source":"interface G { new <T>(): G<T>;}","extension":"tsx","spans":[[14,17]]},
+    {"source":"interface I { constructor(): '';}","extension":"tsx","spans":[[14,25]]}
+  ],
+  "typescript/no-non-null-asserted-optional-chain": [
+    {"source":"foo?.bar!;","extension":"tsx","spans":[[8,9]]},
+    {"source":"foo?.['bar']!;","extension":"tsx","spans":[[12,13]]},
+    {"source":"foo?.bar()!;","extension":"tsx","spans":[[10,11]]}
+  ],
+  "typescript/no-non-null-assertion": [
+    {"source":"x!;","extension":"tsx","spans":[[0,2]]},
+    {"source":"x!.y;","extension":"tsx","spans":[[0,2]]},
+    {"source":"x.y!;","extension":"tsx","spans":[[0,4]]}
+  ],
+  "typescript/no-require-imports": [
+    {"source":"var lib = require('lib');","extension":"ts","spans":[[10,24]]},
+    {"source":"let lib2 = require('lib2');","extension":"ts","spans":[[11,26]]},
+    {"source":"\n            var lib5 = require('lib5'),\n              lib6 = require('lib6');\n                  ","extension":"ts","spans":[[24,39],[62,77]]}
+  ],
+  "typescript/no-this-alias": [
+    {"source":"const self = this;","extension":"tsx","spans":[[6,10]]},
+    {"source":"let foo; \nconst other =3;\n\n\n\nfoo = this","extension":"tsx","spans":[[29,32]]},
+    {"source":"let foo; (foo as any) = this","extension":"tsx","spans":[[10,13]]}
+  ],
+  "typescript/no-unsafe-declaration-merging": [
+    {"source":"\n            interface Foo {}\n            class Foo {}\n                  ","extension":"tsx","spans":[[23,26]]},
+    {"source":"\n                     class Foo {}\n                     interface Foo {}\n                           ","extension":"tsx","spans":[[28,31]]}
+  ],
+  "typescript/no-useless-empty-export": [
+    {"source":"\n            export const _ = {};\n            export {};\n        ","extension":"tsx","spans":[[46,56]]},
+    {"source":"\n            export * from '_';\n            export {};\n        ","extension":"tsx","spans":[[44,54]]},
+    {"source":"\n            export {};\n            export * from '_';\n        ","extension":"tsx","spans":[[13,23]]}
+  ],
+  "typescript/prefer-as-const": [
+    {"source":"let foo = { bar: 'baz' as 'baz' };","extension":"tsx","spans":[[26,31]]},
+    {"source":"let foo = { bar: 1 as 1 };","extension":"tsx","spans":[[22,23]]},
+    {"source":"let []: 'bar' = 'bar';","extension":"tsx","spans":[[8,13]]}
+  ],
+  "typescript/prefer-namespace-keyword": [
+    {"source":"module foo {}","extension":"tsx","spans":[[0,13]]},
+    {"source":"module A.B {}","extension":"tsx","spans":[[0,13]]},
+    {"source":"declare module foo {}","extension":"tsx","spans":[[0,21]]}
+  ],
+  "unicorn/no-await-in-promise-methods": [
+    {"source":"Promise.all([await promise])","extension":"mjs","spans":[[13,18]]},
+    {"source":"Promise.allSettled([await promise])","extension":"mjs","spans":[[20,25]]},
+    {"source":"Promise.any([await promise])","extension":"mjs","spans":[[13,18]]}
+  ],
+  "unicorn/no-empty-file": [
+    {"source":"","extension":"tsx","spans":[[0,0]]},
+    {"source":" ","extension":"tsx","spans":[[0,1]]},
+    {"source":"\t","extension":"tsx","spans":[[0,1]]}
+  ],
+  "unicorn/no-invalid-remove-event-listener": [
+    {"source":"window.removeEventListener(\"scroll\", handler.bind(abc))","extension":"tsx","spans":[[7,26]]},
+    {"source":"window.removeEventListener(\"scroll\", this.handler.bind(abc))","extension":"tsx","spans":[[7,26]]},
+    {"source":"window.removeEventListener(\"click\", () => {})","extension":"tsx","spans":[[7,26]]}
+  ],
+  "unicorn/no-new-array": [
+    {"source":"const array = new Array(1)","extension":"tsx","spans":[[14,26]]},
+    {"source":"const zero = 0;\n            const array = new Array(zero);","extension":"tsx","spans":[[42,57]]},
+    {"source":"const length = 1;\n            const array = new Array(length);","extension":"tsx","spans":[[44,61]]}
+  ],
+  "unicorn/no-single-promise-in-promise-methods": [
+    {"source":"await Promise.race([(0, promise)])","extension":"mts","spans":[[14,18]]},
+    {"source":"async function * foo() {await Promise.race([yield promise])}","extension":"mts","spans":[[38,42]]},
+    {"source":"async function * foo() {await Promise.race([yield* promise])}","extension":"mts","spans":[[38,42]]}
+  ],
+  "unicorn/no-thenable": [
+    {"source":"const foo = {then: 1}","extension":"tsx","spans":[[13,17]]},
+    {"source":"const foo = {[\"then\"]: 1}","extension":"tsx","spans":[[14,20]]},
+    {"source":"const foo = {[`then`]: 1}","extension":"tsx","spans":[[14,20]]}
+  ],
+  "unicorn/no-unnecessary-await": [
+    {"source":"await []","extension":"mjs","spans":[[0,5]]},
+    {"source":"await [Promise.resolve()]","extension":"mjs","spans":[[0,5]]},
+    {"source":"await (() => {})","extension":"mjs","spans":[[0,5]]}
+  ],
+  "unicorn/no-useless-fallback-in-spread": [
+    {"source":"const object = {...(foo || {})}","extension":"tsx","spans":[[16,30]]},
+    {"source":"const object = {...(foo ?? {})}","extension":"tsx","spans":[[16,30]]},
+    {"source":"const object = {...(foo ?? (( {} )))}","extension":"tsx","spans":[[16,36]]}
+  ],
+  "unicorn/no-useless-length-check": [
+    {"source":"array.length === 0 || array.every(Boolean)","extension":"tsx","spans":[[0,18]]},
+    {"source":"array.length > 0 && array.some(Boolean)","extension":"tsx","spans":[[0,16]]},
+    {"source":"array.length !== 0 && array.some(Boolean)","extension":"tsx","spans":[[0,18]]}
+  ],
+  "unicorn/prefer-set-size": [
+    {"source":"[...new Set(array)].length","extension":"tsx","spans":[[20,26]]},
+    {"source":"const foo = new Set([]);\n            console.log([...foo].length);","extension":"tsx","spans":[[58,64]]},
+    {"source":"function isUnique(array) {\n                return[...new Set(array)].length === array.length\n            }","extension":"tsx","spans":[[69,75]]}
+  ]
+}

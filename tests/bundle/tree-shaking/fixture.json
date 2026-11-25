@@ -1,0 +1,17 @@
+{
+  "contains": [
+    "KEPT_SIDE_EFFECT",
+    "KEPT_ASSIGNMENT",
+    "more has a side effect"
+  ],
+  "excludes": [
+    "UNUSED_FUNCTION_BODY",
+    "UNUSED_CONST_VALUE",
+    "UNUSED_HELPER_BODY",
+    "UNUSED_CLASS_BODY",
+    "PURE_CALL_ARGUMENT",
+    "UNUSED_OBJECT_VALUE",
+    "NEVER_USED_VALUE",
+    "UNUSED_MORE_VALUE"
+  ]
+}

@@ -1,7 +1,6 @@
 package kessel
 
 import "core:fmt"
-import "core:strings"
 
 // ============================================================================
 // Expressions
@@ -184,9 +183,12 @@ parse_expr_yield_lhs_restricted :: proc(p: ^Parser, left: ^Expression) -> bool {
 // TSSatisfiesExpression nodes. In a JS file the operator is reported as a
 // TS-only construct but still parsed for error recovery. Extracted from
 // parse_expr_with_prec; called #force_inline to preserve hot-path codegen.
-parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
+parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression, start: u32) -> ^Expression {
 	left := left
 	for is_token(p, .As) || is_token(p, .Satisfies) {
+		// `a as T as U ...` wraps in this loop but is walked by recursion,
+		// so each wrapper takes a nesting level.
+		if !parser_depth_charge(p) { return nil }
 		if !allow_ts_mode(p) {
 			if is_token(p, .Satisfies) {
 				report_error_coded(p, .K4053_TSOnlyInJS, "Type satisfaction expressions can only be used in TypeScript files")
@@ -198,7 +200,7 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression
 			eat(p)
 			ts_type := parse_ts_type(p)
 			as_expr, as_expr_e := new_expr(p, TSAsExpression)
-			as_expr.loc = loc_from_expr(left)
+			as_expr.loc.start = start
 			as_expr.expression = left
 			as_expr.type_annotation = ts_type
 			as_expr.loc.end = prev_end_offset(p)
@@ -207,7 +209,7 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression
 			eat(p)
 			ts_type := parse_ts_type(p)
 			sat_expr, sat_expr_e := new_expr(p, TSSatisfiesExpression)
-			sat_expr.loc = loc_from_expr(left)
+			sat_expr.loc.start = start
 			sat_expr.expression = left
 			sat_expr.type_annotation = ts_type
 			sat_expr.loc.end = prev_end_offset(p)
@@ -218,6 +220,13 @@ parse_expr_ts_type_postfix :: proc(p: ^Parser, left: ^Expression) -> ^Expression
 }
 
 parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
+	// Every nested expression (group, element, argument, operand, branch)
+	// re-enters here, so this is the main nesting-depth checkpoint.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
+	// Outer type operators include grouping delimiters even when the AST elides parentheses.
+	start := cur_offset(p)
 	prev_private_in_allowed := p.ctx.private_in_allowed
 	p.ctx.private_in_allowed = int(min_prec) <= int(Precedence.Relational)
 	left := parse_unary_expr(p)
@@ -233,14 +242,25 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 		return left
 	}
 
-	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only)
-	left = #force_inline parse_expr_ts_type_postfix(p, left)
+	// TypeScript: `expr as Type` and `expr satisfies Type` (TS-only). The
+	// operators have relational precedence and associate to the left, so
+	// `1 + x as T` is `(1 + x) as T`. An operand parsed for a tighter
+	// operator leaves the keyword for the enclosing call's loop below.
+	type_postfix_allowed := int(min_prec) <= int(Precedence.Relational)
+	if type_postfix_allowed {
+		left = #force_inline parse_expr_ts_type_postfix(p, left, start)
+	}
 
 	for {
 		if left == nil {
 			return nil
 		}
 		cur_type := p.cur_type
+
+		if type_postfix_allowed && (cur_type == .As || cur_type == .Satisfies) {
+			left = parse_expr_ts_type_postfix(p, left, start)
+			continue
+		}
 
 		// Skip 'in' as binary op when parsing for-loop init
 		if p.ctx.no_in && cur_type == .In {
@@ -308,8 +328,11 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			continue
 		}
 
-		// Trailing comma in parenthesized expression: don't consume comma before )
-		if cur_type == .Comma && is_next_token(p, .RParen) {
+		// Trailing comma in a parenthesised expression: `(a, b,) => 0`. Only
+		// the list that directly fills the parentheses may end in a comma, so
+		// `if (a, ) {}`, `x[a, ]` and `for (;; i++, ) {}` fall through to the
+		// comma operator below and are rejected there.
+		if cur_type == .Comma && start == p.cover_list_start && is_next_token(p, .RParen) {
 			// §15.3.1 - A trailing comma after a rest element `...x` in
 			// `(...x, ) => body` is a SyntaxError. Check before eating.
 			if _, is_spread := left.(^SpreadElement); is_spread {
@@ -329,8 +352,27 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			seq.expressions = make([dynamic]^Expression, 0, 8, p.allocator)
 			bump_append(&seq.expressions, left)
 			for match_token(p, .Comma) {
+				// `(a, b,) => 0`: the same cover-grammar allowance as above,
+				// met after the second or a later element.
+				if start == p.cover_list_start && is_token(p, .RParen) {
+					last := seq.expressions[len(seq.expressions) - 1]
+					if _, is_spread := last.(^SpreadElement); is_spread {
+						report_error_coded(p, .K3041_RestForm, "Rest element may not have a trailing comma")
+					}
+					break
+				}
+				errors_before := len(p.errors)
 				expr := parse_assignment_expression(p)
-				if expr == nil { break }
+				if expr == nil {
+					// `a, ;` and `{ a, }`: the comma operator needs a right
+					// operand. Some callees return nil without a diagnostic
+					// (a `;` or `}` is simply not an expression start), which
+					// used to let the dangling comma through unreported.
+					if len(p.errors) == errors_before {
+						report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after ','")
+					}
+					break
+				}
 				bump_append(&seq.expressions, expr)
 			}
 			seq.loc.end = prev_end_offset(p)
@@ -552,6 +594,11 @@ check_pow_unparenthesized_operand :: proc(p: ^Parser, left: ^Expression, cur_typ
 // Lifted out of parse_unary_expr's dispatch switch as pure code motion: the
 // operator token is still current on entry, and the helper always returns.
 parse_unary_prefix_op :: proc(p: ^Parser) -> ^Expression {
+	// Prefix chains (`!!!!x`) recurse through parse_unary_expr without
+	// passing parse_expr_with_prec, so they take their own level.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	current := snap_current(p)
 	eat(p)
 	argument := parse_unary_expr(p)
@@ -626,6 +673,9 @@ parse_unary_prefix_op :: proc(p: ^Parser) -> ^Expression {
 // switch as pure code motion: the operator token is still current on entry,
 // and the helper always returns.
 parse_unary_prefix_update :: proc(p: ^Parser) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	current := snap_current(p)
 	eat(p)
 	argument := parse_unary_expr(p)
@@ -724,6 +774,9 @@ parse_unary_await :: proc(p: ^Parser) -> (^Expression, bool) {
 	if await_unary_falls_through(p) {
 		return nil, false
 	}
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil, true }
 	// §14.13.1 LabelIdentifier - in async context, "await" is a
 	// reserved word, so `await:` as a LabelledStatement head is a
 	// SyntaxError.
@@ -785,6 +838,7 @@ parse_unary_await :: proc(p: ^Parser) -> (^Expression, bool) {
 	// Top-level await is module syntax
 	if !p.ctx.in_function {
 		p.has_module_syntax = true
+		p.has_top_level_await = true
 	}
 	return await_e, true
 }
@@ -909,6 +963,10 @@ parse_unary_expr :: proc(p: ^Parser) -> ^Expression {
 		}
 
 	case .Dot3:
+		// `... ... ...x` recurses here directly; take a nesting level.
+		depth_saved, depth_ok := parser_depth_enter(p)
+		defer p.depth_left = depth_saved
+		if !depth_ok { return nil }
 		current := snap_current(p)
 		eat(p)
 		argument := parse_unary_expr(p)
@@ -1251,7 +1309,7 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			// §15.7.6 SuperCall: `super(...)` is only legal inside the
 			// constructor of a derived class.
 			if _, is_super := expr^.(^Super); is_super {
-				if !p.ctx.in_derived_constructor {
+				if !p.ctx.in_derived_constructor && !p.ctx.in_ts_import_options {
 					report_error_coded(p, .K3033_SuperInvalidContext, "'super' call is only allowed in the constructor of a derived class")
 				}
 			}
@@ -1283,6 +1341,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 			if is_chain {
 				report_error_coded(p, .K3068_OptionalChainTaggedTemplate, "Tagged template literals cannot appear in an optional chain")
 			}
+			// tag`a``b`... wraps in this loop but is walked by recursion.
+			if !parser_depth_charge(p) { return nil }
 			tagged, tagged_e := new_expr(p, TaggedTemplateExpression)
 			tagged.loc = loc_from_expr(expr)
 			tagged.tag = expr
@@ -1367,6 +1427,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				report_error_coded(p, .K4053_TSOnlyInJS, "Non-null assertions can only be used in TypeScript files")
 			}
 
+			// `a!!!!` wraps in this loop but is walked by recursion.
+			if !parser_depth_charge(p) { return nil }
 			nn, nn_e := new_expr(p, TSNonNullExpression)
 			nn.loc = loc_from_expr(expr)
 			nn.expression = expr
@@ -1524,6 +1586,8 @@ parse_lhs_tail :: #force_inline proc(p: ^Parser, start_expr: ^Expression, allow_
 				inst_start = chain.loc
 				is_chain = false  // we just sealed the chain
 			}
+			// `a<T><T>...` wraps in this loop but is walked by recursion.
+			if !parser_depth_charge(p) { return nil }
 			inst, inst_e := new_expr(p, TSInstantiationExpression)
 			inst.loc = inst_start
 			inst.expression = inner
@@ -1952,10 +2016,11 @@ parse_primary_async :: proc(p: ^Parser) -> ^Expression {
 			// `async functionX ()` loses `functionX` entirely.
 			snap_async := lexer_snapshot(p)
 			snap_errs := len(p.errors)
+			async_start := cur_offset(p)
 			eat(p) // consume async
 			param_ident := parse_identifier(p)
 			if is_token(p, .Arrow) {
-				return parse_async_arrow_function(p, param_ident)
+				return parse_async_arrow_function(p, param_ident, async_start)
 			}
 			// Not an arrow — roll back to just after `async`, let the
 			// LHS-tail / expression parser handle the next tokens.
@@ -2086,25 +2151,22 @@ parse_primary_lparen :: proc(p: ^Parser) -> ^Expression {
 	// even when the surrounding expression is the RHS of another `in`.
 	prev_in_in_rhs := p.ctx.in_in_rhs
 	p.ctx.in_in_rhs = false
+	// Mark the list that may end in a comma when `=>` follows the `)`.
+	prev_cover_list_start := p.cover_list_start
+	p.cover_list_start = cur_offset(p)
 	expr := parse_expr_with_prec(p, .Comma)
+	p.cover_list_start = prev_cover_list_start
 	p.ctx.in_in_rhs = prev_in_in_rhs
 	p.ctx.no_in = prev_no_in
 	if expr == nil {
 		return nil
 	}
+	// The list ended in a comma exactly when the last token consumed before
+	// the `)` is one. Looking at that token rather than scanning the source
+	// backwards also catches `(a, /* note */)`, where trivia separates them.
 	paren_expr_had_trailing_comma := false
-	if p.lexer != nil && is_token(p, .RParen) {
-		src := p.lexer.source_bytes
-		k := int(cur_offset(p)) - 1
-		for k >= 0 {
-			c := src[k]
-			if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-				k -= 1
-				continue
-			}
-			paren_expr_had_trailing_comma = c == ','
-			break
-		}
+	if p.lexer != nil && is_token(p, .RParen) && p.prev_token_end > 0 {
+		paren_expr_had_trailing_comma = p.lexer.source_bytes[p.prev_token_end - 1] == ','
 	}
 	if !expect_token(p, .RParen) {
 		return nil
@@ -2166,7 +2228,6 @@ parse_primary_lparen :: proc(p: ^Parser) -> ^Expression {
 // JSX element disambiguation, TS type assertions, and the JS error
 // case. Split out of parse_primary_expr.
 parse_primary_langle :: proc(p: ^Parser) -> ^Expression {
-	current := snap_current(p)
 	// Dispatch depends on language mode:
 	//   TS  → TS type assertion `<Type>expr` or generic arrow
 	//          `<T>(x) => x`. No JSX ambiguity in pure TS mode.
@@ -2309,7 +2370,7 @@ parse_primary_super :: proc(p: ^Parser) -> ^Expression {
 	// §13.3.7 SuperProperty requires [[HomeObject]] (→ in_method).
 	// `super.x` / `super[x]` outside a method body is a SyntaxError.
   ensure_nxt(p)
-	if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method {
+	if (p.lexer.nxt.kind == .Dot || p.lexer.nxt.kind == .LBracket) && !p.ctx.in_method && !p.ctx.in_ts_import_options {
 		report_error_coded(p, .K3033_SuperInvalidContext, "'super' property access is only valid inside a method")
 	}
 	eat(p)
@@ -2392,7 +2453,6 @@ parse_primary_identifier :: proc(p: ^Parser) -> ^Expression {
 // parse_primary_at handles a leading `@` decorator that prefixes a class
 // expression (`@dec class {}`), parsing the decorator list then the class.
 parse_primary_at :: proc(p: ^Parser) -> ^Expression {
-	current := snap_current(p)
 	// Decorator on a class expression: `@dec class {}`. Same
 	// `parse_decorators` walker as the statement-position decorated
 	// class. Decorator-on-expression is the stage-3 form (only
@@ -2628,7 +2688,7 @@ property_is_literal_proto_init :: proc(prop: ^Property) -> bool {
 	return false
 }
 
-parse_object_expr :: proc(p: ^Parser) -> ^Expression {
+parse_object_expr :: proc(p: ^Parser, ts_attributes := false) -> ^Expression {
 	start := cur_loc(p)
 
 	if !expect_token(p, .LBrace) {
@@ -2665,7 +2725,7 @@ parse_object_expr :: proc(p: ^Parser) -> ^Expression {
 			break
 		}
 
-		prop := parse_property(p)
+		prop := parse_ts_import_attribute(p) if ts_attributes else parse_property(p)
 		if prop != nil {
 			// §13.2.5.1 duplicate `__proto__` is now enforced post-parse by
 			// the semantic checker (ck_check_object_proto_dups), which can
@@ -3179,8 +3239,12 @@ parse_property_key :: proc(p: ^Parser) -> (key: ^Expression, computed: bool, ok:
 		} else {
 			big.value = current.value
 		}
-		big.loc.end = prev_end_offset(p)
+		// The token must be consumed before its end is read: taken earlier,
+		// prev_end_offset is the end of the token before the key (the `{` or
+		// `,`) and the literal gets an empty range.
 		eat(p)
+		big.loc.end = prev_end_offset(p)
+		assert(big.loc.start < big.loc.end)
 		return big_e, false, true
 	}
 	if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||
@@ -3372,7 +3436,7 @@ parse_function_expression :: proc(p: ^Parser) -> ^Expression {
 	// FunctionExpression (now boxed via expression_from). Extract it safely
 	// via the union cast - the old transmute(^FunctionDeclaration)stmt was
 	// undefined behavior that read the wrong struct layout.
-	stmt := parse_function_declaration(p, true)
+	stmt := parse_function_declaration(p, .Expression)
 	if stmt == nil {
 		return nil
 	}
@@ -3399,7 +3463,6 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 	                         (p.lexer.nxt.kind == .Identifier || is_keyword_usable_as_property_name(p.lexer.nxt.kind) || p.lexer.nxt.kind == .LBrace)
 	if can_be_binding_identifier(p.cur_type) && !is_implements_keyword {
 		current := snap_current(p)
-		name_tok_type := p.cur_type
 		id = BindingIdentifier{
 			loc  = loc_from_token(&current),
 			name = current.value,
@@ -3447,35 +3510,11 @@ parse_class_expression :: proc(p: ^Parser) -> ^Expression {
 		type_parameters = parse_ts_type_parameters(p)
 	}
 
-	super_class: Maybe(^Expression)
 	// §15.7 - ClassExpression is always strict mode code.
 	prev_strict_cls_expr := p.ctx.strict_mode
 	p.ctx.strict_mode = true
 	defer p.ctx.strict_mode = prev_strict_cls_expr
-	super_type_arguments: Maybe(^TSTypeParameterInstantiation)
-	if match_token(p, .Extends) {
-		super_class = parse_left_hand_side_expr(p)
-		if super_class == nil {
-			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after 'extends'")
-		}
-		// OXC parses type arguments on class heritage in all modes.
-		// In JS mode, only plain `<` — `<<` stays as left-shift.
-		if (allow_ts_mode(p) && is_open_angle_or_lshift(p)) ||
-		   (!allow_ts_mode(p) && is_token(p, .LAngle)) {
-			super_type_arguments = parse_ts_type_arguments(p)
-		}
-		// Unparenthesised arrow functions are AssignmentExpressions, not
-		// LeftHandSideExpressions. Parenthesised arrows are fine.
-		if sc, have := super_class.(^Expression); have && sc != nil {
-			if arrow, is_arrow := sc^.(^ArrowFunctionExpression); is_arrow && arrow != nil {
-				arrow_start := int(arrow.loc.start)
-				paren_wrapped := is_paren_wrapped_at(p, arrow_start)
-				if !paren_wrapped {
-					report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Arrow function is not a valid class heritage expression")
-				}
-			}
-		}
-	}
+	super_class, super_type_arguments := parse_class_extends(p)
 
 	// TS: `class C extends Base implements I, J<T>` - same grammar as
 	// parse_class_declaration. `implements` is a contextual keyword.
@@ -3633,6 +3672,10 @@ parse_new_type_arguments :: proc(p: ^Parser) -> Maybe(^TSTypeParameterInstantiat
 }
 
 parse_new_expr :: proc(p: ^Parser) -> ^Expression {
+	// `new new new X` recurses here for the callee.
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 	start := cur_loc(p)
 	eat(p) // consume new
 
@@ -4003,6 +4046,43 @@ parse_template_literal :: proc(p: ^Parser, tagged: bool) -> ^Expression {
 // into shapes that can legally hold default-value expressions; it does
 // not descend into nested function literals (those introduce their own
 // scope where yield/await can be legitimately bound).
+// walk_arrow_cover_chain_for_yield_await handles binary / logical / call /
+// member chains for walk_arrow_cover_for_yield_await. A parameter default
+// such as `(a = x + y + ...) =>` holds a chain the parser built in a loop
+// and did not limit, so the chain operand is reached iteratively (see
+// spine.odin). Operands are visited in source order, so diagnostics keep
+// their order. As before, a member's property is not visited.
+walk_arrow_cover_chain_for_yield_await :: proc(
+	p: ^Parser,
+	expr: ^Expression,
+	disallow_yield, disallow_await: bool,
+) {
+	assert(expr_is_spine_node(expr))
+	spine: ExprSpine = ---
+	// Without the chain table the chain goes unchecked; the checker
+	// (pass 3) reports the same early error from its own walk.
+	if !expr_spine_open(&spine, expr) { return }
+	defer expr_spine_close(&spine)
+
+	walk_arrow_cover_for_yield_await(p, spine.leaf, disallow_yield, disallow_await)
+	#reverse for node in spine.nodes {
+		#partial switch e in node^ {
+		case ^BinaryExpression:
+			walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+		case ^LogicalExpression:
+			walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+		case ^CallExpression:
+			for arg in e.arguments {
+				walk_arrow_cover_for_yield_await(p, arg, disallow_yield, disallow_await)
+			}
+		case ^MemberExpression:
+			// Property is not visited (unchanged behaviour).
+		case:
+			unreachable()
+		}
+	}
+}
+
 walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow_yield, disallow_await: bool) {
 	if expr == nil { return }
 	#partial switch e in expr^ {
@@ -4040,12 +4120,8 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 		}
 	case ^SpreadElement:
 		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
-	case ^BinaryExpression:
-		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
-		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
-	case ^LogicalExpression:
-		walk_arrow_cover_for_yield_await(p, e.left, disallow_yield, disallow_await)
-		walk_arrow_cover_for_yield_await(p, e.right, disallow_yield, disallow_await)
+	case ^BinaryExpression, ^LogicalExpression, ^CallExpression, ^MemberExpression:
+		walk_arrow_cover_chain_for_yield_await(p, expr, disallow_yield, disallow_await)
 	case ^UnaryExpression:
 		walk_arrow_cover_for_yield_await(p, e.argument, disallow_yield, disallow_await)
 	case ^UpdateExpression:
@@ -4054,11 +4130,6 @@ walk_arrow_cover_for_yield_await :: proc(p: ^Parser, expr: ^Expression, disallow
 		walk_arrow_cover_for_yield_await(p, e.test, disallow_yield, disallow_await)
 		walk_arrow_cover_for_yield_await(p, e.consequent, disallow_yield, disallow_await)
 		walk_arrow_cover_for_yield_await(p, e.alternate, disallow_yield, disallow_await)
-	case ^CallExpression:
-		walk_arrow_cover_for_yield_await(p, e.callee, disallow_yield, disallow_await)
-		for arg in e.arguments { walk_arrow_cover_for_yield_await(p, arg, disallow_yield, disallow_await) }
-	case ^MemberExpression:
-		walk_arrow_cover_for_yield_await(p, e.object, disallow_yield, disallow_await)
 	case ^TaggedTemplateExpression:
 		walk_arrow_cover_for_yield_await(p, e.tag, disallow_yield, disallow_await)
 	case ^TemplateLiteral:
@@ -4302,6 +4373,11 @@ expr_to_pattern_array :: proc(p: ^Parser, e: ^ArrayExpression) -> (Pattern, bool
 	ap := new_node(p, ArrayPattern)
 	ap.loc = e.loc
 	elems := make([]Maybe(Pattern), len(e.elements), p.allocator)
+	if len(elems) != len(e.elements) {
+		// Allocation failed; the loop below indexes `elems` by position.
+		parser_out_of_memory(p)
+		return nil, false
+	}
 	prev_nested := p.ctx.in_nested_pattern_convert
 	p.ctx.in_nested_pattern_convert = true
 	defer p.ctx.in_nested_pattern_convert = prev_nested
@@ -4345,6 +4421,24 @@ expr_to_pattern_array :: proc(p: ^Parser, e: ^ArrayExpression) -> (Pattern, bool
 	return ap, true
 }
 
+// With parentheses preserved, a destructuring assignment keeps the wrapper
+// around a nested target. §13.15.1 allows it around an identifier or a member
+// expression (`[(a)] = b`, `({k: (o.p)} = b)`), never around a nested pattern.
+parenthesized_assignment_target_is_simple :: proc(p: ^Parser, wrapper: ^ParenthesizedExpression) -> bool {
+	if !p.ctx.in_assignment_target_convert { return false }
+	inner := wrapper.expression
+	for inner != nil {
+		nested, is_paren := inner^.(^ParenthesizedExpression)
+		if !is_paren || nested == nil { break }
+		inner = nested.expression
+	}
+	if inner == nil { return false }
+	#partial switch _ in inner^ {
+	case ^Identifier, ^MemberExpression: return true
+	}
+	return false
+}
+
 expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 	if expr == nil { return nil, false }
 	#partial switch e in expr^ {
@@ -4384,7 +4478,7 @@ expr_to_pattern :: proc(p: ^Parser, expr: ^Expression) -> (Pattern, bool) {
 		// conversion (in_nested_pattern_convert is set by the Array/Object
 		// cases above). Top-level paren-around-identifier is OK.
 		if e == nil { return nil, false }
-		if p.ctx.in_nested_pattern_convert {
+		if p.ctx.in_nested_pattern_convert && !parenthesized_assignment_target_is_simple(p, e) {
 			report_error_coded(p, .K3066_InvalidAssignmentOrBindingTarget, "Binding element cannot be parenthesized")
 		}
 		return expr_to_pattern(p, e.expression)
@@ -5043,6 +5137,9 @@ arrow_validate_params :: proc(p: ^Parser, params: []FunctionParameter, start: Lo
 }
 
 parse_arrow_function :: proc(p: ^Parser, left: ^Expression, is_async := false) -> ^Expression {
+	depth_saved, depth_ok := parser_depth_enter(p)
+	defer p.depth_left = depth_saved
+	if !depth_ok { return nil }
 
 	// §15.3.1 — ArrowParameters Contains check. The cover expression
 	// was parsed under the surrounding generator/async context, so a
@@ -5417,8 +5514,12 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 
 	eat(p)
 
+	errors_before_rhs := len(p.errors)
 	right := parse_expr_with_prec(p, .Assignment)
 	if right == nil {
+		if len(p.errors) == errors_before_rhs {
+			report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after assignment operator")
+		}
 		return nil
 	}
 
@@ -5429,7 +5530,10 @@ parse_assignment_expr :: proc(p: ^Parser, left: ^Expression) -> ^Expression {
 	// TS-escape-hatch wrappers would trigger the "Invalid destructuring
 	// assignment target" error added to expr_to_pattern's default arm.
 	if op == .Assign && is_destructure_target_candidate(left) {
+		previous := p.ctx.in_assignment_target_convert
+		p.ctx.in_assignment_target_convert = true
 		_, _ = expr_to_pattern(p, left)
+		p.ctx.in_assignment_target_convert = previous
 	}
 
 	// LHS validity per §13.15. Only runs AFTER right is parsed so error
