@@ -114,7 +114,9 @@ async function testFormatting(doc) {
   const config = vscode.workspace.getConfiguration('editor', { uri: doc.uri, languageId: doc.languageId });
   const previous = config.inspect('defaultFormatter').workspaceLanguageValue;
   const saved = fs.readFileSync(doc.uri.fsPath, 'utf8');
-  const body = 'const x=<div title="🚀"/>;\n';
+  // A statement the formatter leaves as written (a css-tagged template), with a
+  // non-ASCII character so the edit's UTF-16 range is exercised.
+  const body = 'const x=css`🚀`;\n';
   try {
     await config.update('defaultFormatter', 'dvrd.kessel', vscode.ConfigurationTarget.Workspace, true);
     await replace(doc, "import{type A,B}from'./types';\n" + body);
