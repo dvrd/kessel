@@ -221,7 +221,7 @@ ParseJob :: struct {
 	// consumers that need the contiguous virtual arena (raw transfer,
 	// --stats) do not apply to it.
 	uses_heap_arena: bool,
-	heap_arena:      mem.Dynamic_Arena,
+	heap_arena:      BlockArena,
 
 	// Where the allocation guard turns once the job's arena is exhausted,
 	// so that a parse which ran out of memory can still wind down. Nothing
@@ -234,7 +234,7 @@ ParseJob :: struct {
 	//                   first; `emergency` is the last resort when the
 	//                   supplied allocator has nothing left at all.
 	emergency:      mvirtual.Arena,
-	heap_emergency: mem.Dynamic_Arena,
+	heap_emergency: BlockArena,
 
 	// Sits between the lexer / parser and `arena_alloc` for the duration
 	// of parse_job_run; see alloc_guard.odin. Kept last: it embeds the
@@ -242,8 +242,8 @@ ParseJob :: struct {
 	guard: AllocGuard,
 }
 
-// Block size of the arena layered over a caller-supplied allocator. Larger
-// requests (the node bump pool, big arrays) go to that allocator directly.
+// Block size of the arena layered over a caller-supplied allocator. Requests
+// over a quarter of a block (the node bump pool, big arrays) get their own.
 PARSE_JOB_HEAP_BLOCK_SIZE :: 64 * 1024
 // Block size of `heap_emergency`: small, because it is only asked once the
 // allocator has already refused something bigger.
@@ -376,12 +376,10 @@ parse_job_open_inline :: proc(
 	if backing.procedure != nil {
 		// The arena itself allocates nothing until first use, so opening
 		// cannot fail here; an exhausted `backing` surfaces during run.
-		mem.dynamic_arena_init(&job.heap_arena, backing, backing,
-			PARSE_JOB_HEAP_BLOCK_SIZE, PARSE_JOB_HEAP_BLOCK_SIZE, 16)
-		mem.dynamic_arena_init(&job.heap_emergency, backing, backing,
-			PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE, PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE, 16)
+		block_arena_init(&job.heap_arena, backing, PARSE_JOB_HEAP_BLOCK_SIZE)
+		block_arena_init(&job.heap_emergency, backing, PARSE_JOB_HEAP_EMERGENCY_BLOCK_SIZE)
 		job.uses_heap_arena = true
-		job.arena_alloc = mem.dynamic_arena_allocator(&job.heap_arena)
+		job.arena_alloc = block_arena_allocator(&job.heap_arena)
 		parse_job_resolve(job)
 		return true
 	}
@@ -481,7 +479,7 @@ parse_job_run :: proc(job: ^ParseJob) {
 	os_pages := mvirtual.arena_allocator(&job.emergency)
 	if job.uses_heap_arena {
 		alloc_guard_init(&job.guard, job.arena_alloc,
-			mem.dynamic_arena_allocator(&job.heap_emergency), &job.lexer.offset, os_pages,
+			block_arena_allocator(&job.heap_emergency), &job.lexer.offset, os_pages,
 			&job.parser.node_pool.capacity)
 	} else {
 		alloc_guard_init(&job.guard, job.arena_alloc, os_pages, &job.lexer.offset,
@@ -576,8 +574,8 @@ parse_job_close :: proc(job: ^ParseJob) {
 	if !job.opened { return }
 	if job.uses_heap_arena {
 		// Returns every block and out-of-band allocation to `backing`.
-		mem.dynamic_arena_destroy(&job.heap_arena)
-		mem.dynamic_arena_destroy(&job.heap_emergency)
+		block_arena_destroy(&job.heap_arena)
+		block_arena_destroy(&job.heap_emergency)
 	} else {
 		if job.owns_arena { mvirtual.arena_destroy(&job.arena) }
 	}
