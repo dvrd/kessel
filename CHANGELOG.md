@@ -6,7 +6,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Breaking
+- **`ParseError` has no `loc` field** (changed after v0.4.1). It is now `{start, end, message, code, severity, lint_code}`: `start`/`end` are UTF-8 byte offsets of the offending range and `code` is a stable `ErrorCode`. Code that read `err.loc` should read `err.start`; use `source_position_at` for a line and UTF-16 column.
+- **JSX entities are decoded.** `JSXText.value` and the `value` of JSX string attributes now hold the decoded text (`&amp;` → `&`); `raw` keeps the source text (for attributes, including the quotes). Both used to hold the raw text. Applies to the typed AST, the JSON output and the npm AST. This follows Babel and the ESTree corpus; oxc-parser 0.127.0 does not decode.
+- **`{...xs}` as a JSX child is a `JSXSpreadChild`** whose `expression` is the operand. It used to be a `JSXExpressionContainer` holding a `SpreadElement`.
+- **`{...}` with no operand in JSX is a parse error** (K2020) in attribute and child position. It used to produce a tree.
+- **Input nested deeper than `ParseConfig.max_depth` (default 512) is rejected** with one `K2081_NestingTooDeep` error instead of overflowing the stack. Right-recursive forms count: `a=b=c=…`, `else if` chains, nested ternaries (about 510 links) and curried arrows (about 254). Left-associative chains (`a+b+…`, `a&&b&&…`, `a.b.c…`, `a()()…`) are unlimited.
+- **Template literals nested deeper than 256 levels are rejected** with `K1016_TemplateNestingTooDeep`. Nesting up to 256 levels and any number of open braces inside an interpolation now parse; previously more than 8 levels or 255 braces were mis-lexed.
+- **Stricter syntax checks.** A comma operator now requires its right operand (`a, ;`, `if (a, ) {}`, `x[a, ]` are errors). Regular-expression literals that the engine rejects are now rejected (reversed `{n,m}` bounds and class ranges, `[\B]` and unknown property names with `u`, invalid `v`-flag classes), and several valid `v`-flag literals that were rejected now parse.
+- **Legacy octal literals have their real value**: `010` is 8 (it was 10).
+- **Binary AST version 9** is emitted for programs that start with `#!`, carrying `program.hashbang`. Other programs keep their previous versions, and the npm reader accepts versions 3 through 9.
+- The internal helper `vlq_encode_into` is removed; use the source-map builder below.
+
 ### Added
+- **Library API for Odin consumers** (see "Odin package" in the README):
+  - `ParseConfig.max_depth` and `ParseConfig.reject_invalid_utf8` (one `K1017_InvalidUtf8` error at the first ill-formed byte; off by default).
+  - `parse_job_open_inline(..., backing := mem.Allocator{})` takes a caller-supplied allocator; everything is returned to it on `parse_job_close`.
+  - Allocation failure is reported as `K2085_OutOfMemory` with an empty `Program` instead of a crash.
+  - `source_positions_init` / `source_position_at` / `source_offset_at`: byte offset ↔ line and UTF-16 column.
+  - `sourcemap_builder_*`: a Source Map v3 builder (sources, names, mappings, JSON).
+  - `Program.hashbang`.
+  - `ast_walk` with enter/leave callbacks, bounded in depth and iterative along long chains.
+  - `scope_query_*`: bindings and references of a name, the symbol at a position, the enclosing function.
+  - `function_parameter_view`: one view of a parameter's target and default value, whichever way the parser stored it.
+  - `jsx_decode_entities` for the full HTML entity table.
+- `--max-depth=N` for `kessel parse`.
+- Lone surrogates from escapes are documented as WTF-8 in `StringLiteral.value`; an escaped surrogate pair is one code point in both strings and templates.
+
+### Fixed
+- A long left-associative chain no longer overflows the stack in the checker, emitters, linter, printer or any other pass; a 1,000,000-term chain parses and checks on an 8 MB stack.
+- A mismatched JSX closing tag is reported on the closing tag's name, not the token after it.
+- Every parse of a file with an import or export leaked 576 bytes outside the parse arena.
+- `export default /re/;` is one statement; `in` is allowed inside a block-bodied arrow in a `for` initializer; BigInt property keys, substitution-free template literal types and `async` arrows have correct source ranges; `1 + x as T` groups as `(1 + x) as T`.
+- The sources pass `odin check -vet` on every release target, and CI enforces it.
+
+
+### Added (linter)
 - feat(lint): add no-labels, no-multi-assign, no-ternary, no-new, no-return-await rules (162 rules total)
 - feat(lint): support `kessel.lint.json` `ignorePatterns` (glob file-exclusion) (Phase 8d)
 - feat(lint): support `kessel.lint.json` per-glob `overrides` (file-scoped rule severities) (Phase 8d)
@@ -19,7 +54,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - feat(lint): add no-implicit-coercion, no-buffer-constructor, no-octal-escape, no-implicit-globals, no-restricted-globals, no-restricted-syntax, prefer-exponentiation-operator
 - feat(lint): add no-useless-else, prefer-object-literal, no-object-constructor, no-arrow-functions-in-class, no-class-assign-in-class, prefer-object-has-own, no-useless-unary (157 rules total)
 
-### Fixed
+### Fixed (linter)
 - fix(lint): make every rule `--rule`/config-addressable by name — `lint_rule_by_name` was a hand-maintained switch that stopped at L2025, leaving ~90 already-implemented L40xx rules unreachable; it now scans the static rule-info table
 
 ## [0.20.0] - 2026-07-12
