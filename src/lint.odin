@@ -254,6 +254,8 @@ LintRule :: enum u16 {
 	L6009_PreferSetSize = 6009,
 	L6010_NoUselessLengthCheck = 6010,
 	L3020_TripleSlashReference = 3020,
+	L2058_NoInvalidRegexp = 2058,
+	L2059_NoMisleadingCharacterClass = 2059,
 	L9001_UnusedDirective           = 9001,
 }
 
@@ -515,13 +517,13 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 	case .L2038_NoIrregularWhitespace:
 		return LintRuleInfo{
 			name = "no-irregular-whitespace",
-			default_message = "irregular whitespace not allowed",
+			default_message = "Unexpected irregular whitespace",
 			default_severity = .Error, default_enabled = true,
 		}
 	case .L2039_NoControlRegex:
 		return LintRuleInfo{
 			name = "no-control-regex",
-			default_message = "unexpected control character in regular expression",
+			default_message = "Unexpected control character",
 			default_severity = .Error, default_enabled = true,
 		}
 	case .L2040_NoEmptyCharacterClass:
@@ -1321,6 +1323,18 @@ lint_rule_info :: proc(rule: LintRule) -> LintRuleInfo {
 			name = "triple-slash-reference", default_message = "use an import instead of a triple-slash reference",
 			default_severity = .Warning, default_enabled = false,
 		}
+	case .L2058_NoInvalidRegexp:
+		return LintRuleInfo{
+			name = "no-invalid-regexp",
+			default_message = "invalid regular expression",
+			default_severity = .Warning, default_enabled = false,
+		}
+	case .L2059_NoMisleadingCharacterClass:
+		return LintRuleInfo{
+			name = "no-misleading-character-class",
+			default_message = "character class matches the parts of a multi-code-point character separately",
+			default_severity = .Warning, default_enabled = false,
+		}
 	case .L9001_UnusedDirective:
 		return LintRuleInfo{name="unused-disable-directive", default_message="unused lint directive", default_severity=.Warning, default_enabled=false}
 	case .L4106_NoUselessBackreference:
@@ -1425,6 +1439,10 @@ Linter :: struct {
 	unassigned: [dynamic]^Identifier,
 	set_sizes: [dynamic]LintSetSize,
 	declarator_inits: map[u32]LintDeclaratorInit,
+	// no-irregular-whitespace: candidate offsets from the lexer, and which of
+	// them turned out to lie inside a token.
+	irregular: []u32,
+	irregular_inside: []bool,
 }
 
 // init_linter constructs a Linter bound to the parse arena allocator.
@@ -2072,57 +2090,6 @@ lint_check_no_inner_declarations :: proc(l: ^Linter, ctx: ^LintContext, body: []
 			lint_report(l, u32(fd.loc.start), u32(fd.loc.end), .L2031_NoInnerDeclarations, info.default_message)
 		}
 	}
-}
-
-// lint_check_no_loss_of_precision (no-loss-of-precision, L2036): flags numeric
-// literals that lose precision when parsed as IEEE 754 double. Checks by
-// round-tripping: format the parsed f64 back to a string and compare to the
-// source text (stripping underscores). Integers > 2^53 also lose precision.
-lint_check_no_loss_of_precision :: proc(l: ^Linter, e: ^NumericLiteral) {
-	if e == nil || !lint_rule_enabled(l, .L2036_NoLossOfPrecision) { return }
-	// Check if a decimal integer literal exceeds Number.MAX_SAFE_INTEGER
-	// by examining the source text length. Any decimal integer > 16 digits
-	// risks precision loss. We also catch exactly-16-digit numbers > 2^53-1
-	// by checking the parsed value differs from its i64 round-trip.
-	if e.value == f64(i64(e.value)) && e.value >= 0 {
-		ival := i64(e.value)
-		// Re-convert and check if it matches. For values > 2^53, the f64
-		// representation rounds, so f64(ival) == e.value but ival may not
-		// be the original source integer. We detect this by checking if the
-		// magnitude exceeds MAX_SAFE_INTEGER.
-		if ival > 9007199254740991 || ival < -9007199254740991 {
-			info := lint_rule_info(.L2036_NoLossOfPrecision)
-			lint_report(l, u32(e.loc.start), u32(e.loc.end), .L2036_NoLossOfPrecision, info.default_message)
-		}
-	}
-}
-
-// Hexadecimal and Unicode escapes for C0 controls carry the same value as
-// a literal control byte. Named and control-letter escapes are explicit.
-lint_check_no_control_regex :: proc(l: ^Linter, e: ^RegExpLiteral) {
-	if e == nil || !lint_rule_enabled(l, .L2039_NoControlRegex) { return }
-	if lint_regex_contains_control(e, l.allocator) {
-		info := lint_rule_info(.L2039_NoControlRegex)
-		lint_report(l, e.loc.start, e.loc.end, .L2039_NoControlRegex, info.default_message)
-	}
-}
-
-@(private="file")
-lint_regex_contains_control :: proc(e: ^RegExpLiteral, allocator: mem.Allocator) -> bool {
-	for byte in transmute([]u8)e.pattern {
-		if byte < 0x20 { return true }
-	}
-	if !strings.contains(e.pattern, "\\x") && !strings.contains(e.pattern, "\\u") { return false }
-	tree, err := regex_parse_ast(e.pattern, e.flags, allocator)
-	if err.kind != .None { return false }
-	defer regex_ast_destroy(&tree)
-	for node in tree.nodes[1:] {
-		if node.kind != .Escape || node.span.end - node.span.start < 2 { continue }
-		prefix := e.pattern[node.span.start + 1]
-		if prefix != 'x' && prefix != 'u' { continue }
-		if value, ok := node.code_point.?; ok && value < 0x20 { return true }
-	}
-	return false
 }
 
 // lint_check_no_regex_spaces (no-regex-spaces, L2041): flags regex patterns
@@ -3337,7 +3304,11 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding
 		}
 	case ^ChainExpression:           if e != nil { lint_walk_expr(l, ctx, e.expression) }
 	case ^TaggedTemplateExpression:  if e != nil { lint_walk_expr(l, ctx, e.tag); lint_walk_expr(l, ctx, e.quasi) }
-	case ^TemplateLiteral:           if e != nil { for s in e.expressions { lint_walk_expr(l, ctx, s) } }
+	case ^TemplateLiteral:
+		if e != nil {
+			if len(l.irregular) > 0 { lint_irregular_exclude(l, e.loc) }
+			for s in e.expressions { lint_walk_expr(l, ctx, s) }
+		}
 	case ^ImportExpression:          if e != nil { lint_walk_expr(l, ctx, e.source); lint_walk_expr(l, ctx, e.options) }
 	case ^FunctionExpression:        if e != nil { lint_walk_function(l, ctx, e, binding) }
 	case ^ArrowFunctionExpression:   lint_walk_arrow(l, ctx, e, binding)
@@ -3362,7 +3333,8 @@ lint_walk_expr :: proc(l: ^Linter, ctx: ^LintContext, expr: ^Expression, binding
 		if e != nil && lint_rule_enabled(l, .L4106_NoUselessBackreference) {
 			lint_check_regexp_backreferences(l, e.loc, e.pattern, e.flags, e.loc.start + 1)
 		}
-		if e != nil { lint_check_no_control_regex(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
+		if e != nil && len(l.irregular) > 0 { lint_irregular_exclude(l, e.loc) }
+		if e != nil { lint_regexp_literal(l, e); lint_check_no_empty_character_class(l, e); lint_check_no_regex_spaces(l, e) }
 	case ^StringLiteral:
 		if e != nil { lint_check_template_curly_in_string(l, e); lint_check_no_multiline_strings(l, e); lint_check_no_octal_escape(l, e) }
 	case ^JSXExpressionContainer:
@@ -3391,6 +3363,8 @@ lint_walk_jsx_child :: proc(l: ^Linter, ctx: ^LintContext, child: JSXChild) {
 		if v != nil && v.expression != nil { lint_walk_expr(l, ctx, v.expression, {owner=.Callback}) }
 	case ^JSXSpreadChild:
 		if v != nil { lint_walk_expr(l, ctx, v.expression) }
+	case ^JSXText:
+		if v != nil && len(l.irregular) > 0 { lint_irregular_exclude(l, v.loc) }
 	}
 }
 
@@ -3738,7 +3712,9 @@ lint_run_for_job :: proc(job: ^ParseJob, settings: LintSettings = {}, fix_kinds:
 	// keep the rule available for projects that use the standalone linter.
 	if settings.dialect == .Oxlint && (job.lang == .TS || job.lang == .TSX) { l.enabled[.L2046_GetterReturn] = false }
 	ctx := LintContext{ lang = job.lang }
+	lint_irregular_init(&l, job.lexer.irregular_whitespace[:])
 	lint_program(&l, &ctx, job.program)
+	lint_irregular_report(&l)
 	lint_apply_disable_directives(&l, &job.lexer, settings.dialect)
 	return l
 }
