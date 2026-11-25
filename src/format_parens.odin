@@ -128,7 +128,26 @@ format_needs_parens :: proc(f: ^FormatContext) -> bool {
 			if operator == .In || operator == .Instanceof {return true}
 		}
 	}
+	if current.kind == .JSX {return format_jsx_needs_parens(current, parent)}
 	return format_kind_needs_parens(f, current, parent)
+}
+
+// A JSX element needs no parentheses where it is a value in its own right:
+// a statement, an argument, an operand, a branch, an initializer. Anywhere
+// else its `<` could be misread.
+@(private = "file")
+format_jsx_needs_parens :: proc(current, parent: ^FormatPathEntry) -> bool {
+	if current.key == .Callee {return true}
+	#partial switch parent.kind {
+	case .Binary:
+		operator := parent.expr^.(^BinaryExpression).operator
+		return current.key == .Left && operator == .Lt
+	case .Array, .Arrow_Function, .Assignment, .Assignment_Pattern, .New, .Conditional,
+	     .Expression_Statement, .JSX_Attribute, .JSX, .JSX_Expression_Container, .Logical, .Call,
+	     .Property, .Return, .Throw, .Variable_Declarator, .Yield:
+		return false
+	}
+	return true
 }
 
 // The rules that depend first on the kind of the expression itself.

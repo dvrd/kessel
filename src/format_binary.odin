@@ -104,6 +104,9 @@ format_binaryish :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	should_not_indent = should_not_indent || (parent_kind == .Arrow_Function && key == .Body)
 	should_not_indent = should_not_indent || (parent_kind == .For && key != .Body)
 	should_not_indent = should_not_indent || parent_kind == .Template || boolean_argument
+	if parent_kind == .JSX_Expression_Container && grandparent_kind == .JSX_Attribute {
+		should_not_indent = true
+	}
 	if parent_kind == .Conditional {
 		#partial switch grandparent_kind {
 		case .Return, .Throw, .Call, .New:
@@ -122,5 +125,19 @@ format_binaryish :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	if should_not_indent || (inline && !chained_left) || (!inline && should_indent_if_inlining) {
 		return fg(f, ..parts[:])
 	}
-	return fg(f, parts[0], fi(f, ..parts[1:]))
+	// A JSX element on the right indents with the chain only when the chain
+	// breaks, so that it can open its parentheses on the operator's line.
+	_, right := format_binary_sides(expr)
+	right_inner := format_expr_unwrap(right)
+	has_jsx := false
+	if right_inner != nil {
+		#partial switch _ in right_inner^ {
+		case ^JSXElement, ^JSXFragment: has_jsx = true
+		}
+	}
+	if !has_jsx || len(parts) < 2 {return fg(f, parts[0], fi(f, ..parts[1:]))}
+	id := doc_group_id(f)
+	last := len(parts) - 1
+	chain := doc_group(f, fc(f, parts[0], fi(f, ..parts[1:last])), false, id)
+	return fg(f, chain, doc_indent_if_break(f, parts[last], id))
 }

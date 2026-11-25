@@ -468,7 +468,8 @@ format_arrow :: proc(f: ^FormatContext, node: ^ArrowFunctionExpression, args: Fo
 		should_break_signatures =
 			args.layout == .Chain_Tail_Arrow_Chain || (is_callee && !on_same_line)
 	}
-	body := format_arrow_body(f, body_doc, on_same_line, wants_parens, args.expand_last_arg)
+	in_jsx := parent.kind == .JSX_Expression_Container
+	body := format_arrow_body(f, body_doc, on_same_line, wants_parens, args.expand_last_arg, in_jsx)
 	return fg(
 		f,
 		doc_group(f, chain, should_break_signatures, chain_id),
@@ -508,13 +509,14 @@ format_arrow_chain :: proc(
 format_arrow_body :: proc(
 	f: ^FormatContext,
 	body_doc: Doc,
-	on_same_line, wants_parens, expand_last_arg: bool,
+	on_same_line, wants_parens, expand_last_arg, in_container: bool,
 ) -> Doc {
 	trailing_comma: Doc
 	if expand_last_arg && f.options.trailing_comma && !f.options.trailing_comma_es5 {
 		trailing_comma = doc_if_break(f, ft(f, ","))
 	}
-	trailing_space := doc_softline() if expand_last_arg else nil
+	// The braces of a JSX expression close on a line of their own too.
+	trailing_space := doc_softline() if expand_last_arg || in_container else nil
 	if on_same_line && wants_parens {
 		return fc(
 			f,

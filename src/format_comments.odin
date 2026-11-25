@@ -50,7 +50,6 @@ format_is_previous_line_empty :: proc(text: string, start: u32) -> bool {
 
 // A block comment whose every line starts with `*` is re-indented to the
 // position it prints at. Any other comment keeps its text.
-@(private = "file")
 format_comment_contents :: proc(f: ^FormatContext, comment: Comment) -> Doc {
 	raw := f.source[comment.start:comment.end]
 	if strings.has_prefix(raw, "//") {return ft(f, strings.trim_right_space(raw))}
@@ -89,7 +88,6 @@ format_comment_contents :: proc(f: ^FormatContext, comment: Comment) -> Doc {
 	return fc(f, ..parts[:])
 }
 
-@(private = "file")
 format_comment_is_block :: proc(f: ^FormatContext, comment: Comment) -> bool {
 	return strings.has_prefix(f.source[comment.start:comment.end], "/*")
 }

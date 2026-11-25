@@ -59,6 +59,7 @@ format_expr_kind :: proc(expr: ^Expression) -> FormatNodeKind {
 	case ^ImportExpression: return .Import_Expression
 	case ^MetaProperty: return .Meta_Property
 	case ^JSXElement, ^JSXFragment: return .JSX
+	case ^JSXExpressionContainer: return .JSX_Expression_Container
 	case ^TSAsExpression: return .TS_As
 	case ^TSSatisfiesExpression: return .TS_Satisfies
 	case ^TSNonNullExpression: return .TS_Non_Null
@@ -183,11 +184,9 @@ format_expr_inner :: proc(f: ^FormatContext, expr: ^Expression, args: FormatArgs
 		return keyword
 	case ^AwaitExpression:
 		return format_await(f, node)
-	case ^TSAsExpression, ^TSSatisfiesExpression, ^TSNonNullExpression, ^TSTypeAssertion,
-	     ^TSInstantiationExpression:
-		return format_ts_expression(f, expr)
 	}
-	return format_fail(f)
+	// What remains is TypeScript's and JSX's own expressions.
+	return format_ts_expression(f, expr)
 }
 
 // Literals and the other expressions that are a single token or name.
@@ -232,6 +231,10 @@ format_ts_expression :: proc(f: ^FormatContext, expr: ^Expression) -> Doc {
 	case ^TSInstantiationExpression:
 		value := format_expr(f, node.expression, .Expression)
 		return fc(f, value, format_type_arguments(f, node.type_arguments))
+	case ^JSXElement, ^JSXFragment:
+		return format_jsx(f, expr)
+	case ^JSXExpressionContainer, ^JSXSpreadChild, ^JSXEmptyExpression:
+		return format_jsx_container(f, expr)
 	}
 	return format_fail(f)
 }
@@ -469,6 +472,9 @@ format_conditional :: proc(f: ^FormatContext, node: ^ConditionalExpression) -> D
 	consequent := format_expr_strip(node.consequent)
 	alternate := format_expr_strip(node.alternate)
 	if consequent == nil || alternate == nil {return format_fail(f)}
+	if format_conditional_chain_has_jsx(format_path_at(f, level - 1).expr) {
+		return format_conditional_jsx(f, node, parent == chain_parent, is_alternate, is_parent_test)
+	}
 	_, consequent_nested := consequent^.(^ConditionalExpression)
 	branch :: proc(f: ^FormatContext, expr: ^Expression, key: FormatKey) -> Doc {
 		printed := format_expr(f, expr, key)
@@ -512,6 +518,72 @@ format_conditional :: proc(f: ^FormatContext, node: ^ConditionalExpression) -> D
 	if is_parent_test || in_argument {
 		return fg(f, fi(f, doc_softline(), result), doc_softline())
 	}
+	return result
+}
+
+@(private = "file")
+format_is_jsx :: proc(expr: ^Expression) -> bool {
+	inner := format_expr_unwrap(expr)
+	if inner == nil {return false}
+	#partial switch _ in inner^ {
+	case ^JSXElement, ^JSXFragment: return true
+	}
+	return false
+}
+
+// True when a chain of conditionals holds a JSX element as a test or a
+// branch anywhere. `root` is the conditional that starts the chain.
+@(private = "file")
+format_conditional_chain_has_jsx :: proc(root: ^Expression) -> bool {
+	node := format_expr_unwrap(root)
+	if node == nil {return false}
+	conditional, is_conditional := node^.(^ConditionalExpression)
+	if !is_conditional {return false}
+	for side in ([3]^Expression{conditional.test, conditional.consequent, conditional.alternate}) {
+		if format_is_jsx(side) {return true}
+		// Nested conditionals are few levels deep, and the path bounds how
+		// deep the printer itself goes.
+		if format_conditional_chain_has_jsx(side) {return true}
+	}
+	return false
+}
+
+// A conditional that chooses between JSX elements. Each branch takes
+// parentheses and lines of its own when the conditional breaks, apart from
+// `null` and `undefined`, and the chain does not indent.
+@(private = "file")
+format_conditional_jsx :: proc(
+	f: ^FormatContext,
+	node: ^ConditionalExpression,
+	grouped, is_alternate, is_parent_test: bool,
+) -> Doc {
+	branch :: proc(f: ^FormatContext, expr: ^Expression, key: FormatKey, chain: bool) -> Doc {
+		printed := format_expr(f, expr, key)
+		inner := format_expr_strip(expr)
+		if inner == nil {return format_fail(f)}
+		#partial switch value in inner^ {
+		case ^NullLiteral:
+			return printed
+		case ^Identifier:
+			if value.name == "undefined" {return printed}
+		case ^ConditionalExpression:
+			if chain {return printed}
+		}
+		open, close := doc_if_break(f, ft(f, "(")), doc_if_break(f, ft(f, ")"))
+		return fc(f, open, fi(f, doc_softline(), printed), doc_softline(), close)
+	}
+	test := format_expr(f, node.test, .Test)
+	if is_alternate {test = doc_align(f, 2, test)}
+	result := fc(
+		f,
+		test,
+		ft(f, " ? "),
+		branch(f, node.consequent, .Consequent, false),
+		ft(f, " : "),
+		branch(f, node.alternate, .Alternate, true),
+	)
+	if grouped {result = doc_group(f, result)}
+	if is_parent_test {return fg(f, fi(f, doc_softline(), result), doc_softline())}
 	return result
 }
 

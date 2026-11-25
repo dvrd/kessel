@@ -112,6 +112,9 @@ FormatNodeKind :: enum u8 {
 	TS_Declare_Function,
 	Decorator,
 	JSX,
+	JSX_Attribute,
+	JSX_Expression_Container,
+	JSX_Spread,
 	Other,
 }
 

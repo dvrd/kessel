@@ -556,8 +556,24 @@ format_template_expression :: proc(
 	return fg(f, ft(f, "${"), aligned, doc_line_suffix_boundary(), ft(f, "}"))
 }
 
+// Prettier formats a template as GraphQL, HTML or CSS when a block comment
+// in front of it names the language, and as GraphQL when it is an argument
+// of `graphql(…)`. None of that is ported.
+@(private = "file")
+format_template_is_embedded :: proc(f: ^FormatContext, node: ^TemplateLiteral) -> bool {
+	before := strings.trim_right(f.source[:node.loc.start], " \t\r\n")
+	if strings.has_suffix(before, "*/") {return true}
+	parent := format_parent(f)
+	if parent.kind != .Call || parent.expr == nil {return false}
+	call, is_call := parent.expr^.(^CallExpression)
+	if !is_call || call.callee == nil {return false}
+	callee, named := call.callee^.(^Identifier)
+	return named && callee.name == "graphql"
+}
+
 format_template :: proc(f: ^FormatContext, node: ^TemplateLiteral) -> Doc {
 	if len(node.quasis) != len(node.expressions) + 1 {return format_fail(f)}
+	if format_template_is_embedded(f, node) {return format_fail(f)}
 	parts := make([dynamic]Doc, f.alloc)
 	append(&parts, doc_line_suffix_boundary(), ft(f, "`"))
 	indent_size := 0

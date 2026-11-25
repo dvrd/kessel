@@ -6,18 +6,20 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const fixtures = [...require('../format/modules.json'), ...require('../format/data.json'),
-  ...require('../format/statements.json'), ...require('../format/typescript.json')];
+  ...require('../format/statements.json'), ...require('../format/typescript.json'),
+  ...require('../format/jsx.json')];
 const { prettier_npm } = require('../../OXC_ORACLE.json');
 
 const binary = process.env.KESSEL_BIN || path.resolve(__dirname, '../../bin/kessel');
 const oracle = process.env.KESSEL_PRETTIER && require(process.env.KESSEL_PRETTIER);
 const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'kessel-fmt-'));
-const file = path.join(stage, 'module.ts');
 // Prettier's layout of a generic arrow function depends on the file name, so
-// the reference formats under the name that Kessel is given.
-const filepath = 'module.ts';
+// the reference formats under the name that Kessel is given. A fixture that
+// holds JSX names its own extension.
+const staged = (extension = '.ts') => path.join(stage, 'module' + extension);
+const file = staged();
 
-function run(source, options = {}) {
+function run(source, options = {}, file = staged()) {
   const args = ['fmt', file];
   if (options.printWidth !== undefined) args.push('--print-width', String(options.printWidth));
   if (options.tabWidth !== undefined) args.push('--tab-width', String(options.tabWidth));
@@ -33,9 +35,9 @@ function run(source, options = {}) {
   return result;
 }
 
-function verify(name, source, options, expected) {
+function verify(name, source, options, expected, extension) {
   for (const input of [source, expected]) {
-    const result = run(input, options);
+    const result = run(input, options, staged(extension));
     assert.equal(result.status, 0, name + ' ' + result.stderr);
     assert.equal(result.stdout, expected, name);
   }
@@ -43,18 +45,20 @@ function verify(name, source, options, expected) {
 
 async function main() {
   if (oracle) assert.equal(oracle.version, prettier_npm);
-  for (const {name, source, options, parser, expected} of fixtures) {
+  for (const {name, source, options, parser, extension, expected} of fixtures) {
+    const filepath = path.basename(staged(extension));
     if (oracle) assert.equal(await oracle.format(source, {parser, filepath, ...options}), expected, name);
-    verify(name, source, options, expected);
+    verify(name, source, options, expected, extension);
   }
   if (oracle) {
     let comparisons = 0;
-    for (const {name, source, parser} of fixtures) {
+    for (const {name, source, parser, extension} of fixtures) {
+      const filepath = path.basename(staged(extension));
       for (const printWidth of [12, 20, 32, 48, 80]) {
         for (const style of [{}, {bracketSpacing:false, singleQuote:true}, {useTabs:true, trailingComma:'none'}]) {
           const options = {printWidth, ...style};
           const expected = await oracle.format(source, {parser, filepath, ...options});
-          verify(name, source, options, expected);
+          verify(name, source, options, expected, extension);
           comparisons++;
         }
       }
@@ -63,7 +67,7 @@ async function main() {
   }
   // Statements that the printers do not cover keep their original text:
   // comments inside an expression or a type, ignore directives, decorators in
-  // front of `export` or on a class expression, JSX syntax, and the few shapes
+  // front of `export` or on a class expression, and the few shapes
   // whose Prettier layout would regroup operands or depend on parentheses
   // that the parser does not record.
   const preserved = [
