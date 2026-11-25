@@ -329,8 +329,11 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			continue
 		}
 
-		// Trailing comma in parenthesized expression: don't consume comma before )
-		if cur_type == .Comma && is_next_token(p, .RParen) {
+		// Trailing comma in a parenthesised expression: `(a, b,) => 0`. Only
+		// the list that directly fills the parentheses may end in a comma, so
+		// `if (a, ) {}`, `x[a, ]` and `for (;; i++, ) {}` fall through to the
+		// comma operator below and are rejected there.
+		if cur_type == .Comma && start == p.cover_list_start && is_next_token(p, .RParen) {
 			// §15.3.1 - A trailing comma after a rest element `...x` in
 			// `(...x, ) => body` is a SyntaxError. Check before eating.
 			if _, is_spread := left.(^SpreadElement); is_spread {
@@ -350,8 +353,27 @@ parse_expr_with_prec :: proc(p: ^Parser, min_prec: Precedence) -> ^Expression {
 			seq.expressions = make([dynamic]^Expression, 0, 8, p.allocator)
 			bump_append(&seq.expressions, left)
 			for match_token(p, .Comma) {
+				// `(a, b,) => 0`: the same cover-grammar allowance as above,
+				// met after the second or a later element.
+				if start == p.cover_list_start && is_token(p, .RParen) {
+					last := seq.expressions[len(seq.expressions) - 1]
+					if _, is_spread := last.(^SpreadElement); is_spread {
+						report_error_coded(p, .K3041_RestForm, "Rest element may not have a trailing comma")
+					}
+					break
+				}
+				errors_before := len(p.errors)
 				expr := parse_assignment_expression(p)
-				if expr == nil { break }
+				if expr == nil {
+					// `a, ;` and `{ a, }`: the comma operator needs a right
+					// operand. Some callees return nil without a diagnostic
+					// (a `;` or `}` is simply not an expression start), which
+					// used to let the dangling comma through unreported.
+					if len(p.errors) == errors_before {
+						report_error_coded(p, .K2020_ExpectedExpression, "Expected expression after ','")
+					}
+					break
+				}
 				bump_append(&seq.expressions, expr)
 			}
 			seq.loc.end = prev_end_offset(p)
@@ -2130,25 +2152,22 @@ parse_primary_lparen :: proc(p: ^Parser) -> ^Expression {
 	// even when the surrounding expression is the RHS of another `in`.
 	prev_in_in_rhs := p.ctx.in_in_rhs
 	p.ctx.in_in_rhs = false
+	// Mark the list that may end in a comma when `=>` follows the `)`.
+	prev_cover_list_start := p.cover_list_start
+	p.cover_list_start = cur_offset(p)
 	expr := parse_expr_with_prec(p, .Comma)
+	p.cover_list_start = prev_cover_list_start
 	p.ctx.in_in_rhs = prev_in_in_rhs
 	p.ctx.no_in = prev_no_in
 	if expr == nil {
 		return nil
 	}
+	// The list ended in a comma exactly when the last token consumed before
+	// the `)` is one. Looking at that token rather than scanning the source
+	// backwards also catches `(a, /* note */)`, where trivia separates them.
 	paren_expr_had_trailing_comma := false
-	if p.lexer != nil && is_token(p, .RParen) {
-		src := p.lexer.source_bytes
-		k := int(cur_offset(p)) - 1
-		for k >= 0 {
-			c := src[k]
-			if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
-				k -= 1
-				continue
-			}
-			paren_expr_had_trailing_comma = c == ','
-			break
-		}
+	if p.lexer != nil && is_token(p, .RParen) && p.prev_token_end > 0 {
+		paren_expr_had_trailing_comma = p.lexer.source_bytes[p.prev_token_end - 1] == ','
 	}
 	if !expect_token(p, .RParen) {
 		return nil
@@ -3223,8 +3242,12 @@ parse_property_key :: proc(p: ^Parser) -> (key: ^Expression, computed: bool, ok:
 		} else {
 			big.value = current.value
 		}
-		big.loc.end = prev_end_offset(p)
+		// The token must be consumed before its end is read: taken earlier,
+		// prev_end_offset is the end of the token before the key (the `{` or
+		// `,`) and the literal gets an empty range.
 		eat(p)
+		big.loc.end = prev_end_offset(p)
+		assert(big.loc.start < big.loc.end)
 		return big_e, false, true
 	}
 	if is_token(p, .Identifier) || is_token(p, .String) || is_token(p, .Number) ||

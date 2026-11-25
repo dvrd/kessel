@@ -789,8 +789,8 @@ StringLiteral :: struct {
 	// represent. A lone surrogate written as an escape (`"\uD800"`,
 	// `"\u{DFFF}"`) is stored as the 3-byte sequence its code point would
 	// have (ED A0 80 .. ED BF BF). An escaped high + low PAIR
-	// (`"\uD83D\uDE00"`) is combined into the single 4-byte sequence of
-	// the code point it denotes.
+	// (`"\uD83D\uDE00"`, also spelled `"\u{D83D}\u{DE00}"`) is combined into
+	// the single 4-byte sequence of the code point it denotes.
 	//
 	// Consequence for Odin consumers: `value` is not guaranteed to pass
 	// `utf8.valid_string`, and a strict UTF-8 decoder reports the bytes of
@@ -819,10 +819,12 @@ RegExpLiteral :: struct {
 TemplateElement :: struct {
 	loc:               Loc,
 	tail:              bool,
-	// The text with escapes decoded. Lone escaped surrogates are WTF-8
-	// encoded exactly as in StringLiteral.value. Known inconsistency: an
-	// escaped surrogate PAIR is not combined here, so `\uD83D\uDE00`
-	// yields two 3-byte sequences rather than one 4-byte sequence.
+	// The text with escapes decoded, in the same WTF-8 encoding as
+	// StringLiteral.value: a lone escaped surrogate is a 3-byte sequence and
+	// an escaped high + low pair (`\uD83D\uDE00`) is the single 4-byte
+	// sequence of its code point. Pinned by
+	// test_template_cooked_lone_surrogates_are_wtf8 and
+	// test_cooked_surrogate_pairs_are_joined.
 	cooked:            Maybe(string),
 	raw:               string,
 }

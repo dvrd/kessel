@@ -498,7 +498,7 @@ babel/packages/babel-parser/test/fixtures/es2015/uncategorised/286/input.js:1:17
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/289/input.js:1:6: Parameter name 'eval' is not allowed in strict mode
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/290/input.js:1:27: Invalid escape sequence in template literal
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/291/input.js:1:8: 'import' is only valid in module code
-babel/packages/babel-parser/test/fixtures/es2015/uncategorised/293/input.js:1:13: Unexpected spread/rest element in expression
+babel/packages/babel-parser/test/fixtures/es2015/uncategorised/293/input.js:1:13: Expected expression after ','
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/294/input.js:1:10: Unexpected spread/rest element outside of arrow parameters
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/295/input.js:2:1: Expected '}' at end of switch statement
 babel/packages/babel-parser/test/fixtures/es2015/uncategorised/296/input.js:1:27: Arrow parameter 'eval' is not allowed in strict mode
