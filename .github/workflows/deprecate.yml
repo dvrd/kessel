@@ -1,10 +1,7 @@
 name: Deprecate
 
 # Manually deprecate a published version across the main package and all
-# five platform sub-packages in one shot, using the existing release
-# NPM_TOKEN (which has bypass-2FA enabled). Avoids the per-call WebAuthn
-# round-trip that the npm CLI requires when run locally against an
-# account that doesn't carry an automation token.
+# five platform sub-packages in one shot.
 #
 # Trigger: GitHub UI → Actions → Deprecate → Run workflow, then fill in
 # `version` and `message`. The workflow runs once and exits; nothing is
@@ -13,7 +10,21 @@ name: Deprecate
 # Why this exists: v0.4.0 segfaulted on every x86_64 platform; the local
 # `npm deprecate` flow refused without per-package passkey confirms
 # because @dvrdlibs enforces 2FA on publish-class operations. Easier to
-# let CI burn one secret access than to tap a passkey six times.
+# let CI make six calls than to tap a passkey six times.
+#
+# Authentication. Releases publish through npm trusted publishing and need
+# no token, but a trusted publisher may only publish, stage and move
+# dist-tags: it cannot deprecate. So this workflow still needs a token, and
+# because it runs rarely, the token should live only as long as one run:
+#
+#   1. npmjs.com → Access Tokens → Generate New Token → Granular Access
+#      Token: read and write on the six @dvrdlibs/kessel* packages, bypass
+#      2FA, expiry 1 day.
+#   2. Save it as the repository secret NPM_TOKEN
+#      (`gh secret set NPM_TOKEN --repo dvrd/kessel`).
+#   3. Run this workflow.
+#   4. Delete the secret (`gh secret delete NPM_TOKEN --repo dvrd/kessel`)
+#      and let the token expire.
 
 on:
   workflow_dispatch:
@@ -37,6 +48,15 @@ jobs:
   deprecate:
     runs-on: ubuntu-latest
     steps:
+      - name: Require a short-lived NPM_TOKEN
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "::error::Set the NPM_TOKEN secret to a 1-day granular token first; see the comment at the top of .github/workflows/deprecate.yml."
+            exit 1
+          fi
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

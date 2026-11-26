@@ -17,6 +17,40 @@ trap 'rm -rf -- "$consumer"' EXIT
 cd "$consumer"
 printf '{"name":"kessel-registry-smoke","private":true}\n' > package.json
 unset NODE_PATH
+
+# npm accepts a publish before it serves it: for a few minutes the version can
+# be missing from the package metadata, or listed with a tarball that still
+# answers 404. npm skips an optional dependency it cannot download without
+# failing the install, so a check that starts too early installs the SDK with
+# no native library. Wait, with a bound, until every package serves both.
+node --input-type=module - "$version" <<'NODE'
+const version = process.argv[2];
+const names = ['kessel', 'kessel-darwin-arm64', 'kessel-darwin-x64', 'kessel-linux-arm64',
+  'kessel-linux-x64', 'kessel-win32-x64'];
+const registry = 'https://registry.npmjs.org/@dvrdlibs';
+const attempt_count_max = 60;
+const attempt_delay_ms = 10_000;
+
+async function available(name) {
+  const metadata = await fetch(`${registry}/${name}/${version}`, { cache: 'no-store' });
+  if (!metadata.ok) return false;
+  const { dist } = await metadata.json();
+  const tarball = await fetch(dist.tarball, { method: 'HEAD', cache: 'no-store' });
+  return tarball.ok;
+}
+
+let pending = names;
+for (let attempt = 1; attempt <= attempt_count_max; attempt += 1) {
+  const ready = await Promise.all(pending.map(name => available(name).catch(() => false)));
+  pending = pending.filter((_, index) => !ready[index]);
+  if (pending.length === 0) process.exit(0);
+  console.log(`Waiting for the registry to serve ${version} of: ${pending.join(', ')}`);
+  await new Promise(resolve => setTimeout(resolve, attempt_delay_ms));
+}
+console.error(`The registry still does not serve ${version} of: ${pending.join(', ')}`);
+process.exit(1);
+NODE
+
 npm install --registry=https://registry.npmjs.org --cache ./npm-cache \
   --include=optional --package-lock=true --no-audit --no-fund --save-exact "@dvrdlibs/kessel@$version"
 
